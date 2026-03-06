@@ -2,23 +2,36 @@ package app.komikku.core.navigation
 
 import kotlinx.serialization.Serializable
 
-object KomikkuDestinations {
+/**
+ * Type-safe navigation destinations for Navigation Compose.
+ * Each sealed class/object is serializable for use with Navigation Compose 2.8+.
+ */
+sealed interface KomikkuDestination
 
-    @Serializable
-    data object LibraryRoute
+/** Top-level navigation graph destinations. */
+@Serializable
+object LibraryRoute : KomikkuDestination
 
-    @Serializable
-    data object UpdatesRoute
+@Serializable
+object UpdatesRoute : KomikkuDestination
 
-    @Serializable
-    data object BrowseRoute
+@Serializable
+object BrowseRoute : KomikkuDestination
 
-    @Serializable
-    data object SettingsRoute
+@Serializable
+object HistoryRoute : KomikkuDestination
 
-    @Serializable
-    data class MangaDetailRoute(val mangaId: Long)
+@Serializable
+object SettingsRoute : KomikkuDestination
 
-    @Serializable
-    data class ReaderRoute(val mangaId: Long, val chapterId: Long)
-}
+/** Manga detail screen. */
+@Serializable
+data class MangaDetailRoute(val mangaId: Long) : KomikkuDestination
+
+/** Reader screen. */
+@Serializable
+data class ReaderRoute(val mangaId: Long, val chapterId: Long) : KomikkuDestination
+
+/** Browse/Source detail screen. */
+@Serializable
+data class SourceDetailRoute(val sourceId: String) : KomikkuDestination

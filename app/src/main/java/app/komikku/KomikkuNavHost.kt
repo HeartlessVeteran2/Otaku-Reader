@@ -4,13 +4,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
-import app.komikku.core.navigation.KomikkuDestinations
+import app.komikku.core.navigation.LibraryRoute
+import app.komikku.core.navigation.MangaDetailRoute
+import app.komikku.core.navigation.ReaderRoute
 import app.komikku.feature.browse.navigation.browseScreen
+import app.komikku.feature.history.navigation.historyScreen
 import app.komikku.feature.library.navigation.libraryScreen
 import app.komikku.feature.reader.navigation.readerScreen
 import app.komikku.feature.settings.navigation.settingsScreen
 import app.komikku.feature.updates.navigation.updatesScreen
 
+/**
+ * Top-level navigation graph for Komikku.
+ * Delegates each destination to its feature-module navigation extension.
+ */
 @Composable
 fun KomikkuNavHost(
     navController: NavHostController,
@@ -18,18 +25,25 @@ fun KomikkuNavHost(
 ) {
     NavHost(
         navController = navController,
-        startDestination = KomikkuDestinations.LibraryRoute,
+        startDestination = LibraryRoute,
         modifier = modifier,
     ) {
         libraryScreen(
             onMangaClick = { mangaId ->
-                navController.navigate(KomikkuDestinations.MangaDetailRoute(mangaId))
+                navController.navigate(MangaDetailRoute(mangaId))
             },
         )
-        updatesScreen()
+        updatesScreen(
+            onChapterClick = { mangaId, chapterId ->
+                navController.navigate(ReaderRoute(mangaId, chapterId))
+            },
+        )
         browseScreen(
-            onMangaClick = { mangaId ->
-                navController.navigate(KomikkuDestinations.MangaDetailRoute(mangaId))
+            onMangaClick = { _, _ -> /* Navigate to source detail — Phase 1 */ },
+        )
+        historyScreen(
+            onChapterClick = { mangaId, chapterId ->
+                navController.navigate(ReaderRoute(mangaId, chapterId))
             },
         )
         settingsScreen()

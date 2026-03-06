@@ -4,31 +4,27 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import androidx.room.Update
 import app.komikku.core.database.entity.ChapterEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ChapterDao {
 
-    @Query("SELECT * FROM chapter WHERE mangaId = :mangaId ORDER BY sourceOrder DESC")
-    fun getChaptersByMangaId(mangaId: Long): Flow<List<ChapterEntity>>
+    @Query("SELECT * FROM chapter WHERE manga_id = :mangaId ORDER BY source_order DESC")
+    fun observeChaptersByManga(mangaId: Long): Flow<List<ChapterEntity>>
 
-    @Query("SELECT * FROM chapter WHERE id = :id")
-    suspend fun getChapterById(id: Long): ChapterEntity?
+    @Query("SELECT * FROM chapter WHERE id = :id LIMIT 1")
+    suspend fun getChapter(id: Long): ChapterEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertChapters(chapters: List<ChapterEntity>)
+    suspend fun upsertAll(chapters: List<ChapterEntity>)
 
-    @Update
-    suspend fun updateChapter(chapter: ChapterEntity)
+    @Query("UPDATE chapter SET read = :read, last_page_read = :lastPageRead WHERE id = :id")
+    suspend fun setRead(id: Long, read: Boolean, lastPageRead: Int)
 
-    @Query("UPDATE chapter SET read = :read WHERE id = :id")
-    suspend fun markRead(id: Long, read: Boolean)
+    @Query("UPDATE chapter SET bookmark = :bookmarked WHERE id = :id")
+    suspend fun setBookmarked(id: Long, bookmarked: Boolean)
 
-    @Query("UPDATE chapter SET read = 1 WHERE mangaId = :mangaId")
-    suspend fun markAllRead(mangaId: Long)
-
-    @Query("SELECT COUNT(*) FROM chapter WHERE mangaId = :mangaId AND read = 0")
-    fun getUnreadCount(mangaId: Long): Flow<Int>
+    @Query("SELECT COUNT(*) FROM chapter WHERE manga_id = :mangaId AND read = 0")
+    fun observeUnreadCount(mangaId: Long): Flow<Int>
 }

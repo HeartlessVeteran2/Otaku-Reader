@@ -1,6 +1,5 @@
 plugins {
-    id("komikku.android.library")
-    id("komikku.android.hilt")
+    alias(libs.plugins.komikku.android.library)
 }
 
 android {
@@ -8,7 +7,7 @@ android {
 }
 
 dependencies {
+    implementation(libs.androidx.core.ktx)
     implementation(libs.kotlinx.coroutines.android)
-    testImplementation(libs.junit)
-    testImplementation(libs.kotlinx.coroutines.test)
+    api(libs.kotlinx.coroutines.core)
 }

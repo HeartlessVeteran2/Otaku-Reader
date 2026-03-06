@@ -1,6 +1,8 @@
 plugins {
-    id("komikku.android.library")
-    id("komikku.android.hilt")
+    alias(libs.plugins.komikku.android.library)
+    alias(libs.plugins.komikku.android.hilt)
+    alias(libs.plugins.komikku.android.room)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -8,16 +10,15 @@ android {
 }
 
 dependencies {
-    implementation(project(":domain"))
-    implementation(project(":core:database"))
-    implementation(project(":core:preferences"))
-    implementation(project(":source-api"))
+    implementation(projects.core.common)
+    implementation(projects.core.network)
+    implementation(projects.core.database)
+    implementation(projects.core.preferences)
+    implementation(projects.domain)
+    implementation(projects.sourceApi)
 
-    implementation(libs.kotlinx.coroutines.android)
-    implementation(libs.kotlinx.serialization.json)
-    implementation(libs.okhttp)
-    implementation(libs.okhttp.logging)
-
-    testImplementation(libs.junit)
-    testImplementation(libs.kotlinx.coroutines.test)
+    implementation(libs.paging.runtime)
+    implementation(libs.workmanager.ktx)
+    implementation(libs.hilt.work)
+    ksp(libs.hilt.compiler)
 }

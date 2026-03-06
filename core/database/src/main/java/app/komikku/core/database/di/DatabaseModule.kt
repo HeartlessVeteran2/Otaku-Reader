@@ -3,8 +3,11 @@ package app.komikku.core.database.di
 import android.content.Context
 import androidx.room.Room
 import app.komikku.core.database.KomikkuDatabase
+import app.komikku.core.database.dao.CategoryDao
 import app.komikku.core.database.dao.ChapterDao
+import app.komikku.core.database.dao.MangaCategoryDao
 import app.komikku.core.database.dao.MangaDao
+import app.komikku.core.database.dao.ReadingHistoryDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -22,12 +25,21 @@ object DatabaseModule {
         Room.databaseBuilder(
             context,
             KomikkuDatabase::class.java,
-            "komikku.db",
+            KomikkuDatabase.DATABASE_NAME
         ).build()
 
     @Provides
-    fun provideMangaDao(database: KomikkuDatabase): MangaDao = database.mangaDao()
+    fun provideMangaDao(db: KomikkuDatabase): MangaDao = db.mangaDao()
 
     @Provides
-    fun provideChapterDao(database: KomikkuDatabase): ChapterDao = database.chapterDao()
+    fun provideChapterDao(db: KomikkuDatabase): ChapterDao = db.chapterDao()
+
+    @Provides
+    fun provideCategoryDao(db: KomikkuDatabase): CategoryDao = db.categoryDao()
+
+    @Provides
+    fun provideMangaCategoryDao(db: KomikkuDatabase): MangaCategoryDao = db.mangaCategoryDao()
+
+    @Provides
+    fun provideReadingHistoryDao(db: KomikkuDatabase): ReadingHistoryDao = db.readingHistoryDao()
 }

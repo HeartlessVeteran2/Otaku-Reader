@@ -1,5 +1,5 @@
 plugins {
-    id("komikku.android.library")
+    alias(libs.plugins.komikku.android.library)
 }
 
 android {
@@ -7,6 +7,7 @@ android {
 }
 
 dependencies {
-    implementation(libs.androidx.navigation.compose)
+    api(libs.navigation.compose)
+    api(libs.hilt.navigation.compose)
     implementation(libs.kotlinx.serialization.json)
 }

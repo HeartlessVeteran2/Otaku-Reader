@@ -1,5 +1,6 @@
 plugins {
-    id("komikku.android.feature")
+    alias(libs.plugins.komikku.android.feature)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -7,5 +8,9 @@ android {
 }
 
 dependencies {
-    implementation(project(":core:preferences"))
+    implementation(projects.core.common)
+    implementation(projects.core.preferences)
+    implementation(libs.paging.compose)
+    implementation(libs.lifecycle.viewmodel.ktx)
+    implementation(libs.kotlinx.serialization.json)
 }

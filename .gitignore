@@ -1,86 +1,31 @@
-# Gradle files
+# Gradle
 .gradle/
 build/
-!gradle/wrapper/gradle-wrapper.jar
-!**/src/main/**/build/
-!**/src/test/**/build/
+**/build/
 
-# Local configuration file (sdk path, etc)
-local.properties
-
-# Android Studio
-*.iml
+# IntelliJ IDEA / Android Studio
 .idea/
-.idea/caches
-.idea/libraries
-.idea/modules.xml
-.idea/workspace.xml
-.idea/navEditor.xml
-.idea/assetWizardSettings.xml
-.idea/gradle.xml
-.idea/compiler.xml
-.idea/misc.xml
-.idea/vcs.xml
-.idea/dictionaries
-.idea/httpRequests/
-
-# Android Studio captures folder
-captures/
-
-# IntelliJ
+*.iml
+*.ipr
+*.iws
 out/
+.DS_Store
 
-# Keystore files
+# Android
+local.properties
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# Google Services / Signing
+google-services.json
+keystore.properties
 *.jks
 *.keystore
 
-# External native build folder generated in Android Studio 2.2 and later
-.externalNativeBuild
-.cxx/
+# Room schemas (keep these in VCS for migration tracking)
+# !**/schemas/*.json
 
-# Google Services (e.g. APIs or Firebase)
-google-services.json
-
-# OS-specific files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-
-# Log files
-*.log
-
-# Android Profiling
-*.hprof
-
-# Kotlin
-.kotlin/
-
-# Compose compiler reports
-compose-reports/
-compose-metrics/
-
-# Baseline profiles (generated)
-app/src/main/baselineProfiles/
-
-# Room schemas (generated)
-**/schemas/
-
-# Test results
-test-results/
-reports/
-
-# Coverage
-*.exec
-*.ec
-
-# Detekt
-detekt-report.*
-
-# Temporary files
-*.swp
-*.swo
-*~
+# Distribution / package
+dist/

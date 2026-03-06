@@ -1,17 +1,25 @@
 package app.komikku.feature.settings
 
-data class SettingsState(
-    val theme: String = "system",
-    val dynamicColors: Boolean = true,
-    val gridSize: Int = 3,
-    val autoUpdate: Boolean = true,
-)
+import app.komikku.core.common.mvi.UiEffect
+import app.komikku.core.common.mvi.UiEvent
+import app.komikku.core.common.mvi.UiState
 
-sealed class SettingsEvent {
-    data class OnThemeChange(val theme: String) : SettingsEvent()
-    data class OnDynamicColorsChange(val enabled: Boolean) : SettingsEvent()
-    data class OnGridSizeChange(val size: Int) : SettingsEvent()
-    data class OnAutoUpdateChange(val enabled: Boolean) : SettingsEvent()
+data class SettingsState(
+    val themeMode: Int = 0,           // 0=system, 1=light, 2=dark
+    val useDynamicColor: Boolean = true,
+    val readerMode: Int = 0,          // 0=paged, 1=webtoon, 2=LTR
+    val updateCheckInterval: Int = 12, // hours
+    val notificationsEnabled: Boolean = true
+) : UiState
+
+sealed interface SettingsEvent : UiEvent {
+    data class SetThemeMode(val mode: Int) : SettingsEvent
+    data class SetDynamicColor(val enabled: Boolean) : SettingsEvent
+    data class SetReaderMode(val mode: Int) : SettingsEvent
+    data class SetUpdateInterval(val hours: Int) : SettingsEvent
+    data class SetNotificationsEnabled(val enabled: Boolean) : SettingsEvent
 }
 
-sealed class SettingsEffect
+sealed interface SettingsEffect : UiEffect {
+    data class ShowSnackbar(val message: String) : SettingsEffect
+}

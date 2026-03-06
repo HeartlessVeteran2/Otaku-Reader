@@ -27,17 +27,19 @@ class BrowseViewModel @Inject constructor() : ViewModel() {
 
     fun onEvent(event: BrowseEvent) {
         when (event) {
-            is BrowseEvent.OnMangaClick -> navigateToDetail(event.mangaId)
+            is BrowseEvent.SelectSource -> _state.update { it.copy(currentSourceId = event.sourceId) }
+            is BrowseEvent.OnMangaClick -> navigateToDetail(event.manga.url, event.manga.url)
             is BrowseEvent.OnSearchQueryChange -> _state.update { it.copy(searchQuery = event.query) }
-            is BrowseEvent.OnSearch -> performSearch()
+            is BrowseEvent.Search -> performSearch()
+            is BrowseEvent.LoadNextPage -> { /* TODO: Phase 1 — paginate source results */ }
         }
     }
 
-    private fun navigateToDetail(mangaId: Long) {
-        viewModelScope.launch { _effect.send(BrowseEffect.NavigateToMangaDetail(mangaId)) }
+    private fun navigateToDetail(sourceId: String, mangaUrl: String) {
+        viewModelScope.launch { _effect.send(BrowseEffect.NavigateToMangaDetail(sourceId, mangaUrl)) }
     }
 
     private fun performSearch() {
-        // TODO: implement search via source-api
+        // TODO: Phase 1 — implement search via source-api
     }
 }

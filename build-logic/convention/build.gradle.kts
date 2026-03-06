@@ -1,4 +1,4 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     `kotlin-dsl`
@@ -11,16 +11,41 @@ java {
     targetCompatibility = JavaVersion.VERSION_17
 }
 
-tasks.withType<KotlinCompile>().configureEach {
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
+kotlin {
+    compilerOptions {
+        jvmTarget = JvmTarget.JVM_17
     }
 }
 
 dependencies {
-    compileOnly(libs.android.gradlePlugin)
-    compileOnly(libs.kotlin.gradlePlugin)
-    compileOnly(libs.ksp.gradlePlugin)
+    compileOnly(libs.plugins.android.application.get().run {
+        "$pluginId:$pluginId.gradle.plugin:${version.requiredVersion}"
+    })
+    compileOnly(libs.plugins.android.library.get().run {
+        "$pluginId:$pluginId.gradle.plugin:${version.requiredVersion}"
+    })
+    compileOnly(libs.plugins.kotlin.android.get().run {
+        "$pluginId:$pluginId.gradle.plugin:${version.requiredVersion}"
+    })
+    compileOnly(libs.plugins.kotlin.compose.get().run {
+        "$pluginId:$pluginId.gradle.plugin:${version.requiredVersion}"
+    })
+    compileOnly(libs.plugins.ksp.get().run {
+        "$pluginId:$pluginId.gradle.plugin:${version.requiredVersion}"
+    })
+    compileOnly(libs.plugins.hilt.get().run {
+        "$pluginId:$pluginId.gradle.plugin:${version.requiredVersion}"
+    })
+    compileOnly(libs.plugins.room.get().run {
+        "$pluginId:$pluginId.gradle.plugin:${version.requiredVersion}"
+    })
+}
+
+tasks {
+    validatePlugins {
+        enableStricterValidation = true
+        failOnWarning = true
+    }
 }
 
 gradlePlugin {
@@ -48,14 +73,6 @@ gradlePlugin {
         register("kotlinLibrary") {
             id = "komikku.kotlin.library"
             implementationClass = "KotlinLibraryConventionPlugin"
-        }
-        register("androidApplicationCompose") {
-            id = "komikku.android.application.compose"
-            implementationClass = "AndroidApplicationComposeConventionPlugin"
-        }
-        register("androidLibraryCompose") {
-            id = "komikku.android.library.compose"
-            implementationClass = "AndroidLibraryComposeConventionPlugin"
         }
     }
 }

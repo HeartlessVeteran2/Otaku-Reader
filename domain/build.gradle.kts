@@ -1,9 +1,9 @@
 plugins {
-    id("komikku.kotlin.library")
+    alias(libs.plugins.komikku.kotlin.library)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 dependencies {
     implementation(libs.kotlinx.coroutines.core)
-    testImplementation(libs.junit)
-    testImplementation(libs.kotlinx.coroutines.test)
+    implementation(libs.kotlinx.serialization.json)
 }
