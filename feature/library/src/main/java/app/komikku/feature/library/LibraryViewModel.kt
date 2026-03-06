@@ -2,20 +2,17 @@ package app.komikku.feature.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import app.komikku.domain.model.LibraryManga
 import app.komikku.domain.repository.CategoryRepository
 import app.komikku.domain.usecase.GetLibraryUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.receiveAsFlow
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -39,13 +36,15 @@ class LibraryViewModel @Inject constructor(
 
     private val searchQuery = MutableStateFlow("")
 
+    private var libraryJob: Job? = null
+
     init {
         observeLibrary()
         observeCategories()
     }
 
     private fun observeLibrary() {
-        viewModelScope.launch {
+        libraryJob = viewModelScope.launch {
             searchQuery
                 .flatMapLatest { query -> getLibraryUseCase(query) }
                 .catch { e -> _state.update { it.copy(error = e.message, isLoading = false) } }
@@ -78,7 +77,7 @@ class LibraryViewModel @Inject constructor(
 
     private fun refresh() {
         _state.update { it.copy(isLoading = true) }
-        // Re-trigger library observation
+        libraryJob?.cancel()
         observeLibrary()
     }
 

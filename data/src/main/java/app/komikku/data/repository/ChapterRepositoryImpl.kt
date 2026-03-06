@@ -36,14 +36,14 @@ class ChapterRepositoryImpl @Inject constructor(
 
     override fun observeHistory(): Flow<List<ChapterWithHistory>> =
         readingHistoryDao.observeHistory().map { list ->
-            list.map { entity ->
+            list.mapNotNull { entity ->
+                val chapter = chapterDao.getChapter(entity.chapterId)?.toChapter() ?: return@mapNotNull null
                 ChapterWithHistory(
-                    chapter = chapterDao.getChapter(entity.chapterId)?.toChapter()
-                        ?: return@map null,
+                    chapter = chapter,
                     readAt = entity.readAt,
                     readDurationMs = entity.readDurationMs
                 )
-            }.filterNotNull()
+            }
         }
 
     override suspend fun deleteHistoryBefore(timestamp: Long) =

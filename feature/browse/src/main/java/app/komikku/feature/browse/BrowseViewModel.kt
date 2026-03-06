@@ -28,7 +28,10 @@ class BrowseViewModel @Inject constructor() : ViewModel() {
     fun onEvent(event: BrowseEvent) {
         when (event) {
             is BrowseEvent.SelectSource -> _state.update { it.copy(currentSourceId = event.sourceId) }
-            is BrowseEvent.OnMangaClick -> navigateToDetail(event.manga.url, event.manga.url)
+            is BrowseEvent.OnMangaClick -> {
+                val sourceId = _state.value.currentSourceId ?: return
+                navigateToDetail(sourceId, event.manga.url)
+            }
             is BrowseEvent.OnSearchQueryChange -> _state.update { it.copy(searchQuery = event.query) }
             is BrowseEvent.Search -> performSearch()
             is BrowseEvent.LoadNextPage -> { /* TODO: Phase 1 — paginate source results */ }

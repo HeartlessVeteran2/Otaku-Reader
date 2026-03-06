@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
@@ -25,7 +26,12 @@ class UpdatesViewModel @Inject constructor() : ViewModel() {
 
     fun onEvent(event: UpdatesEvent) {
         when (event) {
-            UpdatesEvent.OnRefresh -> checkForUpdates()
+            UpdatesEvent.Refresh -> checkForUpdates()
+            is UpdatesEvent.OnChapterClick -> {
+                viewModelScope.launch {
+                    _effect.send(UpdatesEffect.NavigateToReader(event.mangaId, event.chapterId))
+                }
+            }
         }
     }
 

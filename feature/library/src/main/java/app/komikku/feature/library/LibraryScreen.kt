@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Badge
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -28,12 +29,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.komikku.core.ui.component.EmptyScreen
 import app.komikku.core.ui.component.LoadingScreen
 import app.komikku.domain.model.LibraryManga
+import coil3.compose.AsyncImage
 
 /**
  * Entry point composable for the Library feature.
@@ -132,14 +135,14 @@ private fun MangaGridItem(
             .aspectRatio(2f / 3f)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
     ) {
-        coil.compose.AsyncImage(
+        AsyncImage(
             model = manga.manga.thumbnailUrl,
             contentDescription = manga.manga.title,
             modifier = Modifier.fillMaxSize(),
-            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+            contentScale = ContentScale.Crop
         )
         if (manga.unreadCount > 0) {
-            androidx.compose.material3.Badge(
+            Badge(
                 modifier = Modifier.padding(4.dp)
             ) {
                 Text(

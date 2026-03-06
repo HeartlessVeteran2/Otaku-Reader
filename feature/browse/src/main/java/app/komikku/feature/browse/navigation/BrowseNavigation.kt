@@ -6,7 +6,7 @@ import app.komikku.core.navigation.BrowseRoute
 import app.komikku.feature.browse.BrowseScreen
 
 fun NavGraphBuilder.browseScreen(
-    onMangaClick: (Long) -> Unit,
+    onMangaClick: (sourceId: String, mangaUrl: String) -> Unit,
 ) {
     composable<BrowseRoute> {
         BrowseScreen(onMangaClick = onMangaClick)
