@@ -1,17 +1,7 @@
 pluginManagement {
     repositories {
         mavenCentral()
-        google {
-            content {
-                includeGroupByRegex("com\\.android.*")
-                includeGroupByRegex("com\\.google\\.android.*")
-                includeGroupByRegex("com\\.google\\.dagger.*")
-                includeGroupByRegex("com\\.google\\.devtools.*")
-                includeGroupByRegex("com\\.google\\.firebase.*")
-                includeGroupByRegex("com\\.google\\.gms.*")
-                includeGroupByRegex("androidx.*")
-            }
-        }
+        google()
         gradlePluginPortal()
     }
 }
@@ -19,17 +9,7 @@ pluginManagement {
 dependencyResolutionManagement {
     repositories {
         mavenCentral()
-        google {
-            content {
-                includeGroupByRegex("com\\.android.*")
-                includeGroupByRegex("com\\.google\\.android.*")
-                includeGroupByRegex("com\\.google\\.dagger.*")
-                includeGroupByRegex("com\\.google\\.devtools.*")
-                includeGroupByRegex("com\\.google\\.firebase.*")
-                includeGroupByRegex("com\\.google\\.gms.*")
-                includeGroupByRegex("androidx.*")
-            }
-        }
+        google()
     }
     versionCatalogs {
         create("libs") {

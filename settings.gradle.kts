@@ -4,17 +4,7 @@ pluginManagement {
     includeBuild("build-logic")
     repositories {
         mavenCentral()
-        google {
-            content {
-                includeGroupByRegex("com\\.android.*")
-                includeGroupByRegex("com\\.google\\.android.*")
-                includeGroupByRegex("com\\.google\\.dagger.*")
-                includeGroupByRegex("com\\.google\\.devtools.*")
-                includeGroupByRegex("com\\.google\\.firebase.*")
-                includeGroupByRegex("com\\.google\\.gms.*")
-                includeGroupByRegex("androidx.*")
-            }
-        }
+        google()
         gradlePluginPortal()
     }
 }
@@ -23,17 +13,7 @@ dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         mavenCentral()
-        google {
-            content {
-                includeGroupByRegex("com\\.android.*")
-                includeGroupByRegex("com\\.google\\.android.*")
-                includeGroupByRegex("com\\.google\\.dagger.*")
-                includeGroupByRegex("com\\.google\\.devtools.*")
-                includeGroupByRegex("com\\.google\\.firebase.*")
-                includeGroupByRegex("com\\.google\\.gms.*")
-                includeGroupByRegex("androidx.*")
-            }
-        }
+        google()
         maven("https://jitpack.io")
     }
 }
