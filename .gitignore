@@ -9,6 +9,7 @@
 # Local configuration
 local.properties
 .idea/
+.kotlin/
 .DS_Store
 
 # Android
