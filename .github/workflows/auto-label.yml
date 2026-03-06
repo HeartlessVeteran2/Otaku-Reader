@@ -1,0 +1,224 @@
+name: Auto Label Issues and PRs
+
+on:
+  issues:
+    types: [opened, edited, reopened]
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+jobs:
+  label-issue:
+    if: github.event_name == 'issues'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Label Issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const title = issue.title.toLowerCase();
+            const body = (issue.body || '').toLowerCase();
+            const labels = [];
+            
+            // Bug detection
+            if (title.includes('bug') || title.includes('fix') || title.includes('crash') || 
+                title.includes('error') || body.includes('bug report') || title.includes('broken')) {
+              labels.push('bug');
+            }
+            
+            // Feature detection
+            if (title.includes('feature') || title.includes('add') || title.includes('implement') ||
+                title.includes('request') || body.includes('feature request')) {
+              labels.push('enhancement');
+            }
+            
+            // AI-related
+            if (title.includes('ai') || title.includes('gemini') || title.includes('ollama') ||
+                title.includes('smart') || title.includes('recommendation') || body.includes('ai')) {
+              labels.push('AI');
+            }
+            
+            // Extension system
+            if (title.includes('extension') || title.includes('source') || title.includes('plugin') ||
+                body.includes('extension')) {
+              labels.push('extension');
+            }
+            
+            // Build/Gradle
+            if (title.includes('build') || title.includes('gradle') || title.includes('compile') ||
+                title.includes('dependency') || body.includes('build')) {
+              labels.push('build');
+            }
+            
+            // UI/UX
+            if (title.includes('ui') || title.includes('design') || title.includes('theme') ||
+                title.includes('screen') || title.includes('layout') || title.includes('navigation')) {
+              labels.push('UI/UX');
+            }
+            
+            // Database
+            if (title.includes('database') || title.includes('room') || title.includes('sqlite') ||
+                title.includes('migration') || title.includes('entity')) {
+              labels.push('database');
+            }
+            
+            // Documentation
+            if (title.includes('doc') || title.includes('readme') || title.includes('comment') ||
+                title.includes('guide') || title.includes('wiki')) {
+              labels.push('documentation');
+            }
+            
+            // Architecture/Clean Architecture
+            if (title.includes('architecture') || title.includes('clean') || title.includes('module') ||
+                title.includes('refactor') || body.includes('architecture')) {
+              labels.push('architecture');
+            }
+            
+            // Priority: High
+            if (title.includes('critical') || title.includes('urgent') || title.includes('blocking') ||
+                title.includes('p0') || title.includes('priority-high')) {
+              labels.push('priority-high');
+            }
+            
+            // Priority: Low
+            if (title.includes('minor') || title.includes('nitpick') || title.includes('p3') ||
+                title.includes('nice to have')) {
+              labels.push('priority-low');
+            }
+            
+            // Epic (large features)
+            if (title.includes('epic') || title.includes('master') || title.includes('tracking') ||
+                body.includes('epic') || title.includes('roadmap')) {
+              labels.push('epic');
+            }
+            
+            // Apply labels if any found
+            if (labels.length > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: labels
+              });
+              console.log(`Added labels to issue #${issue.number}: ${labels.join(', ')}`);
+            }
+
+  label-pr:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Label PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const title = pr.title.toLowerCase();
+            const body = (pr.body || '').toLowerCase();
+            const labels = [];
+            
+            // Get files changed in PR
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number
+            });
+            
+            const filePaths = files.map(f => f.filename.toLowerCase());
+            const fileExtensions = files.map(f => f.filename.split('.').pop()?.toLowerCase());
+            
+            // Bug fix detection
+            if (title.includes('fix') || title.includes('bug') || title.includes('hotfix') ||
+                title.includes('patch') || body.includes('fixes #')) {
+              labels.push('bug');
+            }
+            
+            // Feature detection
+            if (title.includes('feat') || title.includes('add') || title.includes('implement') ||
+                title.includes('new')) {
+              labels.push('enhancement');
+            }
+            
+            // Refactor
+            if (title.includes('refactor') || title.includes('clean') || title.includes('restructure')) {
+              labels.push('refactor');
+            }
+            
+            // Build/Gradle changes
+            if (filePaths.some(f => f.includes('build.gradle')) || 
+                filePaths.some(f => f.includes('settings.gradle')) ||
+                filePaths.some(f => f.includes('gradle/')) ||
+                title.includes('gradle') || title.includes('build')) {
+              labels.push('build');
+            }
+            
+            // CI/CD changes
+            if (filePaths.some(f => f.includes('.github/workflows')) ||
+                filePaths.some(f => f.includes('.yml')) ||
+                filePaths.some(f => f.includes('.yaml'))) {
+              labels.push('CI/CD');
+            }
+            
+            // Documentation
+            if (filePaths.some(f => f.endsWith('.md')) || 
+                filePaths.some(f => f.includes('docs/')) ||
+                title.includes('doc') || title.includes('readme')) {
+              labels.push('documentation');
+            }
+            
+            // UI changes
+            if (filePaths.some(f => f.includes('ui/')) || 
+                filePaths.some(f => f.includes('theme')) ||
+                filePaths.some(f => f.includes('screen')) ||
+                filePaths.some(f => f.includes('layout')) ||
+                filePaths.some(f => f.includes('compose')) ||
+                title.includes('ui') || title.includes('theme')) {
+              labels.push('UI/UX');
+            }
+            
+            // Database changes
+            if (filePaths.some(f => f.includes('database/')) || 
+                filePaths.some(f => f.includes('entity')) ||
+                filePaths.some(f => f.includes('dao')) ||
+                title.includes('database') || title.includes('room')) {
+              labels.push('database');
+            }
+            
+            // Extension system
+            if (filePaths.some(f => f.includes('source-api')) || 
+                filePaths.some(f => f.includes('extension')) ||
+                title.includes('extension') || title.includes('source')) {
+              labels.push('extension');
+            }
+            
+            // AI features
+            if (filePaths.some(f => f.includes('ai/')) || 
+                title.includes('ai') || title.includes('gemini') || title.includes('smart')) {
+              labels.push('AI');
+            }
+            
+            // Test changes
+            if (filePaths.some(f => f.includes('test')) || 
+                fileExtensions.includes('kt') && filePaths.some(f => f.includes('test'))) {
+              labels.push('tests');
+            }
+            
+            // Large PR detection (many files or lines)
+            const totalChanges = files.reduce((sum, f) => sum + f.additions + f.deletions, 0);
+            if (files.length > 20 || totalChanges > 1000) {
+              labels.push('large-pr');
+            }
+            
+            // Apply labels if any found
+            if (labels.length > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                labels: labels
+              });
+              console.log(`Added labels to PR #${pr.number}: ${labels.join(', ')}`);
+            }
