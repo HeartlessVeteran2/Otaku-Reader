@@ -23,7 +23,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.komikku.core.ui.component.EmptyScreen
 import app.komikku.core.ui.component.LoadingScreen
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 
 /**
  * Reader screen supporting paged (LTR/RTL) and webtoon reading modes.

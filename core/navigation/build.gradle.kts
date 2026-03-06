@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.komikku.android.library)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {

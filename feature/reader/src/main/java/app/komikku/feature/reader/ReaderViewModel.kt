@@ -33,13 +33,13 @@ class ReaderViewModel @Inject constructor(
 
     init {
         loadChapter()
+        observeManga()
     }
 
     private fun loadChapter() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
             try {
-                val manga = mangaRepository.observeManga(mangaId)
                 val chapter = chapterRepository.getChapter(chapterId)
                 _state.update { current ->
                     current.copy(
@@ -48,11 +48,20 @@ class ReaderViewModel @Inject constructor(
                         currentPage = chapter?.lastPageRead ?: 0
                     )
                 }
-                manga.collect { m ->
-                    _state.update { it.copy(manga = m) }
-                }
             } catch (e: Exception) {
                 _state.update { it.copy(isLoading = false, error = e.message) }
+            }
+        }
+    }
+
+    private fun observeManga() {
+        viewModelScope.launch {
+            try {
+                mangaRepository.observeManga(mangaId).collect { manga ->
+                    _state.update { it.copy(manga = manga) }
+                }
+            } catch (e: Exception) {
+                // Log error but don't affect chapter loading state
             }
         }
     }

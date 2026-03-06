@@ -132,7 +132,7 @@ private fun MangaGridItem(
             .aspectRatio(2f / 3f)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
     ) {
-        coil.compose.AsyncImage(
+        coil3.compose.AsyncImage(
             model = manga.manga.thumbnailUrl,
             contentDescription = manga.manga.title,
             modifier = Modifier.fillMaxSize(),

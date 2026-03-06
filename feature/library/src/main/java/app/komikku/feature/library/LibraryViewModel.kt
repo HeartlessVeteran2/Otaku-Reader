@@ -38,6 +38,7 @@ class LibraryViewModel @Inject constructor(
     val effect = _effect.receiveAsFlow()
 
     private val searchQuery = MutableStateFlow("")
+    private val refreshTrigger = MutableStateFlow(0L)
 
     init {
         observeLibrary()
@@ -46,7 +47,7 @@ class LibraryViewModel @Inject constructor(
 
     private fun observeLibrary() {
         viewModelScope.launch {
-            searchQuery
+            combine(searchQuery, refreshTrigger) { query, _ -> query }
                 .flatMapLatest { query -> getLibraryUseCase(query) }
                 .catch { e -> _state.update { it.copy(error = e.message, isLoading = false) } }
                 .collect { mangaList ->
@@ -78,8 +79,8 @@ class LibraryViewModel @Inject constructor(
 
     private fun refresh() {
         _state.update { it.copy(isLoading = true) }
-        // Re-trigger library observation
-        observeLibrary()
+        // Trigger library observation refresh
+        refreshTrigger.value = System.currentTimeMillis()
     }
 
     private fun handleMangaClick(mangaId: Long) {
