@@ -18,27 +18,12 @@ kotlin {
 }
 
 dependencies {
-    compileOnly(libs.plugins.android.application.get().run {
-        "$pluginId:$pluginId.gradle.plugin:${version.requiredVersion}"
-    })
-    compileOnly(libs.plugins.android.library.get().run {
-        "$pluginId:$pluginId.gradle.plugin:${version.requiredVersion}"
-    })
-    compileOnly(libs.plugins.kotlin.android.get().run {
-        "$pluginId:$pluginId.gradle.plugin:${version.requiredVersion}"
-    })
-    compileOnly(libs.plugins.kotlin.compose.get().run {
-        "$pluginId:$pluginId.gradle.plugin:${version.requiredVersion}"
-    })
-    compileOnly(libs.plugins.ksp.get().run {
-        "$pluginId:$pluginId.gradle.plugin:${version.requiredVersion}"
-    })
-    compileOnly(libs.plugins.hilt.get().run {
-        "$pluginId:$pluginId.gradle.plugin:${version.requiredVersion}"
-    })
-    compileOnly(libs.plugins.room.get().run {
-        "$pluginId:$pluginId.gradle.plugin:${version.requiredVersion}"
-    })
+    compileOnly(libs.android.gradlePlugin)
+    compileOnly(libs.kotlin.gradlePlugin)
+    compileOnly(libs.ksp.gradlePlugin)
+    compileOnly(libs.hilt.gradlePlugin)
+    compileOnly(libs.room.gradlePlugin)
+    compileOnly(libs.compose.gradlePlugin)
 }
 
 tasks {

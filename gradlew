@@ -42,18 +42,23 @@
 #   (2) This script targets any POSIX shell, so it avoids extensions provided
 #       by Bash, Ksh, etc; in particular arrays are avoided.
 #
-#       The "traditional" style of «sed -e» combined with "sub-shell-splitting
-#       substrings" (the way the «eval» keyword works) is used to extract
-#       substrings. This is simpler than the «${var:offset:length}» form, and
-#       works in all shells.
+#       The "traditional" practice of packing multiple parameters into a
+#       space-separated string is a well documented source of bugs and security
+#       problems, so this is (mostly) avoided, by progressively accumulating
+#       options in "$@", and eventually passing that to Java.
 #
-#       This form of substring extraction is used to get the distributionUrl
-#       from gradle-wrapper.properties, and to get the distributionPath and
-#       zipStorePath.
+#       Where the inherited environment variables (DEFAULT_JVM_OPTS, JAVA_OPTS,
+#       and GRADLE_OPTS) rely on word-splitting, this is performed explicitly;
+#       see the in-line comments for details.
 #
-#   (3) This script uses the «dirname» command, which is not a POSIX command.
-#       However, it is widely available, and is used here to get the directory
-#       of the script.
+#       There are tweaks for specific operating systems such as AIX, CygWin,
+#       Darwin, MinGW, and NonStop.
+#
+#   (3) This script is generated from the Groovy template
+#       https://github.com/gradle/gradle/blob/HEAD/subprojects/plugins/src/main/resources/org/gradle/api/internal/plugins/unixStartScript.txt
+#       within the Gradle project.
+#
+#       You can find Gradle at https://github.com/gradle/gradle/.
 #
 ##############################################################################
 
@@ -174,7 +179,7 @@ if "$cygwin" || "$msys" ; then
         if
             case $arg in                                #(
               -*)   false ;;                            # don't mess with options #(
-              /?*)  t=${arg#)}; t=/${t%%/*}             # looks like a POSIX filepath
+              /?*)  t=${arg#/} t=/${t%%/*}              # looks like a POSIX filepath
                     [ -e "$t" ] ;;                      #(
               *)    false ;;
             esac
@@ -182,21 +187,27 @@ if "$cygwin" || "$msys" ; then
             arg=$( cygpath --path --ignore --mixed "$arg" )
         fi
         # Roll the args list around exactly as many times as the number of
-        # args, so each arg winds up back in the position where it started.
-        # This is necessary because the positional parameter list can be
-        # longer than the maximum command line length.
-        shift                   # out with the old
-        set -- "$@" "$arg"      # in with the new
+        # args, so each arg winds up back in the position where it started, but
+        # possibly modified.
+        #
+        # NB: a `for` loop captures its iteration list before it begins, so
+        # changing the positional parameters here affects neither the number of
+        # iterations, nor the values presented in `arg`.
+        shift                   # remove old arg
+        set -- "$@" "$arg"      # push replacement arg
     done
 fi
 
 
 # Add default JVM options here. You can also use JAVA_OPTS and GRADLE_OPTS to pass JVM options to this script.
-DEFAULT_JVM_OPTS='"-Xmx64m" "-Xms64m"'
+DEFAULT_JVM_OPTS='-Dfile.encoding=UTF-8 "-Xmx64m" "-Xms64m"'
 
-# Collect all arguments for the java command;
-#   * $DEFAULT_JVM_OPTS, $JAVA_OPTS, and $GRADLE_OPTS can contain fragments of
-#     temporary files.
+# Collect all arguments for the java command:
+#   * DEFAULT_JVM_OPTS, JAVA_OPTS, JAVA_OPTS, and optsEnvironmentVar are not allowed to contain shell fragments,
+#     and any embedded shellness will be escaped.
+#   * For example: A user cannot expect ${Hostname} to be expanded, as it is an environment variable and will be
+#     treated as '${Hostname}' itself on the command line.
+
 set -- \
         "-Dorg.gradle.appname=$APP_BASE_NAME" \
         -classpath "$CLASSPATH" \
@@ -211,15 +222,27 @@ fi
 
 # Use "xargs" to parse quoted args.
 #
-# With -n://services.gradle.org/distributions/gradle-8.7-bin.zip
-, arguments are://services.gradle.org/distributions/gradle-8.7-bin.zip
- in at most once. The -0 flag causes input items to be terminated by a null character
-# instead of by whitespace, and the quotes and backslash are not special (every
-# character is taken literally).
+# With -n1 it outputs one arg per line, with the quotes and backslashes removed.
+#
+# In Bash we could simply go:
+#
+#   readarray ARGS < <( xargs -n1 <<<"$var" ) &&
+#   set -- "${ARGS[@]}" "$@"
+#
+# but POSIX shell has neither arrays nor command substitution, so instead we
+# post-process each arg (as a line of input to sed) to backslash-escape any
+# character that might be a shell metacharacter, then use eval to reverse
+# that process (while maintaining the separation between arguments), and wrap
+# the whole thing up as a single "set" statement.
+#
+# This will of course break if any of these variables contains a newline or
+# an unmatched quote.
+#
+
 eval "set -- $(
         printf '%s\n' "$DEFAULT_JVM_OPTS $JAVA_OPTS $GRADLE_OPTS" |
         xargs -n1 |
-        sed ' s~[^-.:528-9a-zA-Z]~\\&~g; ' |
+        sed ' s~[^-[:alnum:]+,./:=@_]~\\&~g; ' |
         tr '\n' ' '
     )" '"$@"'
 

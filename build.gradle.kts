@@ -1,12 +1,13 @@
 // Top-level build file — configuration common to all subprojects is in build-logic/convention plugins.
-plugins {
-    alias(libs.plugins.android.application) apply false
-    alias(libs.plugins.android.library) apply false
-    alias(libs.plugins.kotlin.android) apply false
-    alias(libs.plugins.kotlin.jvm) apply false
-    alias(libs.plugins.kotlin.serialization) apply false
-    alias(libs.plugins.kotlin.compose) apply false
-    alias(libs.plugins.hilt) apply false
-    alias(libs.plugins.ksp) apply false
-    alias(libs.plugins.room) apply false
+buildscript {
+    repositories {
+        maven("https://maven.google.com")
+        mavenCentral()
+    }
+    dependencies {
+        classpath("com.android.tools.build:gradle:8.5.2")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.0.21")
+        classpath("com.google.dagger:hilt-android-gradle-plugin:2.51.1")
+        classpath("com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin:2.0.21-1.0.28")
+    }
 }
