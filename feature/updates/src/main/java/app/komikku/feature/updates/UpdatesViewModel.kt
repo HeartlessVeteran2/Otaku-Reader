@@ -1,18 +1,28 @@
 package app.komikku.feature.updates
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
+import app.komikku.feature.updates.worker.UpdateWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class UpdatesViewModel @Inject constructor() : ViewModel() {
+class UpdatesViewModel @Inject constructor(
+    @ApplicationContext private val context: Context
+) : ViewModel() {
 
     private val _state = MutableStateFlow(UpdatesState())
     val state = _state.stateIn(
@@ -36,6 +46,18 @@ class UpdatesViewModel @Inject constructor() : ViewModel() {
     }
 
     private fun checkForUpdates() {
-        // TODO: implement update checking
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isLoading = true)
+
+            val workRequest = OneTimeWorkRequestBuilder<UpdateWorker>().build()
+            val workManager = WorkManager.getInstance(context)
+            workManager.enqueue(workRequest)
+
+            workManager.getWorkInfoByIdFlow(workRequest.id)
+                .filterNotNull()
+                .first { it.state.isFinished }
+
+            _state.value = _state.value.copy(isLoading = false)
+        }
     }
 }
