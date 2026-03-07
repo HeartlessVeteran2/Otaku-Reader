@@ -29,7 +29,7 @@ hilt-navigation-compose = "1.2.0"
 room = "2.6.1"
 
 # DataStore
-datastore = "1.1.1"
+datastore = "1.2.0"
 
 # Network
 okhttp = "4.12.0"
