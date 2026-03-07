@@ -35,16 +35,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.ViewModel
 import app.otakureader.domain.repository.SourceRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 /**
  * ViewModel for ExtensionInstallScreen.
  */
-@dagger.hilt.android.lifecycle.HiltViewModel
-class ExtensionInstallViewModel @javax.inject.Inject constructor(
+@HiltViewModel
+class ExtensionInstallViewModel @Inject constructor(
     private val sourceRepository: SourceRepository
-) : androidx.lifecycle.ViewModel() {
+) : ViewModel() {
 
     suspend fun installFromUrl(url: String): Result<Unit> =
         sourceRepository.loadExtensionFromUrl(url)

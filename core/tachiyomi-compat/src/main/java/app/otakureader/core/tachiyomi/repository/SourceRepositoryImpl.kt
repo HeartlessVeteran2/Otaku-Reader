@@ -63,7 +63,7 @@ class SourceRepositoryImpl(
                 val mangaPage = source.fetchPopularManga(page)
 
                 // Cache the result
-                popularMangaCache.getOrPut(sourceId) { ConcurrentHashMap() }[page] = mangaPage
+                popularMangaCache.computeIfAbsent(sourceId) { ConcurrentHashMap() }[page] = mangaPage
 
                 Result.success(mangaPage)
             } catch (e: Exception) {
@@ -86,7 +86,7 @@ class SourceRepositoryImpl(
                 val mangaPage = source.fetchLatestUpdates(page)
 
                 // Cache the result
-                latestMangaCache.getOrPut(sourceId) { ConcurrentHashMap() }[page] = mangaPage
+                latestMangaCache.computeIfAbsent(sourceId) { ConcurrentHashMap() }[page] = mangaPage
 
                 Result.success(mangaPage)
             } catch (e: Exception) {
@@ -114,7 +114,7 @@ class SourceRepositoryImpl(
                 )
 
                 // Cache the result
-                searchCache.getOrPut(sourceId) { ConcurrentHashMap() }[cacheKey] = mangaPage
+                searchCache.computeIfAbsent(sourceId) { ConcurrentHashMap() }[cacheKey] = mangaPage
 
                 Result.success(mangaPage)
             } catch (e: Exception) {

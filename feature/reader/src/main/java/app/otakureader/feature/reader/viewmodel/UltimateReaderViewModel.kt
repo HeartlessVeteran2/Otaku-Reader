@@ -109,8 +109,7 @@ class UltimateReaderViewModel @Inject constructor(
                         pages = pages,
                         currentPage = chapter.lastPageRead.coerceIn(0, (pages.size - 1).coerceAtLeast(0)),
                         isLoading = false,
-                        chapterTitle = chapter.name,
-                        totalPages = pages.size
+                        chapterTitle = chapter.name
                     )
                 }
 
@@ -154,7 +153,6 @@ class UltimateReaderViewModel @Inject constructor(
         _state.update { currentState ->
             currentState.copy(
                 pages = pages,
-                totalPages = pages.size,
                 currentPage = currentState.currentPage.coerceIn(0, (pages.size - 1).coerceAtLeast(0)),
                 isLoading = false
             )
