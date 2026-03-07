@@ -38,7 +38,7 @@ jobs:
         echo "- See [CHANGELOG.md](CHANGELOG.md) for details" >> RELEASE_NOTES.md
         
     - name: 🚀 Create Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         body_path: RELEASE_NOTES.md
         files: app/build/outputs/apk/release/*.apk
