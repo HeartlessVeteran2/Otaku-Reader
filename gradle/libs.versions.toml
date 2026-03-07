@@ -37,7 +37,7 @@ retrofit = "2.11.0"
 kotlinx-serialization = "1.7.3"
 
 # Image Loading
-coil = "3.0.4"
+coil = "3.4.0"
 
 # Paging
 paging = "3.3.5"
