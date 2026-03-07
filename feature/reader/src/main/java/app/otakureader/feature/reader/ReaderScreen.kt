@@ -56,6 +56,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun ReaderScreen(
     mangaId: Long,
+    chapterId: Long,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: UltimateReaderViewModel = hiltViewModel()

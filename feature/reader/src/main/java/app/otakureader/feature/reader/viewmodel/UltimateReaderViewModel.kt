@@ -7,6 +7,8 @@ import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.feature.reader.model.ReaderMode
 import app.otakureader.feature.reader.model.ReaderPage
+import app.otakureader.feature.reader.model.ReadingDirection
+import app.otakureader.feature.reader.repository.ReaderSettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -15,6 +17,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -29,6 +32,7 @@ import javax.inject.Inject
 class UltimateReaderViewModel @Inject constructor(
     private val mangaRepository: MangaRepository,
     private val chapterRepository: ChapterRepository,
+    private val settingsRepository: ReaderSettingsRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -45,7 +49,36 @@ class UltimateReaderViewModel @Inject constructor(
     private var preloadJob: Job? = null
 
     init {
+        loadSettings()
         loadChapter()
+    }
+
+    /**
+     * Load saved reader settings
+     */
+    private fun loadSettings() {
+        viewModelScope.launch {
+            // Load all settings concurrently
+            val mode = settingsRepository.readerMode.first()
+            val brightness = settingsRepository.brightness.first()
+            val keepScreenOn = settingsRepository.keepScreenOn.first()
+            val showPageNumber = settingsRepository.showPageNumber.first()
+            val direction = settingsRepository.readingDirection.first()
+            val volumeKeyNav = settingsRepository.volumeKeyNavigation.first()
+            val fullscreen = settingsRepository.fullscreen.first()
+
+            _state.update {
+                it.copy(
+                    mode = mode,
+                    brightness = brightness,
+                    keepScreenOn = keepScreenOn,
+                    showPageNumber = showPageNumber,
+                    readingDirection = direction,
+                    volumeKeyNavigation = volumeKeyNav,
+                    isFullscreen = fullscreen
+                )
+            }
+        }
     }
 
     /**
@@ -55,32 +88,36 @@ class UltimateReaderViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
             try {
-                val manga = mangaRepository.observeManga(mangaId)
-                val chapter = chapterRepository.getChapter(chapterId)
+                // Load chapter and manga
+                val chapter = chapterRepository.getChapterById(chapterId)
+                val manga = mangaRepository.observeManga(mangaId).first()
 
-                // Convert page URLs to ReaderPage objects
-                val pages = chapter?.pageUrls?.mapIndexed { index, url ->
-                    ReaderPage(
-                        index = index,
-                        imageUrl = url,
-                        pageNumber = index + 1,
-                        id = "page_${chapterId}_$index",
-                        chapterName = chapter.name
-                    )
-                } ?: emptyList()
+                if (chapter == null) {
+                    _state.update {
+                        it.copy(isLoading = false, error = "Chapter not found")
+                    }
+                    return@launch
+                }
 
-                _state.update {
-                    it.copy(
+                // Fetch pages from source
+                // In a real implementation, this would call the source to get page URLs
+                // For now, we'll simulate page URLs based on chapter URL
+                val pages = fetchPagesFromSource(chapter.url, chapter.id)
+
+                _state.update { currentState ->
+                    currentState.copy(
                         pages = pages,
-                        currentPage = chapter?.lastPageRead?.coerceIn(0, pages.size - 1) ?: 0,
+                        currentPage = chapter.lastPageRead.coerceIn(0, (pages.size - 1).coerceAtLeast(0)),
                         isLoading = false,
-                        chapterTitle = chapter?.name ?: "",
+                        chapterTitle = chapter.name,
                         totalPages = pages.size
                     )
                 }
 
                 // Start preloading adjacent pages
-                preloadPages(_state.value.currentPage)
+                if (pages.isNotEmpty()) {
+                    preloadPages(_state.value.currentPage)
+                }
 
             } catch (e: Exception) {
                 _state.update {
@@ -94,6 +131,37 @@ class UltimateReaderViewModel @Inject constructor(
     }
 
     /**
+     * Fetch pages from the manga source.
+     * In a real implementation, this would use the SourceManager to get pages.
+     * For now, we create placeholder pages that can be replaced with actual implementation.
+     */
+    private suspend fun fetchPagesFromSource(chapterUrl: String, chapterId: Long): List<ReaderPage> {
+        // TODO: Integrate with SourceManager to fetch actual page URLs
+        // This is a placeholder implementation
+        
+        // For testing/demo purposes, create some placeholder pages
+        // In production, this should call:
+        // val source = sourceManager.get(manga.sourceId)
+        // val pages = source.fetchPageList(chapter.toSourceChapter())
+        
+        return emptyList() // Return empty for now - will show "No pages found"
+    }
+
+    /**
+     * Set pages directly (useful for testing or when pages are passed from outside)
+     */
+    fun setPages(pages: List<ReaderPage>) {
+        _state.update { currentState ->
+            currentState.copy(
+                pages = pages,
+                totalPages = pages.size,
+                currentPage = currentState.currentPage.coerceIn(0, (pages.size - 1).coerceAtLeast(0)),
+                isLoading = false
+            )
+        }
+    }
+
+    /**
      * Handle all reader events
      */
     fun onEvent(event: ReaderEvent) {
@@ -103,26 +171,46 @@ class UltimateReaderViewModel @Inject constructor(
             is ReaderEvent.OnZoomChange -> updateZoom(event.zoom)
             is ReaderEvent.OnModeChange -> changeReaderMode(event.mode)
             is ReaderEvent.OnBrightnessChange -> updateBrightness(event.brightness)
+            is ReaderEvent.OnDirectionChange -> updateReadingDirection(event.direction)
             ReaderEvent.ToggleMenu -> toggleMenu()
             ReaderEvent.ToggleGallery -> toggleGallery()
             ReaderEvent.NextPage -> navigatePage(1)
             ReaderEvent.PrevPage -> navigatePage(-1)
             ReaderEvent.NextPanel -> navigatePanel(1)
             ReaderEvent.PrevPanel -> navigatePanel(-1)
-            ReaderEvent.ZoomIn -> updateZoom(_state.value.zoomLevel + ReaderEvent.ZOOM_INCREMENT)
-            ReaderEvent.ZoomOut -> updateZoom(_state.value.zoomLevel - ReaderEvent.ZOOM_INCREMENT)
+            ReaderEvent.ZoomIn -> updateZoom(_state.value.zoomLevel + ZOOM_INCREMENT)
+            ReaderEvent.ZoomOut -> updateZoom(_state.value.zoomLevel - ZOOM_INCREMENT)
             ReaderEvent.ResetZoom -> updateZoom(1f)
+            ReaderEvent.ZoomToWidth -> updateZoom(1.5f)
+            ReaderEvent.ZoomToHeight -> updateZoom(1.2f)
             ReaderEvent.ToggleFullscreen -> toggleFullscreen()
+            ReaderEvent.ToggleAutoScroll -> toggleAutoScroll()
             ReaderEvent.NextChapter -> navigateNextChapter()
             ReaderEvent.PrevChapter -> navigatePreviousChapter()
             ReaderEvent.DismissError -> dismissError()
             ReaderEvent.Retry -> loadChapter()
-            else -> { /* Handle other events as needed */ }
+            is ReaderEvent.OnAutoScrollSpeedChange -> updateAutoScrollSpeed(event.speed)
+            is ReaderEvent.ToggleSetting -> toggleSetting(event.setting)
+            is ReaderEvent.LoadChapter -> loadChapterById(event.chapterId)
+            is ReaderEvent.UpdateTapZones -> updateTapZones(event.config)
+            ReaderEvent.ToggleBookmark -> toggleBookmark()
+            ReaderEvent.SharePage -> sharePage()
+            ReaderEvent.BrightnessUp -> updateBrightness(_state.value.brightness + BRIGHTNESS_INCREMENT)
+            ReaderEvent.BrightnessDown -> updateBrightness(_state.value.brightness - BRIGHTNESS_INCREMENT)
+            ReaderEvent.AutoScrollSpeedUp -> updateAutoScrollSpeed(_state.value.autoScrollSpeed + AUTO_SCROLL_INCREMENT)
+            ReaderEvent.AutoScrollSpeedDown -> updateAutoScrollSpeed(_state.value.autoScrollSpeed - AUTO_SCROLL_INCREMENT)
+            ReaderEvent.FirstPage -> changePage(0)
+            ReaderEvent.LastPage -> changePage((_state.value.pages.size - 1).coerceAtLeast(0))
+            ReaderEvent.FirstPanel -> changePanel(0)
+            ReaderEvent.LastPanel -> {
+                val currentPage = _state.value.pages.getOrNull(_state.value.currentPage)
+                changePanel((currentPage?.panels?.size ?: 1) - 1)
+            }
         }
     }
 
     private fun changePage(page: Int) {
-        val validPage = page.coerceIn(0, _state.value.pages.size - 1)
+        val validPage = page.coerceIn(0, (_state.value.pages.size - 1).coerceAtLeast(0))
         if (validPage != _state.value.currentPage) {
             _state.update { it.copy(currentPage = validPage) }
             preloadPages(validPage)
@@ -142,7 +230,7 @@ class UltimateReaderViewModel @Inject constructor(
     private fun changePanel(panel: Int) {
         val currentPage = _state.value.pages.getOrNull(_state.value.currentPage)
         val maxPanels = currentPage?.panels?.size ?: 0
-        val validPanel = panel.coerceIn(0, maxPanels - 1)
+        val validPanel = panel.coerceIn(0, (maxPanels - 1).coerceAtLeast(0))
         _state.update { it.copy(currentPanel = validPanel) }
     }
 
@@ -156,14 +244,33 @@ class UltimateReaderViewModel @Inject constructor(
     }
 
     private fun updateBrightness(brightness: Float) {
-        _state.update { it.copy(brightness = brightness.coerceIn(0.1f, 1.5f)) }
+        val clampedBrightness = brightness.coerceIn(0.1f, 1.5f)
+        _state.update { it.copy(brightness = clampedBrightness) }
+        
+        // Save brightness setting
+        viewModelScope.launch {
+            settingsRepository.setBrightness(clampedBrightness)
+        }
+    }
+
+    private fun updateReadingDirection(direction: ReadingDirection) {
+        _state.update { it.copy(readingDirection = direction) }
+        viewModelScope.launch {
+            settingsRepository.setReadingDirection(direction)
+        }
     }
 
     private fun changeReaderMode(mode: ReaderMode) {
         _state.update { it.copy(mode = mode) }
+        
         // Adjust current page for dual page mode
         if (mode == ReaderMode.DUAL_PAGE && _state.value.currentPage % 2 != 0) {
             _state.update { it.copy(currentPage = it.currentPage - 1) }
+        }
+        
+        // Save mode setting
+        viewModelScope.launch {
+            settingsRepository.setReaderMode(mode)
         }
     }
 
@@ -176,11 +283,76 @@ class UltimateReaderViewModel @Inject constructor(
     }
 
     private fun toggleFullscreen() {
-        _state.update { it.copy(isFullscreen = !it.isFullscreen) }
+        val newFullscreen = !_state.value.isFullscreen
+        _state.update { it.copy(isFullscreen = newFullscreen) }
+        
+        viewModelScope.launch {
+            settingsRepository.setFullscreen(newFullscreen)
+        }
+    }
+
+    private fun toggleAutoScroll() {
+        _state.update { it.copy(isAutoScrollEnabled = !it.isAutoScrollEnabled) }
+    }
+
+    private fun updateAutoScrollSpeed(speed: Float) {
+        val clampedSpeed = speed.coerceIn(10f, 500f)
+        _state.update { it.copy(autoScrollSpeed = clampedSpeed) }
+        
+        viewModelScope.launch {
+            settingsRepository.setAutoScrollSpeed(clampedSpeed)
+        }
+    }
+
+    private fun toggleSetting(setting: ReaderSetting) {
+        when (setting) {
+            ReaderSetting.KEEP_SCREEN_ON -> {
+                val newValue = !_state.value.keepScreenOn
+                _state.update { it.copy(keepScreenOn = newValue) }
+                viewModelScope.launch { settingsRepository.setKeepScreenOn(newValue) }
+            }
+            ReaderSetting.SHOW_PAGE_NUMBER -> {
+                val newValue = !_state.value.showPageNumber
+                _state.update { it.copy(showPageNumber = newValue) }
+                viewModelScope.launch { settingsRepository.setShowPageNumber(newValue) }
+            }
+            ReaderSetting.DOUBLE_TAP_ZOOM -> {
+                val newValue = !_state.value.doubleTapZoomEnabled
+                _state.update { it.copy(doubleTapZoomEnabled = newValue) }
+                viewModelScope.launch { settingsRepository.setDoubleTapZoomEnabled(newValue) }
+            }
+            ReaderSetting.VOLUME_KEY_NAVIGATION -> {
+                val newValue = !_state.value.volumeKeyNavigation
+                _state.update { it.copy(volumeKeyNavigation = newValue) }
+                viewModelScope.launch { settingsRepository.setVolumeKeyNavigation(newValue) }
+            }
+            else -> { /* Other settings not yet implemented */ }
+        }
+    }
+
+    private fun updateTapZones(config: app.otakureader.feature.reader.model.TapZoneConfig) {
+        viewModelScope.launch {
+            settingsRepository.setTapZoneConfig(config)
+        }
     }
 
     private fun dismissError() {
         _state.update { it.copy(error = null) }
+    }
+
+    private fun loadChapterById(chapterId: String) {
+        // Implementation for loading a different chapter
+        viewModelScope.launch {
+            _effect.send(ReaderEffect.NavigateToChapter(chapterId.toLong()))
+        }
+    }
+
+    private fun toggleBookmark() {
+        // Implementation for toggling bookmark on current page
+    }
+
+    private fun sharePage() {
+        // Implementation for sharing current page
     }
 
     /**
@@ -214,8 +386,8 @@ class UltimateReaderViewModel @Inject constructor(
     private fun saveCurrentProgress() {
         val currentState = _state.value
         viewModelScope.launch {
-            chapterRepository.setRead(
-                id = chapterId,
+            chapterRepository.updateChapterProgress(
+                chapterId = chapterId,
                 read = currentState.isLastPage,
                 lastPageRead = currentState.currentPage
             )
@@ -239,12 +411,12 @@ class UltimateReaderViewModel @Inject constructor(
      */
     fun onTapZone(zone: TapZone) {
         when (zone) {
-            TapZone.LEFT -> when (_state.value.mode) {
-                ReaderMode.WEBTOON -> navigatePage(-1)
+            TapZone.LEFT -> when (_state.value.readingDirection) {
+                ReadingDirection.RTL -> navigatePage(1)
                 else -> navigatePage(-1)
             }
-            TapZone.RIGHT -> when (_state.value.mode) {
-                ReaderMode.WEBTOON -> navigatePage(1)
+            TapZone.RIGHT -> when (_state.value.readingDirection) {
+                ReadingDirection.RTL -> navigatePage(-1)
                 else -> navigatePage(1)
             }
             TapZone.CENTER -> toggleMenu()
@@ -278,6 +450,9 @@ class UltimateReaderViewModel @Inject constructor(
         private const val MAX_ZOOM = 5f
         private const val PRELOAD_BUFFER = 3
         private const val PROGRESS_SAVE_DELAY = 3000L // 3 seconds
+        const val ZOOM_INCREMENT = 0.25f
+        const val BRIGHTNESS_INCREMENT = 0.1f
+        const val AUTO_SCROLL_INCREMENT = 50f
     }
 }
 

@@ -54,6 +54,8 @@ fun LibraryScreen(
     onMangaClick: (Long) -> Unit,
     onNavigateToUpdates: () -> Unit,
     onNavigateToBrowse: () -> Unit,
+    onNavigateToHistory: () -> Unit,
+    onNavigateToSettings: () -> Unit,
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -94,7 +96,9 @@ fun LibraryScreen(
                 selectedRoute = "library",
                 onNavigateToLibrary = { /* Already here */ },
                 onNavigateToUpdates = onNavigateToUpdates,
-                onNavigateToBrowse = onNavigateToBrowse
+                onNavigateToBrowse = onNavigateToBrowse,
+                onNavigateToHistory = onNavigateToHistory,
+                onNavigateToSettings = onNavigateToSettings
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }

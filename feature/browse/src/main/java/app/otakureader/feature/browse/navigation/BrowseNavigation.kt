@@ -1,5 +1,6 @@
 package app.otakureader.feature.browse.navigation
 
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
@@ -9,6 +10,8 @@ import app.otakureader.core.navigation.SourceDetailRoute
 import app.otakureader.feature.browse.BrowseScreen
 import app.otakureader.feature.browse.ExtensionsBottomSheet
 import app.otakureader.feature.browse.SourceMangaScreen
+import app.otakureader.core.navigation.ExtensionInstallRoute
+import app.otakureader.feature.browse.extension.ExtensionInstallScreen
 
 fun NavGraphBuilder.browseScreen(
     onMangaClick: (sourceId: String, mangaUrl: String, mangaTitle: String) -> Unit,
@@ -17,9 +20,11 @@ fun NavGraphBuilder.browseScreen(
 ) {
     composable<BrowseRoute> {
         BrowseScreen(
-            onMangaClick = onMangaClick,
-            onNavigateToSource = onNavigateToSource,
-            onNavigateToExtensions = onNavigateToExtensions
+            viewModel = hiltViewModel(),
+            onMangaClick = { sourceId, mangaUrl ->
+                onMangaClick(sourceId, mangaUrl, "")
+            },
+            onInstallExtensionClick = onNavigateToExtensions
         )
     }
 }

@@ -40,6 +40,10 @@ data class SourceDetailRoute(val sourceId: String) : OtakuReaderDestination
 @Serializable
 object ExtensionsRoute : OtakuReaderDestination
 
+/** Extension install screen. */
+@Serializable
+object ExtensionInstallRoute : OtakuReaderDestination
+
 /** Manga detail from source (for browsing). */
 @Serializable
 data class SourceMangaDetailRoute(

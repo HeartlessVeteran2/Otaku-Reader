@@ -32,6 +32,8 @@ include(":core:database")
 include(":core:preferences")
 include(":core:ui")
 include(":core:navigation")
+include(":core:extension")
+include(":core:tachiyomi-compat")
 
 // Domain layer
 include(":domain")

@@ -3,6 +3,7 @@ package app.otakureader.feature.library
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CollectionsBookmark
 import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.NewReleases
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
@@ -18,6 +19,8 @@ fun LibraryBottomNavigation(
     onNavigateToLibrary: () -> Unit,
     onNavigateToUpdates: () -> Unit,
     onNavigateToBrowse: () -> Unit,
+    onNavigateToHistory: () -> Unit = {},
+    onNavigateToSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     NavigationBar(
@@ -40,6 +43,18 @@ fun LibraryBottomNavigation(
             label = { Text("Browse") },
             selected = selectedRoute == "browse",
             onClick = onNavigateToBrowse
+        )
+        NavigationBarItem(
+            icon = { Icon(Icons.Default.History, contentDescription = null) },
+            label = { Text("History") },
+            selected = selectedRoute == "history",
+            onClick = onNavigateToHistory
+        )
+        NavigationBarItem(
+            icon = { Icon(Icons.Default.Settings, contentDescription = null) },
+            label = { Text("Settings") },
+            selected = selectedRoute == "settings",
+            onClick = onNavigateToSettings
         )
     }
 }

@@ -191,15 +191,15 @@ private fun VolumeHeader(
 }
 
 @Composable
-private fun ChapterListItem(
+fun ChapterListItem(
     chapter: DetailsContract.ChapterItem,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
-    onToggleRead: () -> Unit,
-    onToggleBookmark: () -> Unit,
-    onDownload: () -> Unit,
-    onDeleteDownload: () -> Unit,
-    onMarkPreviousRead: () -> Unit,
+    onToggleRead: () -> Unit = {},
+    onToggleBookmark: () -> Unit = {},
+    onDownload: () -> Unit = {},
+    onDeleteDownload: () -> Unit = {},
+    onMarkPreviousRead: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val alpha by animateFloatAsState(
