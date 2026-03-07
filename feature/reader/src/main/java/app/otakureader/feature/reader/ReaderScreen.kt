@@ -23,7 +23,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.otakureader.core.ui.component.EmptyScreen
 import app.otakureader.core.ui.component.LoadingScreen
-import coil3.compose.AsyncImage
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 
 /**
  * Reader screen supporting paged (LTR/RTL) and webtoon reading modes.
@@ -32,23 +36,31 @@ import coil3.compose.AsyncImage
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReaderScreen(
+    mangaId: Long,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ReaderViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
             when (effect) {
                 is ReaderEffect.NavigateBack -> onNavigateBack()
-                is ReaderEffect.ShowSnackbar -> { /* TODO: show snackbar */ }
+                is ReaderEffect.ShowSnackbar -> {
+                    scope.launch {
+                        snackbarHostState.showSnackbar(effect.message)
+                    }
+                }
             }
         }
     }
 
     Scaffold(
         modifier = modifier,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             if (state.isMenuVisible) {
                 TopAppBar(
