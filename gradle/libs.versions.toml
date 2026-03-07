@@ -16,7 +16,7 @@ compose-bom = "2024.12.01"
 coroutines = "1.9.0"
 
 # Lifecycle
-lifecycle = "2.8.7"
+lifecycle = "2.10.0"
 
 # Navigation
 navigation = "2.8.5"
