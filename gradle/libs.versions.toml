@@ -22,7 +22,7 @@ lifecycle = "2.10.0"
 navigation = "2.8.5"
 
 # Hilt
-hilt = "2.51.1"
+hilt = "2.59.2"
 hilt-navigation-compose = "1.2.0"
 
 # Room
