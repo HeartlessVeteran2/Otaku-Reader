@@ -35,3 +35,15 @@ data class ReaderRoute(val mangaId: Long, val chapterId: Long) : OtakuReaderDest
 /** Browse/Source detail screen. */
 @Serializable
 data class SourceDetailRoute(val sourceId: String) : OtakuReaderDestination
+
+/** Extension management screen. */
+@Serializable
+object ExtensionsRoute : OtakuReaderDestination
+
+/** Manga detail from source (for browsing). */
+@Serializable
+data class SourceMangaDetailRoute(
+    val sourceId: String,
+    val mangaUrl: String,
+    val mangaTitle: String = ""
+) : OtakuReaderDestination
