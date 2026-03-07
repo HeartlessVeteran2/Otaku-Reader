@@ -1,0 +1,280 @@
+package app.otakureader.core.extension.installer
+
+import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
+import app.otakureader.core.extension.domain.model.Extension
+import app.otakureader.core.extension.domain.model.InstallStatus
+import app.otakureader.core.extension.domain.repository.ExtensionRepository
+import app.otakureader.core.extension.loader.ExtensionLoader
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.security.MessageDigest
+
+/**
+ * Installation state for tracking progress.
+ */
+sealed class InstallationState {
+    data object Idle : InstallationState()
+    data class Downloading(val progress: Int) : InstallationState()
+    data object Verifying : InstallationState()
+    data object Installing : InstallationState()
+    data class Success(val extension: Extension) : InstallationState()
+    data class Error(val message: String, val throwable: Throwable? = null) : InstallationState()
+}
+
+/**
+ * Handles APK installation, update, and removal for extensions.
+ */
+class ExtensionInstaller(
+    private val context: Context,
+    private val repository: ExtensionRepository,
+    private val loader: ExtensionLoader
+) {
+    
+    companion object {
+        private const val EXTENSIONS_DIR = "extensions"
+        private const val DOWNLOADS_DIR = "extension_downloads"
+        private const val BUFFER_SIZE = 8192
+    }
+    
+    private val _installationState = MutableStateFlow<InstallationState>(InstallationState.Idle)
+    val installationState: Flow<InstallationState> = _installationState.asStateFlow()
+    
+    private val extensionsDir: File by lazy {
+        File(context.filesDir, EXTENSIONS_DIR).apply { mkdirs() }
+    }
+    
+    private val downloadsDir: File by lazy {
+        File(context.cacheDir, DOWNLOADS_DIR).apply { mkdirs() }
+    }
+    
+    /**
+     * Install an extension from a downloaded APK file.
+     * @param apkFile The downloaded APK file
+     * @return Result containing the installed Extension
+     */
+    suspend fun install(apkFile: File): Result<Extension> = withContext(Dispatchers.IO) {
+        try {
+            _installationState.value = InstallationState.Verifying
+            
+            // Load and verify the extension
+            val loadResult = loader.loadExtension(apkFile.absolutePath)
+            
+            when (loadResult) {
+                is ExtensionLoader.ExtensionLoadResult.Error -> {
+                    _installationState.value = InstallationState.Error(
+                        loadResult.message,
+                        loadResult.throwable
+                    )
+                    Result.failure(
+                        loadResult.throwable 
+                            ?: IllegalStateException(loadResult.message)
+                    )
+                }
+                is ExtensionLoader.ExtensionLoadResult.Success -> {
+                    val extension = loadResult.extension
+                    
+                    _installationState.value = InstallationState.Installing
+                    
+                    // Move APK to permanent location
+                    val destFile = File(extensionsDir, "${extension.pkgName}.apk")
+                    apkFile.copyTo(destFile, overwrite = true)
+                    
+                    // Update extension with final path
+                    val finalExtension = extension.copy(apkPath = destFile.absolutePath)
+                    
+                    // Save to repository
+                    val result = repository.installExtension(
+                        finalExtension.pkgName,
+                        finalExtension.apkPath!!
+                    )
+                    
+                    result.onSuccess { ext ->
+                        _installationState.value = InstallationState.Success(ext)
+                    }.onFailure { error ->
+                        _installationState.value = InstallationState.Error(
+                            "Failed to save extension: ${error.message}",
+                            error
+                        )
+                    }
+                    
+                    result
+                }
+            }
+        } catch (e: Exception) {
+            _installationState.value = InstallationState.Error("Installation failed", e)
+            Result.failure(e)
+        } finally {
+            // Cleanup download file
+            if (apkFile.exists() && apkFile.parentFile == downloadsDir) {
+                apkFile.delete()
+            }
+        }
+    }
+    
+    /**
+     * Update an existing extension.
+     * @param pkgName Package name of the extension to update
+     * @param newApkFile The new APK file
+     * @return Result containing the updated Extension
+     */
+    suspend fun update(pkgName: String, newApkFile: File): Result<Extension> = 
+        withContext(Dispatchers.IO) {
+            try {
+                _installationState.value = InstallationState.Verifying
+                
+                // Verify the new APK
+                val loadResult = loader.loadExtension(newApkFile.absolutePath)
+                
+                when (loadResult) {
+                    is ExtensionLoader.ExtensionLoadResult.Error -> {
+                        _installationState.value = InstallationState.Error(
+                            loadResult.message,
+                            loadResult.throwable
+                        )
+                        Result.failure(
+                            loadResult.throwable 
+                                ?: IllegalStateException(loadResult.message)
+                        )
+                    }
+                    is ExtensionLoader.ExtensionLoadResult.Success -> {
+                        val extension = loadResult.extension
+                        
+                        // Verify package name matches
+                        if (extension.pkgName != pkgName) {
+                            return@withContext Result.failure(
+                                IllegalArgumentException(
+                                    "Package name mismatch: expected $pkgName, got ${extension.pkgName}"
+                                )
+                            )
+                        }
+                        
+                        _installationState.value = InstallationState.Installing
+                        
+                        // Remove old APK
+                        val oldExtension = repository.getExtension(pkgName)
+                        oldExtension?.apkPath?.let { oldPath ->
+                            File(oldPath).delete()
+                        }
+                        
+                        // Move new APK to permanent location
+                        val destFile = File(extensionsDir, "$pkgName.apk")
+                        newApkFile.copyTo(destFile, overwrite = true)
+                        
+                        // Update repository
+                        val result = repository.updateExtension(pkgName, destFile.absolutePath)
+                        
+                        result.onSuccess { ext ->
+                            _installationState.value = InstallationState.Success(ext)
+                        }.onFailure { error ->
+                            _installationState.value = InstallationState.Error(
+                                "Failed to update extension: ${error.message}",
+                                error
+                            )
+                        }
+                        
+                        result
+                    }
+                }
+            } catch (e: Exception) {
+                _installationState.value = InstallationState.Error("Update failed", e)
+                Result.failure(e)
+            } finally {
+                // Cleanup download file
+                if (newApkFile.exists() && newApkFile.parentFile == downloadsDir) {
+                    newApkFile.delete()
+                }
+            }
+        }
+    
+    /**
+     * Uninstall an extension.
+     * @param pkgName Package name to uninstall
+     * @return Result indicating success or failure
+     */
+    suspend fun uninstall(pkgName: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            repository.setExtensionStatus(pkgName, InstallStatus.UNINSTALLING)
+            
+            // Delete APK file
+            val apkFile = File(extensionsDir, "$pkgName.apk")
+            if (apkFile.exists()) {
+                apkFile.delete()
+            }
+            
+            // Remove from repository
+            repository.uninstallExtension(pkgName)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    /**
+     * Verify APK signature against expected hash.
+     * @param apkFile The APK file to verify
+     * @param expectedHash Expected signature hash (optional, for trusted repos)
+     * @return true if signature is valid or no hash provided
+     */
+    suspend fun verifySignature(apkFile: File, expectedHash: String?): Boolean = 
+        withContext(Dispatchers.IO) {
+            if (expectedHash == null) return@withContext true
+            
+            try {
+                val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    context.packageManager.getPackageArchiveInfo(
+                        apkFile.absolutePath,
+                        PackageManager.GET_SIGNING_CERTIFICATES
+                    )
+                } else {
+                    @Suppress("DEPRECATION")
+                    context.packageManager.getPackageArchiveInfo(
+                        apkFile.absolutePath,
+                        PackageManager.GET_SIGNATURES
+                    )
+                }
+                
+                val signatures = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    packageInfo?.signingInfo?.apkContentsSigners
+                } else {
+                    @Suppress("DEPRECATION")
+                    packageInfo?.signatures
+                }
+                
+                val actualHash = signatures?.firstOrNull()?.toByteArray()?.let {
+                    computeHash(it)
+                }
+                
+                actualHash == expectedHash
+            } catch (e: Exception) {
+                false
+            }
+        }
+    
+    /**
+     * Get download directory for APKs.
+     */
+    fun getDownloadsDirectory(): File = downloadsDir
+    
+    /**
+     * Get installation directory for extensions.
+     */
+    fun getExtensionsDirectory(): File = extensionsDir
+    
+    /**
+     * Clear installation state.
+     */
+    fun resetState() {
+        _installationState.value = InstallationState.Idle
+    }
+    
+    private fun computeHash(bytes: ByteArray): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        val hash = digest.digest(bytes)
+        return hash.joinToString("") { "%02x".format(it) }
+    }
+}
