@@ -19,7 +19,7 @@
   "labels": ["dependencies", "renovate"],
   "reviewers": ["HeartlessVeteran2"],
   "assignees": ["HeartlessVeteran2"],
-  "baseBranches": ["main"],
+  "baseBranches": ["reborn"],
   "rangeStrategy": "bump",
   "commitMessageTopic": "{{depName}}",
   "commitMessageExtra": "to {{newVersion}}",
