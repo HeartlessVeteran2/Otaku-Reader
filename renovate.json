@@ -2,5 +2,14 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended"
-  ]
+  ],
+  "baseBranches": ["main"],
+  "enabledManagers": ["gradle", "gradle-wrapper", "github-actions"],
+  "gradle": {
+    "fileMatch": [
+      "(^|/)build\\.gradle\\.kts$",
+      "(^|/)settings\\.gradle\\.kts$",
+      "(^|/)gradle/libs\\.versions\\.toml$"
+    ]
+  }
 }
