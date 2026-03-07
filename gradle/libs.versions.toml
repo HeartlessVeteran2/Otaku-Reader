@@ -49,7 +49,7 @@ workmanager = "2.10.0"
 junit = "4.13.2"
 junit5 = "5.11.0"
 androidxTest = "1.6.1"
-espresso = "3.6.1"
+espresso = "3.7.0"
 mockk = "1.13.12"
 turbine = "1.2.0"
 
