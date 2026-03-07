@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.komikku.domain.repository.CategoryRepository
 import app.komikku.domain.usecase.GetLibraryUseCase
+import app.komikku.domain.usecase.RemoveFromLibraryUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -25,6 +26,7 @@ import javax.inject.Inject
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
     private val getLibraryUseCase: GetLibraryUseCase,
+    private val removeFromLibraryUseCase: RemoveFromLibraryUseCase,
     private val categoryRepository: CategoryRepository
 ) : ViewModel() {
 
@@ -106,7 +108,7 @@ class LibraryViewModel @Inject constructor(
 
     private fun removeFromLibrary(mangaIds: Set<Long>) {
         viewModelScope.launch {
-            // TODO: call use case to remove from library
+            removeFromLibraryUseCase(mangaIds)
             _state.update { it.copy(selectedManga = emptySet()) }
             _effect.send(LibraryEffect.ShowSnackbar("Removed ${mangaIds.size} manga from library"))
         }

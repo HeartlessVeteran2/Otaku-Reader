@@ -5,6 +5,7 @@ import app.komikku.domain.repository.MangaRepository
 import app.komikku.domain.usecase.GetChaptersUseCase
 import app.komikku.domain.usecase.GetHistoryUseCase
 import app.komikku.domain.usecase.GetLibraryUseCase
+import app.komikku.domain.usecase.RemoveFromLibraryUseCase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -29,4 +30,8 @@ object UseCaseModule {
     @Provides
     fun provideGetHistoryUseCase(chapterRepository: ChapterRepository): GetHistoryUseCase =
         GetHistoryUseCase(chapterRepository)
+
+    @Provides
+    fun provideRemoveFromLibraryUseCase(mangaRepository: MangaRepository): RemoveFromLibraryUseCase =
+        RemoveFromLibraryUseCase(mangaRepository)
 }
