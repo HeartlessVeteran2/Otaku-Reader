@@ -1,21 +1,42 @@
-# Security Policy
+# 🔒 Security Policy
 
 ## Supported Versions
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
-
 | Version | Supported          |
 | ------- | ------------------ |
-| 5.1.x   | :white_check_mark: |
-| 5.0.x   | :x:                |
-| 4.0.x   | :white_check_mark: |
-| < 4.0   | :x:                |
+| Latest  | :white_check_mark: |
+| < 1.0   | :x:                |
 
 ## Reporting a Vulnerability
 
-Use this section to tell people how to report a vulnerability.
+We take security seriously. If you discover a security vulnerability:
 
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+1. **DO NOT** open a public issue
+2. Email maintainers directly with details
+3. Include:
+   - Description of vulnerability
+   - Steps to reproduce
+   - Potential impact
+   - Suggested fix (if any)
+
+## Response Timeline
+
+- **Acknowledgment**: Within 48 hours
+- **Assessment**: Within 1 week
+- **Fix Released**: As soon as possible
+- **Public Disclosure**: After fix is released
+
+## Security Measures
+
+- Extension signature verification
+- Sandboxed extension loading
+- No cleartext credential storage
+- Regular dependency updates
+
+## Scope
+
+This security policy covers:
+- Otaku Reader Android app
+- Extension loading system
+- Cloud sync features
+- Network communication
