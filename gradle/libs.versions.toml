@@ -10,7 +10,7 @@ appcompat = "1.7.0"
 activity-compose = "1.9.3"
 
 # Compose
-compose-bom = "2024.12.01"
+compose-bom = "2026.02.01"
 
 # Coroutines
 coroutines = "1.9.0"
