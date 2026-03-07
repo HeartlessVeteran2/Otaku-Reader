@@ -1,7 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:base",
+    "config:recommended",
     ":dependencyDashboard",
     ":semanticPrefixFixDepsChoreOthers",
     ":ignoreUnstable",
@@ -19,7 +19,7 @@
   "labels": ["dependencies", "renovate"],
   "reviewers": ["HeartlessVeteran2"],
   "assignees": ["HeartlessVeteran2"],
-  "baseBranches": ["reborn"],
+  "baseBranchPatterns": ["reborn"],
   "rangeStrategy": "bump",
   "commitMessageTopic": "{{depName}}",
   "commitMessageExtra": "to {{newVersion}}",
@@ -30,59 +30,57 @@
     {
       "groupName": "Kotlin & Compose",
       "groupSlug": "kotlin-compose",
-      "matchPackagePrefixes": [
-        "org.jetbrains.kotlin",
-        "androidx.compose"
+      "matchPackageNames": [
+        "org.jetbrains.kotlin{/,}**",
+        "androidx.compose{/,}**"
       ],
       "schedule": ["before 5am on the first day of the month"]
     },
     {
       "groupName": "AndroidX",
       "groupSlug": "androidx",
-      "matchPackagePrefixes": [
-        "androidx."
-      ],
-      "excludePackagePrefixes": [
-        "androidx.compose"
+      "matchPackageNames": [
+        "androidx.{/,}**",
+        "!androidx.compose{/,}**"
       ]
     },
     {
       "groupName": "Hilt & Dagger",
       "groupSlug": "hilt-dagger",
-      "matchPackagePrefixes": [
-        "com.google.dagger"
+      "matchPackageNames": [
+        "com.google.dagger{/,}**"
       ]
     },
     {
       "groupName": "Room",
       "groupSlug": "room",
-      "matchPackagePrefixes": [
-        "androidx.room"
+      "matchPackageNames": [
+        "androidx.room{/,}**"
       ]
     },
     {
       "groupName": "Coil",
       "groupSlug": "coil",
-      "matchPackagePrefixes": [
-        "io.coil-kt"
+      "matchPackageNames": [
+        "io.coil-kt{/,}**"
       ]
     },
     {
       "groupName": "Testing",
       "groupSlug": "testing",
-      "matchPackagePrefixes": [
-        "junit",
-        "androidx.test",
-        "io.mockk",
-        "app.cash.turbine"
+      "matchPackageNames": [
+        "junit{/,}**",
+        "androidx.test{/,}**",
+        "io.mockk{/,}**",
+        "app.cash.turbine{/,}**"
       ]
     },
     {
       "groupName": "Gradle Plugins",
       "groupSlug": "gradle-plugins",
-      "matchPackagePrefixes": [
-        "com.android.tools.build",
-        "com.google.devtools.ksp"
+      "matchPackageNames": [
+        "com.android.tools.build{/,}**",
+        "com.google.devtools.ksp{/,}**"
       ]
     },
     {
@@ -98,9 +96,6 @@
     }
   ],
   "gradle": {
-    "enabled": true
-  },
-  "kotlin": {
     "enabled": true
   },
   "enabledManagers": [
