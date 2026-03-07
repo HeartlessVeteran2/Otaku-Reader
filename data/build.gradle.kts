@@ -21,4 +21,8 @@ dependencies {
     implementation(libs.workmanager.ktx)
     implementation(libs.hilt.work)
     ksp(libs.hilt.compiler)
+
+    testImplementation(libs.junit)
+    testImplementation(libs.mockk)
+    testImplementation(libs.kotlinx.coroutines.test)
 }
