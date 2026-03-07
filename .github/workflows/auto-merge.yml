@@ -1,0 +1,97 @@
+name: 🤖 Auto-Merge Dependency Updates
+
+# Trigger on pull_request_target so the workflow runs in the base-branch
+# context (trusted code, write-access token) even for Dependabot PRs.
+# No checkout step is used, so there is no risk of executing untrusted code.
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+jobs:
+  auto-merge:
+    name: Auto-merge dependency update PRs
+    runs-on: ubuntu-latest
+
+    # Only run for known dependency-update bots
+    if: >
+      github.actor == 'dependabot[bot]' ||
+      github.actor == 'renovate[bot]'
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: 🤖 Enable auto-merge for dependency update PR
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner  = context.repo.owner;
+            const repo   = context.repo.repo;
+            const actor  = context.actor;
+            const pr     = context.payload.pull_request;
+            const prNum  = pr.number;
+
+            console.log(`🔍 Processing PR #${prNum}: "${pr.title}"`);
+            console.log(`👤 Author: ${actor}`);
+
+            // ── Guard: only known dependency bots ──────────────────────────
+            const allowedActors = ['dependabot[bot]', 'renovate[bot]'];
+            if (!allowedActors.includes(actor)) {
+              console.log(`⏭️  Skipping PR #${prNum}: actor "${actor}" is not an allowed dependency bot.`);
+              return;
+            }
+
+            // ── Guard: skip draft PRs ───────────────────────────────────────
+            if (pr.draft) {
+              console.log(`⏭️  Skipping PR #${prNum}: it is a draft.`);
+              return;
+            }
+
+            // ── Guard: skip PRs with blocking labels ────────────────────────
+            const blockingLabels = ['do not merge', 'do-not-merge', 'blocked', 'hold'];
+            const prLabels = pr.labels.map(l => l.name.toLowerCase());
+            const hasBlockingLabel = prLabels.some(l => blockingLabels.includes(l));
+            if (hasBlockingLabel) {
+              console.log(`⏭️  Skipping PR #${prNum}: has a blocking label [${prLabels.join(', ')}].`);
+              return;
+            }
+
+            console.log(`✅ PR #${prNum} passed all eligibility checks — enabling auto-merge.`);
+
+            // ── Enable auto-merge via GraphQL ───────────────────────────────
+            // GitHub will merge the PR automatically once all required status
+            // checks pass (CI, CodeQL, etc.).
+            const { data: prData } = await github.rest.pulls.get({
+              owner,
+              repo,
+              pull_number: prNum
+            });
+
+            try {
+              await github.graphql(`
+                mutation($pullRequestId: ID!) {
+                  enablePullRequestAutoMerge(input: {
+                    pullRequestId: $pullRequestId,
+                    mergeMethod: MERGE
+                  }) {
+                    pullRequest {
+                      autoMergeRequest {
+                        enabledAt
+                        enabledBy { login }
+                      }
+                    }
+                  }
+                }
+              `, { pullRequestId: prData.node_id });
+
+              console.log(`🎉 Auto-merge enabled for PR #${prNum} — will merge once all required checks pass.`);
+            } catch (error) {
+              // Auto-merge may be unavailable (e.g. the feature is disabled for
+              // this repository). Do NOT fall back to a direct merge because that
+              // would bypass required status-check gates.
+              console.error(`❌ Failed to enable auto-merge for PR #${prNum}: ${error.message}`);
+              console.error(`ℹ️  Ensure "Allow auto-merge" is enabled in the repository settings.`);
+              throw new Error(`Failed to enable auto-merge for PR #${prNum}: ${error.message}`);
+            }
