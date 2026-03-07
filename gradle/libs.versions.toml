@@ -1,7 +1,7 @@
 [versions]
 # Core
 kotlin = "2.0.21"
-agp = "8.5.2"
+agp = "9.1.0"
 ksp = "2.0.21-1.0.28"
 
 # AndroidX
@@ -51,7 +51,7 @@ junit5 = "5.11.0"
 androidxTest = "1.6.1"
 espresso = "3.6.1"
 mockk = "1.13.12"
-turbine = "1.2.0"
+turbine = "1.2.1"
 
 [libraries]
 # Kotlin
