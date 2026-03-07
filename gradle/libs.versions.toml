@@ -19,7 +19,7 @@ coroutines = "1.9.0"
 lifecycle = "2.8.7"
 
 # Navigation
-navigation = "2.8.5"
+navigation = "2.9.7"
 
 # Hilt
 hilt = "2.51.1"
