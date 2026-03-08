@@ -101,14 +101,21 @@ class UltimateReaderViewModel @Inject constructor(
                     return@launch
                 }
 
+                if (manga == null) {
+                    _state.update {
+                        it.copy(isLoading = false, error = "Manga not found")
+                    }
+                    return@launch
+                }
+
                 // Fetch pages from source; PageLoader will transparently substitute
                 // local file URIs for any page that has already been downloaded.
-                val sourceName = manga?.sourceId?.toString() ?: ""
+                val sourceName = manga.sourceId.toString()
                 val pages = fetchPagesFromSource(
                     chapterUrl = chapter.url,
                     chapterId = chapter.id,
                     sourceName = sourceName,
-                    mangaTitle = manga?.title ?: "",
+                    mangaTitle = manga.title,
                     chapterName = chapter.name
                 )
 
