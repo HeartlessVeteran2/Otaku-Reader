@@ -37,8 +37,11 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
@@ -51,6 +54,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collectLatest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -208,7 +212,7 @@ private fun MangaGridItem(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(
+            .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick
             )
@@ -251,14 +255,13 @@ private fun UnreadBadge(
     Box(
         modifier = modifier
             .padding(4.dp)
-            .size(24.dp),
+            .size(24.dp)
+            .background(
+                color = MaterialTheme.colorScheme.primary,
+                shape = CircleShape
+            ),
         contentAlignment = Alignment.Center
     ) {
-        // Badge background
-        androidx.compose.foundation.background(
-            color = MaterialTheme.colorScheme.primary,
-            shape = androidx.compose.foundation.shape.CircleShape
-        )
         Text(
             text = if (count > 99) "99+" else count.toString(),
             style = MaterialTheme.typography.labelSmall,
