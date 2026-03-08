@@ -32,12 +32,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SheetValue
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -67,7 +69,6 @@ import kotlinx.coroutines.launch
 @Composable
 fun ExtensionsBottomSheet(
     onDismiss: () -> Unit,
-    onNavigateToSettings: () -> Unit,
     viewModel: ExtensionsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -84,13 +85,6 @@ fun ExtensionsBottomSheet(
         ExtensionsContent(
             state = state,
             onEvent = viewModel::onEvent,
-            onNavigateToSettings = {
-                scope.launch {
-                    sheetState.hide()
-                    onDismiss()
-                    onNavigateToSettings()
-                }
-            },
             onClose = {
                 scope.launch {
                     sheetState.hide()
@@ -106,7 +100,6 @@ fun ExtensionsBottomSheet(
 private fun ExtensionsContent(
     state: ExtensionsState,
     onEvent: (ExtensionsEvent) -> Unit,
-    onNavigateToSettings: () -> Unit,
     onClose: () -> Unit
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
@@ -125,7 +118,7 @@ private fun ExtensionsContent(
                     IconButton(onClick = { onEvent(ExtensionsEvent.Refresh) }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                     }
-                    IconButton(onClick = onNavigateToSettings) {
+                    IconButton(onClick = { /* TODO: Settings */ }) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")
                     }
                 }
@@ -146,6 +139,14 @@ private fun ExtensionsContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+
+            RepositoryManager(
+                repositories = state.repositories,
+                activeRepository = state.activeRepository,
+                onAdd = { onEvent(ExtensionsEvent.AddRepository(it)) },
+                onRemove = { onEvent(ExtensionsEvent.RemoveRepository(it)) },
+                onSetActive = { onEvent(ExtensionsEvent.SetActiveRepository(it)) }
             )
 
             // Tabs
@@ -188,6 +189,9 @@ private fun ExtensionsContent(
                     onInstall = { /* Already installed */ },
                     onUninstall = { onEvent(ExtensionsEvent.UninstallExtension(it)) },
                     onUpdate = { onEvent(ExtensionsEvent.UpdateExtension(it)) },
+                    onToggleEnabled = { ext, enabled ->
+                        onEvent(ExtensionsEvent.ToggleExtensionEnabled(ext, enabled))
+                    },
                     onRefresh = { onEvent(ExtensionsEvent.Refresh) }
                 )
                 1 -> ExtensionsList(
@@ -197,6 +201,7 @@ private fun ExtensionsContent(
                     onInstall = { onEvent(ExtensionsEvent.InstallExtension(it)) },
                     onUninstall = { /* Not installed */ },
                     onUpdate = { /* No update */ },
+                    onToggleEnabled = { _, _ -> },
                     onRefresh = { onEvent(ExtensionsEvent.Refresh) }
                 )
                 2 -> ExtensionsList(
@@ -206,6 +211,9 @@ private fun ExtensionsContent(
                     onInstall = { /* Already installed */ },
                     onUninstall = { onEvent(ExtensionsEvent.UninstallExtension(it)) },
                     onUpdate = { onEvent(ExtensionsEvent.UpdateExtension(it)) },
+                    onToggleEnabled = { ext, enabled ->
+                        onEvent(ExtensionsEvent.ToggleExtensionEnabled(ext, enabled))
+                    },
                     onRefresh = { onEvent(ExtensionsEvent.Refresh) }
                 )
             }
@@ -221,6 +229,7 @@ private fun ExtensionsList(
     onInstall: (Extension) -> Unit,
     onUninstall: (Extension) -> Unit,
     onUpdate: (Extension) -> Unit,
+    onToggleEnabled: (Extension, Boolean) -> Unit,
     onRefresh: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -242,7 +251,8 @@ private fun ExtensionsList(
                     extension = extension,
                     onInstall = { onInstall(extension) },
                     onUninstall = { onUninstall(extension) },
-                    onUpdate = { onUpdate(extension) }
+                    onUpdate = { onUpdate(extension) },
+                    onToggleEnabled = { enabled -> onToggleEnabled(extension, enabled) }
                 )
             }
         }
@@ -269,6 +279,7 @@ private fun ExtensionItem(
     onInstall: () -> Unit,
     onUninstall: () -> Unit,
     onUpdate: () -> Unit,
+    onToggleEnabled: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -311,18 +322,35 @@ private fun ExtensionItem(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                Text(
+                    text = if (extension.signatureHash != null) "Trusted" else "Unverified",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (extension.signatureHash != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
 
             // Action buttons based on status
             when (extension.status) {
                 InstallStatus.INSTALLED -> {
-                    IconButton(onClick = onUninstall) {
-                        Icon(Icons.Default.Delete, contentDescription = "Uninstall")
+                    Column(horizontalAlignment = Alignment.End) {
+                        Switch(
+                            checked = extension.isEnabled,
+                            onCheckedChange = onToggleEnabled
+                        )
+                        IconButton(onClick = onUninstall) {
+                            Icon(Icons.Default.Delete, contentDescription = "Uninstall")
+                        }
                     }
                 }
                 InstallStatus.HAS_UPDATE -> {
-                    IconButton(onClick = onUpdate) {
-                        Icon(Icons.Default.Update, contentDescription = "Update", tint = MaterialTheme.colorScheme.primary)
+                    Column(horizontalAlignment = Alignment.End) {
+                        Switch(
+                            checked = extension.isEnabled,
+                            onCheckedChange = onToggleEnabled
+                        )
+                        IconButton(onClick = onUpdate) {
+                            Icon(Icons.Default.Update, contentDescription = "Update", tint = MaterialTheme.colorScheme.primary)
+                        }
                     }
                 }
                 InstallStatus.AVAILABLE -> {
@@ -344,5 +372,77 @@ private fun ExtensionItem(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun RepositoryManager(
+    repositories: List<String>,
+    activeRepository: String?,
+    onAdd: (String) -> Unit,
+    onRemove: (String) -> Unit,
+    onSetActive: (String) -> Unit
+) {
+    var repoInput by remember { mutableStateOf("") }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(text = "Repositories", style = MaterialTheme.typography.titleMedium)
+
+        repositories.forEach { repo ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(text = repo, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    if (activeRepository == repo) {
+                        Text(
+                            text = "Active",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+                if (activeRepository != repo) {
+                    TextButton(onClick = { onSetActive(repo) }) {
+                        Text("Set Active")
+                    }
+                }
+                IconButton(onClick = { onRemove(repo) }) {
+                    Icon(Icons.Default.Delete, contentDescription = "Remove repository")
+                }
+            }
+        }
+
+        OutlinedTextField(
+            value = repoInput,
+            onValueChange = { repoInput = it },
+            placeholder = { Text("https://.../repo") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+        ) {
+            TextButton(
+                onClick = {
+                    onAdd(repoInput)
+                    repoInput = ""
+                },
+                enabled = repoInput.isNotBlank()
+            ) {
+                Text("Add repository")
+            }
+        }
+
+        HorizontalDivider()
     }
 }

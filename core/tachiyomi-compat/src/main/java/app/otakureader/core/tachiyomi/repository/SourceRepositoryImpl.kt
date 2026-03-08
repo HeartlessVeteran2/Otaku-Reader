@@ -5,6 +5,7 @@ import app.otakureader.core.tachiyomi.compat.TachiyomiExtensionLoader
 import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.sourceapi.MangaPage
 import app.otakureader.sourceapi.MangaSource
+import app.otakureader.sourceapi.SourceChapter
 import app.otakureader.sourceapi.SourceManga
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -131,6 +132,20 @@ class SourceRepositoryImpl(
 
                 val details = source.fetchMangaDetails(manga)
                 Result.success(details)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
+
+    override suspend fun getChapterList(sourceId: String, manga: SourceManga): Result<List<SourceChapter>> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val source = getSource(sourceId)
+                    ?: return@withContext Result.failure(IllegalArgumentException("Source not found: $sourceId"))
+
+                val chapters = source.fetchChapterList(manga)
+                Result.success(chapters)
             } catch (e: Exception) {
                 Result.failure(e)
             }

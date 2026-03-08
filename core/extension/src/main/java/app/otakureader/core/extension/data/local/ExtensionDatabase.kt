@@ -52,7 +52,10 @@ data class ExtensionEntity(
     val signatureHash: String?,
     
     @ColumnInfo(name = "remote_version_code")
-    val remoteVersionCode: Int? // For tracking available updates
+    val remoteVersionCode: Int?, // For tracking available updates
+
+    @ColumnInfo(name = "is_enabled")
+    val isEnabled: Boolean = true
 )
 
 @Dao
@@ -87,9 +90,12 @@ interface ExtensionDao {
     
     @Query("UPDATE extensions SET status = :status WHERE pkg_name = :pkgName")
     suspend fun updateStatus(pkgName: String, status: String)
-    
+
     @Query("UPDATE extensions SET remote_version_code = :remoteVersion WHERE pkg_name = :pkgName")
     suspend fun updateRemoteVersion(pkgName: String, remoteVersion: Int)
+
+    @Query("UPDATE extensions SET is_enabled = :enabled WHERE pkg_name = :pkgName")
+    suspend fun updateEnabled(pkgName: String, enabled: Boolean)
     
     @Query("SELECT * FROM extensions WHERE name LIKE '%' || :query || '%' OR pkg_name LIKE '%' || :query || '%'")
     fun searchExtensions(query: String): Flow<List<ExtensionEntity>>
@@ -100,7 +106,7 @@ interface ExtensionDao {
 
 @Database(
     entities = [ExtensionEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class ExtensionDatabase : RoomDatabase() {

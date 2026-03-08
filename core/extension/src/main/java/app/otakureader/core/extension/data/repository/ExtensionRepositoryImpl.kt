@@ -134,6 +134,10 @@ class ExtensionRepositoryImpl(
     override suspend fun setExtensionStatus(pkgName: String, status: InstallStatus) {
         localDataSource.updateStatus(pkgName, status.name)
     }
+
+    override suspend fun setExtensionEnabled(pkgName: String, enabled: Boolean) {
+        localDataSource.updateEnabled(pkgName, enabled)
+    }
     
     override suspend fun refreshAvailableExtensions(): Result<Unit> {
         return try {

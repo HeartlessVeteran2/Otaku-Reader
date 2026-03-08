@@ -68,6 +68,11 @@ interface ExtensionRepository {
      * Set the status of an extension (e.g., during installation).
      */
     suspend fun setExtensionStatus(pkgName: String, status: InstallStatus)
+
+    /**
+     * Enable or disable an installed extension without uninstalling.
+     */
+    suspend fun setExtensionEnabled(pkgName: String, enabled: Boolean)
     
     /**
      * Refresh the list of available extensions from remote.

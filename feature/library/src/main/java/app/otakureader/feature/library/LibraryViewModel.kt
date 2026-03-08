@@ -1,12 +1,17 @@
 package app.otakureader.feature.library
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import app.otakureader.core.preferences.LibraryPreferences
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.usecase.GetLibraryMangaUseCase
 import app.otakureader.domain.usecase.ToggleFavoriteMangaUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -24,6 +29,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val getLibraryManga: GetLibraryMangaUseCase,
     private val toggleFavoriteManga: ToggleFavoriteMangaUseCase,
     private val libraryPreferences: LibraryPreferences
@@ -42,7 +48,7 @@ class LibraryViewModel @Inject constructor(
     
     fun onEvent(event: LibraryEvent) {
         when (event) {
-            is LibraryEvent.Refresh -> loadLibrary()
+            is LibraryEvent.Refresh -> onRefresh()
             is LibraryEvent.OnMangaClick -> onMangaClick(event.mangaId)
             is LibraryEvent.OnMangaLongClick -> onMangaLongClick(event.mangaId)
             is LibraryEvent.OnSearchQueryChange -> onSearchQueryChange(event.query)
@@ -50,6 +56,12 @@ class LibraryViewModel @Inject constructor(
             is LibraryEvent.ClearSelection -> clearSelection()
             is LibraryEvent.ToggleFavorite -> toggleFavorite(event.mangaId)
         }
+    }
+
+    private fun onRefresh() {
+        // TODO: Trigger library update worker to check for new chapters
+        // This will be implemented in the app module to avoid circular dependency
+        loadLibrary()
     }
     
     private fun observeLibraryPreferences() {
@@ -62,8 +74,9 @@ class LibraryViewModel @Inject constructor(
     }
     
     private fun loadLibrary() {
-        _state.update { it.copy(isLoading = true) }
-        
+        val isRefreshing = _state.value.mangaList.isNotEmpty()
+        _state.update { it.copy(isLoading = !isRefreshing, isRefreshing = isRefreshing) }
+
         getLibraryManga()
             .map { mangaList ->
                 mangaList.map { it.toLibraryItem() }
@@ -72,6 +85,7 @@ class LibraryViewModel @Inject constructor(
                 _state.update {
                     it.copy(
                         isLoading = false,
+                        isRefreshing = false,
                         mangaList = items,
                         error = null
                     )
@@ -81,6 +95,7 @@ class LibraryViewModel @Inject constructor(
                 _state.update {
                     it.copy(
                         isLoading = false,
+                        isRefreshing = false,
                         error = error.message
                     )
                 }

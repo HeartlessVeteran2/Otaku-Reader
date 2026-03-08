@@ -49,7 +49,10 @@ data class Extension(
     val installDate: Long?,
     
     /** Signature hash for verification */
-    val signatureHash: String?
+    val signatureHash: String?,
+
+    /** Whether the extension is enabled without uninstalling */
+    val isEnabled: Boolean = true
 ) : Parcelable {
     
     val isInstalled: Boolean

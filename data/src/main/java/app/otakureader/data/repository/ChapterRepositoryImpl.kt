@@ -102,11 +102,5 @@ class ChapterRepositoryImpl @Inject constructor(
         chapterNumber = chapterNumber,
         dateUpload = dateUpload
     )
-
-    private fun ChapterWithHistoryEntity.toDomain() = ChapterWithHistory(
-        chapter = chapter.toDomain(),
-        readAt = history.readAt,
-        readDurationMs = history.readDurationMs
-    )
 }
 
