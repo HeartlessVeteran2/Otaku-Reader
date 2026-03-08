@@ -155,5 +155,6 @@ class BackupRestorer @Inject constructor(
         // Reader preferences
         readerPreferences.setReaderMode(prefs.readerMode)
         readerPreferences.setKeepScreenOn(prefs.keepScreenOn)
+        readerPreferences.setTapZonesEnabled(prefs.tapZonesEnabled)
     }
 }

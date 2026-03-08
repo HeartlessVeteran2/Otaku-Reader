@@ -58,6 +58,8 @@ class SettingsViewModel @Inject constructor(
                 state.copy(readerMode = readerMode)
             }.combine(readerPreferences.keepScreenOn) { state, keepScreenOn ->
                 state.copy(keepScreenOn = keepScreenOn)
+            }.combine(readerPreferences.tapZonesEnabled) { state, tapZonesEnabled ->
+                state.copy(tapZonesEnabled = tapZonesEnabled)
             }.collect { newState ->
                 _state.update { newState }
             }
@@ -76,6 +78,7 @@ class SettingsViewModel @Inject constructor(
                 is SettingsEvent.SetShowBadges -> libraryPreferences.setShowBadges(event.enabled)
                 is SettingsEvent.SetReaderMode -> readerPreferences.setReaderMode(event.mode)
                 is SettingsEvent.SetKeepScreenOn -> readerPreferences.setKeepScreenOn(event.enabled)
+                is SettingsEvent.SetTapZonesEnabled -> readerPreferences.setTapZonesEnabled(event.enabled)
                 SettingsEvent.OnCreateBackup -> _effect.send(SettingsEffect.ShowBackupPicker)
                 SettingsEvent.OnRestoreBackup -> _effect.send(SettingsEffect.ShowRestorePicker)
             }
