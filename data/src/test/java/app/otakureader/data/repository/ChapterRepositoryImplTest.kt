@@ -1,6 +1,7 @@
 package app.otakureader.data.repository
 
 import app.otakureader.core.database.dao.ChapterDao
+import app.otakureader.core.database.dao.ReadingHistoryDao
 import app.otakureader.core.database.entity.ChapterEntity
 import app.otakureader.domain.model.Chapter
 import app.cash.turbine.test
@@ -20,6 +21,7 @@ import org.junit.Test
 class ChapterRepositoryImplTest {
 
     private lateinit var chapterDao: ChapterDao
+    private lateinit var readingHistoryDao: ReadingHistoryDao
     private lateinit var repository: ChapterRepositoryImpl
 
     private fun makeEntity(
@@ -45,7 +47,8 @@ class ChapterRepositoryImplTest {
     @Before
     fun setUp() {
         chapterDao = mockk()
-        repository = ChapterRepositoryImpl(chapterDao)
+        readingHistoryDao = mockk()
+        repository = ChapterRepositoryImpl(chapterDao, readingHistoryDao)
     }
 
     // ---- getChaptersByMangaId ----
@@ -182,13 +185,15 @@ class ChapterRepositoryImplTest {
     // ---- observeHistory ----
 
     @Test
-    fun observeHistory_throwsNotImplementedError() {
-        try {
-            repository.observeHistory()
-            throw AssertionError("Expected NotImplementedError to be thrown")
-        } catch (e: NotImplementedError) {
-            // expected — history requires ReadingHistoryDao join query (TODO)
+    fun observeHistory_delegatesToDao() = runTest {
+        every { readingHistoryDao.observeHistoryWithChapters() } returns flowOf(emptyList())
+
+        repository.observeHistory().test {
+            assertEquals(emptyList<app.otakureader.domain.model.ChapterWithHistory>(), awaitItem())
+            awaitComplete()
         }
+
+        verify { readingHistoryDao.observeHistoryWithChapters() }
     }
 
     // ---- mapping ----

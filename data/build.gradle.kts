@@ -23,6 +23,8 @@ dependencies {
     implementation(libs.hilt.work)
     ksp(libs.hilt.compiler)
 
+    implementation(libs.retrofit.kotlinx.serialization)
+
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
