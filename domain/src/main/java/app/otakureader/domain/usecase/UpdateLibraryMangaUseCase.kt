@@ -80,7 +80,7 @@ class UpdateLibraryMangaUseCase @Inject constructor(
     )
 
     private fun SourceChapter.toDomainChapter(mangaId: Long) = Chapter(
-        id = 0, // Room will auto-generate
+        id = 0L, // Room will auto-generate
         mangaId = mangaId,
         url = url,
         name = name,
