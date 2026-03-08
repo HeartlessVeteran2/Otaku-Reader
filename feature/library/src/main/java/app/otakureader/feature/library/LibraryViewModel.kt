@@ -2,6 +2,7 @@ package app.otakureader.feature.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.otakureader.core.preferences.LibraryPreferences
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.usecase.GetLibraryMangaUseCase
 import app.otakureader.domain.usecase.ToggleFavoriteMangaUseCase
@@ -13,6 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -23,7 +25,8 @@ import javax.inject.Inject
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
     private val getLibraryManga: GetLibraryMangaUseCase,
-    private val toggleFavoriteManga: ToggleFavoriteMangaUseCase
+    private val toggleFavoriteManga: ToggleFavoriteMangaUseCase,
+    private val libraryPreferences: LibraryPreferences
 ) : ViewModel() {
     
     private val _state = MutableStateFlow(LibraryState())
@@ -34,6 +37,7 @@ class LibraryViewModel @Inject constructor(
     
     init {
         loadLibrary()
+        observeLibraryPreferences()
     }
     
     fun onEvent(event: LibraryEvent) {
@@ -46,6 +50,15 @@ class LibraryViewModel @Inject constructor(
             is LibraryEvent.ClearSelection -> clearSelection()
             is LibraryEvent.ToggleFavorite -> toggleFavorite(event.mangaId)
         }
+    }
+    
+    private fun observeLibraryPreferences() {
+        combine(
+            libraryPreferences.gridSize,
+            libraryPreferences.showBadges
+        ) { gridSize, showBadges ->
+            _state.update { it.copy(gridSize = gridSize, showBadges = showBadges) }
+        }.launchIn(viewModelScope)
     }
     
     private fun loadLibrary() {

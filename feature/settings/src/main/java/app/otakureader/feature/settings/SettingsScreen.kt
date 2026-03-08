@@ -24,6 +24,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
@@ -151,14 +154,21 @@ fun SettingsScreen(
             // ── Library ───────────────────────────────────────────────────────
             SectionHeader(title = "Library")
 
-            // Grid size
+            // Grid size – use a local slider state so DataStore is written only when
+            // the user finishes dragging, not on every intermediate position.
+            var sliderPosition by remember(state.libraryGridSize) {
+                mutableFloatStateOf(state.libraryGridSize.toFloat())
+            }
             ListItem(
-                headlineContent = { Text("Grid Columns: ${state.libraryGridSize}") },
+                headlineContent = { Text("Grid Columns: ${sliderPosition.roundToInt()}") },
                 supportingContent = {
                     Slider(
-                        value = state.libraryGridSize.toFloat(),
-                        onValueChange = {
-                            viewModel.onEvent(SettingsEvent.SetLibraryGridSize(it.roundToInt()))
+                        value = sliderPosition,
+                        onValueChange = { sliderPosition = it },
+                        onValueChangeFinished = {
+                            viewModel.onEvent(
+                                SettingsEvent.SetLibraryGridSize(sliderPosition.roundToInt())
+                            )
                         },
                         valueRange = 2f..5f,
                         steps = 2,
@@ -186,15 +196,16 @@ fun SettingsScreen(
             // ── Reader ────────────────────────────────────────────────────────
             SectionHeader(title = "Reader")
 
-            // Reader mode
+            // Reader mode – ordinal order matches ReaderMode enum:
+            // SINGLE_PAGE=0, DUAL_PAGE=1, WEBTOON=2, SMART_PANELS=3
             ListItem(
                 headlineContent = { Text("Reading Mode") },
                 supportingContent = {
                     Column(modifier = Modifier.selectableGroup()) {
                         val modes = listOf(
                             "Single Page" to 0,
-                            "Webtoon" to 1,
-                            "Dual Page" to 2,
+                            "Dual Page" to 1,
+                            "Webtoon" to 2,
                             "Smart Panels" to 3
                         )
                         modes.forEach { (label, value) ->
@@ -254,6 +265,40 @@ fun SettingsScreen(
                             viewModel.onEvent(SettingsEvent.SetNotificationsEnabled(it))
                         }
                     )
+                }
+            )
+
+            // Update check interval
+            ListItem(
+                headlineContent = { Text("Update Check Interval") },
+                supportingContent = {
+                    Column(modifier = Modifier.selectableGroup()) {
+                        val intervals = listOf("6 hours" to 6, "12 hours" to 12, "24 hours" to 24)
+                        intervals.forEach { (label, hours) ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .selectable(
+                                        selected = state.updateCheckInterval == hours,
+                                        onClick = {
+                                            viewModel.onEvent(SettingsEvent.SetUpdateInterval(hours))
+                                        },
+                                        role = Role.RadioButton
+                                    )
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                RadioButton(
+                                    selected = state.updateCheckInterval == hours,
+                                    onClick = null
+                                )
+                                Text(
+                                    text = label,
+                                    modifier = Modifier.padding(start = 8.dp)
+                                )
+                            }
+                        }
+                    }
                 }
             )
         }

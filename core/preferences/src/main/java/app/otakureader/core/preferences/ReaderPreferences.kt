@@ -9,14 +9,15 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 /**
- * Preference store for reader-related settings including reading mode and tapping zones.
+ * Preference store for reader-related settings such as reading mode, keep-screen-on, and scale.
  * Exposes reactive [Flow] properties and suspend setter functions backed by DataStore.
  */
 class ReaderPreferences(private val dataStore: DataStore<Preferences>) {
 
     // --- Reading Mode ---
 
-    /** Reader display mode: 0 = single page, 1 = webtoon, 2 = dual page, 3 = smart panels. */
+    /** Reader display mode ordinal — matches [app.otakureader.feature.reader.model.ReaderMode]:
+     *  0 = SINGLE_PAGE, 1 = DUAL_PAGE, 2 = WEBTOON, 3 = SMART_PANELS. */
     val readerMode: Flow<Int> = dataStore.data.map { it[Keys.READER_MODE] ?: 0 }
     suspend fun setReaderMode(value: Int) = dataStore.edit { it[Keys.READER_MODE] = value }
 
@@ -31,8 +32,8 @@ class ReaderPreferences(private val dataStore: DataStore<Preferences>) {
     suspend fun setReaderScale(value: Int) = dataStore.edit { it[Keys.READER_SCALE] = value }
 
     private object Keys {
-        val READER_MODE = intPreferencesKey("reader_mode")
-        val KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
+        val READER_MODE = intPreferencesKey("reader_mode_setting")
+        val KEEP_SCREEN_ON = booleanPreferencesKey("reader_keep_screen_on")
         val READER_SCALE = intPreferencesKey("reader_scale")
     }
 }

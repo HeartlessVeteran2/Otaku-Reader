@@ -133,6 +133,8 @@ private fun LibraryContent(
             else -> {
                 MangaGrid(
                     mangaList = state.mangaList,
+                    gridSize = state.gridSize,
+                    showBadges = state.showBadges,
                     onMangaClick = { onEvent(LibraryEvent.OnMangaClick(it)) },
                     onMangaLongClick = { onEvent(LibraryEvent.OnMangaLongClick(it)) }
                 )
@@ -144,12 +146,14 @@ private fun LibraryContent(
 @Composable
 private fun MangaGrid(
     mangaList: List<LibraryMangaItem>,
+    gridSize: Int,
+    showBadges: Boolean,
     onMangaClick: (Long) -> Unit,
     onMangaLongClick: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 120.dp),
+        columns = GridCells.Fixed(gridSize),
         contentPadding = PaddingValues(8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -161,6 +165,7 @@ private fun MangaGrid(
         ) { manga ->
             MangaGridItem(
                 manga = manga,
+                showBadges = showBadges,
                 onClick = { onMangaClick(manga.id) },
                 onLongClick = { onMangaLongClick(manga.id) }
             )
@@ -171,6 +176,7 @@ private fun MangaGrid(
 @Composable
 private fun MangaGridItem(
     manga: LibraryMangaItem,
+    showBadges: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -194,7 +200,7 @@ private fun MangaGridItem(
                         .aspectRatio(3f / 4f)
                 )
                 
-                if (manga.unreadCount > 0) {
+                if (showBadges && manga.unreadCount > 0) {
                     UnreadBadge(
                         count = manga.unreadCount,
                         modifier = Modifier.align(Alignment.TopEnd)

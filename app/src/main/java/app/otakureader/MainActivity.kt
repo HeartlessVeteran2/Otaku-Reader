@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -13,12 +14,18 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.core.os.LocaleListCompat
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.compose.rememberNavController
 import app.otakureader.core.navigation.OtakuReaderNavHost
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.ui.theme.OtakuReaderTheme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -29,6 +36,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        applyLocaleFromPreferences()
         setContent {
             val themeMode by generalPreferences.themeMode
                 .collectAsStateWithLifecycle(initialValue = 0)
@@ -48,6 +56,23 @@ class MainActivity : ComponentActivity() {
                 ) {
                     OtakuReaderApp()
                 }
+            }
+        }
+    }
+
+    private fun applyLocaleFromPreferences() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                generalPreferences.locale
+                    .distinctUntilChanged()
+                    .collect { locale ->
+                        val localeList = if (locale.isEmpty()) {
+                            LocaleListCompat.getEmptyLocaleList()
+                        } else {
+                            LocaleListCompat.forLanguageTags(locale)
+                        }
+                        AppCompatDelegate.setApplicationLocales(localeList)
+                    }
             }
         }
     }

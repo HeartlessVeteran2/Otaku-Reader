@@ -7,7 +7,9 @@ data class LibraryState(
     val searchQuery: String = "",
     val error: String? = null,
     val categories: List<CategoryItem> = emptyList(),
-    val selectedCategory: Long? = null
+    val selectedCategory: Long? = null,
+    val gridSize: Int = 3,
+    val showBadges: Boolean = true
 )
 
 data class LibraryMangaItem(
