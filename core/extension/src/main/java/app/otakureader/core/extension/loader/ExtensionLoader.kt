@@ -9,26 +9,10 @@ import app.otakureader.core.extension.domain.model.Extension
 import app.otakureader.core.extension.domain.model.ExtensionSource
 import app.otakureader.core.extension.domain.model.InstallStatus
 import dalvik.system.DexClassLoader
+import eu.kanade.tachiyomi.source.CatalogueSource
+import eu.kanade.tachiyomi.source.Source
+import eu.kanade.tachiyomi.source.SourceFactory
 import java.io.File
-
-/**
- * Interface for sources provided by extensions.
- * The actual Source interface is defined in the source-api module.
- * This is a minimal representation for loading purposes.
- */
-interface Source {
-    val id: Long
-    val name: String
-    val lang: String
-}
-
-/**
- * Interface for extension source factories, which create multiple sources from one entry point.
- * Compatible with Tachiyomi/Komikku extensions that use SourceFactory.
- */
-interface SourceFactory {
-    fun createSources(): List<Source>
-}
 
 /**
  * Result of loading an extension.
@@ -218,6 +202,9 @@ class ExtensionLoader(
      * First checks [METADATA_SOURCE_FACTORY]; if absent, falls back to
      * [METADATA_SOURCE_CLASS]. Both keys support multiple class names separated by `;`.
      * Relative class names starting with `.` are expanded using the package name.
+     *
+     * Loaded objects are cast to [eu.kanade.tachiyomi.source.Source] / [SourceFactory]
+     * so they match the ABI that real Tachiyomi/Komikku extensions implement.
      */
     private fun resolveSourcesFromMetadata(
         appInfo: ApplicationInfo,
@@ -230,9 +217,9 @@ class ExtensionLoader(
         val factoryClassName = metadata.getString(METADATA_SOURCE_FACTORY)
         if (!factoryClassName.isNullOrBlank()) {
             val resolvedClass = resolveClassName(factoryClassName.trim(), pkgName)
-            val factory = instantiateClass(classLoader, resolvedClass)
-            if (factory is SourceFactory) {
-                return factory.createSources()
+            val instance = instantiateClass(classLoader, resolvedClass)
+            if (instance is SourceFactory) {
+                return instance.createSources()
             }
         }
 
@@ -282,7 +269,8 @@ class ExtensionLoader(
         isNsfw: Boolean,
     ): Extension {
         val appInfo = packageInfo.applicationInfo
-        val langs = sources.map { it.lang }.toSet()
+        // lang comes from CatalogueSource; plain Sources have no lang field
+        val langs = sources.filterIsInstance<CatalogueSource>().map { it.lang }.toSet()
         val lang = when (langs.size) {
             0 -> ""
             1 -> langs.first()
@@ -345,13 +333,14 @@ class ExtensionLoader(
 
     /** Convert a loaded [Source] to the [ExtensionSource] domain model. */
     private fun Source.toExtensionSource(): ExtensionSource {
+        val catalogue = this as? CatalogueSource
         return ExtensionSource(
             id = this.id,
             name = this.name,
-            lang = this.lang,
-            baseUrl = "",
+            lang = catalogue?.lang ?: "",
+            baseUrl = catalogue?.baseUrl ?: "",
             supportsSearch = true,
-            supportsLatest = true,
+            supportsLatest = catalogue?.supportsLatest ?: false,
         )
     }
 

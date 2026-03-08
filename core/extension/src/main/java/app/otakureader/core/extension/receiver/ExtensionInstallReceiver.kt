@@ -23,6 +23,9 @@ import javax.inject.Inject
  *
  * Private-extension events are sent by the installer using
  * [notifyAdded] / [notifyReplaced] / [notifyRemoved] helpers.
+ *
+ * A new [CoroutineScope] is created per broadcast so work is naturally bounded to
+ * the lifetime of each [goAsync] pending result — no persistent scope that could leak.
  */
 @AndroidEntryPoint
 class ExtensionInstallReceiver : BroadcastReceiver() {
@@ -32,8 +35,6 @@ class ExtensionInstallReceiver : BroadcastReceiver() {
 
     @Inject
     lateinit var extensionLoader: ExtensionLoader
-
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onReceive(context: Context?, intent: Intent?) {
         if (context == null || intent == null) return
@@ -46,7 +47,7 @@ class ExtensionInstallReceiver : BroadcastReceiver() {
             -> {
                 if (isReplacing(intent)) return
                 val pendingResult = goAsync()
-                scope.launch {
+                CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
                     try {
                         handlePackageAdded(context, packageName)
                     } finally {
@@ -59,7 +60,7 @@ class ExtensionInstallReceiver : BroadcastReceiver() {
             ACTION_EXTENSION_REPLACED,
             -> {
                 val pendingResult = goAsync()
-                scope.launch {
+                CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
                     try {
                         handlePackageAdded(context, packageName)
                     } finally {
@@ -73,7 +74,7 @@ class ExtensionInstallReceiver : BroadcastReceiver() {
             -> {
                 if (isReplacing(intent)) return
                 val pendingResult = goAsync()
-                scope.launch {
+                CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
                     try {
                         handlePackageRemoved(packageName)
                     } finally {
