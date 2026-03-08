@@ -12,14 +12,14 @@ import kotlinx.coroutines.Dispatchers
 object DispatchersModule {
 
     @Provides
-    @Dispatcher(KomikkuDispatcher.IO)
+    @Dispatcher(OtakuReaderDispatcher.IO)
     fun providesIODispatcher(): CoroutineDispatcher = Dispatchers.IO
 
     @Provides
-    @Dispatcher(KomikkuDispatcher.Default)
+    @Dispatcher(OtakuReaderDispatcher.Default)
     fun providesDefaultDispatcher(): CoroutineDispatcher = Dispatchers.Default
 
     @Provides
-    @Dispatcher(KomikkuDispatcher.Main)
+    @Dispatcher(OtakuReaderDispatcher.Main)
     fun providesMainDispatcher(): CoroutineDispatcher = Dispatchers.Main
 }

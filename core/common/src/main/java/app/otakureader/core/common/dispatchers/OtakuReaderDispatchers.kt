@@ -6,7 +6,7 @@ import javax.inject.Qualifier
 @Retention(AnnotationRetention.RUNTIME)
 annotation class Dispatcher(val otakuReaderDispatcher: OtakuReaderDispatcher)
 
-enum class KomikkuDispatcher {
+enum class OtakuReaderDispatcher {
     Default,
     IO,
     Main,

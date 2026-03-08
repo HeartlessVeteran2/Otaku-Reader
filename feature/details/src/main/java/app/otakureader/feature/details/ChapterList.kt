@@ -5,6 +5,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -214,7 +215,7 @@ fun ChapterListItem(
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 2.dp)
             .alpha(alpha)
-            .clickable(onClick = onClick, onLongClick = {
+            .combinedClickable(onClick = onClick, onLongClick = {
                 showMenu = true
                 onLongClick()
             }),
@@ -415,7 +416,7 @@ private fun DownloadIcon(
  */
 private fun formatChapterName(chapter: DetailsContract.ChapterItem): String {
     return when {
-        chapter.chapterNumber >= 0 -> "Chapter ${chapter.chapterNumber.toInt()}${if (chapter.name.contains(":")) chapter.name.substringAfter(":") else ""}"".trim()
+        chapter.chapterNumber >= 0 -> "Chapter ${chapter.chapterNumber.toInt()}${if (chapter.name.contains(":")) chapter.name.substringAfter(":") else ""}".trim()
         else -> chapter.name
     }
 }

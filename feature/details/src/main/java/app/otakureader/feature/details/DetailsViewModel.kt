@@ -157,14 +157,16 @@ class DetailsViewModel @Inject constructor(
 
     private fun continueReading() {
         viewModelScope.launch {
-            val nextChapter = _state.value.nextUnreadChapter
-                ?: _state.value.chapters.firstOrNull { !it.read }
-                ?: _state.value.chapters.lastOrNull()
-            
-            if (nextChapter != null) {
-                _effect.emit(
-                    DetailsContract.Effect.NavigateToReader(mangaId, nextChapter.id)
-                )
+            val nextUnread = _state.value.nextUnreadChapter
+            val chapterId = if (nextUnread != null) {
+                nextUnread.id
+            } else {
+                (_state.value.chapters.firstOrNull { !it.read }
+                    ?: _state.value.chapters.lastOrNull())?.id
+            }
+
+            if (chapterId != null) {
+                _effect.emit(DetailsContract.Effect.NavigateToReader(mangaId, chapterId))
             } else {
                 _effect.emit(DetailsContract.Effect.ShowError("No chapters available"))
             }

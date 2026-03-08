@@ -67,7 +67,7 @@ class MangaRepositoryImpl @Inject constructor(
         author = author,
         artist = artist,
         description = description,
-        genre = genre?.split(",") ?: emptyList(),
+        genre = genre?.split("|||")?.filter { it.isNotBlank() } ?: emptyList(),
         status = MangaStatus.fromOrdinal(status),
         favorite = favorite,
         initialized = initialized,
