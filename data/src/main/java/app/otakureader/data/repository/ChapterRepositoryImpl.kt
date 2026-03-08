@@ -1,7 +1,9 @@
 package app.otakureader.data.repository
 
 import app.otakureader.core.database.dao.ChapterDao
+import app.otakureader.core.database.dao.ReadingHistoryDao
 import app.otakureader.core.database.entity.ChapterEntity
+import app.otakureader.core.database.entity.ChapterWithHistoryEntity
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.ChapterWithHistory
 import app.otakureader.domain.repository.ChapterRepository
@@ -12,7 +14,8 @@ import javax.inject.Singleton
 
 @Singleton
 class ChapterRepositoryImpl @Inject constructor(
-    private val chapterDao: ChapterDao
+    private val chapterDao: ChapterDao,
+    private val readingHistoryDao: ReadingHistoryDao
 ) : ChapterRepository {
     
     override fun getChaptersByMangaId(mangaId: Long): Flow<List<Chapter>> {
@@ -49,12 +52,11 @@ class ChapterRepositoryImpl @Inject constructor(
         return chapterDao.getUnreadCountByMangaId(mangaId)
     }
 
-    /**
-     * Reading history is not yet fully implemented in the local database.
-     * Returns an empty flow until the history feature is wired up.
-     */
-    // TODO: Implement history by joining chapters with reading_history table via ReadingHistoryDao
-    override fun observeHistory(): Flow<List<ChapterWithHistory>> = TODO("History not yet implemented — requires ReadingHistoryDao join query")
+    override fun observeHistory(): Flow<List<ChapterWithHistory>> {
+        return readingHistoryDao.observeHistoryWithChapters().map { entities ->
+            entities.map { it.toDomain() }
+        }
+    }
     
     private fun ChapterEntity.toDomain() = Chapter(
         id = id,
@@ -80,5 +82,11 @@ class ChapterRepositoryImpl @Inject constructor(
         lastPageRead = lastPageRead,
         chapterNumber = chapterNumber,
         dateUpload = dateUpload
+    )
+
+    private fun ChapterWithHistoryEntity.toDomain() = ChapterWithHistory(
+        chapter = chapter.toDomain(),
+        readAt = history.readAt,
+        readDurationMs = history.readDurationMs
     )
 }
