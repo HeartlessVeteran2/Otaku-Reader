@@ -82,7 +82,7 @@ fun DetailsScreen(
                         type = "text/plain"
                         putExtra(Intent.EXTRA_TEXT, "${effect.title}\n${effect.url}")
                     }
-                    context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_manga)))
+                    context.startActivity(Intent.createChooser(shareIntent, "Share Manga"))
                 }
                 else -> { /* Handle other effects */ }
             }
@@ -102,7 +102,7 @@ fun DetailsScreen(
                     IconButton(onClick = { viewModel.onEvent(DetailsContract.Event.Refresh) }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                     }
-                    IconButton(onClick = { viewModel.onEvent(DetailsContract.Event.ShareManga) }, enabled = state.manga != null) {
+                    IconButton(onClick = { viewModel.onEvent(DetailsContract.Event.ShareManga) }) {
                         Icon(Icons.Default.Share, contentDescription = "Share")
                     }
                 }

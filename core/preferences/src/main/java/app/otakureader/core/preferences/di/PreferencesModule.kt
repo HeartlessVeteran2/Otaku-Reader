@@ -8,7 +8,6 @@ import app.otakureader.core.preferences.AppPreferences
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.LibraryPreferences
 import app.otakureader.core.preferences.ReaderPreferences
-import app.otakureader.core.preferences.TrackingPreferences
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -46,9 +45,4 @@ object PreferencesModule {
     @Singleton
     fun provideReaderPreferences(dataStore: DataStore<Preferences>): ReaderPreferences =
         ReaderPreferences(dataStore)
-
-    @Provides
-    @Singleton
-    fun provideTrackingPreferences(dataStore: DataStore<Preferences>): TrackingPreferences =
-        TrackingPreferences(dataStore)
 }

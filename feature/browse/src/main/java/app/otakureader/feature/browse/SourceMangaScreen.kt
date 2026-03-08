@@ -16,9 +16,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
@@ -29,18 +26,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
@@ -82,15 +72,21 @@ fun SourceMangaScreen(
 
     Scaffold(
         topBar = {
-            SourceMangaTopAppBar(
-                title = state.sourceName ?: sourceId,
-                isSearchMode = state.isSearchMode,
-                searchQuery = state.searchQuery,
-                onNavigateBack = onNavigateBack,
-                onRefresh = { viewModel.onEvent(SourceMangaEvent.Refresh) },
-                onSearchClick = { viewModel.onEvent(SourceMangaEvent.ToggleSearchMode) },
-                onSearchQueryChange = { viewModel.onEvent(SourceMangaEvent.OnSearchQueryChange(it)) },
-                onSearchAction = { viewModel.onEvent(SourceMangaEvent.Search) }
+            TopAppBar(
+                title = { Text(state.sourceName ?: sourceId) },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { viewModel.onEvent(SourceMangaEvent.Refresh) }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                    }
+                    IconButton(onClick = { /* TODO: Search */ }) {
+                        Icon(Icons.Default.Search, contentDescription = "Search")
+                    }
+                }
             )
         }
     ) { paddingValues ->
@@ -203,79 +199,6 @@ private fun MangaGrid(
                 }
             }
         }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SourceMangaTopAppBar(
-    title: String,
-    isSearchMode: Boolean,
-    searchQuery: String,
-    onNavigateBack: () -> Unit,
-    onRefresh: () -> Unit,
-    onSearchClick: () -> Unit,
-    onSearchQueryChange: (String) -> Unit,
-    onSearchAction: () -> Unit,
-) {
-    if (isSearchMode) {
-        val focusRequester = remember { FocusRequester() }
-
-        LaunchedEffect(Unit) {
-            focusRequester.requestFocus()
-        }
-
-        TopAppBar(
-            title = {
-                TextField(
-                    value = searchQuery,
-                    onValueChange = onSearchQueryChange,
-                    placeholder = { Text("Search...") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .focusRequester(focusRequester),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = { onSearchAction() }),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        disabledContainerColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                    )
-                )
-            },
-            navigationIcon = {
-                IconButton(onClick = onSearchClick) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Close search")
-                }
-            },
-            actions = {
-                if (searchQuery.isNotEmpty()) {
-                    IconButton(onClick = { onSearchQueryChange("") }) {
-                        Icon(Icons.Default.Close, contentDescription = "Clear")
-                    }
-                }
-            }
-        )
-    } else {
-        TopAppBar(
-            title = { Text(title) },
-            navigationIcon = {
-                IconButton(onClick = onNavigateBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                }
-            },
-            actions = {
-                IconButton(onClick = onRefresh) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Refresh")
-                }
-                IconButton(onClick = onSearchClick) {
-                    Icon(Icons.Default.Search, contentDescription = "Search")
-                }
-            }
-        )
     }
 }
 
