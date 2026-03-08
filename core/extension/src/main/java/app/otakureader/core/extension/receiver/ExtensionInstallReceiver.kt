@@ -95,7 +95,7 @@ class ExtensionInstallReceiver : BroadcastReceiver() {
      * Returns the package name encoded in the intent's data URI.
      */
     private fun getPackageNameFromIntent(intent: Intent): String? =
-        intent.data?.encodedSchemeSpecificPart
+        intent.data?.schemeSpecificPart
 
     private suspend fun handlePackageAdded(context: Context, packageName: String) {
         try {
