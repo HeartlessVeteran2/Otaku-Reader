@@ -3,6 +3,7 @@ package app.otakureader.data.repository
 import app.otakureader.core.database.dao.ChapterDao
 import app.otakureader.core.database.dao.ReadingHistoryDao
 import app.otakureader.core.database.entity.ChapterEntity
+import app.otakureader.core.database.entity.ChapterWithHistoryEntity
 import app.otakureader.core.database.entity.ReadingHistoryEntity
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.ChapterWithHistory
@@ -53,14 +54,8 @@ class ChapterRepositoryImpl @Inject constructor(
     }
 
     override fun observeHistory(): Flow<List<ChapterWithHistory>> {
-        return readingHistoryDao.observeChaptersWithHistory().map { entities ->
-            entities.map { entity ->
-                ChapterWithHistory(
-                    chapter = entity.chapter.toDomain(),
-                    readAt = entity.history.readAt,
-                    readDurationMs = entity.history.readDurationMs
-                )
-            }
+        return readingHistoryDao.observeHistoryWithChapters().map { entities ->
+            entities.map { it.toDomain() }
         }
     }
 
@@ -107,4 +102,11 @@ class ChapterRepositoryImpl @Inject constructor(
         chapterNumber = chapterNumber,
         dateUpload = dateUpload
     )
+
+    private fun ChapterWithHistoryEntity.toDomain() = ChapterWithHistory(
+        chapter = chapter.toDomain(),
+        readAt = history.readAt,
+        readDurationMs = history.readDurationMs
+    )
 }
+
