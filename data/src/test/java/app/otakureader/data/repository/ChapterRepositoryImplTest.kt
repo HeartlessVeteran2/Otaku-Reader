@@ -3,8 +3,6 @@ package app.otakureader.data.repository
 import app.otakureader.core.database.dao.ChapterDao
 import app.otakureader.core.database.dao.ReadingHistoryDao
 import app.otakureader.core.database.entity.ChapterEntity
-import app.otakureader.core.database.entity.ChapterWithHistoryEntity
-import app.otakureader.core.database.entity.ReadingHistoryEntity
 import app.otakureader.domain.model.Chapter
 import app.cash.turbine.test
 import io.mockk.coEvery
