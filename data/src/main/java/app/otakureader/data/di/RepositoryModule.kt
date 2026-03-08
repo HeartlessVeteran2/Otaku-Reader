@@ -4,10 +4,12 @@ import app.otakureader.domain.repository.CategoryRepository
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.MangaRepository
+import app.otakureader.domain.repository.TrackRepository
 import app.otakureader.data.repository.CategoryRepositoryImpl
 import app.otakureader.data.repository.ChapterRepositoryImpl
 import app.otakureader.data.repository.DownloadRepositoryImpl
 import app.otakureader.data.repository.MangaRepositoryImpl
+import app.otakureader.data.repository.TrackRepositoryImpl
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -36,4 +38,9 @@ abstract class RepositoryModule {
     abstract fun bindCategoryRepository(
         impl: CategoryRepositoryImpl
     ): CategoryRepository
+
+    @Binds
+    abstract fun bindTrackRepository(
+        impl: TrackRepositoryImpl
+    ): TrackRepository
 }
