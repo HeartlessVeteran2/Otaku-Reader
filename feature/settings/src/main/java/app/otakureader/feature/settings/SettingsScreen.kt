@@ -291,6 +291,20 @@ fun SettingsScreen(
                 }
             )
 
+            // Tap zones
+            ListItem(
+                headlineContent = { Text("Tap Zones") },
+                supportingContent = { Text("Enable tap-to-navigate areas on the reader") },
+                trailingContent = {
+                    Switch(
+                        checked = state.tapZonesEnabled,
+                        onCheckedChange = {
+                            viewModel.onEvent(SettingsEvent.SetTapZonesEnabled(it))
+                        }
+                    )
+                }
+            )
+
             HorizontalDivider()
 
             // ── Notifications ─────────────────────────────────────────────────
