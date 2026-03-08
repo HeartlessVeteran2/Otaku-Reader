@@ -309,6 +309,73 @@ class DetailsViewModelTest {
         coVerify { chapterRepository.updateChapterProgress(2L, true, 0) }
     }
 
+    // ---- ShareManga ----
+
+    @Test
+    fun onEvent_ShareManga_withRelativeUrl_emitsShareMangaEffectWithEmptyUrl() = runTest {
+        setUpDefaultMocks()
+        // sampleManga has url = "/m/42" which is relative
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.ShareManga)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.ShareManga)
+            val shareEffect = effect as DetailsContract.Effect.ShareManga
+            assertEquals("Attack on Titan", shareEffect.title)
+            assertEquals("", shareEffect.url)
+        }
+    }
+
+    @Test
+    fun onEvent_ShareManga_withAbsoluteUrl_emitsShareMangaEffectWithUrl() = runTest {
+        val absoluteUrl = "https://mangadex.org/title/42"
+        every { mangaRepository.getMangaByIdFlow(mangaId) } returns flowOf(
+            sampleManga.copy(url = absoluteUrl)
+        )
+        every { chapterRepository.getChaptersByMangaId(mangaId) } returns flowOf(sampleChapters)
+        every { mangaRepository.isFavorite(mangaId) } returns flowOf(false)
+        every { downloadRepository.observeDownloads() } returns flowOf(emptyList())
+        coEvery { chapterRepository.getNextUnreadChapter(mangaId) } returns sampleChapters[1]
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.ShareManga)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.ShareManga)
+            val shareEffect = effect as DetailsContract.Effect.ShareManga
+            assertEquals("Attack on Titan", shareEffect.title)
+            assertEquals(absoluteUrl, shareEffect.url)
+        }
+    }
+
+    @Test
+    fun onEvent_ShareManga_whenMangaIsNull_emitsNoEffect() = runTest {
+        every { mangaRepository.getMangaByIdFlow(mangaId) } returns flowOf(null)
+        every { chapterRepository.getChaptersByMangaId(mangaId) } returns flowOf(emptyList())
+        every { mangaRepository.isFavorite(mangaId) } returns flowOf(false)
+        every { downloadRepository.observeDownloads() } returns flowOf(emptyList())
+        coEvery { chapterRepository.getNextUnreadChapter(mangaId) } returns null
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.ShareManga)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            expectNoEvents()
+        }
+    }
+
     // ---- State derived properties ----
 
     @Test
