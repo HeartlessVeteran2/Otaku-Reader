@@ -11,6 +11,7 @@ fun NavGraphBuilder.libraryScreen(
     onNavigateToBrowse: () -> Unit,
     onNavigateToHistory: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToDownloads: () -> Unit
 ) {
     composable<LibraryRoute> {
         LibraryScreen(
@@ -18,7 +19,8 @@ fun NavGraphBuilder.libraryScreen(
             onNavigateToUpdates = onNavigateToUpdates,
             onNavigateToBrowse = onNavigateToBrowse,
             onNavigateToHistory = onNavigateToHistory,
-            onNavigateToSettings = onNavigateToSettings
+            onNavigateToSettings = onNavigateToSettings,
+            onNavigateToDownloads = onNavigateToDownloads
         )
     }
 }

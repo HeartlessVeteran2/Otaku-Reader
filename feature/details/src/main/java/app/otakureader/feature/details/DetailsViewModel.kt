@@ -3,9 +3,11 @@ package app.otakureader.feature.details
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.otakureader.domain.model.DownloadStatus
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.repository.ChapterRepository
+import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.MangaRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -28,7 +30,8 @@ import javax.inject.Inject
 class DetailsViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
     private val mangaRepository: MangaRepository,
-    private val chapterRepository: ChapterRepository
+    private val chapterRepository: ChapterRepository,
+    private val downloadRepository: DownloadRepository
 ) : ViewModel() {
 
     private val mangaId: Long = savedStateHandle.get<Long>(MANGA_ID_ARG) 
@@ -45,6 +48,7 @@ class DetailsViewModel @Inject constructor(
         loadChapters()
         observeFavoriteStatus()
         loadNextUnreadChapter()
+        observeDownloads()
     }
 
     fun onEvent(event: DetailsContract.Event) {
@@ -99,6 +103,28 @@ class DetailsViewModel @Inject constructor(
             val nextChapter = chapterRepository.getNextUnreadChapter(mangaId)
             _state.update { it.copy(nextUnreadChapter = nextChapter) }
         }
+    }
+
+    private fun observeDownloads() {
+        downloadRepository.observeDownloads()
+            .onEach { downloads ->
+                _state.update { state ->
+                    val updatedChapters = state.chapters.map { chapter ->
+                        val matchingDownload = downloads.firstOrNull { it.chapterId == chapter.id }
+                        when (matchingDownload?.status) {
+                            DownloadStatus.DOWNLOADING, DownloadStatus.QUEUED, DownloadStatus.PAUSED -> {
+                                chapter.copy(downloadStatus = DetailsContract.DownloadStatus.DOWNLOADING)
+                            }
+                            DownloadStatus.COMPLETED -> {
+                                chapter.copy(downloadStatus = DetailsContract.DownloadStatus.DOWNLOADED)
+                            }
+                            else -> chapter.copy(downloadStatus = DetailsContract.DownloadStatus.NOT_DOWNLOADED)
+                        }
+                    }
+                    state.copy(chapters = updatedChapters)
+                }
+            }
+            .launchIn(viewModelScope)
     }
 
     private fun refreshData() {
@@ -218,15 +244,25 @@ class DetailsViewModel @Inject constructor(
 
     private fun downloadChapter(chapterId: Long) {
         viewModelScope.launch {
-            // TODO: Implement actual download logic
-            _effect.emit(DetailsContract.Effect.ShowSnackbar("Download started"))
+            val chapter = _state.value.chapters.firstOrNull { it.id == chapterId }
+            val mangaTitle = _state.value.manga?.title ?: "Manga"
+
+            if (chapter != null) {
+                downloadRepository.enqueueChapter(
+                    mangaId = chapter.mangaId,
+                    chapterId = chapter.id,
+                    mangaTitle = mangaTitle,
+                    chapterTitle = chapter.name
+                )
+                _effect.emit(DetailsContract.Effect.ShowSnackbar("Download added to queue"))
+            }
         }
     }
 
     private fun deleteChapterDownload(chapterId: Long) {
         viewModelScope.launch {
-            // TODO: Implement actual delete logic
-            _effect.emit(DetailsContract.Effect.ShowSnackbar("Download deleted"))
+            downloadRepository.cancelDownload(chapterId)
+            _effect.emit(DetailsContract.Effect.ShowSnackbar("Download removed"))
         }
     }
 

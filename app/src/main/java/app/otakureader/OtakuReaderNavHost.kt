@@ -21,7 +21,9 @@ import app.otakureader.feature.history.navigation.historyScreen
 import app.otakureader.feature.library.navigation.libraryScreen
 import app.otakureader.feature.reader.navigation.readerScreen
 import app.otakureader.feature.settings.navigation.settingsScreen
+import app.otakureader.feature.updates.navigation.downloadsScreen
 import app.otakureader.feature.updates.navigation.updatesScreen
+import app.otakureader.core.navigation.DownloadsRoute
 
 @Composable
 fun OtakuReaderNavHost(
@@ -50,6 +52,9 @@ fun OtakuReaderNavHost(
             },
             onNavigateToSettings = {
                 navController.navigate(SettingsRoute)
+            },
+            onNavigateToDownloads = {
+                navController.navigate(DownloadsRoute)
             }
         )
 
@@ -60,6 +65,9 @@ fun OtakuReaderNavHost(
             },
             onNavigateBack = {
                 navController.popBackStack()
+            },
+            onNavigateToDownloads = {
+                navController.navigate(DownloadsRoute)
             }
         )
 
@@ -126,6 +134,12 @@ fun OtakuReaderNavHost(
 
         // Settings screen
         settingsScreen(
+            onNavigateBack = {
+                navController.popBackStack()
+            }
+        )
+
+        downloadsScreen(
             onNavigateBack = {
                 navController.popBackStack()
             }

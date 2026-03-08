@@ -32,7 +32,10 @@ data class ExtensionEntity(
     
     @ColumnInfo(name = "apk_path")
     val apkPath: String?,
-    
+
+    @ColumnInfo(name = "apk_url")
+    val apkUrl: String?,
+
     @ColumnInfo(name = "icon_url")
     val iconUrl: String?,
     
@@ -97,7 +100,7 @@ interface ExtensionDao {
 
 @Database(
     entities = [ExtensionEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class ExtensionDatabase : RoomDatabase() {
