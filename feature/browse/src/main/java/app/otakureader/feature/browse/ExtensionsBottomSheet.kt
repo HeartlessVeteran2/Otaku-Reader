@@ -116,9 +116,6 @@ private fun ExtensionsContent(
                     IconButton(onClick = { onEvent(ExtensionsEvent.Refresh) }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                     }
-                    IconButton(onClick = { /* TODO: Settings */ }) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
-                    }
                 }
             )
         }
