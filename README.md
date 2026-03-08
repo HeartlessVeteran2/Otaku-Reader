@@ -6,31 +6,63 @@ A modern Android manga reader built with Kotlin and Jetpack Compose.
 [![Android](https://img.shields.io/badge/Android-26+-green.svg)](https://developer.android.com/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg)](LICENSE)
 
+## 📊 Project Status
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| **Core Architecture** | ✅ Complete | Clean Architecture, MVI, Hilt DI |
+| **Library Screen** | ✅ Complete | Grid, categories, favorites |
+| **Browse Screen** | ✅ Complete | Sources, filters, manga grid |
+| **Manga Details** | ✅ Complete | Chapter list, info, status |
+| **Reader** | ✅ Complete | 4 modes, zoom, brightness, gallery |
+| **Updates Screen** | ⚠️ Placeholder | UI exists, needs logic |
+| **History Screen** | ⚠️ Placeholder | UI exists, needs logic |
+| **Settings Screen** | ⚠️ Placeholder | UI exists, needs prefs |
+| **Extension System** | 🚧 Partial | Core loader ready, needs APK install |
+| **Downloads** | ❌ Not started | Offline reading |
+| **Cloud Sync** | ❌ Not started | Firebase or P2P |
+| **AI Features** | ❌ Not started | Recommendations, summaries |
+
+**Current:** App compiles, navigates, reads manga from sources.  
+**Next:** Extension APK installation, downloads, polish.
+
 ## 🎯 Vision
 
 A modern, blazing-fast manga reader built from scratch with:
 - **🔌 Extension System** - Access 2000+ sources via Tachiyomi extensions
 - **📖 Ultimate Reader** - Perfect Viewer-level smoothness with modern UX
-- **☁️ Cloud Sync** - Firebase-powered cross-device sync
-- **🤖 AI Features** - Smart recommendations (coming soon)
+- **☁️ Cloud Sync** - Cross-device sync
+- **🤖 AI Features** - Smart recommendations
 
-## 🚀 Features
+## 🚀 Completed Features
 
-### Current
 - ✅ Modern Jetpack Compose UI with Material 3
 - ✅ Clean Architecture (MVI + MVVM)
 - ✅ Room + SQLDelight database
 - ✅ Navigation with bottom bar
-- ✅ Extension system core (APK loading)
+- ✅ Extension system foundation (loader, API)
 - ✅ Tachiyomi compatibility layer
 - ✅ Ultimate reader with 4 modes
+- ✅ Manga details with chapter list
+- ✅ Browse with source filtering
 
-### Coming
-- 🔄 Cloud sync (Firebase)
-- 🔍 Cross-source search
-- ⬇️ Downloads for offline reading
-- 🔔 New chapter notifications
-- 🤖 AI recommendations
+## 🚧 In Progress / TODO
+
+- ⏳ Extension APK installation UI
+- ⏳ Chapter downloads for offline
+- ⏳ Settings persistence
+- ⏳ Reading history tracking
+- ⏳ New chapter update checking
+- ⏳ Search functionality
+
+## 📋 Future Ideas
+
+- 🔮 Cloud sync (Firebase or Syncthing)
+- 🔮 AI recommendations
+- 🔮 Reading time estimation
+- 🔮 Auto-categorization
+- 🔮 Panel-by-panel reader
+- 🔮 SFX translation
 
 ## 🏗️ Architecture
 
@@ -62,17 +94,20 @@ A modern, blazing-fast manga reader built from scratch with:
 
 ## 📦 Modules
 
-| Module | Purpose |
-|--------|---------|
-| `app` | Main application entry |
-| `source-api` | Extension API contracts |
-| `core/common` | Shared utilities |
-| `core/database` | Room + SQLDelight |
-| `core/extension` | Extension loading |
-| `feature/library` | Library screen |
-| `feature/browse` | Browse sources |
-| `feature/reader` | Ultimate reader |
-| `feature/settings` | App settings |
+| Module | Purpose | Status |
+|--------|---------|--------|
+| `app` | Main application entry | ✅ |
+| `source-api` | Extension API contracts | ✅ |
+| `core/common` | Shared utilities | ✅ |
+| `core/database` | Room + SQLDelight | ✅ |
+| `core/extension` | Extension loading | 🚧 |
+| `feature/library` | Library screen | ✅ |
+| `feature/browse` | Browse sources | ✅ |
+| `feature/details` | Manga details | ✅ |
+| `feature/reader` | Ultimate reader | ✅ |
+| `feature/updates` | Updates screen | ⚠️ |
+| `feature/history` | History screen | ⚠️ |
+| `feature/settings` | Settings screen | ⚠️ |
 
 ## 🎨 The Reader
 
@@ -83,7 +118,7 @@ A modern, blazing-fast manga reader built from scratch with:
 - **Smart Panels** - Navigate by detected panels
 
 ### Navigation
-- **Gallery View** - Thumbnail strip instead of slider rail
+- **Gallery View** - Thumbnail strip
 - **3x3 Tap Zones** - Fully configurable
 - **Pinch Zoom** - Perfect Viewer-level smoothness
 - **Brightness Control** - In-reader overlay
@@ -96,7 +131,8 @@ Access the entire Tachiyomi ecosystem:
 |------------|------------|
 | Keiyoushi | 1000+ |
 | Komikku | 1000+ |
-| Trackers | 4 (self-hosted) |
+
+**Status:** Core loader implemented. APK installation UI needed.
 
 ## 🛠️ Tech Stack
 
@@ -107,7 +143,6 @@ Access the entire Tachiyomi ecosystem:
 - **Database**: Room + SQLDelight
 - **Network**: Retrofit + OkHttp
 - **Images**: Coil 3
-- **Cloud**: Firebase (planned)
 
 ## 🚀 Getting Started
 
@@ -122,30 +157,6 @@ cd otaku-reader
 # Install
 adb install app/build/outputs/apk/debug/app-debug.apk
 ```
-
-## 📋 Roadmap
-
-### Phase 1: MVP (Now)
-- [x] Core app structure
-- [x] Extension system
-- [x] Ultimate reader
-- [ ] Browse integration
-- [ ] Manga details
-
-### Phase 2: Polish
-- [ ] Cloud sync
-- [ ] Downloads
-- [ ] Search
-- [ ] Notifications
-
-### Phase 3: AI
-- [ ] Smart recommendations
-- [ ] Reading time estimation
-- [ ] Auto-categorization
-
-## 🤝 Contributing
-
-Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ## 📜 License
 
