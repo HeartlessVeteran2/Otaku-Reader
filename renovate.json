@@ -12,125 +12,21 @@
   ],
   "timezone": "Asia/Shanghai",
   "prHourlyLimit": 0,
-  "prConcurrentLimit": 0,
+  "prConcurrentLimit": 1,
   "labels": ["dependencies"],
   "baseBranchPatterns": ["main"],
   "rangeStrategy": "bump",
   "branchPrefix": "renovate/",
   "packageRules": [
     {
-      "groupName": "All Dependencies - Patch & Minor",
-      "groupSlug": "all-deps-patch-minor",
-      "matchUpdateTypes": ["patch", "minor"],
-      "excludePackagePrefixes": [
-        "com.squareup.retrofit2",
-        "com.squareup.okhttp3"
-      ]
-    },
-    {
-      "groupName": "Kotlin & Compose",
-      "groupSlug": "kotlin-compose",
-      "matchPackageNames": [
-        "org.jetbrains.kotlin{/,}**",
-        "androidx.compose{/,}**",
-        "com.google.devtools.ksp{/,}**"
-      ]
-    },
-    {
-      "groupName": "AndroidX Core",
-      "groupSlug": "androidx-core",
-      "matchPackageNames": [
-        "androidx.core{/,}**",
-        "androidx.appcompat{/,}**",
-        "androidx.activity{/,}**"
-      ]
-    },
-    {
-      "groupName": "AndroidX Lifecycle & Navigation",
-      "groupSlug": "androidx-lifecycle-nav",
-      "matchPackageNames": [
-        "androidx.lifecycle{/,}**",
-        "androidx.navigation{/,}**"
-      ]
-    },
-    {
-      "groupName": "Hilt & Dagger",
-      "groupSlug": "hilt-dagger",
-      "matchPackageNames": [
-        "com.google.dagger{/,}**",
-        "androidx.hilt{/,}**"
-      ]
-    },
-    {
-      "groupName": "Room & DataStore",
-      "groupSlug": "room-datastore",
-      "matchPackageNames": [
-        "androidx.room{/,}**",
-        "androidx.datastore{/,}**"
-      ]
-    },
-    {
-      "groupName": "Coroutines & Serialization",
-      "groupSlug": "kotlinx",
-      "matchPackageNames": [
-        "org.jetbrains.kotlinx{/,}**"
-      ]
-    },
-    {
-      "groupName": "Network - Retrofit & OkHttp",
-      "groupSlug": "network",
-      "matchPackageNames": [
-        "com.squareup.retrofit2{/,}**",
-        "com.squareup.okhttp3{/,}**"
-      ]
-    },
-    {
-      "groupName": "Image Loading",
-      "groupSlug": "coil",
-      "matchPackageNames": [
-        "io.coil-kt{/,}**",
-        "io.coil-kt3{/,}**"
-      ]
-    },
-    {
-      "groupName": "Testing",
-      "groupSlug": "testing",
-      "matchPackageNames": [
-        "junit{/,}**",
-        "org.junit{/,}**",
-        "androidx.test{/,}**",
-        "io.mockk{/,}**",
-        "app.cash.turbine{/,}**"
-      ]
-    },
-    {
-      "groupName": "Gradle Build Tools",
-      "groupSlug": "gradle-build",
-      "matchPackageNames": [
-        "com.android.tools.build{/,}**"
-      ]
-    },
-    {
-      "groupName": "GitHub Actions",
-      "groupSlug": "github-actions",
-      "matchManagers": ["github-actions"]
-    },
-    {
-      "groupName": "Major Updates - Manual Review",
-      "groupSlug": "major-updates",
-      "matchUpdateTypes": ["major"],
-      "labels": ["dependencies", "breaking"]
-    },
-    {
-      "matchPackageNames": ["gradle"],
-      "groupName": "Gradle Wrapper",
-      "groupSlug": "gradle-wrapper"
+      "groupName": "All Dependencies",
+      "groupSlug": "all-deps",
+      "matchPackagePatterns": ["**"]
     }
   ],
   "vulnerabilityAlerts": {
-    "groupName": "Security Vulnerabilities",
-    "groupSlug": "security",
-    "labels": ["dependencies", "security"]
+    "groupName": "All Dependencies",
+    "groupSlug": "all-deps"
   },
   "gradle": {
     "enabled": true
