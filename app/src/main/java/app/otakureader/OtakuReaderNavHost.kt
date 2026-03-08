@@ -94,8 +94,8 @@ fun OtakuReaderNavHost(
 
         // Global search screen - searches across all sources
         globalSearchScreen(
-            onMangaClick = { _, _ ->
-                navController.navigate(MangaDetailRoute(mangaId = 1L))
+            onMangaClick = { sourceId, _ ->
+                navController.navigate(SourceDetailRoute(sourceId))
             },
             onNavigateBack = {
                 navController.popBackStack()
