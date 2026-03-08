@@ -2,6 +2,8 @@ package app.otakureader.feature.library
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,10 +36,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -50,6 +54,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -136,23 +141,32 @@ fun LibraryScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LibraryContent(
     state: LibraryState,
     onEvent: (LibraryEvent) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Box(modifier = modifier.fillMaxSize()) {
+    PullToRefreshBox(
+        isRefreshing = state.isRefreshing,
+        onRefresh = { onEvent(LibraryEvent.Refresh) },
+        modifier = modifier.fillMaxSize()
+    ) {
         when {
-            state.isLoading -> {
-                CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center)
-                )
+            state.isLoading && state.mangaList.isEmpty() -> {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
             }
             state.mangaList.isEmpty() -> {
-                EmptyLibraryMessage(
-                    modifier = Modifier.align(Alignment.Center)
-                )
+                Box(modifier = Modifier.fillMaxSize()) {
+                    EmptyLibraryMessage(
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
             }
             else -> {
                 MangaGrid(
@@ -208,7 +222,7 @@ private fun MangaGridItem(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(
+            .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick
             )
@@ -251,14 +265,13 @@ private fun UnreadBadge(
     Box(
         modifier = modifier
             .padding(4.dp)
-            .size(24.dp),
+            .size(24.dp)
+            .background(
+                color = MaterialTheme.colorScheme.primary,
+                shape = CircleShape
+            ),
         contentAlignment = Alignment.Center
     ) {
-        // Badge background
-        androidx.compose.foundation.background(
-            color = MaterialTheme.colorScheme.primary,
-            shape = androidx.compose.foundation.shape.CircleShape
-        )
         Text(
             text = if (count > 99) "99+" else count.toString(),
             style = MaterialTheme.typography.labelSmall,

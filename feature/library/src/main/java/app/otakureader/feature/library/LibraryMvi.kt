@@ -2,6 +2,7 @@ package app.otakureader.feature.library
 
 data class LibraryState(
     val isLoading: Boolean = false,
+    val isRefreshing: Boolean = false,
     val mangaList: List<LibraryMangaItem> = emptyList(),
     val selectedManga: Set<Long> = emptySet(),
     val searchQuery: String = "",

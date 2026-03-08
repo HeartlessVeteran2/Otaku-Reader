@@ -29,4 +29,3 @@ keystore.properties
 
 # Distribution / package
 dist/
-**/.kotlin/

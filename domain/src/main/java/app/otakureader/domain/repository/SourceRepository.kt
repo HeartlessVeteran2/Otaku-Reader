@@ -2,6 +2,7 @@ package app.otakureader.domain.repository
 
 import app.otakureader.sourceapi.MangaPage
 import app.otakureader.sourceapi.MangaSource
+import app.otakureader.sourceapi.SourceChapter
 import app.otakureader.sourceapi.SourceManga
 import kotlinx.coroutines.flow.Flow
 
@@ -39,6 +40,11 @@ interface SourceRepository {
      * Get manga details from a source
      */
     suspend fun getMangaDetails(sourceId: String, manga: SourceManga): Result<SourceManga>
+
+    /**
+     * Get chapter list for a manga from a source
+     */
+    suspend fun getChapterList(sourceId: String, manga: SourceManga): Result<List<SourceChapter>>
 
     /**
      * Load Tachiyomi extension from APK

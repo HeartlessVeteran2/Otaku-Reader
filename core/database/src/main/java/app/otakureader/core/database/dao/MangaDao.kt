@@ -7,6 +7,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import app.otakureader.core.database.entity.MangaEntity
+import app.otakureader.core.database.entity.MangaWithUnreadCount
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -49,4 +50,14 @@ interface MangaDao {
     
     @Query("SELECT COUNT(*) FROM manga WHERE favorite = 1")
     fun getFavoriteMangaCount(): Flow<Int>
+
+    @Query("""
+        SELECT m.*, COALESCE(SUM(CASE WHEN c.read = 0 THEN 1 ELSE 0 END), 0) as unreadCount
+        FROM manga m
+        LEFT JOIN chapters c ON m.id = c.mangaId
+        WHERE m.favorite = 1
+        GROUP BY m.id
+        ORDER BY m.title ASC
+    """)
+    fun getFavoriteMangaWithUnreadCount(): Flow<List<MangaWithUnreadCount>>
 }
