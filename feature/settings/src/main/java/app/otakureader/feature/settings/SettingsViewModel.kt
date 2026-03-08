@@ -20,7 +20,8 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     private val generalPreferences: GeneralPreferences,
     private val libraryPreferences: LibraryPreferences,
-    private val readerPreferences: ReaderPreferences
+    private val readerPreferences: ReaderPreferences,
+    private val backupRepository: app.otakureader.data.backup.repository.BackupRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SettingsState())
@@ -75,6 +76,42 @@ class SettingsViewModel @Inject constructor(
                 is SettingsEvent.SetShowBadges -> libraryPreferences.setShowBadges(event.enabled)
                 is SettingsEvent.SetReaderMode -> readerPreferences.setReaderMode(event.mode)
                 is SettingsEvent.SetKeepScreenOn -> readerPreferences.setKeepScreenOn(event.enabled)
+                SettingsEvent.OnCreateBackup -> _effect.send(SettingsEffect.ShowBackupPicker)
+                SettingsEvent.OnRestoreBackup -> _effect.send(SettingsEffect.ShowRestorePicker)
+            }
+        }
+    }
+
+    /**
+     * Handles backup creation after user selects a destination URI.
+     */
+    fun createBackup(uri: android.net.Uri) {
+        viewModelScope.launch {
+            _state.update { it.copy(isBackupInProgress = true) }
+            try {
+                backupRepository.createBackup(uri)
+                _effect.send(SettingsEffect.ShowSnackbar("Backup created successfully"))
+            } catch (e: Exception) {
+                _effect.send(SettingsEffect.ShowSnackbar("Backup failed: ${e.message}"))
+            } finally {
+                _state.update { it.copy(isBackupInProgress = false) }
+            }
+        }
+    }
+
+    /**
+     * Handles backup restoration after user selects a source URI.
+     */
+    fun restoreBackup(uri: android.net.Uri) {
+        viewModelScope.launch {
+            _state.update { it.copy(isRestoreInProgress = true) }
+            try {
+                backupRepository.restoreBackup(uri)
+                _effect.send(SettingsEffect.ShowSnackbar("Backup restored successfully"))
+            } catch (e: Exception) {
+                _effect.send(SettingsEffect.ShowSnackbar("Restore failed: ${e.message}"))
+            } finally {
+                _state.update { it.copy(isRestoreInProgress = false) }
             }
         }
     }
