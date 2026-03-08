@@ -1,7 +1,13 @@
 package app.otakureader.feature.settings
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -9,16 +15,22 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlin.math.roundToInt
 
 /**
  * Settings screen for user-configurable options.
@@ -46,13 +58,49 @@ fun SettingsScreen(
             )
         }
     ) { paddingValues ->
-        Column(modifier = Modifier.padding(paddingValues)) {
+        Column(
+            modifier = Modifier
+                .padding(paddingValues)
+                .verticalScroll(rememberScrollState())
+        ) {
 
-            // --- Appearance ---
-            Text(
-                text = "Appearance",
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            // ── Appearance ────────────────────────────────────────────────────
+            SectionHeader(title = "Appearance")
+
+            // Theme mode
+            ListItem(
+                headlineContent = { Text("Theme") },
+                supportingContent = {
+                    Row(modifier = Modifier.selectableGroup()) {
+                        val options = listOf("System" to 0, "Light" to 1, "Dark" to 2)
+                        options.forEach { (label, value) ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .selectable(
+                                        selected = state.themeMode == value,
+                                        onClick = {
+                                            viewModel.onEvent(SettingsEvent.SetThemeMode(value))
+                                        },
+                                        role = Role.RadioButton
+                                    )
+                                    .padding(end = 8.dp)
+                            ) {
+                                RadioButton(
+                                    selected = state.themeMode == value,
+                                    onClick = null
+                                )
+                                Text(
+                                    text = label,
+                                    modifier = Modifier.padding(start = 4.dp, end = 8.dp)
+                                )
+                            }
+                        }
+                    }
+                }
             )
+
+            // Dynamic color
             ListItem(
                 headlineContent = { Text("Dynamic Color (Material You)") },
                 supportingContent = { Text("Use wallpaper-based colors on Android 12+") },
@@ -66,9 +114,136 @@ fun SettingsScreen(
                 }
             )
 
+            // Locale
+            ListItem(
+                headlineContent = { Text("Language") },
+                supportingContent = {
+                    Column(modifier = Modifier.selectableGroup()) {
+                        val locales = listOf("System default" to "", "English" to "en", "Japanese" to "ja")
+                        locales.forEach { (label, tag) ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .selectable(
+                                        selected = state.locale == tag,
+                                        onClick = { viewModel.onEvent(SettingsEvent.SetLocale(tag)) },
+                                        role = Role.RadioButton
+                                    )
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                RadioButton(
+                                    selected = state.locale == tag,
+                                    onClick = null
+                                )
+                                Text(
+                                    text = label,
+                                    modifier = Modifier.padding(start = 8.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            )
+
             HorizontalDivider()
 
-            // --- Notifications ---
+            // ── Library ───────────────────────────────────────────────────────
+            SectionHeader(title = "Library")
+
+            // Grid size
+            ListItem(
+                headlineContent = { Text("Grid Columns: ${state.libraryGridSize}") },
+                supportingContent = {
+                    Slider(
+                        value = state.libraryGridSize.toFloat(),
+                        onValueChange = {
+                            viewModel.onEvent(SettingsEvent.SetLibraryGridSize(it.roundToInt()))
+                        },
+                        valueRange = 2f..5f,
+                        steps = 2,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            )
+
+            // Badges
+            ListItem(
+                headlineContent = { Text("Show Unread Badges") },
+                supportingContent = { Text("Display unread chapter count on covers") },
+                trailingContent = {
+                    Switch(
+                        checked = state.showBadges,
+                        onCheckedChange = {
+                            viewModel.onEvent(SettingsEvent.SetShowBadges(it))
+                        }
+                    )
+                }
+            )
+
+            HorizontalDivider()
+
+            // ── Reader ────────────────────────────────────────────────────────
+            SectionHeader(title = "Reader")
+
+            // Reader mode
+            ListItem(
+                headlineContent = { Text("Reading Mode") },
+                supportingContent = {
+                    Column(modifier = Modifier.selectableGroup()) {
+                        val modes = listOf(
+                            "Single Page" to 0,
+                            "Webtoon" to 1,
+                            "Dual Page" to 2,
+                            "Smart Panels" to 3
+                        )
+                        modes.forEach { (label, value) ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .selectable(
+                                        selected = state.readerMode == value,
+                                        onClick = {
+                                            viewModel.onEvent(SettingsEvent.SetReaderMode(value))
+                                        },
+                                        role = Role.RadioButton
+                                    )
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                RadioButton(
+                                    selected = state.readerMode == value,
+                                    onClick = null
+                                )
+                                Text(
+                                    text = label,
+                                    modifier = Modifier.padding(start = 8.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            )
+
+            // Keep screen on
+            ListItem(
+                headlineContent = { Text("Keep Screen On") },
+                supportingContent = { Text("Prevent the screen from sleeping while reading") },
+                trailingContent = {
+                    Switch(
+                        checked = state.keepScreenOn,
+                        onCheckedChange = {
+                            viewModel.onEvent(SettingsEvent.SetKeepScreenOn(it))
+                        }
+                    )
+                }
+            )
+
+            HorizontalDivider()
+
+            // ── Notifications ─────────────────────────────────────────────────
+            SectionHeader(title = "Notifications")
+
             ListItem(
                 headlineContent = { Text("Enable Notifications") },
                 supportingContent = { Text("Get notified when new chapters are available") },
@@ -83,4 +258,14 @@ fun SettingsScreen(
             )
         }
     }
+}
+
+@Composable
+private fun SectionHeader(title: String, modifier: Modifier = Modifier) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+    )
 }
