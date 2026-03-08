@@ -84,7 +84,13 @@ fun ExtensionsBottomSheet(
         ExtensionsContent(
             state = state,
             onEvent = viewModel::onEvent,
-            onNavigateToSettings = onNavigateToSettings,
+            onNavigateToSettings = {
+                scope.launch {
+                    sheetState.hide()
+                    onDismiss()
+                    onNavigateToSettings()
+                }
+            },
             onClose = {
                 scope.launch {
                     sheetState.hide()
