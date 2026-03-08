@@ -20,6 +20,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusable
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.otakureader.core.ui.component.EmptyScreen
@@ -65,6 +71,7 @@ fun ReaderScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val focusRequester = remember { FocusRequester() }
     
     // UI state for overlays
     var showZoomIndicator by remember { mutableStateOf(false) }
@@ -107,8 +114,35 @@ fun ReaderScreen(
             showZoomIndicator = false
         }
     }
+
+    // Ensure reader gains focus for hardware key handling
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+
+    LaunchedEffect(state.isMenuVisible, state.isGalleryOpen) {
+        focusRequester.requestFocus()
+    }
     
-    Box(modifier = modifier.fillMaxSize()) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .focusRequester(focusRequester)
+            .focusable()
+            .onPreviewKeyEvent { event ->
+                if (!state.volumeKeysEnabled) return@onPreviewKeyEvent false
+                if (event.key != Key.VolumeUp && event.key != Key.VolumeDown) return@onPreviewKeyEvent false
+
+                // Consume both down/up to suppress system volume UI
+                if (event.type == KeyEventType.KeyDown) {
+                    val navigateNext = (event.key == Key.VolumeDown && !state.volumeKeysInverted) ||
+                        (event.key == Key.VolumeUp && state.volumeKeysInverted)
+                    val readerEvent = if (navigateNext) ReaderEvent.NextPage else ReaderEvent.PrevPage
+                    viewModel.onEvent(readerEvent)
+                }
+                true
+            }
+    ) {
         // Main content based on reading mode
         when {
             state.isLoading -> LoadingScreen(Modifier.fillMaxSize())

@@ -58,6 +58,10 @@ class SettingsViewModel @Inject constructor(
                 state.copy(readerMode = readerMode)
             }.combine(readerPreferences.keepScreenOn) { state, keepScreenOn ->
                 state.copy(keepScreenOn = keepScreenOn)
+            }.combine(readerPreferences.volumeKeysEnabled) { state, volumeKeysEnabled ->
+                state.copy(volumeKeysEnabled = volumeKeysEnabled)
+            }.combine(readerPreferences.volumeKeysInverted) { state, volumeKeysInverted ->
+                state.copy(volumeKeysInverted = volumeKeysInverted)
             }.collect { newState ->
                 _state.update { newState }
             }
@@ -76,6 +80,8 @@ class SettingsViewModel @Inject constructor(
                 is SettingsEvent.SetShowBadges -> libraryPreferences.setShowBadges(event.enabled)
                 is SettingsEvent.SetReaderMode -> readerPreferences.setReaderMode(event.mode)
                 is SettingsEvent.SetKeepScreenOn -> readerPreferences.setKeepScreenOn(event.enabled)
+                is SettingsEvent.SetVolumeKeysEnabled -> readerPreferences.setVolumeKeysEnabled(event.enabled)
+                is SettingsEvent.SetVolumeKeysInverted -> readerPreferences.setVolumeKeysInverted(event.inverted)
                 SettingsEvent.OnCreateBackup -> _effect.send(SettingsEffect.ShowBackupPicker)
                 SettingsEvent.OnRestoreBackup -> _effect.send(SettingsEffect.ShowRestorePicker)
             }
