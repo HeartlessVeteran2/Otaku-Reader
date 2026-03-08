@@ -21,15 +21,12 @@
     {
       "groupName": "All Dependencies",
       "groupSlug": "all-deps",
-      "matchPackagePatterns": ["**"]
+      "matchPackageNames": ["**"]
     }
   ],
   "vulnerabilityAlerts": {
     "groupName": "All Dependencies",
     "groupSlug": "all-deps"
-  },
-  "gradle": {
-    "enabled": true
   },
   "enabledManagers": [
     "gradle",
