@@ -39,8 +39,8 @@ class ReaderViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
             try {
-                val manga = mangaRepository.observeManga(mangaId)
-                val chapter = chapterRepository.getChapter(chapterId)
+                val manga = mangaRepository.getMangaByIdFlow(mangaId)
+                val chapter = chapterRepository.getChapterById(chapterId)
                 _state.update { current ->
                     current.copy(
                         isLoading = false,
@@ -73,8 +73,8 @@ class ReaderViewModel @Inject constructor(
         // Persist reading progress
         viewModelScope.launch {
             _state.value.chapter?.let { chapter ->
-                chapterRepository.setRead(
-                    id = chapter.id,
+                chapterRepository.updateChapterProgress(
+                    chapterId = chapter.id,
                     read = page >= (_state.value.pages.size - 1),
                     lastPageRead = page
                 )

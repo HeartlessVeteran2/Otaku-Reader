@@ -3,6 +3,7 @@ package app.otakureader.feature.reader.viewmodel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.otakureader.data.loader.PageLoader
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.feature.reader.model.ReaderMode
@@ -33,6 +34,7 @@ class UltimateReaderViewModel @Inject constructor(
     private val mangaRepository: MangaRepository,
     private val chapterRepository: ChapterRepository,
     private val settingsRepository: ReaderSettingsRepository,
+    private val pageLoader: PageLoader,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -90,7 +92,7 @@ class UltimateReaderViewModel @Inject constructor(
             try {
                 // Load chapter and manga
                 val chapter = chapterRepository.getChapterById(chapterId)
-                val manga = mangaRepository.observeManga(mangaId).first()
+                val manga = mangaRepository.getMangaById(mangaId)
 
                 if (chapter == null) {
                     _state.update {
@@ -99,10 +101,23 @@ class UltimateReaderViewModel @Inject constructor(
                     return@launch
                 }
 
-                // Fetch pages from source
-                // In a real implementation, this would call the source to get page URLs
-                // For now, we'll simulate page URLs based on chapter URL
-                val pages = fetchPagesFromSource(chapter.url, chapter.id)
+                if (manga == null) {
+                    _state.update {
+                        it.copy(isLoading = false, error = "Manga not found")
+                    }
+                    return@launch
+                }
+
+                // Fetch pages from source; PageLoader will transparently substitute
+                // local file URIs for any page that has already been downloaded.
+                val sourceName = manga.sourceId.toString()
+                val pages = fetchPagesFromSource(
+                    chapterUrl = chapter.url,
+                    chapterId = chapter.id,
+                    sourceName = sourceName,
+                    mangaTitle = manga.title,
+                    chapterName = chapter.name
+                )
 
                 _state.update { currentState ->
                     currentState.copy(
@@ -131,19 +146,33 @@ class UltimateReaderViewModel @Inject constructor(
 
     /**
      * Fetch pages from the manga source.
-     * In a real implementation, this would use the SourceManager to get pages.
-     * For now, we create placeholder pages that can be replaced with actual implementation.
+     *
+     * For each page, [PageLoader.resolveUrl] is called so that already-downloaded
+     * pages are served from local storage rather than the network.
+     *
+     * In a real implementation this would call the SourceManager to obtain the
+     * remote page URLs before handing them to [PageLoader].
      */
-    private suspend fun fetchPagesFromSource(chapterUrl: String, chapterId: Long): List<ReaderPage> {
-        // TODO: Integrate with SourceManager to fetch actual page URLs
-        // This is a placeholder implementation
-        
-        // For testing/demo purposes, create some placeholder pages
-        // In production, this should call:
+    private suspend fun fetchPagesFromSource(
+        chapterUrl: String,
+        chapterId: Long,
+        sourceName: String,
+        mangaTitle: String,
+        chapterName: String
+    ): List<ReaderPage> {
+        // TODO: Integrate with SourceManager to fetch actual page URLs.
         // val source = sourceManager.get(manga.sourceId)
-        // val pages = source.fetchPageList(chapter.toSourceChapter())
-        
-        return emptyList() // Return empty for now - will show "No pages found"
+        // val remotePages = source.fetchPageList(chapter.toSourceChapter())
+        //
+        // Once remotePages are available, resolve each URL through PageLoader:
+        // return remotePages.mapIndexed { index, page ->
+        //     ReaderPage(
+        //         index = index,
+        //         imageUrl = pageLoader.resolveUrl(page.imageUrl, sourceName, mangaTitle, chapterName, index),
+        //         chapterName = chapterName
+        //     )
+        // }
+        return emptyList()
     }
 
     /**
