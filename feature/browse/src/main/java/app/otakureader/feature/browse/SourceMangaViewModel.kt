@@ -118,9 +118,7 @@ class SourceMangaViewModel @Inject constructor(
 
     private fun fetchSourceName(sourceId: String) {
         viewModelScope.launch {
-            val sources = getSourcesUseCase().first { sources ->
-                sources.any { it.id == sourceId }
-            }
+            val sources = getSourcesUseCase().first { it.isNotEmpty() }
             val source = sources.find { it.id == sourceId }
             _state.update { it.copy(sourceName = source?.name ?: sourceId) }
         }
