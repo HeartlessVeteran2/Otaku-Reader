@@ -47,12 +47,10 @@ fun NavGraphBuilder.sourceDetailScreen(
 
 fun NavGraphBuilder.extensionsBottomSheet(
     onDismiss: () -> Unit,
-    onNavigateToSettings: () -> Unit,
 ) {
     composable<ExtensionsRoute> {
         ExtensionsBottomSheet(
-            onDismiss = onDismiss,
-            onNavigateToSettings = onNavigateToSettings
+            onDismiss = onDismiss
         )
     }
 }

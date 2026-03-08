@@ -107,8 +107,32 @@ fun SettingsScreen(
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
         ) {
+            AppearanceSection(state = state, onEvent = viewModel::onEvent)
+            HorizontalDivider()
+            LibrarySection(state = state, onEvent = viewModel::onEvent)
+            HorizontalDivider()
+            ReaderSection(state = state, onEvent = viewModel::onEvent)
+            HorizontalDivider()
+            NotificationsSection(state = state, onEvent = viewModel::onEvent)
+            HorizontalDivider()
+            BackupRestoreSection(state = state, onEvent = viewModel::onEvent)
+        }
+    }
+}
 
-            // ── Appearance ────────────────────────────────────────────────────
+@Composable
+private fun SectionHeader(title: String, modifier: Modifier = Modifier) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+    )
+}
+
+@Composable
+private fun AppearanceSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
+    // ── Appearance ────────────────────────────────────────────────────
             SectionHeader(title = "Appearance")
 
             // Theme mode
@@ -124,7 +148,7 @@ fun SettingsScreen(
                                     .selectable(
                                         selected = state.themeMode == value,
                                         onClick = {
-                                            viewModel.onEvent(SettingsEvent.SetThemeMode(value))
+                                            onEvent(SettingsEvent.SetThemeMode(value))
                                         },
                                         role = Role.RadioButton
                                     )
@@ -152,7 +176,7 @@ fun SettingsScreen(
                     Switch(
                         checked = state.useDynamicColor,
                         onCheckedChange = {
-                            viewModel.onEvent(SettingsEvent.SetDynamicColor(it))
+                            onEvent(SettingsEvent.SetDynamicColor(it))
                         }
                     )
                 }
@@ -171,7 +195,7 @@ fun SettingsScreen(
                                     .fillMaxWidth()
                                     .selectable(
                                         selected = state.locale == tag,
-                                        onClick = { viewModel.onEvent(SettingsEvent.SetLocale(tag)) },
+                                        onClick = { onEvent(SettingsEvent.SetLocale(tag)) },
                                         role = Role.RadioButton
                                     )
                                     .padding(vertical = 4.dp)
@@ -190,9 +214,11 @@ fun SettingsScreen(
                 }
             )
 
-            HorizontalDivider()
+}
 
-            // ── Library ───────────────────────────────────────────────────────
+@Composable
+private fun LibrarySection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
+    // ── Library ───────────────────────────────────────────────────────
             SectionHeader(title = "Library")
 
             // Grid size – use a local slider state so DataStore is written only when
@@ -207,7 +233,7 @@ fun SettingsScreen(
                         value = sliderPosition,
                         onValueChange = { sliderPosition = it },
                         onValueChangeFinished = {
-                            viewModel.onEvent(
+                            onEvent(
                                 SettingsEvent.SetLibraryGridSize(sliderPosition.roundToInt())
                             )
                         },
@@ -226,15 +252,16 @@ fun SettingsScreen(
                     Switch(
                         checked = state.showBadges,
                         onCheckedChange = {
-                            viewModel.onEvent(SettingsEvent.SetShowBadges(it))
+                            onEvent(SettingsEvent.SetShowBadges(it))
                         }
                     )
                 }
             )
+}
 
-            HorizontalDivider()
-
-            // ── Reader ────────────────────────────────────────────────────────
+@Composable
+private fun ReaderSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
+    // ── Reader ────────────────────────────────────────────────────────
             SectionHeader(title = "Reader")
 
             // Reader mode – ordinal order matches ReaderMode enum:
@@ -257,7 +284,7 @@ fun SettingsScreen(
                                     .selectable(
                                         selected = state.readerMode == value,
                                         onClick = {
-                                            viewModel.onEvent(SettingsEvent.SetReaderMode(value))
+                                            onEvent(SettingsEvent.SetReaderMode(value))
                                         },
                                         role = Role.RadioButton
                                     )
@@ -285,15 +312,16 @@ fun SettingsScreen(
                     Switch(
                         checked = state.keepScreenOn,
                         onCheckedChange = {
-                            viewModel.onEvent(SettingsEvent.SetKeepScreenOn(it))
+                            onEvent(SettingsEvent.SetKeepScreenOn(it))
                         }
                     )
                 }
             )
+}
 
-            HorizontalDivider()
-
-            // ── Notifications ─────────────────────────────────────────────────
+@Composable
+private fun NotificationsSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
+    // ── Notifications ─────────────────────────────────────────────────
             SectionHeader(title = "Notifications")
 
             ListItem(
@@ -303,7 +331,7 @@ fun SettingsScreen(
                     Switch(
                         checked = state.notificationsEnabled,
                         onCheckedChange = {
-                            viewModel.onEvent(SettingsEvent.SetNotificationsEnabled(it))
+                            onEvent(SettingsEvent.SetNotificationsEnabled(it))
                         }
                     )
                 }
@@ -323,7 +351,7 @@ fun SettingsScreen(
                                     .selectable(
                                         selected = state.updateCheckInterval == hours,
                                         onClick = {
-                                            viewModel.onEvent(SettingsEvent.SetUpdateInterval(hours))
+                                            onEvent(SettingsEvent.SetUpdateInterval(hours))
                                         },
                                         role = Role.RadioButton
                                     )
@@ -342,10 +370,11 @@ fun SettingsScreen(
                     }
                 }
             )
+}
 
-            HorizontalDivider()
-
-            // ── Backup & Restore ──────────────────────────────────────────────
+@Composable
+private fun BackupRestoreSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
+    // ── Backup & Restore ──────────────────────────────────────────────
             SectionHeader(title = "Backup & Restore")
 
             ListItem(
@@ -355,7 +384,7 @@ fun SettingsScreen(
                     if (state.isBackupInProgress) {
                         CircularProgressIndicator()
                     } else {
-                        Button(onClick = { viewModel.onEvent(SettingsEvent.OnCreateBackup) }) {
+                        Button(onClick = { onEvent(SettingsEvent.OnCreateBackup) }) {
                             Text("Backup")
                         }
                     }
@@ -369,22 +398,10 @@ fun SettingsScreen(
                     if (state.isRestoreInProgress) {
                         CircularProgressIndicator()
                     } else {
-                        Button(onClick = { viewModel.onEvent(SettingsEvent.OnRestoreBackup) }) {
+                        Button(onClick = { onEvent(SettingsEvent.OnRestoreBackup) }) {
                             Text("Restore")
                         }
                     }
                 }
             )
-        }
-    }
-}
-
-@Composable
-private fun SectionHeader(title: String, modifier: Modifier = Modifier) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-    )
 }
