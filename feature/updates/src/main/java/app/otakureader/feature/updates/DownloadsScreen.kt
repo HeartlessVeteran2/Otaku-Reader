@@ -1,0 +1,262 @@
+package app.otakureader.feature.updates
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DownloadDone
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.otakureader.domain.model.DownloadItem
+import app.otakureader.domain.model.DownloadStatus
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DownloadsScreen(
+    onNavigateBack: () -> Unit,
+    viewModel: DownloadsViewModel = hiltViewModel()
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Downloads") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
+                },
+                actions = {
+                    if (state.hasDownloads) {
+                        TextButton(onClick = { viewModel.onEvent(DownloadsEvent.ClearAll) }) {
+                            Text("Clear All")
+                        }
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        if (state.items.isEmpty()) {
+            EmptyDownloadsPlaceholder(
+                modifier = Modifier
+                    .padding(padding)
+                    .fillMaxSize()
+            )
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .padding(padding)
+                    .fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(
+                    items = state.items,
+                    key = { it.id }
+                ) { item ->
+                    DownloadListItem(
+                        item = item,
+                        onPause = { viewModel.onEvent(DownloadsEvent.Pause(it)) },
+                        onResume = { viewModel.onEvent(DownloadsEvent.Resume(it)) },
+                        onCancel = { viewModel.onEvent(DownloadsEvent.Cancel(it)) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DownloadListItem(
+    item: DownloadItem,
+    onPause: (Long) -> Unit,
+    onResume: (Long) -> Unit,
+    onCancel: (Long) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(
+                        text = item.mangaTitle,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = item.chapterTitle,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    when (item.status) {
+                        DownloadStatus.DOWNLOADING, DownloadStatus.QUEUED -> {
+                            IconButton(onClick = { onPause(item.id) }) {
+                                Icon(
+                                    imageVector = Icons.Default.Pause,
+                                    contentDescription = "Pause",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        DownloadStatus.PAUSED -> {
+                            IconButton(onClick = { onResume(item.id) }) {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = "Resume",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+
+                        else -> Unit
+                    }
+
+                    if (item.status != DownloadStatus.COMPLETED) {
+                        IconButton(onClick = { onCancel(item.id) }) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Cancel",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                }
+            }
+
+            LinearProgressIndicator(
+                progress = item.progress / 100f,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = statusLabel(item.status),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = when (item.status) {
+                        DownloadStatus.COMPLETED -> MaterialTheme.colorScheme.primary
+                        DownloadStatus.PAUSED -> MaterialTheme.colorScheme.secondary
+                        DownloadStatus.FAILED -> MaterialTheme.colorScheme.error
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.DownloadDone,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "${item.progress}%",
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyDownloadsPlaceholder(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            imageVector = Icons.Default.DownloadDone,
+            contentDescription = null,
+            modifier = Modifier.size(72.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = "No downloads yet",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = "Start a chapter download to see progress here.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+private fun statusLabel(status: DownloadStatus): String = when (status) {
+    DownloadStatus.QUEUED -> "Queued"
+    DownloadStatus.DOWNLOADING -> "Downloading"
+    DownloadStatus.PAUSED -> "Paused"
+    DownloadStatus.COMPLETED -> "Completed"
+    DownloadStatus.FAILED -> "Failed"
+    DownloadStatus.CANCELED -> "Canceled"
+}

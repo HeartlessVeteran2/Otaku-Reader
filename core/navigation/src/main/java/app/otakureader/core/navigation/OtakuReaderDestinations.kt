@@ -24,6 +24,9 @@ object HistoryRoute : OtakuReaderDestination
 @Serializable
 object SettingsRoute : OtakuReaderDestination
 
+@Serializable
+object DownloadsRoute : OtakuReaderDestination
+
 /** Manga detail screen. */
 @Serializable
 data class MangaDetailRoute(val mangaId: Long) : OtakuReaderDestination

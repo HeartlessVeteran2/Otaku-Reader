@@ -3,6 +3,7 @@ package app.otakureader.feature.updates
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -18,6 +19,7 @@ import androidx.compose.ui.Modifier
 fun UpdatesScreen(
     onMangaClick: (Long) -> Unit,
     onNavigateBack: () -> Unit,
+    onNavigateToDownloads: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -28,6 +30,14 @@ fun UpdatesScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onNavigateToDownloads) {
+                        Icon(
+                            imageVector = Icons.Default.Download,
+                            contentDescription = "Downloads"
+                        )
                     }
                 }
             )
