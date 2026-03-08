@@ -5,6 +5,16 @@ queue_rules:
 merge_queue:
   skip_intermediate_results: true
 pull_request_rules:
+  - name: Assign t-shirt size to PR
+    description: Assign a t-shirt size label to a pull request based on the number
+      of lines changed.
+    conditions:
+      - "#modified-lines >= 100"
+      - "#modified-lines < 500"
+    actions:
+      label:
+        toggle:
+          - size/L
   - name: Make sure PR are up to date before merging with rebase
     description: This automatically rebases PRs when they are out-of-date with the
       base branch to avoid semantic conflicts (next step is using a merge
