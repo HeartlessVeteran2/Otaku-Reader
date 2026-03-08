@@ -309,6 +309,95 @@ class DetailsViewModelTest {
         coVerify { chapterRepository.updateChapterProgress(2L, true, 0) }
     }
 
+    // ---- ShareManga ----
+
+    @Test
+    fun onEvent_ShareManga_withAbsoluteHttpUrl_emitsShareMangaEffectWithUrl() = runTest {
+        val mangaWithHttpUrl = sampleManga.copy(url = "http://example.com/manga/42")
+        every { mangaRepository.getMangaByIdFlow(mangaId) } returns flowOf(mangaWithHttpUrl)
+        every { chapterRepository.getChaptersByMangaId(mangaId) } returns flowOf(sampleChapters)
+        every { mangaRepository.isFavorite(mangaId) } returns flowOf(false)
+        every { downloadRepository.observeDownloads() } returns flowOf(emptyList())
+        coEvery { chapterRepository.getNextUnreadChapter(mangaId) } returns null
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.ShareManga)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.ShareManga)
+            val shareEffect = effect as DetailsContract.Effect.ShareManga
+            assertEquals("Attack on Titan", shareEffect.title)
+            assertEquals("http://example.com/manga/42", shareEffect.url)
+        }
+    }
+
+    @Test
+    fun onEvent_ShareManga_withAbsoluteHttpsUrl_emitsShareMangaEffectWithUrl() = runTest {
+        val mangaWithHttpsUrl = sampleManga.copy(url = "https://example.com/manga/42")
+        every { mangaRepository.getMangaByIdFlow(mangaId) } returns flowOf(mangaWithHttpsUrl)
+        every { chapterRepository.getChaptersByMangaId(mangaId) } returns flowOf(sampleChapters)
+        every { mangaRepository.isFavorite(mangaId) } returns flowOf(false)
+        every { downloadRepository.observeDownloads() } returns flowOf(emptyList())
+        coEvery { chapterRepository.getNextUnreadChapter(mangaId) } returns null
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.ShareManga)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.ShareManga)
+            val shareEffect = effect as DetailsContract.Effect.ShareManga
+            assertEquals("Attack on Titan", shareEffect.title)
+            assertEquals("https://example.com/manga/42", shareEffect.url)
+        }
+    }
+
+    @Test
+    fun onEvent_ShareManga_withRelativeUrl_emitsShareMangaEffectWithEmptyUrl() = runTest {
+        // sampleManga has url = "/m/42" which is a relative path
+        setUpDefaultMocks()
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.ShareManga)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.ShareManga)
+            val shareEffect = effect as DetailsContract.Effect.ShareManga
+            assertEquals("Attack on Titan", shareEffect.title)
+            assertEquals("", shareEffect.url)
+        }
+    }
+
+    @Test
+    fun onEvent_ShareManga_whenMangaIsNull_emitsNoEffect() = runTest {
+        every { mangaRepository.getMangaByIdFlow(mangaId) } returns flowOf(null)
+        every { chapterRepository.getChaptersByMangaId(mangaId) } returns flowOf(emptyList())
+        every { mangaRepository.isFavorite(mangaId) } returns flowOf(false)
+        every { downloadRepository.observeDownloads() } returns flowOf(emptyList())
+        coEvery { chapterRepository.getNextUnreadChapter(mangaId) } returns null
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.ShareManga)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            expectNoEvents()
+        }
+    }
+
     // ---- State derived properties ----
 
     @Test
