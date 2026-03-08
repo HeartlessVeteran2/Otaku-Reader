@@ -245,12 +245,17 @@ class DetailsViewModel @Inject constructor(
     private fun downloadChapter(chapterId: Long) {
         viewModelScope.launch {
             val chapter = _state.value.chapters.firstOrNull { it.id == chapterId }
-            val mangaTitle = _state.value.manga?.title ?: "Manga"
+            val manga = _state.value.manga
+            val mangaTitle = manga?.title ?: "Manga"
+            // Use sourceId as a stable directory key. Once a SourceManager is available
+            // this can be replaced with the source's display name.
+            val sourceName = manga?.sourceId?.toString() ?: ""
 
             if (chapter != null) {
                 downloadRepository.enqueueChapter(
                     mangaId = chapter.mangaId,
                     chapterId = chapter.id,
+                    sourceName = sourceName,
                     mangaTitle = mangaTitle,
                     chapterTitle = chapter.name
                 )
