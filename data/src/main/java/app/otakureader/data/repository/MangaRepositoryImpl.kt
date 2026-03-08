@@ -19,8 +19,8 @@ class MangaRepositoryImpl @Inject constructor(
 ) : MangaRepository {
     
     override fun getLibraryManga(): Flow<List<Manga>> {
-        return mangaDao.getFavoriteManga().map { entities ->
-            entities.map { it.toDomain() }
+        return mangaDao.getFavoriteMangaWithUnreadCount().map { mangaWithUnreadList ->
+            mangaWithUnreadList.map { it.manga.toDomain(it.unreadCount) }
         }
     }
 

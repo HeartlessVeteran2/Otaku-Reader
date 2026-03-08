@@ -16,6 +16,7 @@ sealed interface HistoryEvent : UiEvent {
     data class OnChapterClick(val mangaId: Long, val chapterId: Long) : HistoryEvent
     data object ClearHistory : HistoryEvent
     data class OnSearchQueryChange(val query: String) : HistoryEvent
+    data class RemoveFromHistory(val chapterId: Long) : HistoryEvent
 }
 
 sealed interface HistoryEffect : UiEffect {
