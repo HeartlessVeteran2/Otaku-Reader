@@ -59,17 +59,8 @@ class LibraryViewModel @Inject constructor(
     }
 
     private fun onRefresh() {
-        // Trigger library update worker to check for new chapters
-        val updateRequest = OneTimeWorkRequestBuilder<app.otakureader.data.worker.LibraryUpdateWorker>()
-            .build()
-
-        WorkManager.getInstance(context).enqueueUniqueWork(
-            "library_update",
-            ExistingWorkPolicy.KEEP,
-            updateRequest
-        )
-
-        // Also reload library to show any updates
+        // TODO: Trigger library update worker to check for new chapters
+        // This will be implemented in the app module to avoid circular dependency
         loadLibrary()
     }
     

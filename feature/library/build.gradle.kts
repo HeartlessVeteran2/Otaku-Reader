@@ -13,6 +13,7 @@ dependencies {
     implementation(libs.paging.compose)
     implementation(libs.lifecycle.viewmodel.ktx)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.workmanager.ktx)
 
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
