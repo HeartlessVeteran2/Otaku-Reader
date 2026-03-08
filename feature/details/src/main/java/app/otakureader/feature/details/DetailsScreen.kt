@@ -50,6 +50,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.otakureader.core.ui.component.ErrorScreen
 import app.otakureader.core.ui.component.LoadingScreen
+import app.otakureader.feature.details.R
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.flow.collectLatest
 
@@ -78,11 +79,16 @@ fun DetailsScreen(
                     snackbarHostState.showSnackbar(effect.message)
                 }
                 is DetailsContract.Effect.ShareManga -> {
+                    val shareText = if (effect.url.isNotEmpty()) {
+                        "${effect.title}\n${effect.url}"
+                    } else {
+                        effect.title
+                    }
                     val shareIntent = Intent(Intent.ACTION_SEND).apply {
                         type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, "${effect.title}\n${effect.url}")
+                        putExtra(Intent.EXTRA_TEXT, shareText)
                     }
-                    context.startActivity(Intent.createChooser(shareIntent, "Share Manga"))
+                    context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_manga)))
                 }
                 else -> { /* Handle other effects */ }
             }

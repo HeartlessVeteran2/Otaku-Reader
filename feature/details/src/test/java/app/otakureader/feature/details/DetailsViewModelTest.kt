@@ -316,7 +316,6 @@ class DetailsViewModelTest {
         val mangaWithHttpUrl = sampleManga.copy(url = "http://example.com/manga/42")
         setUpDefaultMocks()
         every { mangaRepository.getMangaByIdFlow(mangaId) } returns flowOf(mangaWithHttpUrl)
-        every { mangaRepository.getMangaByIdFlow(mangaId) } returns flowOf(mangaWithHttpUrl)
         every { chapterRepository.getChaptersByMangaId(mangaId) } returns flowOf(sampleChapters)
         every { mangaRepository.isFavorite(mangaId) } returns flowOf(false)
         every { downloadRepository.observeDownloads() } returns flowOf(emptyList())
@@ -341,7 +340,6 @@ class DetailsViewModelTest {
     fun onEvent_ShareManga_withAbsoluteHttpsUrl_emitsShareMangaEffectWithUrl() = runTest {
         val mangaWithHttpsUrl = sampleManga.copy(url = "https://example.com/manga/42")
         setUpDefaultMocks()
-        every { mangaRepository.getMangaByIdFlow(mangaId) } returns flowOf(mangaWithHttpsUrl)
         every { mangaRepository.getMangaByIdFlow(mangaId) } returns flowOf(mangaWithHttpsUrl)
         every { chapterRepository.getChaptersByMangaId(mangaId) } returns flowOf(sampleChapters)
         every { mangaRepository.isFavorite(mangaId) } returns flowOf(false)

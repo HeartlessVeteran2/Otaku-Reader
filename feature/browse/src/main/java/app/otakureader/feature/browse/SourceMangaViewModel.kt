@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import app.otakureader.core.common.mvi.UiEffect
 import app.otakureader.core.common.mvi.UiEvent
 import app.otakureader.core.common.mvi.UiState
+import app.otakureader.domain.usecase.source.GetPopularMangaUseCase
 import app.otakureader.sourceapi.SourceManga
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
@@ -39,7 +40,9 @@ sealed interface SourceMangaEffect : UiEffect {
 }
 
 @HiltViewModel
-class SourceMangaViewModel @Inject constructor() : ViewModel() {
+class SourceMangaViewModel @Inject constructor(
+    private val getPopularMangaUseCase: GetPopularMangaUseCase
+) : ViewModel() {
 
     private val _state = MutableStateFlow(SourceMangaState())
     val state = _state.stateIn(
@@ -56,13 +59,13 @@ class SourceMangaViewModel @Inject constructor() : ViewModel() {
             _state.update {
                 it.copy(
                     sourceId = sourceId,
-                    sourceName = sourceId, // Could be fetched from repository
+                    sourceName = sourceId,
                     manga = emptyList(),
                     currentPage = 1,
                     hasNextPage = false
                 )
             }
-            loadManga()
+            loadManga(page = 1)
         }
     }
 
@@ -74,20 +77,34 @@ class SourceMangaViewModel @Inject constructor() : ViewModel() {
         }
     }
 
-    private fun loadManga() {
-        _state.update { it.copy(isLoading = true, error = null) }
+    private fun loadManga(page: Int = 1) {
+        val sourceId = _state.value.sourceId
+        if (sourceId.isBlank()) return
+
+        _state.update { it.copy(isLoading = page == 1, isLoadingMore = page > 1, error = null) }
         viewModelScope.launch {
-            // TODO: Load manga from source repository
-            // For now, simulate loading
-            kotlinx.coroutines.delay(1000)
-            _state.update {
-                it.copy(
-                    isLoading = false,
-                    // Sample data for testing
-                    manga = emptyList(),
-                    hasNextPage = false
-                )
-            }
+            getPopularMangaUseCase(sourceId, page)
+                .onSuccess { mangaPage ->
+                    _state.update { state ->
+                        state.copy(
+                            isLoading = false,
+                            isLoadingMore = false,
+                            manga = if (page == 1) mangaPage.mangas else state.manga + mangaPage.mangas,
+                            hasNextPage = mangaPage.hasNextPage,
+                            currentPage = page,
+                            error = null
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            isLoadingMore = false,
+                            error = error.message ?: "Failed to load manga"
+                        )
+                    }
+                }
         }
     }
 
@@ -100,18 +117,12 @@ class SourceMangaViewModel @Inject constructor() : ViewModel() {
                 error = null
             )
         }
-        loadManga()
+        loadManga(page = 1)
     }
 
     private fun loadNextPage() {
         if (_state.value.isLoadingMore || !_state.value.hasNextPage) return
-
-        _state.update { it.copy(isLoadingMore = true) }
-        viewModelScope.launch {
-            // TODO: Load next page from source
-            kotlinx.coroutines.delay(500)
-            _state.update { it.copy(isLoadingMore = false) }
-        }
+        loadManga(page = _state.value.currentPage + 1)
     }
 
     private fun navigateToDetail(manga: SourceManga) {
