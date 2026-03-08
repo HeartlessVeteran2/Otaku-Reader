@@ -18,4 +18,11 @@ interface ReadingHistoryDao {
 
     @Query("DELETE FROM reading_history WHERE read_at < :timestamp")
     suspend fun deleteHistoryBefore(timestamp: Long)
+
+    @Query("DELETE FROM reading_history WHERE chapter_id = :chapterId")
+    suspend fun deleteHistoryForChapter(chapterId: Long)
+
+    @Query("DELETE FROM reading_history")
+    suspend fun deleteAll()
 }
+

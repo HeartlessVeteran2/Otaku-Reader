@@ -2,6 +2,8 @@ package app.otakureader.core.database.di
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import app.otakureader.core.database.OtakuReaderDatabase
 import dagger.Module
 import dagger.Provides
@@ -13,7 +15,31 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
-    
+
+    /**
+     * Adds the reading_history table introduced in database version 3.
+     */
+    private val MIGRATION_2_3 = object : Migration(2, 3) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `reading_history` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `chapter_id` INTEGER NOT NULL,
+                    `read_at` INTEGER NOT NULL DEFAULT 0,
+                    `read_duration_ms` INTEGER NOT NULL DEFAULT 0,
+                    FOREIGN KEY(`chapter_id`) REFERENCES `chapters`(`id`)
+                        ON UPDATE NO ACTION ON DELETE CASCADE
+                )
+                """.trimIndent()
+            )
+            db.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS `index_reading_history_chapter_id` " +
+                    "ON `reading_history` (`chapter_id`)"
+            )
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(
@@ -24,6 +50,7 @@ object DatabaseModule {
             OtakuReaderDatabase::class.java,
             OtakuReaderDatabase.DATABASE_NAME
         )
+            .addMigrations(MIGRATION_2_3)
             .fallbackToDestructiveMigration()
             .build()
     }
@@ -36,4 +63,10 @@ object DatabaseModule {
     
     @Provides
     fun provideCategoryDao(database: OtakuReaderDatabase) = database.categoryDao()
+
+    @Provides
+    fun provideTrackDao(database: OtakuReaderDatabase) = database.trackDao()
+
+    @Provides
+    fun provideReadingHistoryDao(database: OtakuReaderDatabase) = database.readingHistoryDao()
 }
