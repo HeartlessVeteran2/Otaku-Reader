@@ -5,10 +5,10 @@ import androidx.room.RoomDatabase
 import app.otakureader.core.database.dao.CategoryDao
 import app.otakureader.core.database.dao.ChapterDao
 import app.otakureader.core.database.dao.MangaDao
+import app.otakureader.core.database.dao.ReadingHistoryDao
 import app.otakureader.core.database.entity.CategoryEntity
 import app.otakureader.core.database.entity.ChapterEntity
 import app.otakureader.core.database.entity.MangaCategoryEntity
-import app.otakureader.core.database.dao.ReadingHistoryDao
 import app.otakureader.core.database.entity.MangaEntity
 import app.otakureader.core.database.entity.ReadingHistoryEntity
 

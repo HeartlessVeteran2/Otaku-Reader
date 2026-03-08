@@ -4,6 +4,7 @@ import app.otakureader.core.database.dao.ChapterDao
 import app.otakureader.core.database.dao.ReadingHistoryDao
 import app.otakureader.core.database.entity.ChapterEntity
 import app.otakureader.core.database.entity.ChapterWithHistoryEntity
+import app.otakureader.core.database.entity.ReadingHistoryEntity
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.ChapterWithHistory
 import app.otakureader.domain.repository.ChapterRepository
@@ -57,7 +58,25 @@ class ChapterRepositoryImpl @Inject constructor(
             entities.map { it.toDomain() }
         }
     }
-    
+
+    override suspend fun recordHistory(chapterId: Long, readAt: Long, readDurationMs: Long) {
+        readingHistoryDao.upsert(
+            ReadingHistoryEntity(
+                chapterId = chapterId,
+                readAt = readAt,
+                readDurationMs = readDurationMs
+            )
+        )
+    }
+
+    override suspend fun removeFromHistory(chapterId: Long) {
+        readingHistoryDao.deleteHistoryForChapter(chapterId)
+    }
+
+    override suspend fun clearAllHistory() {
+        readingHistoryDao.deleteAll()
+    }
+
     private fun ChapterEntity.toDomain() = Chapter(
         id = id,
         mangaId = mangaId,
@@ -83,10 +102,5 @@ class ChapterRepositoryImpl @Inject constructor(
         chapterNumber = chapterNumber,
         dateUpload = dateUpload
     )
-
-    private fun ChapterWithHistoryEntity.toDomain() = ChapterWithHistory(
-        chapter = chapter.toDomain(),
-        readAt = history.readAt,
-        readDurationMs = history.readDurationMs
-    )
 }
+

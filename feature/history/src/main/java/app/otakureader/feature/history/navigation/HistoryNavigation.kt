@@ -6,12 +6,12 @@ import app.otakureader.core.navigation.HistoryRoute
 import app.otakureader.feature.history.HistoryScreen
 
 fun NavGraphBuilder.historyScreen(
-    onMangaClick: (Long) -> Unit,
+    onChapterClick: (mangaId: Long, chapterId: Long) -> Unit,
     onNavigateBack: () -> Unit,
 ) {
     composable<HistoryRoute> {
         HistoryScreen(
-            onMangaClick = onMangaClick,
+            onChapterClick = onChapterClick,
             onNavigateBack = onNavigateBack
         )
     }

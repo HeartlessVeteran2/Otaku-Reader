@@ -6,6 +6,9 @@ import androidx.lifecycle.viewModelScope
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.MangaRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -31,6 +34,11 @@ class ReaderViewModel @Inject constructor(
     private val _effect = Channel<ReaderEffect>(Channel.BUFFERED)
     val effect = _effect.receiveAsFlow()
 
+    private val sessionStartMs = System.currentTimeMillis()
+
+    /** Independent scope used for cleanup work that must survive viewModelScope cancellation. */
+    private val cleanupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     init {
         loadChapter()
     }
@@ -48,11 +56,25 @@ class ReaderViewModel @Inject constructor(
                         currentPage = chapter?.lastPageRead ?: 0
                     )
                 }
+                // Record history only after confirming the chapter exists.
+                if (chapter != null) recordHistoryOpen()
                 manga.collect { m ->
                     _state.update { it.copy(manga = m) }
                 }
             } catch (e: Exception) {
                 _state.update { it.copy(isLoading = false, error = e.message) }
+            }
+        }
+    }
+
+    private fun recordHistoryOpen() {
+        viewModelScope.launch {
+            runCatching {
+                chapterRepository.recordHistory(
+                    chapterId = chapterId,
+                    readAt = sessionStartMs,
+                    readDurationMs = 0L
+                )
             }
         }
     }
@@ -88,5 +110,20 @@ class ReaderViewModel @Inject constructor(
 
     private fun navigateNextChapter() {
         viewModelScope.launch { _effect.send(ReaderEffect.ShowSnackbar("End of available chapters")) }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        val durationMs = System.currentTimeMillis() - sessionStartMs
+        // Use cleanupScope (not viewModelScope) so the coroutine is not cancelled along with the ViewModel.
+        cleanupScope.launch {
+            runCatching {
+                chapterRepository.recordHistory(
+                    chapterId = chapterId,
+                    readAt = sessionStartMs,
+                    readDurationMs = durationMs
+                )
+            }
+        }
     }
 }

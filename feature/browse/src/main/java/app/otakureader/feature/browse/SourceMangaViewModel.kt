@@ -59,7 +59,6 @@ class SourceMangaViewModel @Inject constructor(
             _state.update {
                 it.copy(
                     sourceId = sourceId,
-                    sourceName = sourceId,
                     manga = emptyList(),
                     currentPage = 1,
                     hasNextPage = false
