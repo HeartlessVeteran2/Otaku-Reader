@@ -192,6 +192,8 @@ class ChapterRepositoryImplTest {
             assertEquals(emptyList<app.otakureader.domain.model.ChapterWithHistory>(), awaitItem())
             awaitComplete()
         }
+
+        verify { readingHistoryDao.observeHistoryWithChapters() }
     }
 
     // ---- mapping ----
