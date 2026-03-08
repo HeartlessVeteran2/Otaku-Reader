@@ -7,6 +7,7 @@ import app.otakureader.core.common.mvi.UiEvent
 import app.otakureader.core.common.mvi.UiState
 import app.otakureader.core.extension.domain.model.Extension
 import app.otakureader.core.extension.domain.repository.ExtensionRepository
+import app.otakureader.core.extension.installer.ExtensionInstaller
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -43,7 +44,8 @@ sealed interface ExtensionsEffect : UiEffect {
 
 @HiltViewModel
 class ExtensionsViewModel @Inject constructor(
-    private val extensionRepository: ExtensionRepository
+    private val extensionRepository: ExtensionRepository,
+    private val extensionInstaller: ExtensionInstaller
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
@@ -168,10 +170,13 @@ class ExtensionsViewModel @Inject constructor(
     private fun installExtension(extension: Extension) {
         viewModelScope.launch {
             try {
-                val apkPath = extension.apkPath
-                    ?: throw IllegalStateException("No APK path available")
-                extensionRepository.installExtension(extension.pkgName, apkPath)
-                _effect.send(ExtensionsEffect.ShowSnackbar("Extension installed: ${extension.name}"))
+                // Use the installer's download and install method
+                val result = extensionInstaller.downloadAndInstall(extension)
+                result.onSuccess {
+                    _effect.send(ExtensionsEffect.ShowSnackbar("Extension installed: ${extension.name}"))
+                }.onFailure { error ->
+                    _effect.send(ExtensionsEffect.ShowError("Failed to install: ${error.message}"))
+                }
             } catch (e: Exception) {
                 _effect.send(ExtensionsEffect.ShowError("Failed to install: ${e.message}"))
             }
@@ -181,8 +186,12 @@ class ExtensionsViewModel @Inject constructor(
     private fun uninstallExtension(extension: Extension) {
         viewModelScope.launch {
             try {
-                extensionRepository.uninstallExtension(extension.pkgName)
-                _effect.send(ExtensionsEffect.ShowSnackbar("Extension uninstalled: ${extension.name}"))
+                val result = extensionInstaller.uninstall(extension.pkgName)
+                result.onSuccess {
+                    _effect.send(ExtensionsEffect.ShowSnackbar("Extension uninstalled: ${extension.name}"))
+                }.onFailure { error ->
+                    _effect.send(ExtensionsEffect.ShowError("Failed to uninstall: ${error.message}"))
+                }
             } catch (e: Exception) {
                 _effect.send(ExtensionsEffect.ShowError("Failed to uninstall: ${e.message}"))
             }

@@ -32,7 +32,10 @@ data class Extension(
     
     /** Path to the installed APK file */
     val apkPath: String?,
-    
+
+    /** URL to download the APK from (for available extensions) */
+    val apkUrl: String?,
+
     /** Icon URL or local path */
     val iconUrl: String?,
     

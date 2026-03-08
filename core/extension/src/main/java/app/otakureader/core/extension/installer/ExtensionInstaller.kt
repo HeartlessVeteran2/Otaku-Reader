@@ -3,6 +3,7 @@ package app.otakureader.core.extension.installer
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import app.otakureader.core.extension.data.remote.ExtensionRemoteDataSource
 import app.otakureader.core.extension.domain.model.Extension
 import app.otakureader.core.extension.domain.model.InstallStatus
 import app.otakureader.core.extension.domain.repository.ExtensionRepository
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.security.MessageDigest
+import java.util.UUID
 
 /**
  * Installation state for tracking progress.
@@ -33,7 +35,8 @@ sealed class InstallationState {
 class ExtensionInstaller(
     private val context: Context,
     private val repository: ExtensionRepository,
-    private val loader: ExtensionLoader
+    private val loader: ExtensionLoader,
+    private val remoteDataSource: ExtensionRemoteDataSource
 ) {
     
     companion object {
@@ -52,7 +55,61 @@ class ExtensionInstaller(
     private val downloadsDir: File by lazy {
         File(context.cacheDir, DOWNLOADS_DIR).apply { mkdirs() }
     }
-    
+
+    /**
+     * Download and install an extension from its APK URL.
+     * @param extension The extension to install (must have apkUrl)
+     * @return Result containing the installed Extension
+     */
+    suspend fun downloadAndInstall(extension: Extension): Result<Extension> = withContext(Dispatchers.IO) {
+        try {
+            val apkUrl = extension.apkUrl
+                ?: return@withContext Result.failure(
+                    IllegalArgumentException("Extension has no APK URL")
+                )
+
+            _installationState.value = InstallationState.Downloading(0)
+
+            // Generate a unique filename for the download
+            val downloadFile = File(downloadsDir, "${UUID.randomUUID()}.apk")
+
+            // Download the APK
+            val downloadResult = remoteDataSource.downloadApk(apkUrl, downloadFile)
+            if (downloadResult.isFailure) {
+                _installationState.value = InstallationState.Error(
+                    "Download failed: ${downloadResult.exceptionOrNull()?.message}",
+                    downloadResult.exceptionOrNull()
+                )
+                return@withContext Result.failure(
+                    downloadResult.exceptionOrNull() ?: Exception("Download failed")
+                )
+            }
+
+            // Verify signature if available
+            if (extension.signatureHash != null) {
+                val isValid = verifySignature(downloadFile, extension.signatureHash)
+                if (!isValid) {
+                    downloadFile.delete()
+                    _installationState.value = InstallationState.Error(
+                        "Signature verification failed"
+                    )
+                    return@withContext Result.failure(
+                        SecurityException("APK signature does not match expected hash")
+                    )
+                }
+            }
+
+            // Install the downloaded APK
+            install(downloadFile)
+        } catch (e: Exception) {
+            _installationState.value = InstallationState.Error(
+                "Installation failed: ${e.message}",
+                e
+            )
+            Result.failure(e)
+        }
+    }
+
     /**
      * Install an extension from a downloaded APK file.
      * @param apkFile The downloaded APK file

@@ -177,6 +177,7 @@ private fun ExtensionDto.toDomain(): Extension {
         sources = sources.map { it.toDomain() },
         status = InstallStatus.AVAILABLE,
         apkPath = null,
+        apkUrl = apkUrl,
         iconUrl = iconUrl,
         lang = lang,
         isNsfw = isNsfw,
