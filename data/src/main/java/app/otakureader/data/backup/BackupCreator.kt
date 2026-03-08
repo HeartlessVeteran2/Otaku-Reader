@@ -64,7 +64,7 @@ class BackupCreator @Inject constructor(
 
         return favoriteManga.map { mangaEntity ->
             // Get chapters for this manga
-            val chapters = chapterDao.getChaptersByMangaId(mangaEntity.id)
+            val chapters = chapterDao.getChaptersByMangaId(mangaEntity.id).first()
 
             // Get reading history for each chapter
             val backupChapters = chapters.map { chapterEntity ->
