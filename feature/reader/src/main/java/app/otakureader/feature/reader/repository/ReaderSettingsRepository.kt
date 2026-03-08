@@ -125,6 +125,16 @@ class ReaderSettingsRepository @Inject constructor(
     suspend fun setAutoScrollSpeed(speed: Float) {
         dataStore.edit { it[Keys.AUTO_SCROLL_SPEED] = speed.coerceIn(10f, 500f) }
     }
+
+    // ==================== Tap Zones Enabled ====================
+
+    val tapZonesEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.TAP_ZONES_ENABLED] ?: true
+    }
+
+    suspend fun setTapZonesEnabled(enabled: Boolean) {
+        dataStore.edit { it[Keys.TAP_ZONES_ENABLED] = enabled }
+    }
     
     // ==================== Tap Zone Configuration ====================
     
@@ -132,7 +142,8 @@ class ReaderSettingsRepository @Inject constructor(
         TapZoneConfig(
             leftZoneWidth = prefs[Keys.TAP_ZONE_LEFT] ?: 0.25f,
             centerZoneWidth = prefs[Keys.TAP_ZONE_CENTER] ?: 0.5f,
-            rightZoneWidth = prefs[Keys.TAP_ZONE_RIGHT] ?: 0.25f
+            rightZoneWidth = prefs[Keys.TAP_ZONE_RIGHT] ?: 0.25f,
+            enabled = prefs[Keys.TAP_ZONES_ENABLED] ?: true
         )
     }
     
@@ -141,6 +152,7 @@ class ReaderSettingsRepository @Inject constructor(
             prefs[Keys.TAP_ZONE_LEFT] = config.leftZoneWidth
             prefs[Keys.TAP_ZONE_CENTER] = config.centerZoneWidth
             prefs[Keys.TAP_ZONE_RIGHT] = config.rightZoneWidth
+            prefs[Keys.TAP_ZONES_ENABLED] = config.enabled
         }
     }
     
@@ -158,6 +170,7 @@ class ReaderSettingsRepository @Inject constructor(
         val TAP_ZONE_LEFT = floatPreferencesKey("reader_tap_zone_left")
         val TAP_ZONE_CENTER = floatPreferencesKey("reader_tap_zone_center")
         val TAP_ZONE_RIGHT = floatPreferencesKey("reader_tap_zone_right")
+        val TAP_ZONES_ENABLED = booleanPreferencesKey("reader_tap_zones_enabled")
     }
     
     companion object {
