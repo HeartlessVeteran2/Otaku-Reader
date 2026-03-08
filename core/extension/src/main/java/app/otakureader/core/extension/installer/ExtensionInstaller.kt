@@ -2,7 +2,11 @@ package app.otakureader.core.extension.installer
 
 import android.content.Context
 import android.content.pm.PackageManager
+import android.content.Intent
 import android.os.Build
+import android.provider.Settings
+import androidx.core.content.FileProvider
+import androidx.core.net.toUri
 import app.otakureader.core.extension.data.remote.ExtensionRemoteDataSource
 import app.otakureader.core.extension.domain.model.Extension
 import app.otakureader.core.extension.domain.model.InstallStatus
@@ -101,8 +105,16 @@ class ExtensionInstaller(
                 }
             }
 
-            // Install the downloaded APK
-            install(downloadFile)
+            // Register the extension inside the app
+            val result = install(downloadFile)
+
+            result.onSuccess { installed ->
+                installed.apkPath?.let { path ->
+                    maybeLaunchSystemInstaller(File(path))
+                }
+            }
+
+            result
         } catch (e: Exception) {
             _installationState.value = InstallationState.Error(
                 "Installation failed: ${e.message}",
@@ -336,6 +348,38 @@ class ExtensionInstaller(
      */
     fun resetState() {
         _installationState.value = InstallationState.Idle
+    }
+
+    /**
+     * Optionally trigger the system package installer so extensions are registered
+     * as shared packages. Falls back to internal loading if the permission is not
+     * granted; opens the settings screen to request it.
+     */
+    private fun maybeLaunchSystemInstaller(apkFile: File) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            !context.packageManager.canRequestPackageInstalls()
+        ) {
+            // Ask the user to grant install permission for unknown apps
+            val intent = Intent(
+                Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                "package:${context.packageName}".toUri()
+            ).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+            return
+        }
+
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            apkFile
+        )
+        val installIntent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, "application/vnd.android.package-archive")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(installIntent)
     }
     
     private fun computeHash(bytes: ByteArray): String {
