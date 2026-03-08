@@ -5,64 +5,91 @@
     ":dependencyDashboard",
     ":semanticPrefixFixDepsChoreOthers",
     ":ignoreUnstable",
-    ":prImmediately",
-    ":updateNotScheduled",
-    ":automergeDisabled",
-    ":disableRateLimiting"
+    ":automergeDisabled"
   ],
   "schedule": [
     "before 5am on saturday"
   ],
   "timezone": "Asia/Shanghai",
-  "prHourlyLimit": 5,
-  "prConcurrentLimit": 10,
-  "labels": ["dependencies", "renovate"],
-  "reviewers": ["HeartlessVeteran2"],
-  "assignees": ["HeartlessVeteran2"],
+  "prHourlyLimit": 0,
+  "prConcurrentLimit": 0,
+  "labels": ["dependencies"],
   "baseBranchPatterns": ["main"],
   "rangeStrategy": "bump",
-  "commitMessageTopic": "{{depName}}",
-  "commitMessageExtra": "to {{newVersion}}",
-  "commitMessageSuffix": "",
-  "branchNameStrict": true,
   "branchPrefix": "renovate/",
   "packageRules": [
+    {
+      "groupName": "All Dependencies - Patch & Minor",
+      "groupSlug": "all-deps-patch-minor",
+      "matchUpdateTypes": ["patch", "minor"],
+      "excludePackagePrefixes": [
+        "com.squareup.retrofit2",
+        "com.squareup.okhttp3"
+      ]
+    },
     {
       "groupName": "Kotlin & Compose",
       "groupSlug": "kotlin-compose",
       "matchPackageNames": [
         "org.jetbrains.kotlin{/,}**",
-        "androidx.compose{/,}**"
-      ],
-      "schedule": ["before 5am on the first day of the month"]
+        "androidx.compose{/,}**",
+        "com.google.devtools.ksp{/,}**"
+      ]
     },
     {
-      "groupName": "AndroidX",
-      "groupSlug": "androidx",
+      "groupName": "AndroidX Core",
+      "groupSlug": "androidx-core",
       "matchPackageNames": [
-        "androidx.{/,}**",
-        "!androidx.compose{/,}**"
+        "androidx.core{/,}**",
+        "androidx.appcompat{/,}**",
+        "androidx.activity{/,}**"
+      ]
+    },
+    {
+      "groupName": "AndroidX Lifecycle & Navigation",
+      "groupSlug": "androidx-lifecycle-nav",
+      "matchPackageNames": [
+        "androidx.lifecycle{/,}**",
+        "androidx.navigation{/,}**"
       ]
     },
     {
       "groupName": "Hilt & Dagger",
       "groupSlug": "hilt-dagger",
       "matchPackageNames": [
-        "com.google.dagger{/,}**"
+        "com.google.dagger{/,}**",
+        "androidx.hilt{/,}**"
       ]
     },
     {
-      "groupName": "Room",
-      "groupSlug": "room",
+      "groupName": "Room & DataStore",
+      "groupSlug": "room-datastore",
       "matchPackageNames": [
-        "androidx.room{/,}**"
+        "androidx.room{/,}**",
+        "androidx.datastore{/,}**"
       ]
     },
     {
-      "groupName": "Coil",
+      "groupName": "Coroutines & Serialization",
+      "groupSlug": "kotlinx",
+      "matchPackageNames": [
+        "org.jetbrains.kotlinx{/,}**"
+      ]
+    },
+    {
+      "groupName": "Network - Retrofit & OkHttp",
+      "groupSlug": "network",
+      "matchPackageNames": [
+        "com.squareup.retrofit2{/,}**",
+        "com.squareup.okhttp3{/,}**"
+      ]
+    },
+    {
+      "groupName": "Image Loading",
       "groupSlug": "coil",
       "matchPackageNames": [
-        "io.coil-kt{/,}**"
+        "io.coil-kt{/,}**",
+        "io.coil-kt3{/,}**"
       ]
     },
     {
@@ -70,31 +97,41 @@
       "groupSlug": "testing",
       "matchPackageNames": [
         "junit{/,}**",
+        "org.junit{/,}**",
         "androidx.test{/,}**",
         "io.mockk{/,}**",
         "app.cash.turbine{/,}**"
       ]
     },
     {
-      "groupName": "Gradle Plugins",
-      "groupSlug": "gradle-plugins",
+      "groupName": "Gradle Build Tools",
+      "groupSlug": "gradle-build",
       "matchPackageNames": [
-        "com.android.tools.build{/,}**",
-        "com.google.devtools.ksp{/,}**"
+        "com.android.tools.build{/,}**"
       ]
     },
     {
-      "matchUpdateTypes": ["major"],
-      "labels": ["dependencies", "renovate", "breaking"],
-      "automerge": false
+      "groupName": "GitHub Actions",
+      "groupSlug": "github-actions",
+      "matchManagers": ["github-actions"]
     },
     {
-      "matchUpdateTypes": ["minor", "patch"],
-      "automerge": true,
-      "automergeType": "pr",
-      "platformAutomerge": true
+      "groupName": "Major Updates - Manual Review",
+      "groupSlug": "major-updates",
+      "matchUpdateTypes": ["major"],
+      "labels": ["dependencies", "breaking"]
+    },
+    {
+      "matchPackageNames": ["gradle"],
+      "groupName": "Gradle Wrapper",
+      "groupSlug": "gradle-wrapper"
     }
   ],
+  "vulnerabilityAlerts": {
+    "groupName": "Security Vulnerabilities",
+    "groupSlug": "security",
+    "labels": ["dependencies", "security"]
+  },
   "gradle": {
     "enabled": true
   },
