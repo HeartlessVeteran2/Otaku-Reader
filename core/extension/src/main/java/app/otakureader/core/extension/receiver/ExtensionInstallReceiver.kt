@@ -26,63 +26,65 @@ class ExtensionInstallReceiver : BroadcastReceiver() {
     @Inject
     lateinit var extensionLoader: ExtensionLoader
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
     override fun onReceive(context: Context?, intent: Intent?) {
         if (context == null || intent == null) return
 
         val packageName = intent.data?.schemeSpecificPart ?: return
 
-        when (intent.action) {
-            Intent.ACTION_PACKAGE_ADDED,
-            Intent.ACTION_PACKAGE_REPLACED -> {
-                // Check if the installed/updated package is an extension
-                handlePackageAdded(context, packageName)
-            }
-            Intent.ACTION_PACKAGE_REMOVED -> {
-                // Handle extension removal
-                handlePackageRemoved(packageName)
+        val pendingResult = goAsync()
+
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            try {
+                when (intent.action) {
+                    Intent.ACTION_PACKAGE_ADDED,
+                    Intent.ACTION_PACKAGE_REPLACED -> {
+                        // Check if the installed/updated package is an extension
+                        handlePackageAdded(context, packageName)
+                    }
+                    Intent.ACTION_PACKAGE_REMOVED -> {
+                        // Handle extension removal
+                        handlePackageRemoved(packageName)
+                    }
+                }
+            } finally {
+                pendingResult.finish()
             }
         }
     }
 
-    private fun handlePackageAdded(context: Context, packageName: String) {
-        scope.launch {
-            try {
-                // Try to load the extension to check if it's a valid Otaku extension
-                val packageManager = context.packageManager
-                val packageInfo = try {
-                    packageManager.getPackageInfo(packageName, 0)
-                } catch (e: Exception) {
-                    return@launch
-                }
-
-                // Get the APK path
-                val apkPath = packageInfo.applicationInfo?.sourceDir ?: return@launch
-
-                // Try to load as an extension
-                val loadResult = extensionLoader.loadExtension(apkPath)
-                if (loadResult is ExtensionLoader.ExtensionLoadResult.Success) {
-                    // This is a valid extension, update repository
-                    extensionRepository.installExtension(
-                        packageName,
-                        apkPath
-                    )
-                }
+    private suspend fun handlePackageAdded(context: Context, packageName: String) {
+        try {
+            // Try to load the extension to check if it's a valid Otaku extension
+            val packageManager = context.packageManager
+            val packageInfo = try {
+                packageManager.getPackageInfo(packageName, 0)
             } catch (e: Exception) {
-                // Not an extension or failed to load
+                return
             }
+
+            // Get the APK path
+            val apkPath = packageInfo.applicationInfo?.sourceDir ?: return
+
+            // Try to load as an extension
+            val loadResult = extensionLoader.loadExtension(apkPath)
+            if (loadResult is ExtensionLoader.ExtensionLoadResult.Success) {
+                // This is a valid extension, update repository
+                extensionRepository.installExtension(
+                    packageName,
+                    apkPath
+                )
+            }
+        } catch (e: Exception) {
+            // Not an extension or failed to load
         }
     }
 
-    private fun handlePackageRemoved(packageName: String) {
-        scope.launch {
-            try {
-                // Remove the extension from repository
-                extensionRepository.uninstallExtension(packageName)
-            } catch (e: Exception) {
-                // Extension wasn't in repository
-            }
+    private suspend fun handlePackageRemoved(packageName: String) {
+        try {
+            // Remove the extension from repository
+            extensionRepository.uninstallExtension(packageName)
+        } catch (e: Exception) {
+            // Extension wasn't in repository
         }
     }
 
