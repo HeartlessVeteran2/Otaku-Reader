@@ -297,11 +297,31 @@ class DetailsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Returns a shareable URL for the given manga, or null if the stored URL
+     * is not an absolute HTTP(S) URL (e.g., it's a source-relative path).
+     */
+    private fun buildShareUrl(manga: Manga): String? {
+        val url = manga.url
+        return if (url.startsWith("http://") || url.startsWith("https://")) {
+            url
+        } else {
+            null
+        }
+    }
+
     private fun shareManga() {
         viewModelScope.launch {
             val manga = _state.value.manga
             if (manga != null) {
-                _effect.emit(DetailsContract.Effect.ShareManga(title = manga.title, url = manga.url))
+                val shareUrl = buildShareUrl(manga)
+                _effect.emit(
+                    DetailsContract.Effect.ShareManga(
+                        title = manga.title,
+                        // If we cannot build a fully-qualified URL, fall back to sharing only the title.
+                        url = shareUrl ?: ""
+                    )
+                )
             }
         }
     }
