@@ -1,5 +1,8 @@
 package app.otakureader.feature.settings
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -10,6 +13,8 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -19,10 +24,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
@@ -47,9 +55,42 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // File picker for creating backup
+    val backupFileLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri: Uri? ->
+        uri?.let { viewModel.createBackup(it) }
+    }
+
+    // File picker for restoring backup
+    val restoreFileLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let { viewModel.restoreBackup(it) }
+    }
+
+    // Collect effects
+    LaunchedEffect(Unit) {
+        viewModel.effect.collect { effect ->
+            when (effect) {
+                is SettingsEffect.ShowSnackbar -> {
+                    snackbarHostState.showSnackbar(effect.message)
+                }
+                SettingsEffect.ShowBackupPicker -> {
+                    backupFileLauncher.launch("otakureader_backup_${System.currentTimeMillis()}.json")
+                }
+                SettingsEffect.ShowRestorePicker -> {
+                    restoreFileLauncher.launch(arrayOf("application/json"))
+                }
+            }
+        }
+    }
 
     Scaffold(
         modifier = modifier,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Settings") },
@@ -297,6 +338,39 @@ fun SettingsScreen(
                                     modifier = Modifier.padding(start = 8.dp)
                                 )
                             }
+                        }
+                    }
+                }
+            )
+
+            HorizontalDivider()
+
+            // ── Backup & Restore ──────────────────────────────────────────────
+            SectionHeader(title = "Backup & Restore")
+
+            ListItem(
+                headlineContent = { Text("Create Backup") },
+                supportingContent = { Text("Export your library and settings") },
+                trailingContent = {
+                    if (state.isBackupInProgress) {
+                        CircularProgressIndicator()
+                    } else {
+                        Button(onClick = { viewModel.onEvent(SettingsEvent.OnCreateBackup) }) {
+                            Text("Backup")
+                        }
+                    }
+                }
+            )
+
+            ListItem(
+                headlineContent = { Text("Restore Backup") },
+                supportingContent = { Text("Import library and settings from a backup file") },
+                trailingContent = {
+                    if (state.isRestoreInProgress) {
+                        CircularProgressIndicator()
+                    } else {
+                        Button(onClick = { viewModel.onEvent(SettingsEvent.OnRestoreBackup) }) {
+                            Text("Restore")
                         }
                     }
                 }

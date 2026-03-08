@@ -13,7 +13,9 @@ data class SettingsState(
     val libraryGridSize: Int = 3,      // number of columns (2–5)
     val showBadges: Boolean = true,
     val updateCheckInterval: Int = 12, // hours
-    val notificationsEnabled: Boolean = true
+    val notificationsEnabled: Boolean = true,
+    val isBackupInProgress: Boolean = false,
+    val isRestoreInProgress: Boolean = false
 ) : UiState
 
 sealed interface SettingsEvent : UiEvent {
@@ -26,8 +28,12 @@ sealed interface SettingsEvent : UiEvent {
     data class SetShowBadges(val enabled: Boolean) : SettingsEvent
     data class SetUpdateInterval(val hours: Int) : SettingsEvent
     data class SetNotificationsEnabled(val enabled: Boolean) : SettingsEvent
+    data object OnCreateBackup : SettingsEvent
+    data object OnRestoreBackup : SettingsEvent
 }
 
 sealed interface SettingsEffect : UiEffect {
     data class ShowSnackbar(val message: String) : SettingsEffect
+    data object ShowBackupPicker : SettingsEffect
+    data object ShowRestorePicker : SettingsEffect
 }
