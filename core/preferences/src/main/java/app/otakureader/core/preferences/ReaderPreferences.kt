@@ -31,15 +31,9 @@ class ReaderPreferences(private val dataStore: DataStore<Preferences>) {
     val readerScale: Flow<Int> = dataStore.data.map { it[Keys.READER_SCALE] ?: 0 }
     suspend fun setReaderScale(value: Int) = dataStore.edit { it[Keys.READER_SCALE] = value }
 
-    // --- Tap zones ---
-
-    val tapZonesEnabled: Flow<Boolean> = dataStore.data.map { it[Keys.TAP_ZONES_ENABLED] ?: true }
-    suspend fun setTapZonesEnabled(value: Boolean) = dataStore.edit { it[Keys.TAP_ZONES_ENABLED] = value }
-
     private object Keys {
         val READER_MODE = intPreferencesKey("reader_mode_setting")
         val KEEP_SCREEN_ON = booleanPreferencesKey("reader_keep_screen_on")
         val READER_SCALE = intPreferencesKey("reader_scale")
-        val TAP_ZONES_ENABLED = booleanPreferencesKey("reader_tap_zones_enabled")
     }
 }

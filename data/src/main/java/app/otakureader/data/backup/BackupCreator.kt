@@ -64,7 +64,7 @@ class BackupCreator @Inject constructor(
 
         return favoriteManga.map { mangaEntity ->
             // Get chapters for this manga
-            val chapters = chapterDao.getChaptersByMangaId(mangaEntity.id)
+            val chapters = chapterDao.getChaptersByMangaId(mangaEntity.id).first()
 
             // Get reading history for each chapter
             val backupChapters = chapters.map { chapterEntity ->
@@ -99,7 +99,6 @@ class BackupCreator @Inject constructor(
         locale = generalPreferences.locale.first(),
         readerMode = readerPreferences.readerMode.first(),
         keepScreenOn = readerPreferences.keepScreenOn.first(),
-        tapZonesEnabled = readerPreferences.tapZonesEnabled.first(),
         libraryGridSize = libraryPreferences.gridSize.first(),
         showBadges = libraryPreferences.showBadges.first(),
         updateCheckInterval = generalPreferences.updateCheckInterval.first(),
