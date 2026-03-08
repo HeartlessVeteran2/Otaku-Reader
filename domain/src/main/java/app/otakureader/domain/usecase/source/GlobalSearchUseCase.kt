@@ -4,8 +4,8 @@ import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.sourceapi.MangaPage
 
 /**
- * Use case for searching manga across all available sources concurrently.
- * Each source is searched in parallel; a failure in one source does not affect others.
+ * Use case for searching manga in a single source by query string (page 1).
+ * The fan-out across all sources is orchestrated by the caller (e.g., GlobalSearchViewModel).
  */
 class GlobalSearchUseCase(
     private val sourceRepository: SourceRepository

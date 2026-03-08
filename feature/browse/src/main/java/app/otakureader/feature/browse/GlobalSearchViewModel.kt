@@ -6,6 +6,7 @@ import app.otakureader.domain.usecase.source.GetSourcesUseCase
 import app.otakureader.domain.usecase.source.GlobalSearchUseCase
 import app.otakureader.sourceapi.MangaSource
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -31,6 +32,9 @@ class GlobalSearchViewModel @Inject constructor(
 
     private val _effect = Channel<GlobalSearchEffect>()
     val effect = _effect.receiveAsFlow()
+
+    /** Tracks the currently active search so it can be cancelled on a new search. */
+    private var searchJob: Job? = null
 
     fun initQuery(query: String) {
         if (query.isNotBlank() && _state.value.query.isBlank()) {
@@ -61,7 +65,9 @@ class GlobalSearchViewModel @Inject constructor(
     }
 
     private fun performSearch(query: String) {
-        viewModelScope.launch {
+        // Cancel any in-flight search so stale results can't overwrite the new query's results
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
             val sources: List<MangaSource> = getSourcesUseCase().first()
 
             if (sources.isEmpty()) {
