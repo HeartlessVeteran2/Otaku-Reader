@@ -10,7 +10,6 @@ android {
 dependencies {
     implementation(projects.core.common)
     implementation(projects.core.preferences)
-    implementation(projects.data)
     implementation(libs.paging.compose)
     implementation(libs.lifecycle.viewmodel.ktx)
     implementation(libs.kotlinx.serialization.json)
