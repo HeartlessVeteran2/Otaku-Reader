@@ -14,6 +14,7 @@ import app.otakureader.data.backup.mapper.toChapterEntity
 import app.otakureader.data.backup.mapper.toMangaEntity
 import app.otakureader.data.backup.mapper.toReadingHistoryEntity
 import app.otakureader.data.backup.model.BackupData
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
 
@@ -96,7 +97,7 @@ class BackupRestorer @Inject constructor(
     private suspend fun restoreChapters(mangaId: Long, backupManga: app.otakureader.data.backup.model.BackupManga) {
         backupManga.chapters.forEach { backupChapter ->
             // Check if chapter already exists by URL
-            val existingChapters = chapterDao.getChaptersByMangaId(mangaId)
+            val existingChapters = chapterDao.getChaptersByMangaId(mangaId).first()
             val existingChapter = existingChapters.find { it.url == backupChapter.url }
 
             val chapterId = if (existingChapter != null) {
