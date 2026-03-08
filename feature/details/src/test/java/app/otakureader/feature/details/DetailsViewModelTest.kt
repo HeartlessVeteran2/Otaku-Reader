@@ -334,13 +334,10 @@ class DetailsViewModelTest {
     @Test
     fun onEvent_ShareManga_withAbsoluteUrl_emitsShareMangaEffectWithUrl() = runTest {
         val absoluteUrl = "https://mangadex.org/title/42"
+        setUpDefaultMocks()
         every { mangaRepository.getMangaByIdFlow(mangaId) } returns flowOf(
             sampleManga.copy(url = absoluteUrl)
         )
-        every { chapterRepository.getChaptersByMangaId(mangaId) } returns flowOf(sampleChapters)
-        every { mangaRepository.isFavorite(mangaId) } returns flowOf(false)
-        every { downloadRepository.observeDownloads() } returns flowOf(emptyList())
-        coEvery { chapterRepository.getNextUnreadChapter(mangaId) } returns sampleChapters[1]
 
         val viewModel = createViewModel()
         testDispatcher.scheduler.advanceUntilIdle()
