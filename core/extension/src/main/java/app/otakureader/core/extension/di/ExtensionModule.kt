@@ -19,7 +19,6 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import kotlinx.coroutines.runBlocking
 import javax.inject.Singleton
 
 @Module
@@ -59,11 +58,7 @@ object ExtensionModule {
     fun provideExtensionRemoteDataSource(
         repoRepository: ExtensionRepoRepository
     ): ExtensionRemoteDataSource {
-        // Get the active repository URL synchronously
-        val repoUrl = runBlocking {
-            repoRepository.getActiveRepository()
-        }
-        return ExtensionRemoteDataSourceImpl(repoUrl)
+        return ExtensionRemoteDataSourceImpl(repoRepository)
     }
 
     @Provides

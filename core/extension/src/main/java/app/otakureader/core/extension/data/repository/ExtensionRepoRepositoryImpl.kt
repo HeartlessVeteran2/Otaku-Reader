@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import app.otakureader.core.extension.domain.repository.ExtensionRepoRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 /**
@@ -60,14 +61,7 @@ class ExtensionRepoRepositoryImpl(
     }
 
     override suspend fun getActiveRepository(): String {
-        return dataStore.data.map { preferences ->
-            preferences[ACTIVE_REPOSITORY_KEY] ?: DEFAULT_KEIYOUSHI_REPO
-        }.map { it }.let { flow ->
-            // Get the first value
-            var result = DEFAULT_KEIYOUSHI_REPO
-            flow.collect { result = it }
-            result
-        }
+        return dataStore.data.first()[ACTIVE_REPOSITORY_KEY] ?: DEFAULT_KEIYOUSHI_REPO
     }
 
     override suspend fun setActiveRepository(url: String) {

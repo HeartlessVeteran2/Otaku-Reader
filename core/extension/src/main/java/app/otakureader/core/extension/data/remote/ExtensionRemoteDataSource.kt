@@ -3,7 +3,9 @@ package app.otakureader.core.extension.data.remote
 import app.otakureader.core.extension.domain.model.Extension
 import app.otakureader.core.extension.domain.model.ExtensionSource
 import app.otakureader.core.extension.domain.model.InstallStatus
+import app.otakureader.core.extension.domain.repository.ExtensionRepoRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -98,15 +100,10 @@ interface ExtensionRemoteDataSource {
      * Download an extension APK to the specified destination.
      */
     suspend fun downloadApk(apkUrl: String, destination: File): Result<File>
-
-    /**
-     * Get the base URL for the extension repository.
-     */
-    fun getRepoBaseUrl(): String
 }
 
 class ExtensionRemoteDataSourceImpl(
-    private val repoBaseUrl: String,
+    private val repoRepository: ExtensionRepoRepository,
     private val httpClient: OkHttpClient = createDefaultClient(),
 ) : ExtensionRemoteDataSource {
 
@@ -130,15 +127,32 @@ class ExtensionRemoteDataSourceImpl(
     override suspend fun fetchAvailableExtensions(): Result<List<Extension>> {
         return withContext(Dispatchers.IO) {
             try {
-                val request = Request.Builder()
-                    .url("$repoBaseUrl$REPO_INDEX_PATH")
-                    .build()
-                val responseBody = httpClient.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) error("HTTP ${response.code}")
-                    response.body?.string() ?: error("Empty body")
+                val repositories = repoRepository.getRepositories().first()
+                if (repositories.isEmpty()) return@withContext Result.success(emptyList())
+
+                val extensions = mutableListOf<Extension>()
+
+                repositories.forEach { baseUrl ->
+                    val request = Request.Builder()
+                        .url(baseUrl.trimEnd('/') + REPO_INDEX_PATH)
+                        .build()
+                    val responseBody = httpClient.newCall(request).execute().use { response ->
+                        if (!response.isSuccessful) error("HTTP ${response.code}")
+                        response.body?.string() ?: error("Empty body")
+                    }
+                    val repoResponse = json.decodeFromString(ExtensionRepoResponse.serializer(), responseBody)
+                    extensions += repoResponse.extensions.map { it.toDomain() }
                 }
-                val repoResponse = json.decodeFromString(ExtensionRepoResponse.serializer(), responseBody)
-                Result.success(repoResponse.extensions.map { it.toDomain() })
+
+                // Deduplicate by package name preferring highest versionCode
+                val merged = extensions
+                    .groupBy { it.pkgName }
+                    .values
+                    .map { candidates ->
+                        candidates.maxByOrNull { it.versionCode } ?: candidates.first()
+                    }
+
+                Result.success(merged)
             } catch (e: Exception) {
                 Result.failure(e)
             }
@@ -168,7 +182,6 @@ class ExtensionRemoteDataSourceImpl(
         }
     }
 
-    override fun getRepoBaseUrl(): String = repoBaseUrl
 }
 
 /** Convert [ExtensionDto] to the [Extension] domain model. */
@@ -188,6 +201,7 @@ private fun ExtensionDto.toDomain(): Extension {
         isNsfw = isNsfw,
         installDate = null,
         signatureHash = signature,
+        isEnabled = true
     )
 }
 
