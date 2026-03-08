@@ -16,19 +16,16 @@ dependencies {
     implementation(project(":domain"))
     implementation(project(":core:common"))
 
-    // Tachiyomi dependencies (would be included via AAR or local Maven)
-    // For now, using compileOnly since these come from the extension APK
-    compileOnly("com.github.tachiyomiorg:extensions-lib:1.4")
-
-    // RxJava for Tachiyomi compatibility
+    // RxJava 1.x — required by the Tachiyomi extension API (Observable-based methods)
     implementation("io.reactivex:rxjava:1.3.8")
     implementation("io.reactivex:rxandroid:1.2.1")
 
-    // OkHttp (shared with Tachiyomi)
+    // OkHttp (shared with Tachiyomi extensions)
     implementation(libs.okhttp.core)
 
-    // XML parsing
-    implementation("org.xmlpull:xmlpull:1.1.3.1")
+    // Note: eu.kanade.tachiyomi.source.* types are provided by local stubs
+    // in src/main/java/eu/kanade/tachiyomi/ — no external extensions-lib needed.
+    // Note: org.xmlpull.v1.* is provided by the Android SDK — no standalone dep needed.
 
     // Testing
     testImplementation(libs.junit)

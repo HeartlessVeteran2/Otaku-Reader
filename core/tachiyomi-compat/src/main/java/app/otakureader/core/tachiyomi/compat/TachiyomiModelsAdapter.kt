@@ -71,8 +71,9 @@ object TachiyomiModelsAdapter {
      */
     fun toPage(sPage: eu.kanade.tachiyomi.source.model.Page, chapterId: Long, index: Int): app.otakureader.sourceapi.Page {
         return app.otakureader.sourceapi.Page(
+            index = index,
             url = sPage.imageUrl ?: sPage.url,
-            imageUrl = sPage.imageUrl
+            imageUrl = sPage.imageUrl,
         )
     }
 
@@ -119,17 +120,17 @@ object TachiyomiModelsAdapter {
     /**
      * Convert Tachiyomi SManga to Otaku Reader SManga
      */
-    private fun fromTachiyomiSManga(tachiyomiSManga: eu.kanade.tachiyomi.source.model.SManga): SManga {
+    fun fromTachiyomiSManga(tachiyomiSManga: eu.kanade.tachiyomi.source.model.SManga): SManga {
         return SManga(
             url = tachiyomiSManga.url,
             title = tachiyomiSManga.title,
-            description = tachiyomiSManga.description,
+            description = tachiyomiSManga.description ?: "",
             thumbnailUrl = tachiyomiSManga.thumbnail_url,
-            author = tachiyomiSManga.author,
-            artist = tachiyomiSManga.artist,
-            genres = tachiyomiSManga.genre,
+            author = tachiyomiSManga.author ?: "",
+            artist = tachiyomiSManga.artist ?: "",
+            genres = tachiyomiSManga.genre ?: "",
             status = tachiyomiSManga.status,
-            initialized = tachiyomiSManga.initialized
+            initialized = tachiyomiSManga.initialized,
         )
     }
 

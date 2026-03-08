@@ -364,7 +364,7 @@ class TachiyomiManifestParser {
                 val stylesStart = readUInt32(bytes, offset + 24)
 
                 // Read string offsets
-                val stringOffsets = (0 until stringCount).map { i ->
+                val stringOffsets = (0 until stringCount.toInt()).map { i ->
                     readUInt32(bytes, offset + 28 + i * 4)
                 }
 

@@ -1,19 +1,25 @@
 package app.otakureader.core.tachiyomi.compat
 
-import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.os.Build
 import dalvik.system.DexClassLoader
 import eu.kanade.tachiyomi.source.CatalogueSource
 import eu.kanade.tachiyomi.source.Source
+import eu.kanade.tachiyomi.source.SourceFactory
 import java.io.File
 
 /**
- * Loads Tachiyomi extension APKs and instantiates their Source classes.
+ * Loads Tachiyomi-compatible extension APKs and instantiates their Source classes.
  *
- * This loader uses DexClassLoader to load classes from Tachiyomi extension APKs,
- * discovers Source implementations, and wraps them with TachiyomiSourceAdapter.
+ * Extensions are identified by the `tachiyomi.extension` uses-feature flag.  Source
+ * class(es) are read from the `tachiyomi.extension.class` metadata entry
+ * (semicolon-separated, relative names starting with `.` are expanded using the
+ * package name).  Extensions that expose a [SourceFactory] via the
+ * `tachiyomi.extension.factory` metadata key are also fully supported.
+ *
+ * This matches the loading strategy used by the canonical Komikku / Tachiyomi
+ * repositories.
  */
 class TachiyomiExtensionLoader(
     private val packageManager: PackageManager,
@@ -21,22 +27,23 @@ class TachiyomiExtensionLoader(
 ) {
 
     companion object {
+        /** Uses-feature flag that identifies a Tachiyomi-compatible extension package. */
         const val TACHIYOMI_EXTENSION_FEATURE = "tachiyomi.extension"
-        const val TACHIYOMI_EXTENSION_METADATA = "tachiyomi.extension"
-        const val TACHIYOMI_SOURCE_CLASS = "eu.kanade.tachiyomi.extension"
 
-        // Source class patterns to search for
-        private val SOURCE_CLASS_PATTERNS = listOf(
-            "eu.kanade.tachiyomi.extension.",
-            "eu.kanade.tachiyomi.source.online."
-        )
+        /** Metadata key containing the source class name(s) (semicolon-separated). */
+        const val METADATA_SOURCE_CLASS = "tachiyomi.extension.class"
+
+        /** Metadata key for extensions that expose a SourceFactory. */
+        const val METADATA_SOURCE_FACTORY = "tachiyomi.extension.factory"
+
+        /** Metadata key indicating NSFW content (integer 1 = nsfw). */
+        const val METADATA_NSFW = "tachiyomi.extension.nsfw"
     }
 
     private val loadedExtensions = mutableMapOf<String, LoadedExtension>()
-    private val manifestParser = TachiyomiManifestParser()
 
     /**
-     * Data class representing a loaded extension
+     * Data class representing a loaded extension.
      */
     data class LoadedExtension(
         val packageName: String,
@@ -47,53 +54,40 @@ class TachiyomiExtensionLoader(
         val isNsfw: Boolean,
         val sources: List<TachiyomiSourceAdapter>,
         val apkPath: String,
-        val classLoader: DexClassLoader
+        val classLoader: DexClassLoader,
     )
 
     /**
-     * Load all installed Tachiyomi extensions
+     * Load all installed Tachiyomi extensions.
      */
     fun loadAllExtensions(): List<LoadedExtension> {
-        val extensions = mutableListOf<LoadedExtension>()
-
-        // Find all apps with the Tachiyomi extension feature
+        val flags = PackageManager.GET_META_DATA or PackageManager.GET_CONFIGURATIONS
         val installedPackages = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             packageManager.getInstalledPackages(
-                PackageManager.PackageInfoFlags.of(
-                    PackageManager.GET_META_DATA or
-                    PackageManager.GET_CONFIGURATIONS.toLong()
-                )
+                PackageManager.PackageInfoFlags.of(flags.toLong()),
             )
         } else {
             @Suppress("DEPRECATION")
-            packageManager.getInstalledPackages(
-                PackageManager.GET_META_DATA or PackageManager.GET_CONFIGURATIONS
-            )
+            packageManager.getInstalledPackages(flags)
         }
 
-        for (packageInfo in installedPackages) {
-            val extension = loadExtension(packageInfo)
-            if (extension != null) {
-                extensions.add(extension)
-            }
-        }
-
-        return extensions
+        return installedPackages.mapNotNull { loadExtension(it) }
     }
 
     /**
-     * Load a specific extension by package name
+     * Load a specific installed extension by package name.
      */
     fun loadExtension(packageName: String): LoadedExtension? {
         return try {
+            val flags = PackageManager.GET_META_DATA or PackageManager.GET_CONFIGURATIONS
             val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 packageManager.getPackageInfo(
                     packageName,
-                    PackageManager.PackageInfoFlags.of(PackageManager.GET_META_DATA.toLong())
+                    PackageManager.PackageInfoFlags.of(flags.toLong()),
                 )
             } else {
                 @Suppress("DEPRECATION")
-                packageManager.getPackageInfo(packageName, PackageManager.GET_META_DATA)
+                packageManager.getPackageInfo(packageName, flags)
             }
             loadExtension(packageInfo)
         } catch (e: Exception) {
@@ -102,18 +96,18 @@ class TachiyomiExtensionLoader(
     }
 
     /**
-     * Load extension from an APK file path
+     * Load an extension from an APK file path (e.g. a private/sideloaded extension).
      */
     fun loadExtensionFromApk(apkPath: String): LoadedExtension? {
         return try {
-            val packageInfo = packageManager.getPackageArchiveInfo(
-                apkPath,
-                PackageManager.GET_META_DATA
-            ) ?: return null
+            val flags = PackageManager.GET_META_DATA or PackageManager.GET_CONFIGURATIONS
+            val packageInfo = packageManager.getPackageArchiveInfo(apkPath, flags) ?: return null
 
-            // Set the source directory for the application info
-            packageInfo.applicationInfo?.sourceDir = apkPath
-            packageInfo.applicationInfo?.publicSourceDir = apkPath
+            // On Android 13+ getPackageArchiveInfo does not populate sourceDir.
+            packageInfo.applicationInfo?.let { ai ->
+                if (ai.sourceDir == null) ai.sourceDir = apkPath
+                if (ai.publicSourceDir == null) ai.publicSourceDir = apkPath
+            }
 
             loadExtension(packageInfo)
         } catch (e: Exception) {
@@ -122,57 +116,56 @@ class TachiyomiExtensionLoader(
     }
 
     /**
-     * Load extension from PackageInfo
+     * Core loading logic for a [PackageInfo].
+     *
+     * Validates the extension feature flag, reads the source class name(s) from
+     * the `tachiyomi.extension.class` (or `tachiyomi.extension.factory`) metadata,
+     * builds a [DexClassLoader], and instantiates the sources.
      */
     private fun loadExtension(packageInfo: PackageInfo): LoadedExtension? {
         val packageName = packageInfo.packageName
 
-        // Check if already loaded
+        // Return cached instance if already loaded
         loadedExtensions[packageName]?.let { return it }
 
-        // Check if this is a Tachiyomi extension
+        // Must declare the Tachiyomi extension feature flag
+        val hasFeature = packageInfo.reqFeatures?.any { it.name == TACHIYOMI_EXTENSION_FEATURE } == true
+        if (!hasFeature) return null
+
         val appInfo = packageInfo.applicationInfo ?: return null
+        val apkPath = appInfo.sourceDir ?: return null
+        val metadata = appInfo.metaData ?: return null
 
-        // Verify it's a Tachiyomi extension by checking metadata
-        val metadata = appInfo.metaData
-        if (metadata?.getString(TACHIYOMI_EXTENSION_METADATA) == null) {
-            // Check for feature flag as fallback
-            val hasFeature = packageInfo.reqFeatures?.any {
-                it.name == TACHIYOMI_EXTENSION_FEATURE
-            } ?: false
-            if (!hasFeature) return null
-        }
+        val isNsfw = (metadata.getInt(METADATA_NSFW, 0)) == 1
 
-        // Parse manifest for extension info
-        val manifestInfo = try {
-            parseExtensionManifest(appInfo)
-        } catch (e: Exception) {
-            createManifestInfoFromPackage(packageInfo, appInfo)
-        }
-
-        // Create DexClassLoader for the APK
-        val apkPath = appInfo.sourceDir
+        // Build the class loader
         val nativeLibDir = appInfo.nativeLibraryDir
         val optimizedDir = File(cacheDir, "tachiyomi-dex").apply { mkdirs() }
-
         val classLoader = DexClassLoader(
             apkPath,
             optimizedDir.absolutePath,
             nativeLibDir,
-            TachiyomiExtensionLoader::class.java.classLoader
+            TachiyomiExtensionLoader::class.java.classLoader,
         )
 
-        // Find and instantiate Source classes
-        val sources = instantiateSources(classLoader, manifestInfo)
+        // Resolve source instances
+        val sources = resolveSourcesFromMetadata(metadata, packageName, classLoader)
 
         if (sources.isEmpty()) {
-            classLoader.close()
+            // No valid sources found — discard the class loader and skip this extension
             return null
+        }
+
+        val langs = sources.map { it.lang }.toSet()
+        val lang = when (langs.size) {
+            0 -> ""
+            1 -> langs.first()
+            else -> "all"
         }
 
         val extension = LoadedExtension(
             packageName = packageName,
-            name = manifestInfo.name ?: packageInfo.applicationInfo?.loadLabel(packageManager)?.toString() ?: packageName,
+            name = appInfo.loadLabel(packageManager).toString().substringAfter("Tachiyomi: "),
             versionName = packageInfo.versionName ?: "unknown",
             versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 packageInfo.longVersionCode
@@ -180,11 +173,11 @@ class TachiyomiExtensionLoader(
                 @Suppress("DEPRECATION")
                 packageInfo.versionCode.toLong()
             },
-            lang = manifestInfo.lang ?: "all",
-            isNsfw = manifestInfo.isNsfw,
+            lang = lang,
+            isNsfw = isNsfw,
             sources = sources.map { TachiyomiSourceAdapter(it) },
             apkPath = apkPath,
-            classLoader = classLoader
+            classLoader = classLoader,
         )
 
         loadedExtensions[packageName] = extension
@@ -192,127 +185,62 @@ class TachiyomiExtensionLoader(
     }
 
     /**
-     * Parse extension manifest from APK
+     * Resolve [CatalogueSource] instances from extension metadata.
+     *
+     * Checks [METADATA_SOURCE_FACTORY] first; if absent, reads class names from
+     * [METADATA_SOURCE_CLASS].  Class names starting with `.` are expanded using
+     * the package name.
      */
-    private fun parseExtensionManifest(appInfo: ApplicationInfo): TachiyomiManifestParser.ExtensionInfo {
-        val apkFile = File(appInfo.sourceDir)
-        return manifestParser.parse(apkFile)
-    }
-
-    /**
-     * Create basic manifest info from package info (fallback)
-     */
-    private fun createManifestInfoFromPackage(
-        packageInfo: PackageInfo,
-        appInfo: ApplicationInfo
-    ): TachiyomiManifestParser.ExtensionInfo {
-        val metadata = appInfo.metaData
-        return TachiyomiManifestParser.ExtensionInfo(
-            name = appInfo.loadLabel(packageManager)?.toString(),
-            lang = metadata?.getString("tachiyomi.extension.lang"),
-            isNsfw = metadata?.getBoolean("tachiyomi.extension.nsfw") ?: false,
-            sources = emptyList()
-        )
-    }
-
-    /**
-     * Find and instantiate Source classes from the extension
-     */
-    private fun instantiateSources(
+    private fun resolveSourcesFromMetadata(
+        metadata: android.os.Bundle,
+        pkgName: String,
         classLoader: DexClassLoader,
-        manifestInfo: TachiyomiManifestParser.ExtensionInfo
     ): List<CatalogueSource> {
-        val sources = mutableListOf<CatalogueSource>()
-
-        // Try to get source class names from manifest first
-        val sourceClassNames = manifestInfo.sources.ifEmpty {
-            discoverSourceClasses(classLoader)
-        }.map { it.className }
-
-        for (className in sourceClassNames) {
-            try {
-                val source = instantiateSource(classLoader, className)
-                if (source != null) {
-                    sources.add(source)
-                }
-            } catch (e: Exception) {
-                // Log error but continue trying other sources
-                e.printStackTrace()
+        // SourceFactory path
+        val factoryClass = metadata.getString(METADATA_SOURCE_FACTORY)
+        if (!factoryClass.isNullOrBlank()) {
+            val resolved = resolveClassName(factoryClass.trim(), pkgName)
+            val factory = instantiateClass(classLoader, resolved)
+            if (factory is SourceFactory) {
+                return factory.createSources()
+                    .filterIsInstance<CatalogueSource>()
             }
         }
 
-        return sources
-    }
+        // Direct source class(es)
+        val sourceClassEntry = metadata.getString(METADATA_SOURCE_CLASS) ?: return emptyList()
 
-    /**
-     * Discover Source classes in the extension by scanning for known patterns
-     */
-    private fun discoverSourceClasses(classLoader: DexClassLoader): List<TachiyomiManifestParser.SourceInfo> {
-        val classes = mutableListOf<TachiyomiManifestParser.SourceInfo>()
-
-        // Try common patterns
-        val commonSourceClasses = listOf(
-            "Source",
-            "MainSource",
-            "MangaSource",
-            "ExtensionSource"
-        )
-
-        // Attempt to load from known package patterns
-        for (pattern in SOURCE_CLASS_PATTERNS) {
-            for (suffix in commonSourceClasses) {
-                try {
-                    val className = "$pattern$suffix"
-                    classLoader.loadClass(className)
-                    classes.add(TachiyomiManifestParser.SourceInfo(
-                        name = suffix,
-                        className = className
-                    ))
-                } catch (e: ClassNotFoundException) {
-                    // Class doesn't exist, continue
+        return sourceClassEntry
+            .split(";")
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .flatMap { rawClass ->
+                val resolved = resolveClassName(rawClass, pkgName)
+                when (val instance = instantiateClass(classLoader, resolved)) {
+                    is SourceFactory -> instance.createSources().filterIsInstance<CatalogueSource>()
+                    is CatalogueSource -> listOf(instance)
+                    is Source -> emptyList() // non-catalogue sources not supported here
+                    else -> emptyList()
                 }
             }
-        }
-
-        return classes
     }
 
-    /**
-     * Instantiate a single Source class
-     */
-    @Suppress("UNCHECKED_CAST")
-    private fun instantiateSource(classLoader: DexClassLoader, className: String): CatalogueSource? {
+    /** Expand a relative class name (starting with `.`) using the package name. */
+    private fun resolveClassName(className: String, pkgName: String): String {
+        return if (className.startsWith(".")) pkgName + className else className
+    }
+
+    /** Instantiate a class by name; returns null on any error. */
+    private fun instantiateClass(classLoader: DexClassLoader, className: String): Any? {
         return try {
-            val clazz = classLoader.loadClass(className)
-
-            // Check if it's a Source implementation
-            if (!Source::class.java.isAssignableFrom(clazz)) {
-                return null
-            }
-
-            // Try to instantiate - sources typically have a no-arg constructor
-            val instance = try {
-                clazz.getDeclaredConstructor().newInstance()
-            } catch (e: NoSuchMethodException) {
-                // Try with context parameter
-                null
-            }
-
-            when (instance) {
-                is CatalogueSource -> instance
-                is Source -> {
-                    // Wrap non-catalogue sources if possible
-                    null
-                }
-                else -> null
-            }
+            Class.forName(className, false, classLoader).getDeclaredConstructor().newInstance()
         } catch (e: Exception) {
             null
         }
     }
 
     /**
-     * Reload an extension
+     * Reload an extension (unload then re-load).
      */
     fun reloadExtension(packageName: String): LoadedExtension? {
         unloadExtension(packageName)
@@ -320,43 +248,35 @@ class TachiyomiExtensionLoader(
     }
 
     /**
-     * Unload an extension and release resources
+     * Unload an extension and release its class-loader resources.
+     *
+     * Note: [DexClassLoader] does not implement [java.io.Closeable], so there is no
+     * explicit close call here.  The GC will reclaim the loader when there are no more
+     * references.
      */
     fun unloadExtension(packageName: String) {
-        loadedExtensions.remove(packageName)?.let { extension ->
-            try {
-                extension.classLoader.close()
-            } catch (e: Exception) {
-                // Ignore cleanup errors
-            }
-        }
+        loadedExtensions.remove(packageName)
     }
 
     /**
-     * Unload all extensions
+     * Unload all extensions.
      */
     fun unloadAllExtensions() {
         loadedExtensions.keys.toList().forEach { unloadExtension(it) }
     }
 
     /**
-     * Get list of loaded extensions
+     * Return all currently loaded extensions.
      */
-    fun getLoadedExtensions(): List<LoadedExtension> {
-        return loadedExtensions.values.toList()
-    }
+    fun getLoadedExtensions(): List<LoadedExtension> = loadedExtensions.values.toList()
 
     /**
-     * Check if an extension is loaded
+     * Return whether an extension is currently loaded.
      */
-    fun isExtensionLoaded(packageName: String): Boolean {
-        return loadedExtensions.containsKey(packageName)
-    }
+    fun isExtensionLoaded(packageName: String): Boolean = loadedExtensions.containsKey(packageName)
 
     /**
-     * Get all loaded sources from all extensions
+     * Return all loaded sources from every loaded extension.
      */
-    fun getAllSources(): List<TachiyomiSourceAdapter> {
-        return loadedExtensions.values.flatMap { it.sources }
-    }
+    fun getAllSources(): List<TachiyomiSourceAdapter> = loadedExtensions.values.flatMap { it.sources }
 }

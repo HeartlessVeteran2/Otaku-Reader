@@ -113,9 +113,9 @@ class TachiyomiSourceAdapter(
         return withContext(Dispatchers.IO) {
             val sManga = TachiyomiModelsAdapter.toTachiyomiSManga(manga)
             val detailedManga = tachiyomiSource.fetchMangaDetails(sManga).toBlocking().first()
-            TachiyomiModelsAdapter.toSourceManga(detailedManga).copy(
-                url = manga.url
-            )
+            TachiyomiModelsAdapter.toSourceManga(
+                TachiyomiModelsAdapter.fromTachiyomiSManga(detailedManga),
+            ).copy(url = manga.url)
         }
     }
 

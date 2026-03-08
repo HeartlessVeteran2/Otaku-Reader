@@ -7,7 +7,9 @@ import app.otakureader.core.extension.data.remote.ExtensionRemoteDataSource
 import app.otakureader.core.extension.domain.model.Extension
 import app.otakureader.core.extension.domain.model.InstallStatus
 import app.otakureader.core.extension.domain.repository.ExtensionRepository
+import app.otakureader.core.extension.loader.ExtensionLoadResult
 import app.otakureader.core.extension.loader.ExtensionLoader
+import app.otakureader.core.extension.receiver.ExtensionInstallReceiver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -123,7 +125,7 @@ class ExtensionInstaller(
             val loadResult = loader.loadExtension(apkFile.absolutePath)
             
             when (loadResult) {
-                is ExtensionLoader.ExtensionLoadResult.Error -> {
+                is ExtensionLoadResult.Error -> {
                     _installationState.value = InstallationState.Error(
                         loadResult.message,
                         loadResult.throwable
@@ -133,7 +135,7 @@ class ExtensionInstaller(
                             ?: IllegalStateException(loadResult.message)
                     )
                 }
-                is ExtensionLoader.ExtensionLoadResult.Success -> {
+                is ExtensionLoadResult.Success -> {
                     val extension = loadResult.extension
                     
                     _installationState.value = InstallationState.Installing
@@ -153,6 +155,8 @@ class ExtensionInstaller(
                     
                     result.onSuccess { ext ->
                         _installationState.value = InstallationState.Success(ext)
+                        // Notify the receiver so private extensions appear in the catalogue
+                        ExtensionInstallReceiver.notifyAdded(context, finalExtension.pkgName)
                     }.onFailure { error ->
                         _installationState.value = InstallationState.Error(
                             "Failed to save extension: ${error.message}",
@@ -189,7 +193,7 @@ class ExtensionInstaller(
                 val loadResult = loader.loadExtension(newApkFile.absolutePath)
                 
                 when (loadResult) {
-                    is ExtensionLoader.ExtensionLoadResult.Error -> {
+                    is ExtensionLoadResult.Error -> {
                         _installationState.value = InstallationState.Error(
                             loadResult.message,
                             loadResult.throwable
@@ -199,7 +203,7 @@ class ExtensionInstaller(
                                 ?: IllegalStateException(loadResult.message)
                         )
                     }
-                    is ExtensionLoader.ExtensionLoadResult.Success -> {
+                    is ExtensionLoadResult.Success -> {
                         val extension = loadResult.extension
                         
                         // Verify package name matches
@@ -228,6 +232,8 @@ class ExtensionInstaller(
                         
                         result.onSuccess { ext ->
                             _installationState.value = InstallationState.Success(ext)
+                            // Notify the receiver so private extensions appear in the catalogue
+                            ExtensionInstallReceiver.notifyReplaced(context, pkgName)
                         }.onFailure { error ->
                             _installationState.value = InstallationState.Error(
                                 "Failed to update extension: ${error.message}",
@@ -265,7 +271,10 @@ class ExtensionInstaller(
             }
             
             // Remove from repository
-            repository.uninstallExtension(pkgName)
+            repository.uninstallExtension(pkgName).also {
+                // Notify the receiver that the private extension is gone
+                ExtensionInstallReceiver.notifyRemoved(context, pkgName)
+            }
         } catch (e: Exception) {
             Result.failure(e)
         }

@@ -3,18 +3,15 @@ package app.otakureader.core.extension.data.remote
 import app.otakureader.core.extension.domain.model.Extension
 import app.otakureader.core.extension.domain.model.ExtensionSource
 import app.otakureader.core.extension.domain.model.InstallStatus
-import io.ktor.client.*
-import io.ktor.client.call.*
-import io.ktor.client.engine.okhttp.*
-import io.ktor.client.plugins.*
-import io.ktor.client.plugins.contentnegotiation.*
-import io.ktor.client.request.*
-import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import java.io.File
+import java.util.concurrent.TimeUnit
 
 /**
  * DTOs for extension repository API responses.
@@ -25,83 +22,83 @@ import java.io.File
 data class ExtensionRepoResponse(
     @SerialName("extensions")
     val extensions: List<ExtensionDto>,
-    
+
     @SerialName("last_modified")
-    val lastModified: Long
+    val lastModified: Long,
 )
 
 @Serializable
 data class ExtensionDto(
     @SerialName("id")
     val id: Long,
-    
+
     @SerialName("pkg_name")
     val pkgName: String,
-    
+
     @SerialName("name")
     val name: String,
-    
+
     @SerialName("version_code")
     val versionCode: Int,
-    
+
     @SerialName("version_name")
     val versionName: String,
-    
+
     @SerialName("sources")
     val sources: List<ExtensionSourceDto>,
-    
+
     @SerialName("apk_url")
     val apkUrl: String,
-    
+
     @SerialName("icon_url")
-    val iconUrl: String?,
-    
+    val iconUrl: String? = null,
+
     @SerialName("lang")
     val lang: String,
-    
+
     @SerialName("is_nsfw")
     val isNsfw: Boolean = false,
-    
+
     @SerialName("signature")
-    val signature: String?
+    val signature: String? = null,
 )
 
 @Serializable
 data class ExtensionSourceDto(
     @SerialName("id")
     val id: Long,
-    
+
     @SerialName("name")
     val name: String,
-    
+
     @SerialName("lang")
     val lang: String,
-    
+
     @SerialName("base_url")
     val baseUrl: String,
-    
+
     @SerialName("supports_search")
     val supportsSearch: Boolean = true,
-    
+
     @SerialName("supports_latest")
-    val supportsLatest: Boolean = true
+    val supportsLatest: Boolean = true,
 )
 
 /**
  * Remote data source for fetching extension information and APKs.
  */
 interface ExtensionRemoteDataSource {
-    
+
     /**
      * Fetch list of available extensions from the repository.
      */
     suspend fun fetchAvailableExtensions(): Result<List<Extension>>
-    
+
     /**
      * Download an extension APK to the specified destination.
      */
     suspend fun downloadApk(apkUrl: String, destination: File): Result<File>
-    
+
     /**
      * Get the base URL for the extension repository.
      */
@@ -110,63 +107,71 @@ interface ExtensionRemoteDataSource {
 
 class ExtensionRemoteDataSourceImpl(
     private val repoBaseUrl: String,
-    private val httpClient: HttpClient = createDefaultClient()
+    private val httpClient: OkHttpClient = createDefaultClient(),
 ) : ExtensionRemoteDataSource {
-    
+
+    private val json = Json {
+        ignoreUnknownKeys = true
+        coerceInputValues = true
+    }
+
     companion object {
         private const val REPO_INDEX_PATH = "/index.json"
-        private const val TIMEOUT_MS = 30000L
-        
-        fun createDefaultClient(): HttpClient {
-            return HttpClient(OkHttp) {
-                install(ContentNegotiation) {
-                    json(Json {
-                        ignoreUnknownKeys = true
-                        coerceInputValues = true
-                    })
-                }
-                install(HttpTimeout) {
-                    requestTimeoutMillis = TIMEOUT_MS
-                    connectTimeoutMillis = 10000
-                    socketTimeoutMillis = TIMEOUT_MS
-                }
-            }
+
+        fun createDefaultClient(): OkHttpClient {
+            return OkHttpClient.Builder()
+                .connectTimeout(10, TimeUnit.SECONDS)
+                .readTimeout(30, TimeUnit.SECONDS)
+                .writeTimeout(30, TimeUnit.SECONDS)
+                .build()
         }
     }
-    
+
     override suspend fun fetchAvailableExtensions(): Result<List<Extension>> {
-        return try {
-            val response: ExtensionRepoResponse = httpClient.get("$repoBaseUrl$REPO_INDEX_PATH").body()
-            val extensions = response.extensions.map { it.toDomain() }
-            Result.success(extensions)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-    
-    override suspend fun downloadApk(apkUrl: String, destination: File): Result<File> {
-        return try {
-            val response = httpClient.get(apkUrl) {
-                headers {
-                    append(HttpHeaders.Accept, "application/vnd.android.package-archive")
+        return withContext(Dispatchers.IO) {
+            try {
+                val request = Request.Builder()
+                    .url("$repoBaseUrl$REPO_INDEX_PATH")
+                    .build()
+                val responseBody = httpClient.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) error("HTTP ${response.code}")
+                    response.body?.string() ?: error("Empty body")
                 }
+                val repoResponse = json.decodeFromString(ExtensionRepoResponse.serializer(), responseBody)
+                Result.success(repoResponse.extensions.map { it.toDomain() })
+            } catch (e: Exception) {
+                Result.failure(e)
             }
-            
-            val bytes: ByteArray = response.body()
-            destination.writeBytes(bytes)
-            
-            Result.success(destination)
-        } catch (e: Exception) {
-            Result.failure(e)
         }
     }
-    
+
+    override suspend fun downloadApk(apkUrl: String, destination: File): Result<File> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val request = Request.Builder()
+                    .url(apkUrl)
+                    .header("Accept", "application/vnd.android.package-archive")
+                    .build()
+                httpClient.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) error("HTTP ${response.code}")
+                    val body = response.body ?: error("Empty body")
+                    body.byteStream().use { input ->
+                        destination.outputStream().use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                }
+                Result.success(destination)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
+
     override fun getRepoBaseUrl(): String = repoBaseUrl
 }
 
-/**
- * Extension function to convert DTO to domain model.
- */
+/** Convert [ExtensionDto] to the [Extension] domain model. */
 private fun ExtensionDto.toDomain(): Extension {
     return Extension(
         id = id,
@@ -182,7 +187,7 @@ private fun ExtensionDto.toDomain(): Extension {
         lang = lang,
         isNsfw = isNsfw,
         installDate = null,
-        signatureHash = signature
+        signatureHash = signature,
     )
 }
 
@@ -193,6 +198,6 @@ private fun ExtensionSourceDto.toDomain(): ExtensionSource {
         lang = lang,
         baseUrl = baseUrl,
         supportsSearch = supportsSearch,
-        supportsLatest = supportsLatest
+        supportsLatest = supportsLatest,
     )
 }

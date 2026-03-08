@@ -45,10 +45,18 @@
         <receiver
             android:name="app.otakureader.core.extension.receiver.ExtensionInstallReceiver"
             android:exported="false">
+            <!-- System package-manager events (shared/installed extensions) -->
             <intent-filter>
                 <action android:name="android.intent.action.PACKAGE_ADDED" />
                 <action android:name="android.intent.action.PACKAGE_REPLACED" />
                 <action android:name="android.intent.action.PACKAGE_REMOVED" />
+                <data android:scheme="package" />
+            </intent-filter>
+            <!-- App-internal events for private/sideloaded extensions -->
+            <intent-filter>
+                <action android:name="app.otakureader.ACTION_EXTENSION_ADDED" />
+                <action android:name="app.otakureader.ACTION_EXTENSION_REPLACED" />
+                <action android:name="app.otakureader.ACTION_EXTENSION_REMOVED" />
                 <data android:scheme="package" />
             </intent-filter>
         </receiver>
