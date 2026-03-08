@@ -62,11 +62,16 @@ class UltimateReaderViewModel @Inject constructor(
 
     private fun recordHistoryOpen() {
         viewModelScope.launch {
-            chapterRepository.recordHistory(
-                chapterId = chapterId,
-                readAt = sessionStartMs,
-                readDurationMs = 0L
-            )
+            try {
+                chapterRepository.recordHistory(
+                    chapterId = chapterId,
+                    readAt = sessionStartMs,
+                    readDurationMs = 0L
+                )
+            } catch (e: Exception) {
+                // Swallow or log the exception to avoid cancelling viewModelScope
+                // e.g., Log.e("UltimateReaderViewModel", "Failed to record reading history", e)
+            }
         }
     }
 
