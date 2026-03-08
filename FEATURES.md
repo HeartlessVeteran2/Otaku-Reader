@@ -1,6 +1,6 @@
-# Komikku 2026 - Feature Documentation
+# Otaku Reader - Feature Documentation
 
-Complete documentation of all features available in Komikku 2026.
+Complete documentation of all features available in Otaku Reader.
 
 ## Table of Contents
 

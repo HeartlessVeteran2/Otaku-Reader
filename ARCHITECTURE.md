@@ -1,6 +1,6 @@
-# Komikku 2026 - Architecture Documentation
+# Otaku Reader - Architecture Documentation
 
-This document provides a comprehensive overview of the Komikku 2026 application architecture.
+This document provides a comprehensive overview of the Otaku Reader application architecture.
 
 ## Table of Contents
 
@@ -15,7 +15,7 @@ This document provides a comprehensive overview of the Komikku 2026 application 
 
 ## Architecture Overview
 
-Komikku 2026 follows **Clean Architecture** principles combined with **MVVM** (Model-View-ViewModel) and **MVI** (Model-View-Intent) patterns. The architecture is designed to be:
+Otaku Reader follows **Clean Architecture** principles combined with **MVVM** (Model-View-ViewModel) and **MVI** (Model-View-Intent) patterns. The architecture is designed to be:
 
 - **Testable**: Clear separation of concerns enables unit testing
 - **Maintainable**: Modular structure makes changes easier

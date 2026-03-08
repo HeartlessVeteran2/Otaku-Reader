@@ -1,6 +1,6 @@
-# 🌸 Otaku Reader
+# Otaku Reader
 
-> The ultimate manga reading experience. Better than Perfect Viewer. Better than Tachiyomi.
+A modern Android manga reader built with Kotlin and Jetpack Compose.
 
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0-blue.svg)](https://kotlinlang.org/)
 [![Android](https://img.shields.io/badge/Android-26+-green.svg)](https://developer.android.com/)

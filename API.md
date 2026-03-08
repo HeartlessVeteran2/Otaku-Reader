@@ -1,6 +1,6 @@
-# Komikku 2026 - Extension API Documentation
+# Otaku Reader - Extension API Documentation
 
-Complete guide for developing manga source extensions for Komikku 2026.
+Complete guide for developing manga source extensions for Otaku Reader.
 
 ## Table of Contents
 
@@ -15,13 +15,13 @@ Complete guide for developing manga source extensions for Komikku 2026.
 
 ## Overview
 
-Komikku 2026 uses a plugin-based source system that allows developers to create extensions for manga providers. Extensions are distributed as separate APKs that can be installed and managed within the app.
+Otaku Reader uses a plugin-based source system that allows developers to create extensions for manga providers. Extensions are distributed as separate APKs that can be installed and managed within the app.
 
 ### Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      Komikku App                            │
+│                      Otaku Reader                           │
 │  ┌───────────────────────────────────────────────────────┐  │
 │  │                   Source Manager                       │  │
 │  │  - Load extensions                                    │  │

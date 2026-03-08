@@ -1,4 +1,0 @@
-# Dependency updates are managed by Renovate (renovate.json).
-# Dependabot is disabled to avoid duplicate update PRs.
-version: 2
-updates: []
