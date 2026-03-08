@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -42,6 +43,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -61,6 +63,7 @@ fun DetailsScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val uriHandler = LocalUriHandler.current
 
     LaunchedEffect(viewModel.effect) {
         viewModel.effect.collectLatest { effect ->
@@ -73,6 +76,9 @@ fun DetailsScreen(
                 }
                 is DetailsContract.Effect.ShowError -> {
                     snackbarHostState.showSnackbar(effect.message)
+                }
+                is DetailsContract.Effect.OpenOAuthUrl -> {
+                    uriHandler.openUri(effect.url)
                 }
                 else -> { /* Handle other effects */ }
             }
@@ -91,6 +97,9 @@ fun DetailsScreen(
                 actions = {
                     IconButton(onClick = { viewModel.onEvent(DetailsContract.Event.Refresh) }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                    }
+                    IconButton(onClick = { viewModel.onEvent(DetailsContract.Event.OpenTrackingSheet) }) {
+                        Icon(Icons.Default.Sync, contentDescription = "Tracking")
                     }
                     IconButton(onClick = { /* TODO: Share */ }) {
                         Icon(Icons.Default.Share, contentDescription = "Share")
@@ -133,6 +142,14 @@ fun DetailsScreen(
             )
             else -> EmptyScreen(modifier = Modifier.padding(paddingValues))
         }
+    }
+
+    if (state.isTrackingSheetVisible) {
+        TrackingBottomSheet(
+            state = state,
+            onEvent = viewModel::onEvent,
+            onDismiss = { viewModel.onEvent(DetailsContract.Event.CloseTrackingSheet) }
+        )
     }
 }
 

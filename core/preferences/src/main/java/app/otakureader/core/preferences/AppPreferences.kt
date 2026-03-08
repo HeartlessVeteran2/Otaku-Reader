@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -46,6 +47,22 @@ class AppPreferences(private val dataStore: DataStore<Preferences>) {
     val useDynamicColor: Flow<Boolean> = dataStore.data.map { it[Keys.USE_DYNAMIC_COLOR] ?: true }
     suspend fun setUseDynamicColor(value: Boolean) = dataStore.edit { it[Keys.USE_DYNAMIC_COLOR] = value }
 
+    // --- Tracking tokens ---
+    val malAccessToken: Flow<String> = dataStore.data.map { it[Keys.MAL_ACCESS_TOKEN] ?: "" }
+    suspend fun setMalAccessToken(value: String) = dataStore.edit { it[Keys.MAL_ACCESS_TOKEN] = value }
+
+    val malRefreshToken: Flow<String> = dataStore.data.map { it[Keys.MAL_REFRESH_TOKEN] ?: "" }
+    suspend fun setMalRefreshToken(value: String) = dataStore.edit { it[Keys.MAL_REFRESH_TOKEN] = value }
+
+    val aniListAccessToken: Flow<String> = dataStore.data.map { it[Keys.ANILIST_ACCESS_TOKEN] ?: "" }
+    suspend fun setAniListAccessToken(value: String) = dataStore.edit { it[Keys.ANILIST_ACCESS_TOKEN] = value }
+
+    val kitsuAccessToken: Flow<String> = dataStore.data.map { it[Keys.KITSU_ACCESS_TOKEN] ?: "" }
+    suspend fun setKitsuAccessToken(value: String) = dataStore.edit { it[Keys.KITSU_ACCESS_TOKEN] = value }
+
+    val kitsuRefreshToken: Flow<String> = dataStore.data.map { it[Keys.KITSU_REFRESH_TOKEN] ?: "" }
+    suspend fun setKitsuRefreshToken(value: String) = dataStore.edit { it[Keys.KITSU_REFRESH_TOKEN] = value }
+
     private object Keys {
         val READER_MODE = intPreferencesKey("reader_mode")
         val READER_SCALE = intPreferencesKey("reader_scale")
@@ -56,5 +73,10 @@ class AppPreferences(private val dataStore: DataStore<Preferences>) {
         val NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
         val THEME_MODE = intPreferencesKey("theme_mode")
         val USE_DYNAMIC_COLOR = booleanPreferencesKey("use_dynamic_color")
+        val MAL_ACCESS_TOKEN = stringPreferencesKey("mal_access_token")
+        val MAL_REFRESH_TOKEN = stringPreferencesKey("mal_refresh_token")
+        val ANILIST_ACCESS_TOKEN = stringPreferencesKey("anilist_access_token")
+        val KITSU_ACCESS_TOKEN = stringPreferencesKey("kitsu_access_token")
+        val KITSU_REFRESH_TOKEN = stringPreferencesKey("kitsu_refresh_token")
     }
 }

@@ -3,10 +3,14 @@ package app.otakureader.feature.details
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.otakureader.data.tracker.TrackManager
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
+import app.otakureader.domain.model.TrackItem
+import app.otakureader.domain.model.TrackService
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.MangaRepository
+import app.otakureader.domain.repository.TrackRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,7 +32,9 @@ import javax.inject.Inject
 class DetailsViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
     private val mangaRepository: MangaRepository,
-    private val chapterRepository: ChapterRepository
+    private val chapterRepository: ChapterRepository,
+    private val trackRepository: TrackRepository,
+    private val trackManager: TrackManager
 ) : ViewModel() {
 
     private val mangaId: Long = savedStateHandle.get<Long>(MANGA_ID_ARG) 
@@ -45,6 +51,8 @@ class DetailsViewModel @Inject constructor(
         loadChapters()
         observeFavoriteStatus()
         loadNextUnreadChapter()
+        loadTracks()
+        refreshTrackLoginStates()
     }
 
     fun onEvent(event: DetailsContract.Event) {
@@ -62,6 +70,16 @@ class DetailsViewModel @Inject constructor(
             is DetailsContract.Event.DownloadChapter -> downloadChapter(event.chapterId)
             is DetailsContract.Event.DeleteChapterDownload -> deleteChapterDownload(event.chapterId)
             is DetailsContract.Event.MarkPreviousAsRead -> markPreviousAsRead(event.chapterId)
+            // Tracking
+            is DetailsContract.Event.OpenTrackingSheet ->
+                _state.update { it.copy(isTrackingSheetVisible = true) }
+            is DetailsContract.Event.CloseTrackingSheet ->
+                _state.update { it.copy(isTrackingSheetVisible = false, trackSearchResults = emptyList()) }
+            is DetailsContract.Event.TrackLogin -> trackLogin(event.service)
+            is DetailsContract.Event.TrackLogout -> trackLogout(event.service)
+            is DetailsContract.Event.SearchTrackManga -> searchTrackManga(event.service, event.query)
+            is DetailsContract.Event.LinkTrack -> linkTrack(event.track)
+            is DetailsContract.Event.UnlinkTrack -> unlinkTrack(event.service)
         }
     }
 
@@ -251,6 +269,137 @@ class DetailsViewModel @Inject constructor(
                 _effect.emit(DetailsContract.Effect.ShowSnackbar("Marked previous chapters as read"))
             } catch (e: Exception) {
                 _effect.emit(DetailsContract.Effect.ShowError("Failed to mark chapters: ${e.message}"))
+            }
+        }
+    }
+
+    // ---- Tracking -----------------------------------------------------------
+
+    private fun loadTracks() {
+        trackRepository.getTracksForManga(mangaId)
+            .onEach { tracks -> _state.update { it.copy(tracks = tracks) } }
+            .launchIn(viewModelScope)
+    }
+
+    private fun refreshTrackLoginStates() {
+        viewModelScope.launch {
+            val states = TrackService.entries.associateWith { service ->
+                DetailsContract.TrackLoginState(
+                    isLoggedIn = trackManager.isLoggedIn(service)
+                )
+            }
+            _state.update { it.copy(trackLoginStates = states) }
+        }
+    }
+
+    private fun trackLogin(service: TrackService) {
+        viewModelScope.launch {
+            _state.update {
+                it.copy(
+                    trackLoginStates = it.trackLoginStates + (service to DetailsContract.TrackLoginState(isLoading = true))
+                )
+            }
+            val url = trackManager.getAuthorizationUrl(service)
+            if (url.isNotBlank()) {
+                _effect.emit(DetailsContract.Effect.OpenOAuthUrl(url))
+            }
+            // Reset loading – actual login completion arrives via onOAuthResult()
+            _state.update {
+                it.copy(
+                    trackLoginStates = it.trackLoginStates + (service to DetailsContract.TrackLoginState(isLoading = false))
+                )
+            }
+        }
+    }
+
+    /**
+     * Called by the Activity after it handles the OAuth redirect and extracts the auth code / token.
+     *
+     * Integration pattern:
+     * 1. The Activity listens for deep-link intents matching the service's redirect URI scheme.
+     * 2. When the user completes the OAuth flow in the browser, the OS redirects back to the app.
+     * 3. The Activity extracts the `code` (MAL) or `access_token` (AniList) from the intent URI.
+     * 4. It then calls this function, e.g.:
+     *    ```kotlin
+     *    viewModel.onOAuthResult(TrackService.MAL, authCode)
+     *    ```
+     * 5. For Kitsu (password grant), this method is not used; call
+     *    [app.otakureader.data.tracker.kitsu.KitsuTracker.loginWithCredentials] directly.
+     */
+    fun onOAuthResult(service: TrackService, authCode: String) {
+        viewModelScope.launch {
+            _state.update {
+                it.copy(
+                    trackLoginStates = it.trackLoginStates + (service to DetailsContract.TrackLoginState(isLoading = true))
+                )
+            }
+            try {
+                trackManager.login(service, authCode)
+                val loggedIn = trackManager.isLoggedIn(service)
+                _state.update {
+                    it.copy(
+                        trackLoginStates = it.trackLoginStates +
+                            (service to DetailsContract.TrackLoginState(isLoggedIn = loggedIn, isLoading = false))
+                    )
+                }
+                if (loggedIn) {
+                    _effect.emit(DetailsContract.Effect.ShowSnackbar("Logged in to ${service.displayName}"))
+                }
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(
+                        trackLoginStates = it.trackLoginStates +
+                            (service to DetailsContract.TrackLoginState(isLoggedIn = false, isLoading = false))
+                    )
+                }
+                _effect.emit(DetailsContract.Effect.ShowError("Login failed: ${e.message}"))
+            }
+        }
+    }
+
+    private fun trackLogout(service: TrackService) {
+        viewModelScope.launch {
+            trackManager.logout(service)
+            _state.update {
+                it.copy(
+                    trackLoginStates = it.trackLoginStates +
+                        (service to DetailsContract.TrackLoginState(isLoggedIn = false))
+                )
+            }
+            _effect.emit(DetailsContract.Effect.ShowSnackbar("Logged out of ${service.displayName}"))
+        }
+    }
+
+    private fun searchTrackManga(service: TrackService, query: String) {
+        if (query.isBlank()) return
+        viewModelScope.launch {
+            _state.update { it.copy(isSearchingTrack = true, trackSearchResults = emptyList()) }
+            val results = trackManager.searchManga(service, query)
+            _state.update { it.copy(isSearchingTrack = false, trackSearchResults = results) }
+        }
+    }
+
+    private fun linkTrack(track: TrackItem) {
+        viewModelScope.launch {
+            try {
+                val linked = track.copy(mangaId = mangaId)
+                trackRepository.upsertTrack(linked)
+                _state.update { it.copy(trackSearchResults = emptyList()) }
+                _effect.emit(DetailsContract.Effect.ShowSnackbar("Added to ${track.service.displayName}"))
+            } catch (e: Exception) {
+                _effect.emit(DetailsContract.Effect.ShowError("Failed to link track: ${e.message}"))
+            }
+        }
+    }
+
+    private fun unlinkTrack(service: TrackService) {
+        viewModelScope.launch {
+            try {
+                val track = _state.value.tracks.find { it.service == service } ?: return@launch
+                trackRepository.deleteTrack(track.id)
+                _effect.emit(DetailsContract.Effect.ShowSnackbar("Removed from ${service.displayName}"))
+            } catch (e: Exception) {
+                _effect.emit(DetailsContract.Effect.ShowError("Failed to unlink: ${e.message}"))
             }
         }
     }

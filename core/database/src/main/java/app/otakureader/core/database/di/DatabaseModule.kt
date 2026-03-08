@@ -36,4 +36,7 @@ object DatabaseModule {
     
     @Provides
     fun provideCategoryDao(database: OtakuReaderDatabase) = database.categoryDao()
+
+    @Provides
+    fun provideTrackDao(database: OtakuReaderDatabase) = database.trackDao()
 }

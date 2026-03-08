@@ -6,6 +6,8 @@ import app.otakureader.core.common.mvi.UiState
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MangaStatus
+import app.otakureader.domain.model.TrackItem
+import app.otakureader.domain.model.TrackService
 
 /**
  * Contract for MVI pattern in Details Screen
@@ -24,7 +26,13 @@ object DetailsContract {
         val chapterSortOrder: ChapterSortOrder = ChapterSortOrder.DESCENDING,
         val error: String? = null,
         val isRefreshing: Boolean = false,
-        val nextUnreadChapter: Chapter? = null
+        val nextUnreadChapter: Chapter? = null,
+        // Tracking
+        val isTrackingSheetVisible: Boolean = false,
+        val tracks: List<TrackItem> = emptyList(),
+        val trackLoginStates: Map<TrackService, TrackLoginState> = emptyMap(),
+        val trackSearchResults: List<TrackItem> = emptyList(),
+        val isSearchingTrack: Boolean = false
     ) : UiState {
         
         val canStartReading: Boolean
@@ -78,6 +86,14 @@ object DetailsContract {
     }
 
     /**
+     * Login / loading state for a single tracking service.
+     */
+    data class TrackLoginState(
+        val isLoggedIn: Boolean = false,
+        val isLoading: Boolean = false
+    )
+
+    /**
      * UI Events (user actions)
      */
     sealed interface Event : UiEvent {
@@ -94,6 +110,14 @@ object DetailsContract {
         data class DownloadChapter(val chapterId: Long) : Event
         data class DeleteChapterDownload(val chapterId: Long) : Event
         data class MarkPreviousAsRead(val chapterId: Long) : Event
+        // Tracking
+        data object OpenTrackingSheet : Event
+        data object CloseTrackingSheet : Event
+        data class TrackLogin(val service: TrackService) : Event
+        data class TrackLogout(val service: TrackService) : Event
+        data class SearchTrackManga(val service: TrackService, val query: String) : Event
+        data class LinkTrack(val track: TrackItem) : Event
+        data class UnlinkTrack(val service: TrackService) : Event
     }
 
     /**
@@ -105,6 +129,8 @@ object DetailsContract {
         data class ShowError(val message: String) : Effect
         data class ShareManga(val title: String, val url: String) : Effect
         data class OpenInBrowser(val url: String) : Effect
+        /** Requests the host Activity/Fragment to open the OAuth URL in a browser. */
+        data class OpenOAuthUrl(val url: String) : Effect
     }
 }
 

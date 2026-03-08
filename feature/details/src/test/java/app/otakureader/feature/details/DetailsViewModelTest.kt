@@ -1,11 +1,13 @@
 package app.otakureader.feature.details
 
 import androidx.lifecycle.SavedStateHandle
+import app.otakureader.data.tracker.TrackManager
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.MangaRepository
+import app.otakureader.domain.repository.TrackRepository
 import app.cash.turbine.test
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -35,6 +37,8 @@ class DetailsViewModelTest {
 
     private lateinit var mangaRepository: MangaRepository
     private lateinit var chapterRepository: ChapterRepository
+    private lateinit var trackRepository: TrackRepository
+    private lateinit var trackManager: TrackManager
     private lateinit var savedStateHandle: SavedStateHandle
 
     private val sampleManga = Manga(
@@ -57,6 +61,8 @@ class DetailsViewModelTest {
         Dispatchers.setMain(testDispatcher)
         mangaRepository = mockk()
         chapterRepository = mockk()
+        trackRepository = mockk()
+        trackManager = mockk()
         savedStateHandle = SavedStateHandle(mapOf(DetailsViewModel.MANGA_ID_ARG to mangaId))
     }
 
@@ -66,7 +72,7 @@ class DetailsViewModelTest {
     }
 
     private fun createViewModel(): DetailsViewModel {
-        return DetailsViewModel(savedStateHandle, mangaRepository, chapterRepository)
+        return DetailsViewModel(savedStateHandle, mangaRepository, chapterRepository, trackRepository, trackManager)
     }
 
     private fun setUpDefaultMocks() {
@@ -74,6 +80,8 @@ class DetailsViewModelTest {
         every { chapterRepository.getChaptersByMangaId(mangaId) } returns flowOf(sampleChapters)
         every { mangaRepository.isFavorite(mangaId) } returns flowOf(false)
         coEvery { chapterRepository.getNextUnreadChapter(mangaId) } returns sampleChapters[1]
+        every { trackRepository.getTracksForManga(mangaId) } returns flowOf(emptyList())
+        coEvery { trackManager.isLoggedIn(any()) } returns false
     }
 
     // ---- Initial load ----
@@ -221,6 +229,8 @@ class DetailsViewModelTest {
         every { chapterRepository.getChaptersByMangaId(mangaId) } returns flowOf(emptyList())
         every { mangaRepository.isFavorite(mangaId) } returns flowOf(false)
         coEvery { chapterRepository.getNextUnreadChapter(mangaId) } returns null
+        every { trackRepository.getTracksForManga(mangaId) } returns flowOf(emptyList())
+        coEvery { trackManager.isLoggedIn(any()) } returns false
 
         val viewModel = createViewModel()
         testDispatcher.scheduler.advanceUntilIdle()

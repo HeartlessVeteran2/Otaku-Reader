@@ -3,6 +3,7 @@ package app.otakureader.feature.reader
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.otakureader.data.tracker.TrackManager
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.MangaRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -19,6 +20,7 @@ import javax.inject.Inject
 class ReaderViewModel @Inject constructor(
     private val mangaRepository: MangaRepository,
     private val chapterRepository: ChapterRepository,
+    private val trackManager: TrackManager,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -39,8 +41,7 @@ class ReaderViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
             try {
-                val manga = mangaRepository.observeManga(mangaId)
-                val chapter = chapterRepository.getChapter(chapterId)
+                val chapter = chapterRepository.getChapterById(chapterId)
                 _state.update { current ->
                     current.copy(
                         isLoading = false,
@@ -48,7 +49,7 @@ class ReaderViewModel @Inject constructor(
                         currentPage = chapter?.lastPageRead ?: 0
                     )
                 }
-                manga.collect { m ->
+                mangaRepository.getMangaByIdFlow(mangaId).collect { m ->
                     _state.update { it.copy(manga = m) }
                 }
             } catch (e: Exception) {
@@ -72,12 +73,16 @@ class ReaderViewModel @Inject constructor(
         _state.update { it.copy(currentPage = page) }
         // Persist reading progress
         viewModelScope.launch {
-            _state.value.chapter?.let { chapter ->
-                chapterRepository.setRead(
-                    id = chapter.id,
-                    read = page >= (_state.value.pages.size - 1),
-                    lastPageRead = page
-                )
+            val chapter = _state.value.chapter ?: return@launch
+            val isLastPage = page >= (_state.value.pages.size - 1)
+            chapterRepository.updateChapterProgress(
+                chapterId = chapter.id,
+                read = isLastPage,
+                lastPageRead = page
+            )
+            // Notify tracker when chapter is completed
+            if (isLastPage && chapter.chapterNumber >= 0f) {
+                trackManager.onChapterRead(mangaId, chapter.chapterNumber)
             }
         }
     }

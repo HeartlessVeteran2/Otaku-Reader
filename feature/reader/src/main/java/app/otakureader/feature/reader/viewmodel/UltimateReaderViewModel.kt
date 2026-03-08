@@ -90,7 +90,7 @@ class UltimateReaderViewModel @Inject constructor(
             try {
                 // Load chapter and manga
                 val chapter = chapterRepository.getChapterById(chapterId)
-                val manga = mangaRepository.observeManga(mangaId).first()
+                val manga = mangaRepository.getMangaByIdFlow(mangaId).first()
 
                 if (chapter == null) {
                     _state.update {
