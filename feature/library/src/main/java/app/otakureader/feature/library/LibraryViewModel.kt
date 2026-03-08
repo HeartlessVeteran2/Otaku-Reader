@@ -62,8 +62,9 @@ class LibraryViewModel @Inject constructor(
     }
     
     private fun loadLibrary() {
-        _state.update { it.copy(isLoading = true) }
-        
+        val isRefreshing = _state.value.mangaList.isNotEmpty()
+        _state.update { it.copy(isLoading = !isRefreshing, isRefreshing = isRefreshing) }
+
         getLibraryManga()
             .map { mangaList ->
                 mangaList.map { it.toLibraryItem() }
@@ -72,6 +73,7 @@ class LibraryViewModel @Inject constructor(
                 _state.update {
                     it.copy(
                         isLoading = false,
+                        isRefreshing = false,
                         mangaList = items,
                         error = null
                     )
@@ -81,6 +83,7 @@ class LibraryViewModel @Inject constructor(
                 _state.update {
                     it.copy(
                         isLoading = false,
+                        isRefreshing = false,
                         error = error.message
                     )
                 }

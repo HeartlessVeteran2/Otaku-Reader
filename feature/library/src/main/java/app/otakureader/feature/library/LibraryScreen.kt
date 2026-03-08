@@ -34,6 +34,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -142,17 +143,25 @@ private fun LibraryContent(
     onEvent: (LibraryEvent) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Box(modifier = modifier.fillMaxSize()) {
+    PullToRefreshBox(
+        isRefreshing = state.isRefreshing,
+        onRefresh = { onEvent(LibraryEvent.Refresh) },
+        modifier = modifier.fillMaxSize()
+    ) {
         when {
-            state.isLoading -> {
-                CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center)
-                )
+            state.isLoading && state.mangaList.isEmpty() -> {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
             }
             state.mangaList.isEmpty() -> {
-                EmptyLibraryMessage(
-                    modifier = Modifier.align(Alignment.Center)
-                )
+                Box(modifier = Modifier.fillMaxSize()) {
+                    EmptyLibraryMessage(
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
             }
             else -> {
                 MangaGrid(
