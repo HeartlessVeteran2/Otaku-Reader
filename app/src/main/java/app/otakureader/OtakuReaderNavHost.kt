@@ -102,6 +102,9 @@ fun OtakuReaderNavHost(
         extensionsBottomSheet(
             onDismiss = {
                 navController.popBackStack()
+            },
+            onNavigateToSettings = {
+                navController.navigate(SettingsRoute)
             }
         )
 
