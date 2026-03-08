@@ -16,6 +16,7 @@ dependencies {
     implementation(projects.core.preferences)
     implementation(projects.domain)
     implementation(projects.sourceApi)
+    implementation(libs.retrofit.converter.kotlinx.serialization)
 
     implementation(libs.paging.runtime)
     implementation(libs.workmanager.ktx)

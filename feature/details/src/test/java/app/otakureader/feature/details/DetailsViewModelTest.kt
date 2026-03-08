@@ -312,9 +312,51 @@ class DetailsViewModelTest {
     // ---- ShareManga ----
 
     @Test
-    fun onEvent_ShareManga_withRelativeUrl_emitsShareMangaEffectWithEmptyUrl() = runTest {
+    fun onEvent_ShareManga_withAbsoluteHttpUrl_emitsShareMangaEffectWithUrl() = runTest {
+        val mangaWithHttpUrl = sampleManga.copy(url = "http://example.com/manga/42")
         setUpDefaultMocks()
-        // sampleManga has url = "/m/42" which is relative
+        every { mangaRepository.getMangaByIdFlow(mangaId) } returns flowOf(mangaWithHttpUrl)
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.ShareManga)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.ShareManga)
+            val shareEffect = effect as DetailsContract.Effect.ShareManga
+            assertEquals("Attack on Titan", shareEffect.title)
+            assertEquals("http://example.com/manga/42", shareEffect.url)
+        }
+    }
+
+    @Test
+    fun onEvent_ShareManga_withAbsoluteHttpsUrl_emitsShareMangaEffectWithUrl() = runTest {
+        val mangaWithHttpsUrl = sampleManga.copy(url = "https://example.com/manga/42")
+        setUpDefaultMocks()
+        every { mangaRepository.getMangaByIdFlow(mangaId) } returns flowOf(mangaWithHttpsUrl)
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.ShareManga)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.ShareManga)
+            val shareEffect = effect as DetailsContract.Effect.ShareManga
+            assertEquals("Attack on Titan", shareEffect.title)
+            assertEquals("https://example.com/manga/42", shareEffect.url)
+        }
+    }
+
+    @Test
+    fun onEvent_ShareManga_withRelativeUrl_emitsShareMangaEffectWithEmptyUrl() = runTest {
+        // sampleManga has url = "/m/42" which is a relative path
+        setUpDefaultMocks()
 
         val viewModel = createViewModel()
         testDispatcher.scheduler.advanceUntilIdle()
@@ -328,29 +370,6 @@ class DetailsViewModelTest {
             val shareEffect = effect as DetailsContract.Effect.ShareManga
             assertEquals("Attack on Titan", shareEffect.title)
             assertEquals("", shareEffect.url)
-        }
-    }
-
-    @Test
-    fun onEvent_ShareManga_withAbsoluteUrl_emitsShareMangaEffectWithUrl() = runTest {
-        val absoluteUrl = "https://mangadex.org/title/42"
-        setUpDefaultMocks()
-        every { mangaRepository.getMangaByIdFlow(mangaId) } returns flowOf(
-            sampleManga.copy(url = absoluteUrl)
-        )
-
-        val viewModel = createViewModel()
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        viewModel.effect.test {
-            viewModel.onEvent(DetailsContract.Event.ShareManga)
-            testDispatcher.scheduler.advanceUntilIdle()
-
-            val effect = awaitItem()
-            assertTrue(effect is DetailsContract.Effect.ShareManga)
-            val shareEffect = effect as DetailsContract.Effect.ShareManga
-            assertEquals("Attack on Titan", shareEffect.title)
-            assertEquals(absoluteUrl, shareEffect.url)
         }
     }
 
