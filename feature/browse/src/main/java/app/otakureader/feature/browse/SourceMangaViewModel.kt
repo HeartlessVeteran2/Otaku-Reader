@@ -10,11 +10,11 @@ import app.otakureader.domain.usecase.source.GetSourcesUseCase
 import app.otakureader.domain.usecase.source.SearchMangaUseCase
 import app.otakureader.sourceapi.SourceManga
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -64,6 +64,8 @@ class SourceMangaViewModel @Inject constructor(
 
     private val _effect = Channel<SourceMangaEffect>()
     val effect = _effect.receiveAsFlow()
+
+    private var loadMangaJob: Job? = null
 
     fun setSourceId(sourceId: String) {
         if (_state.value.sourceId != sourceId) {
@@ -116,21 +118,20 @@ class SourceMangaViewModel @Inject constructor(
 
     private fun fetchSourceName(sourceId: String) {
         viewModelScope.launch {
-            val source = getSourcesUseCase().map { sources ->
-                sources.find { it.id == sourceId }
-            }.first()
+            val sources = getSourcesUseCase().first { it.isNotEmpty() }
+            val source = sources.find { it.id == sourceId }
             _state.update { it.copy(sourceName = source?.name ?: sourceId) }
         }
     }
 
-    private fun loadManga() {
+    private fun loadManga(page: Int = _state.value.currentPage) {
         val currentState = _state.value
         val sourceId = currentState.sourceId
-        val page = currentState.currentPage
 
+        loadMangaJob?.cancel()
         _state.update { it.copy(isLoading = page == 1, isLoadingMore = page > 1, error = null) }
 
-        viewModelScope.launch {
+        loadMangaJob = viewModelScope.launch {
             val result = if (currentState.isSearchMode && currentState.searchQuery.isNotBlank()) {
                 searchMangaUseCase(sourceId, currentState.searchQuery, page)
             } else {
@@ -144,6 +145,7 @@ class SourceMangaViewModel @Inject constructor(
                         isLoadingMore = false,
                         manga = if (page == 1) mangaPage.mangas else state.manga + mangaPage.mangas,
                         hasNextPage = mangaPage.hasNextPage,
+                        currentPage = page,
                         error = null
                     )
                 }
@@ -175,8 +177,7 @@ class SourceMangaViewModel @Inject constructor(
         val currentState = _state.value
         if (currentState.isLoading || currentState.isLoadingMore || !currentState.hasNextPage) return
 
-        _state.update { it.copy(currentPage = currentState.currentPage + 1) }
-        loadManga()
+        loadManga(page = currentState.currentPage + 1)
     }
 
     private fun navigateToDetail(manga: SourceManga) {

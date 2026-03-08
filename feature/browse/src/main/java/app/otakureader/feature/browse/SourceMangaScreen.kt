@@ -248,7 +248,7 @@ private fun SourceMangaTopAppBar(
             },
             navigationIcon = {
                 IconButton(onClick = onSearchClick) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Close search")
                 }
             },
             actions = {
