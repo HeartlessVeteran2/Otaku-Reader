@@ -1,12 +1,16 @@
 package app.otakureader.data.repository
 
+import android.Manifest
+import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import app.otakureader.domain.model.DownloadItem
 import app.otakureader.domain.model.DownloadStatus
 
@@ -34,6 +38,18 @@ internal class DownloadNotifier(
             notificationManager.cancel(DOWNLOAD_NOTIFICATION_ID)
             return
         }
+
+        // Check for notification permission on Android 13+ before proceeding
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                return
+            }
+        }
+
         val completedCount = items.count { it.status == DownloadStatus.COMPLETED }
 
         val contentText = when (active?.status) {
@@ -64,6 +80,8 @@ internal class DownloadNotifier(
 
         buildLaunchIntent()?.let { builder.setContentIntent(it) }
 
+        // Permission is checked above for Android 13+, and not required for older versions
+        @SuppressLint("MissingPermission")
         notificationManager.notify(DOWNLOAD_NOTIFICATION_ID, builder.build())
     }
 
