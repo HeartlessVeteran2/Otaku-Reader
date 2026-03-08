@@ -110,8 +110,8 @@ fun OtakuReaderNavHost(
 
         // History screen
         historyScreen(
-            onMangaClick = { mangaId ->
-                navController.navigate(MangaDetailRoute(mangaId))
+            onChapterClick = { mangaId, chapterId ->
+                navController.navigate(ReaderRoute(mangaId, chapterId))
             },
             onNavigateBack = {
                 navController.popBackStack()

@@ -14,4 +14,7 @@ interface ChapterRepository {
     suspend fun insertChapters(chapters: List<Chapter>)
     fun getUnreadCountByMangaId(mangaId: Long): Flow<Int>
     fun observeHistory(): Flow<List<ChapterWithHistory>>
+    suspend fun recordHistory(chapterId: Long, readAt: Long, readDurationMs: Long)
+    suspend fun removeFromHistory(chapterId: Long)
+    suspend fun clearAllHistory()
 }

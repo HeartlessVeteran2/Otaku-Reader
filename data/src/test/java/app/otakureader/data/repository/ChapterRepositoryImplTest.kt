@@ -14,7 +14,6 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -194,6 +193,45 @@ class ChapterRepositoryImplTest {
         }
 
         verify { readingHistoryDao.observeHistoryWithChapters() }
+    }
+
+    // ---- recordHistory ----
+
+    @Test
+    fun recordHistory_upsertsHistoryEntity() = runTest {
+        coEvery { readingHistoryDao.upsert(any()) } returns Unit
+
+        repository.recordHistory(chapterId = 5L, readAt = 2000L, readDurationMs = 30_000L)
+
+        coVerify {
+            readingHistoryDao.upsert(match { entity ->
+                entity.chapterId == 5L &&
+                    entity.readAt == 2000L &&
+                    entity.readDurationMs == 30_000L
+            })
+        }
+    }
+
+    // ---- removeFromHistory ----
+
+    @Test
+    fun removeFromHistory_callsDaoDeleteForChapter() = runTest {
+        coEvery { readingHistoryDao.deleteHistoryForChapter(any()) } returns Unit
+
+        repository.removeFromHistory(chapterId = 3L)
+
+        coVerify { readingHistoryDao.deleteHistoryForChapter(3L) }
+    }
+
+    // ---- clearAllHistory ----
+
+    @Test
+    fun clearAllHistory_callsDaoDeleteAll() = runTest {
+        coEvery { readingHistoryDao.deleteAll() } returns Unit
+
+        repository.clearAllHistory()
+
+        coVerify { readingHistoryDao.deleteAll() }
     }
 
     // ---- mapping ----
