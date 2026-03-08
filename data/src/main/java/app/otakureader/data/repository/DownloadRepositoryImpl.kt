@@ -2,21 +2,17 @@ package app.otakureader.data.repository
 
 import app.otakureader.core.database.dao.DownloadDao
 import app.otakureader.core.database.entity.DownloadEntity
-import app.otakureader.core.database.entity.DownloadPageEntity
 import app.otakureader.domain.model.Download
 import app.otakureader.domain.model.DownloadState
 import app.otakureader.domain.repository.DownloadRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class DownloadRepositoryImpl @Inject constructor(
-    private val downloadDao: DownloadDao,
-    private val json: Json
+    private val downloadDao: DownloadDao
 ) : DownloadRepository {
 
     override fun observeDownloads(): Flow<List<Download>> {
