@@ -107,15 +107,15 @@ fun SettingsScreen(
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
         ) {
-            AppearanceSection(state = state, onEvent = viewModel::onEvent)
+            AppearanceSection(state = state, viewModel = viewModel)
             HorizontalDivider()
-            LibrarySection(state = state, onEvent = viewModel::onEvent)
+            LibrarySection(state = state, viewModel = viewModel)
             HorizontalDivider()
-            ReaderSection(state = state, onEvent = viewModel::onEvent)
+            ReaderSection(state = state, viewModel = viewModel)
             HorizontalDivider()
-            NotificationsSection(state = state, onEvent = viewModel::onEvent)
+            NotificationsSection(state = state, viewModel = viewModel)
             HorizontalDivider()
-            BackupRestoreSection(state = state, onEvent = viewModel::onEvent)
+            BackupRestoreSection(state = state, viewModel = viewModel)
         }
     }
 }
