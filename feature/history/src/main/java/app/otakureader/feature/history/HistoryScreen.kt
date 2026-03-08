@@ -40,15 +40,16 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.otakureader.domain.model.ChapterWithHistory
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /** History screen showing recently read chapters. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(
-    onMangaClick: (Long) -> Unit,
+    onChapterClick: (mangaId: Long, chapterId: Long) -> Unit,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HistoryViewModel = hiltViewModel()
@@ -60,7 +61,7 @@ fun HistoryScreen(
     LaunchedEffect(viewModel.effect) {
         viewModel.effect.collectLatest { effect ->
             when (effect) {
-                is HistoryEffect.NavigateToReader -> onMangaClick(effect.mangaId)
+                is HistoryEffect.NavigateToReader -> onChapterClick(effect.mangaId, effect.chapterId)
                 is HistoryEffect.ShowSnackbar -> scope.launch {
                     snackbarHostState.showSnackbar(effect.message)
                 }
@@ -187,7 +188,9 @@ private fun HistoryItem(
 
 private fun formatReadAt(timestamp: Long): String {
     if (timestamp == 0L) return ""
-    val sdf = SimpleDateFormat("MMM d, yyyy HH:mm", Locale.getDefault())
-    return sdf.format(Date(timestamp))
+    return DATE_FORMATTER.format(Instant.ofEpochMilli(timestamp).atZone(ZoneId.systemDefault()))
 }
+
+private val DATE_FORMATTER: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("MMM d, yyyy HH:mm", Locale.getDefault())
 

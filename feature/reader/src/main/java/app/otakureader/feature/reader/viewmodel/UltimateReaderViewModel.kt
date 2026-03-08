@@ -11,8 +11,11 @@ import app.otakureader.feature.reader.model.ReaderPage
 import app.otakureader.feature.reader.model.ReadingDirection
 import app.otakureader.feature.reader.repository.ReaderSettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,7 +26,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
@@ -54,23 +56,22 @@ class UltimateReaderViewModel @Inject constructor(
 
     private val sessionStartMs = System.currentTimeMillis()
 
+    /** Independent scope used for cleanup work that must survive viewModelScope cancellation. */
+    private val cleanupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     init {
         loadSettings()
         loadChapter()
-        recordHistoryOpen()
     }
 
     private fun recordHistoryOpen() {
         viewModelScope.launch {
-            try {
+            runCatching {
                 chapterRepository.recordHistory(
                     chapterId = chapterId,
                     readAt = sessionStartMs,
                     readDurationMs = 0L
                 )
-            } catch (e: Exception) {
-                // Swallow or log the exception to avoid cancelling viewModelScope
-                // e.g., Log.e("UltimateReaderViewModel", "Failed to record reading history", e)
             }
         }
     }
@@ -147,6 +148,9 @@ class UltimateReaderViewModel @Inject constructor(
                         chapterTitle = chapter.name
                     )
                 }
+
+                // Record history now that the chapter is confirmed to exist.
+                recordHistoryOpen()
 
                 // Start preloading adjacent pages
                 if (pages.isNotEmpty()) {
@@ -488,8 +492,9 @@ class UltimateReaderViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         val durationMs = System.currentTimeMillis() - sessionStartMs
-        viewModelScope.launch {
-            withContext(NonCancellable) {
+        // Use cleanupScope (not viewModelScope) so the coroutine is not cancelled along with the ViewModel.
+        cleanupScope.launch {
+            runCatching {
                 chapterRepository.recordHistory(
                     chapterId = chapterId,
                     readAt = sessionStartMs,
