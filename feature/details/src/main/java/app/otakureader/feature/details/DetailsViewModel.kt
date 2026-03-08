@@ -66,6 +66,7 @@ class DetailsViewModel @Inject constructor(
             is DetailsContract.Event.DownloadChapter -> downloadChapter(event.chapterId)
             is DetailsContract.Event.DeleteChapterDownload -> deleteChapterDownload(event.chapterId)
             is DetailsContract.Event.MarkPreviousAsRead -> markPreviousAsRead(event.chapterId)
+            is DetailsContract.Event.ShareManga -> shareManga()
         }
     }
 
@@ -292,6 +293,29 @@ class DetailsViewModel @Inject constructor(
                 _effect.emit(DetailsContract.Effect.ShowSnackbar("Marked previous chapters as read"))
             } catch (e: Exception) {
                 _effect.emit(DetailsContract.Effect.ShowError("Failed to mark chapters: ${e.message}"))
+            }
+        }
+    }
+
+    /**
+     * Returns a fully-qualified shareable URL, or null if [manga.url] is a source-relative path
+     * (i.e., does not start with "http://" or "https://").
+     */
+    private fun buildShareUrl(manga: Manga): String? {
+        val url = manga.url
+        return if (url.startsWith("http://") || url.startsWith("https://")) url else null
+    }
+
+    private fun shareManga() {
+        viewModelScope.launch {
+            val manga = _state.value.manga
+            if (manga != null) {
+                _effect.emit(
+                    DetailsContract.Effect.ShareManga(
+                        title = manga.title,
+                        url = buildShareUrl(manga) ?: ""
+                    )
+                )
             }
         }
     }

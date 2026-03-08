@@ -56,6 +56,7 @@ dependencies {
     implementation(projects.feature.updates)
     implementation(projects.feature.history)
     implementation(projects.feature.settings)
+    implementation(projects.feature.details)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

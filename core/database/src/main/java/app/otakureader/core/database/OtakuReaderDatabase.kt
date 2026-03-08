@@ -12,7 +12,6 @@ import app.otakureader.core.database.entity.ChapterEntity
 import app.otakureader.core.database.entity.MangaCategoryEntity
 import app.otakureader.core.database.entity.MangaEntity
 import app.otakureader.core.database.entity.ReadingHistoryEntity
-import app.otakureader.core.database.entity.TrackEntity
 
 @Database(
     entities = [
@@ -20,7 +19,6 @@ import app.otakureader.core.database.entity.TrackEntity
         ChapterEntity::class,
         CategoryEntity::class,
         MangaCategoryEntity::class,
-        TrackEntity::class,
         ReadingHistoryEntity::class
     ],
     version = 3,
@@ -30,7 +28,6 @@ abstract class OtakuReaderDatabase : RoomDatabase() {
     abstract fun mangaDao(): MangaDao
     abstract fun chapterDao(): ChapterDao
     abstract fun categoryDao(): CategoryDao
-    abstract fun trackDao(): TrackDao
     abstract fun readingHistoryDao(): ReadingHistoryDao
     
     companion object {

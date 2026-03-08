@@ -6,6 +6,7 @@ import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.MangaRepository
+import app.otakureader.domain.repository.DownloadRepository
 import app.cash.turbine.test
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -35,6 +36,7 @@ class DetailsViewModelTest {
 
     private lateinit var mangaRepository: MangaRepository
     private lateinit var chapterRepository: ChapterRepository
+    private lateinit var downloadRepository: DownloadRepository
     private lateinit var savedStateHandle: SavedStateHandle
 
     private val sampleManga = Manga(
@@ -57,6 +59,7 @@ class DetailsViewModelTest {
         Dispatchers.setMain(testDispatcher)
         mangaRepository = mockk()
         chapterRepository = mockk()
+        downloadRepository = mockk()
         savedStateHandle = SavedStateHandle(mapOf(DetailsViewModel.MANGA_ID_ARG to mangaId))
     }
 
@@ -66,13 +69,14 @@ class DetailsViewModelTest {
     }
 
     private fun createViewModel(): DetailsViewModel {
-        return DetailsViewModel(savedStateHandle, mangaRepository, chapterRepository)
+        return DetailsViewModel(savedStateHandle, mangaRepository, chapterRepository, downloadRepository)
     }
 
     private fun setUpDefaultMocks() {
         every { mangaRepository.getMangaByIdFlow(mangaId) } returns flowOf(sampleManga)
         every { chapterRepository.getChaptersByMangaId(mangaId) } returns flowOf(sampleChapters)
         every { mangaRepository.isFavorite(mangaId) } returns flowOf(false)
+        every { downloadRepository.observeDownloads() } returns flowOf(emptyList())
         coEvery { chapterRepository.getNextUnreadChapter(mangaId) } returns sampleChapters[1]
     }
 
@@ -220,6 +224,7 @@ class DetailsViewModelTest {
         every { mangaRepository.getMangaByIdFlow(mangaId) } returns flowOf(sampleManga)
         every { chapterRepository.getChaptersByMangaId(mangaId) } returns flowOf(emptyList())
         every { mangaRepository.isFavorite(mangaId) } returns flowOf(false)
+        every { downloadRepository.observeDownloads() } returns flowOf(emptyList())
         coEvery { chapterRepository.getNextUnreadChapter(mangaId) } returns null
 
         val viewModel = createViewModel()
@@ -302,6 +307,97 @@ class DetailsViewModelTest {
 
         // Only chapter 2 (unread and previous to 3) should be updated
         coVerify { chapterRepository.updateChapterProgress(2L, true, 0) }
+    }
+
+    // ---- ShareManga ----
+
+    @Test
+    fun onEvent_ShareManga_withAbsoluteHttpUrl_emitsShareMangaEffectWithUrl() = runTest {
+        val mangaWithHttpUrl = sampleManga.copy(url = "http://example.com/manga/42")
+        setUpDefaultMocks()
+        every { mangaRepository.getMangaByIdFlow(mangaId) } returns flowOf(mangaWithHttpUrl)
+        every { chapterRepository.getChaptersByMangaId(mangaId) } returns flowOf(sampleChapters)
+        every { mangaRepository.isFavorite(mangaId) } returns flowOf(false)
+        every { downloadRepository.observeDownloads() } returns flowOf(emptyList())
+        coEvery { chapterRepository.getNextUnreadChapter(mangaId) } returns null
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.ShareManga)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.ShareManga)
+            val shareEffect = effect as DetailsContract.Effect.ShareManga
+            assertEquals("Attack on Titan", shareEffect.title)
+            assertEquals("http://example.com/manga/42", shareEffect.url)
+        }
+    }
+
+    @Test
+    fun onEvent_ShareManga_withAbsoluteHttpsUrl_emitsShareMangaEffectWithUrl() = runTest {
+        val mangaWithHttpsUrl = sampleManga.copy(url = "https://example.com/manga/42")
+        setUpDefaultMocks()
+        every { mangaRepository.getMangaByIdFlow(mangaId) } returns flowOf(mangaWithHttpsUrl)
+        every { chapterRepository.getChaptersByMangaId(mangaId) } returns flowOf(sampleChapters)
+        every { mangaRepository.isFavorite(mangaId) } returns flowOf(false)
+        every { downloadRepository.observeDownloads() } returns flowOf(emptyList())
+        coEvery { chapterRepository.getNextUnreadChapter(mangaId) } returns null
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.ShareManga)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.ShareManga)
+            val shareEffect = effect as DetailsContract.Effect.ShareManga
+            assertEquals("Attack on Titan", shareEffect.title)
+            assertEquals("https://example.com/manga/42", shareEffect.url)
+        }
+    }
+
+    @Test
+    fun onEvent_ShareManga_withRelativeUrl_emitsShareMangaEffectWithEmptyUrl() = runTest {
+        // sampleManga has url = "/m/42" which is a relative path
+        setUpDefaultMocks()
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.ShareManga)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.ShareManga)
+            val shareEffect = effect as DetailsContract.Effect.ShareManga
+            assertEquals("Attack on Titan", shareEffect.title)
+            assertEquals("", shareEffect.url)
+        }
+    }
+
+    @Test
+    fun onEvent_ShareManga_whenMangaIsNull_emitsNoEffect() = runTest {
+        every { mangaRepository.getMangaByIdFlow(mangaId) } returns flowOf(null)
+        every { chapterRepository.getChaptersByMangaId(mangaId) } returns flowOf(emptyList())
+        every { mangaRepository.isFavorite(mangaId) } returns flowOf(false)
+        every { downloadRepository.observeDownloads() } returns flowOf(emptyList())
+        coEvery { chapterRepository.getNextUnreadChapter(mangaId) } returns null
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.ShareManga)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            expectNoEvents()
+        }
     }
 
     // ---- State derived properties ----

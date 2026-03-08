@@ -100,7 +100,7 @@ class SourceMangaViewModel @Inject constructor() : ViewModel() {
                 error = null
             )
         }
-        loadManga()
+        loadManga(page = 1)
     }
 
     private fun loadNextPage() {

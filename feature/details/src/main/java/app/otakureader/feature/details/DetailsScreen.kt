@@ -35,12 +35,14 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import android.content.Intent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -48,6 +50,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.otakureader.core.ui.component.ErrorScreen
 import app.otakureader.core.ui.component.LoadingScreen
+import app.otakureader.feature.details.R
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.flow.collectLatest
 
@@ -61,6 +64,7 @@ fun DetailsScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
 
     LaunchedEffect(viewModel.effect) {
         viewModel.effect.collectLatest { effect ->
@@ -73,6 +77,18 @@ fun DetailsScreen(
                 }
                 is DetailsContract.Effect.ShowError -> {
                     snackbarHostState.showSnackbar(effect.message)
+                }
+                is DetailsContract.Effect.ShareManga -> {
+                    val shareText = if (effect.url.isNotEmpty()) {
+                        "${effect.title}\n${effect.url}"
+                    } else {
+                        effect.title
+                    }
+                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, shareText)
+                    }
+                    context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_manga)))
                 }
                 else -> { /* Handle other effects */ }
             }
@@ -92,7 +108,7 @@ fun DetailsScreen(
                     IconButton(onClick = { viewModel.onEvent(DetailsContract.Event.Refresh) }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                     }
-                    IconButton(onClick = { /* TODO: Share */ }) {
+                    IconButton(onClick = { viewModel.onEvent(DetailsContract.Event.ShareManga) }) {
                         Icon(Icons.Default.Share, contentDescription = "Share")
                     }
                 }

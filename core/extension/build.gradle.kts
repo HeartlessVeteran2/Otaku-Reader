@@ -18,6 +18,8 @@ dependencies {
     implementation(project(":core:tachiyomi-compat"))
     implementation(libs.androidx.core.ktx)
 
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.datastore.preferences)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.okhttp.core)
 }

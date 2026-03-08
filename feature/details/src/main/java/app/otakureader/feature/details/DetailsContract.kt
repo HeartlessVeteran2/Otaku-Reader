@@ -94,6 +94,7 @@ object DetailsContract {
         data class DownloadChapter(val chapterId: Long) : Event
         data class DeleteChapterDownload(val chapterId: Long) : Event
         data class MarkPreviousAsRead(val chapterId: Long) : Event
+        data object ShareManga : Event
     }
 
     /**
