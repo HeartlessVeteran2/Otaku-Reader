@@ -5,11 +5,16 @@ import androidx.lifecycle.viewModelScope
 import app.otakureader.core.common.mvi.UiEffect
 import app.otakureader.core.common.mvi.UiEvent
 import app.otakureader.core.common.mvi.UiState
+import app.otakureader.domain.usecase.source.GetPopularMangaUseCase
+import app.otakureader.domain.usecase.source.GetSourcesUseCase
+import app.otakureader.domain.usecase.source.SearchMangaUseCase
 import app.otakureader.sourceapi.SourceManga
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -24,13 +29,18 @@ data class SourceMangaState(
     val manga: List<SourceManga> = emptyList(),
     val error: String? = null,
     val hasNextPage: Boolean = false,
-    val currentPage: Int = 1
+    val currentPage: Int = 1,
+    val searchQuery: String = "",
+    val isSearchMode: Boolean = false
 ) : UiState
 
 sealed interface SourceMangaEvent : UiEvent {
     data object Refresh : SourceMangaEvent
     data class OnMangaClick(val manga: SourceManga) : SourceMangaEvent
     data object LoadNextPage : SourceMangaEvent
+    data class OnSearchQueryChange(val query: String) : SourceMangaEvent
+    data object Search : SourceMangaEvent
+    data object ToggleSearchMode : SourceMangaEvent
 }
 
 sealed interface SourceMangaEffect : UiEffect {
@@ -39,7 +49,11 @@ sealed interface SourceMangaEffect : UiEffect {
 }
 
 @HiltViewModel
-class SourceMangaViewModel @Inject constructor() : ViewModel() {
+class SourceMangaViewModel @Inject constructor(
+    private val getPopularMangaUseCase: GetPopularMangaUseCase,
+    private val searchMangaUseCase: SearchMangaUseCase,
+    private val getSourcesUseCase: GetSourcesUseCase
+) : ViewModel() {
 
     private val _state = MutableStateFlow(SourceMangaState())
     val state = _state.stateIn(
@@ -51,17 +65,19 @@ class SourceMangaViewModel @Inject constructor() : ViewModel() {
     private val _effect = Channel<SourceMangaEffect>()
     val effect = _effect.receiveAsFlow()
 
+    private var loadMangaJob: Job? = null
+
     fun setSourceId(sourceId: String) {
         if (_state.value.sourceId != sourceId) {
             _state.update {
                 it.copy(
                     sourceId = sourceId,
-                    sourceName = sourceId, // Could be fetched from repository
                     manga = emptyList(),
                     currentPage = 1,
                     hasNextPage = false
                 )
             }
+            fetchSourceName(sourceId)
             loadManga()
         }
     }
@@ -71,22 +87,76 @@ class SourceMangaViewModel @Inject constructor() : ViewModel() {
             is SourceMangaEvent.Refresh -> refreshManga()
             is SourceMangaEvent.OnMangaClick -> navigateToDetail(event.manga)
             is SourceMangaEvent.LoadNextPage -> loadNextPage()
+            is SourceMangaEvent.OnSearchQueryChange -> {
+                _state.update { it.copy(searchQuery = event.query) }
+            }
+            is SourceMangaEvent.Search -> {
+                _state.update {
+                    it.copy(
+                        currentPage = 1,
+                        manga = emptyList(),
+                        hasNextPage = false
+                    )
+                }
+                loadManga()
+            }
+            is SourceMangaEvent.ToggleSearchMode -> {
+                _state.update {
+                    val newMode = !it.isSearchMode
+                    it.copy(
+                        isSearchMode = newMode,
+                        searchQuery = if (!newMode) "" else it.searchQuery,
+                        manga = emptyList(),
+                        currentPage = 1,
+                        hasNextPage = false
+                    )
+                }
+                loadManga()
+            }
         }
     }
 
-    private fun loadManga() {
-        _state.update { it.copy(isLoading = true, error = null) }
+    private fun fetchSourceName(sourceId: String) {
         viewModelScope.launch {
-            // TODO: Load manga from source repository
-            // For now, simulate loading
-            kotlinx.coroutines.delay(1000)
-            _state.update {
-                it.copy(
-                    isLoading = false,
-                    // Sample data for testing
-                    manga = emptyList(),
-                    hasNextPage = false
-                )
+            val sources = getSourcesUseCase().first { it.isNotEmpty() }
+            val source = sources.find { it.id == sourceId }
+            _state.update { it.copy(sourceName = source?.name ?: sourceId) }
+        }
+    }
+
+    private fun loadManga(page: Int = _state.value.currentPage) {
+        val currentState = _state.value
+        val sourceId = currentState.sourceId
+
+        loadMangaJob?.cancel()
+        _state.update { it.copy(isLoading = page == 1, isLoadingMore = page > 1, error = null) }
+
+        loadMangaJob = viewModelScope.launch {
+            val result = if (currentState.isSearchMode && currentState.searchQuery.isNotBlank()) {
+                searchMangaUseCase(sourceId, currentState.searchQuery, page)
+            } else {
+                getPopularMangaUseCase(sourceId, page)
+            }
+
+            result.onSuccess { mangaPage ->
+                _state.update { state ->
+                    state.copy(
+                        isLoading = false,
+                        isLoadingMore = false,
+                        manga = if (page == 1) mangaPage.mangas else state.manga + mangaPage.mangas,
+                        hasNextPage = mangaPage.hasNextPage,
+                        currentPage = page,
+                        error = null
+                    )
+                }
+            }.onFailure { error ->
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        isLoadingMore = false,
+                        error = error.message ?: "Failed to load manga"
+                    )
+                }
             }
         }
     }
@@ -104,14 +174,10 @@ class SourceMangaViewModel @Inject constructor() : ViewModel() {
     }
 
     private fun loadNextPage() {
-        if (_state.value.isLoadingMore || !_state.value.hasNextPage) return
+        val currentState = _state.value
+        if (currentState.isLoading || currentState.isLoadingMore || !currentState.hasNextPage) return
 
-        _state.update { it.copy(isLoadingMore = true) }
-        viewModelScope.launch {
-            // TODO: Load next page from source
-            kotlinx.coroutines.delay(500)
-            _state.update { it.copy(isLoadingMore = false) }
-        }
+        loadManga(page = currentState.currentPage + 1)
     }
 
     private fun navigateToDetail(manga: SourceManga) {
