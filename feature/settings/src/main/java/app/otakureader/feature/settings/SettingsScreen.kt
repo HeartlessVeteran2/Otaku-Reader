@@ -107,15 +107,15 @@ fun SettingsScreen(
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
         ) {
-            AppearanceSection(state = state, viewModel = viewModel)
+            AppearanceSection(state = state, onEvent = viewModel::onEvent)
             HorizontalDivider()
-            LibrarySection(state = state, viewModel = viewModel)
+            LibrarySection(state = state, onEvent = viewModel::onEvent)
             HorizontalDivider()
-            ReaderSection(state = state, viewModel = viewModel)
+            ReaderSection(state = state, onEvent = viewModel::onEvent)
             HorizontalDivider()
-            NotificationsSection(state = state, viewModel = viewModel)
+            NotificationsSection(state = state, onEvent = viewModel::onEvent)
             HorizontalDivider()
-            BackupRestoreSection(state = state, viewModel = viewModel)
+            BackupRestoreSection(state = state, onEvent = viewModel::onEvent)
         }
     }
 }
@@ -132,276 +132,270 @@ private fun SectionHeader(title: String, modifier: Modifier = Modifier) {
 
 @Composable
 private fun AppearanceSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
-    // ── Appearance ────────────────────────────────────────────────────
-            SectionHeader(title = "Appearance")
+    SectionHeader(title = "Appearance")
 
-            // Theme mode
-            ListItem(
-                headlineContent = { Text("Theme") },
-                supportingContent = {
-                    Row(modifier = Modifier.selectableGroup()) {
-                        val options = listOf("System" to 0, "Light" to 1, "Dark" to 2)
-                        options.forEach { (label, value) ->
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .selectable(
-                                        selected = state.themeMode == value,
-                                        onClick = {
-                                            onEvent(SettingsEvent.SetThemeMode(value))
-                                        },
-                                        role = Role.RadioButton
-                                    )
-                                    .padding(end = 8.dp)
-                            ) {
-                                RadioButton(
-                                    selected = state.themeMode == value,
-                                    onClick = null
-                                )
-                                Text(
-                                    text = label,
-                                    modifier = Modifier.padding(start = 4.dp, end = 8.dp)
-                                )
-                            }
-                        }
+    // Theme mode
+    ListItem(
+        headlineContent = { Text("Theme") },
+        supportingContent = {
+            Row(modifier = Modifier.selectableGroup()) {
+                val options = listOf("System" to 0, "Light" to 1, "Dark" to 2)
+                options.forEach { (label, value) ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .selectable(
+                                selected = state.themeMode == value,
+                                onClick = {
+                                    onEvent(SettingsEvent.SetThemeMode(value))
+                                },
+                                role = Role.RadioButton
+                            )
+                            .padding(end = 8.dp)
+                    ) {
+                        RadioButton(
+                            selected = state.themeMode == value,
+                            onClick = null
+                        )
+                        Text(
+                            text = label,
+                            modifier = Modifier.padding(start = 4.dp, end = 8.dp)
+                        )
                     }
                 }
-            )
+            }
+        }
+    )
 
-            // Dynamic color
-            ListItem(
-                headlineContent = { Text("Dynamic Color (Material You)") },
-                supportingContent = { Text("Use wallpaper-based colors on Android 12+") },
-                trailingContent = {
-                    Switch(
-                        checked = state.useDynamicColor,
-                        onCheckedChange = {
-                            onEvent(SettingsEvent.SetDynamicColor(it))
-                        }
-                    )
+    // Dynamic color
+    ListItem(
+        headlineContent = { Text("Dynamic Color (Material You)") },
+        supportingContent = { Text("Use wallpaper-based colors on Android 12+") },
+        trailingContent = {
+            Switch(
+                checked = state.useDynamicColor,
+                onCheckedChange = {
+                    onEvent(SettingsEvent.SetDynamicColor(it))
                 }
             )
+        }
+    )
 
-            // Locale
-            ListItem(
-                headlineContent = { Text("Language") },
-                supportingContent = {
-                    Column(modifier = Modifier.selectableGroup()) {
-                        val locales = listOf("System default" to "", "English" to "en", "Japanese" to "ja")
-                        locales.forEach { (label, tag) ->
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .selectable(
-                                        selected = state.locale == tag,
-                                        onClick = { onEvent(SettingsEvent.SetLocale(tag)) },
-                                        role = Role.RadioButton
-                                    )
-                                    .padding(vertical = 4.dp)
-                            ) {
-                                RadioButton(
-                                    selected = state.locale == tag,
-                                    onClick = null
-                                )
-                                Text(
-                                    text = label,
-                                    modifier = Modifier.padding(start = 8.dp)
-                                )
-                            }
-                        }
+    // Locale
+    ListItem(
+        headlineContent = { Text("Language") },
+        supportingContent = {
+            Column(modifier = Modifier.selectableGroup()) {
+                val locales = listOf("System default" to "", "English" to "en", "Japanese" to "ja")
+                locales.forEach { (label, tag) ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .selectable(
+                                selected = state.locale == tag,
+                                onClick = { onEvent(SettingsEvent.SetLocale(tag)) },
+                                role = Role.RadioButton
+                            )
+                            .padding(vertical = 4.dp)
+                    ) {
+                        RadioButton(
+                            selected = state.locale == tag,
+                            onClick = null
+                        )
+                        Text(
+                            text = label,
+                            modifier = Modifier.padding(start = 8.dp)
+                        )
                     }
                 }
-            )
-
+            }
+        }
+    )
 }
 
 @Composable
 private fun LibrarySection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
-    // ── Library ───────────────────────────────────────────────────────
-            SectionHeader(title = "Library")
+    SectionHeader(title = "Library")
 
-            // Grid size – use a local slider state so DataStore is written only when
-            // the user finishes dragging, not on every intermediate position.
-            var sliderPosition by remember(state.libraryGridSize) {
-                mutableFloatStateOf(state.libraryGridSize.toFloat())
-            }
-            ListItem(
-                headlineContent = { Text("Grid Columns: ${sliderPosition.roundToInt()}") },
-                supportingContent = {
-                    Slider(
-                        value = sliderPosition,
-                        onValueChange = { sliderPosition = it },
-                        onValueChangeFinished = {
-                            onEvent(
-                                SettingsEvent.SetLibraryGridSize(sliderPosition.roundToInt())
-                            )
-                        },
-                        valueRange = 2f..5f,
-                        steps = 2,
-                        modifier = Modifier.fillMaxWidth()
+    // Grid size – use a local slider state so DataStore is written only when
+    // the user finishes dragging, not on every intermediate position.
+    var sliderPosition by remember(state.libraryGridSize) {
+        mutableFloatStateOf(state.libraryGridSize.toFloat())
+    }
+    ListItem(
+        headlineContent = { Text("Grid Columns: ${sliderPosition.roundToInt()}") },
+        supportingContent = {
+            Slider(
+                value = sliderPosition,
+                onValueChange = { sliderPosition = it },
+                onValueChangeFinished = {
+                    onEvent(
+                        SettingsEvent.SetLibraryGridSize(sliderPosition.roundToInt())
                     )
+                },
+                valueRange = 2f..5f,
+                steps = 2,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    )
+
+    // Badges
+    ListItem(
+        headlineContent = { Text("Show Unread Badges") },
+        supportingContent = { Text("Display unread chapter count on covers") },
+        trailingContent = {
+            Switch(
+                checked = state.showBadges,
+                onCheckedChange = {
+                    onEvent(SettingsEvent.SetShowBadges(it))
                 }
             )
-
-            // Badges
-            ListItem(
-                headlineContent = { Text("Show Unread Badges") },
-                supportingContent = { Text("Display unread chapter count on covers") },
-                trailingContent = {
-                    Switch(
-                        checked = state.showBadges,
-                        onCheckedChange = {
-                            onEvent(SettingsEvent.SetShowBadges(it))
-                        }
-                    )
-                }
-            )
+        }
+    )
 }
 
 @Composable
 private fun ReaderSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
-    // ── Reader ────────────────────────────────────────────────────────
-            SectionHeader(title = "Reader")
+    SectionHeader(title = "Reader")
 
-            // Reader mode – ordinal order matches ReaderMode enum:
-            // SINGLE_PAGE=0, DUAL_PAGE=1, WEBTOON=2, SMART_PANELS=3
-            ListItem(
-                headlineContent = { Text("Reading Mode") },
-                supportingContent = {
-                    Column(modifier = Modifier.selectableGroup()) {
-                        val modes = listOf(
-                            "Single Page" to 0,
-                            "Dual Page" to 1,
-                            "Webtoon" to 2,
-                            "Smart Panels" to 3
+    // Reader mode – ordinal order matches ReaderMode enum:
+    // SINGLE_PAGE=0, DUAL_PAGE=1, WEBTOON=2, SMART_PANELS=3
+    ListItem(
+        headlineContent = { Text("Reading Mode") },
+        supportingContent = {
+            Column(modifier = Modifier.selectableGroup()) {
+                val modes = listOf(
+                    "Single Page" to 0,
+                    "Dual Page" to 1,
+                    "Webtoon" to 2,
+                    "Smart Panels" to 3
+                )
+                modes.forEach { (label, value) ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .selectable(
+                                selected = state.readerMode == value,
+                                onClick = {
+                                    onEvent(SettingsEvent.SetReaderMode(value))
+                                },
+                                role = Role.RadioButton
+                            )
+                            .padding(vertical = 4.dp)
+                    ) {
+                        RadioButton(
+                            selected = state.readerMode == value,
+                            onClick = null
                         )
-                        modes.forEach { (label, value) ->
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .selectable(
-                                        selected = state.readerMode == value,
-                                        onClick = {
-                                            onEvent(SettingsEvent.SetReaderMode(value))
-                                        },
-                                        role = Role.RadioButton
-                                    )
-                                    .padding(vertical = 4.dp)
-                            ) {
-                                RadioButton(
-                                    selected = state.readerMode == value,
-                                    onClick = null
-                                )
-                                Text(
-                                    text = label,
-                                    modifier = Modifier.padding(start = 8.dp)
-                                )
-                            }
-                        }
+                        Text(
+                            text = label,
+                            modifier = Modifier.padding(start = 8.dp)
+                        )
                     }
                 }
-            )
+            }
+        }
+    )
 
-            // Keep screen on
-            ListItem(
-                headlineContent = { Text("Keep Screen On") },
-                supportingContent = { Text("Prevent the screen from sleeping while reading") },
-                trailingContent = {
-                    Switch(
-                        checked = state.keepScreenOn,
-                        onCheckedChange = {
-                            onEvent(SettingsEvent.SetKeepScreenOn(it))
-                        }
-                    )
+    // Keep screen on
+    ListItem(
+        headlineContent = { Text("Keep Screen On") },
+        supportingContent = { Text("Prevent the screen from sleeping while reading") },
+        trailingContent = {
+            Switch(
+                checked = state.keepScreenOn,
+                onCheckedChange = {
+                    onEvent(SettingsEvent.SetKeepScreenOn(it))
                 }
             )
+        }
+    )
 }
 
 @Composable
 private fun NotificationsSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
-    // ── Notifications ─────────────────────────────────────────────────
-            SectionHeader(title = "Notifications")
+    SectionHeader(title = "Notifications")
 
-            ListItem(
-                headlineContent = { Text("Enable Notifications") },
-                supportingContent = { Text("Get notified when new chapters are available") },
-                trailingContent = {
-                    Switch(
-                        checked = state.notificationsEnabled,
-                        onCheckedChange = {
-                            onEvent(SettingsEvent.SetNotificationsEnabled(it))
-                        }
-                    )
+    ListItem(
+        headlineContent = { Text("Enable Notifications") },
+        supportingContent = { Text("Get notified when new chapters are available") },
+        trailingContent = {
+            Switch(
+                checked = state.notificationsEnabled,
+                onCheckedChange = {
+                    onEvent(SettingsEvent.SetNotificationsEnabled(it))
                 }
             )
+        }
+    )
 
-            // Update check interval
-            ListItem(
-                headlineContent = { Text("Update Check Interval") },
-                supportingContent = {
-                    Column(modifier = Modifier.selectableGroup()) {
-                        val intervals = listOf("6 hours" to 6, "12 hours" to 12, "24 hours" to 24)
-                        intervals.forEach { (label, hours) ->
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .selectable(
-                                        selected = state.updateCheckInterval == hours,
-                                        onClick = {
-                                            onEvent(SettingsEvent.SetUpdateInterval(hours))
-                                        },
-                                        role = Role.RadioButton
-                                    )
-                                    .padding(vertical = 4.dp)
-                            ) {
-                                RadioButton(
-                                    selected = state.updateCheckInterval == hours,
-                                    onClick = null
-                                )
-                                Text(
-                                    text = label,
-                                    modifier = Modifier.padding(start = 8.dp)
-                                )
-                            }
-                        }
+    // Update check interval
+    ListItem(
+        headlineContent = { Text("Update Check Interval") },
+        supportingContent = {
+            Column(modifier = Modifier.selectableGroup()) {
+                val intervals = listOf("6 hours" to 6, "12 hours" to 12, "24 hours" to 24)
+                intervals.forEach { (label, hours) ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .selectable(
+                                selected = state.updateCheckInterval == hours,
+                                onClick = {
+                                    onEvent(SettingsEvent.SetUpdateInterval(hours))
+                                },
+                                role = Role.RadioButton
+                            )
+                            .padding(vertical = 4.dp)
+                    ) {
+                        RadioButton(
+                            selected = state.updateCheckInterval == hours,
+                            onClick = null
+                        )
+                        Text(
+                            text = label,
+                            modifier = Modifier.padding(start = 8.dp)
+                        )
                     }
                 }
-            )
+            }
+        }
+    )
 }
 
 @Composable
 private fun BackupRestoreSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
-    // ── Backup & Restore ──────────────────────────────────────────────
-            SectionHeader(title = "Backup & Restore")
+    SectionHeader(title = "Backup & Restore")
 
-            ListItem(
-                headlineContent = { Text("Create Backup") },
-                supportingContent = { Text("Export your library and settings") },
-                trailingContent = {
-                    if (state.isBackupInProgress) {
-                        CircularProgressIndicator()
-                    } else {
-                        Button(onClick = { onEvent(SettingsEvent.OnCreateBackup) }) {
-                            Text("Backup")
-                        }
-                    }
+    ListItem(
+        headlineContent = { Text("Create Backup") },
+        supportingContent = { Text("Export your library and settings") },
+        trailingContent = {
+            if (state.isBackupInProgress) {
+                CircularProgressIndicator()
+            } else {
+                Button(onClick = { onEvent(SettingsEvent.OnCreateBackup) }) {
+                    Text("Backup")
                 }
-            )
+            }
+        }
+    )
 
-            ListItem(
-                headlineContent = { Text("Restore Backup") },
-                supportingContent = { Text("Import library and settings from a backup file") },
-                trailingContent = {
-                    if (state.isRestoreInProgress) {
-                        CircularProgressIndicator()
-                    } else {
-                        Button(onClick = { onEvent(SettingsEvent.OnRestoreBackup) }) {
-                            Text("Restore")
-                        }
-                    }
+    ListItem(
+        headlineContent = { Text("Restore Backup") },
+        supportingContent = { Text("Import library and settings from a backup file") },
+        trailingContent = {
+            if (state.isRestoreInProgress) {
+                CircularProgressIndicator()
+            } else {
+                Button(onClick = { onEvent(SettingsEvent.OnRestoreBackup) }) {
+                    Text("Restore")
                 }
-            )
+            }
+        }
+    )
 }
