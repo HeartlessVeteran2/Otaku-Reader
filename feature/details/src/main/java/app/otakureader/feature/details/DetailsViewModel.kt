@@ -134,8 +134,14 @@ class DetailsViewModel @Inject constructor(
     }
 
     private fun observeDeleteAfterReadSetting() {
-        // Delete-after-reading feature has been removed
-        // This method is kept as a placeholder but does nothing
+        // Observe delete-after-read preference and keep state in sync
+        downloadPreferences.deleteAfterReadMode
+            .onEach { mode: DeleteAfterReadMode ->
+                _state.update { state ->
+                    state.copy(deleteAfterReadMode = mode)
+                }
+            }
+            .launchIn(viewModelScope)
     }
 
     private fun refreshData() {
