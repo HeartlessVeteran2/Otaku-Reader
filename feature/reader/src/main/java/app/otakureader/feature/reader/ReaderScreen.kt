@@ -2,7 +2,9 @@ package app.otakureader.feature.reader
 
 import android.app.Activity
 import android.view.WindowManager
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -18,16 +20,15 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.foundation.focusable
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.otakureader.core.ui.component.EmptyScreen
@@ -124,6 +125,20 @@ fun ReaderScreen(
 
     LaunchedEffect(state.isMenuVisible, state.isGalleryOpen) {
         focusRequester.requestFocus()
+    }
+
+    // Handle back gestures: close gallery or menu before navigating away.
+    // A single BackHandler with explicit priority ordering is used so that the
+    // gallery takes precedence over the menu (both could theoretically be open).
+    // This integrates with the predictive back API (enabled via
+    // android:enableOnBackInvokedCallback="true" in AndroidManifest.xml) so
+    // that when an overlay is open the back gesture dismisses it rather than
+    // triggering a full screen transition.
+    BackHandler(enabled = state.isGalleryOpen || state.isMenuVisible) {
+        when {
+            state.isGalleryOpen -> viewModel.onEvent(ReaderEvent.ToggleGallery)
+            state.isMenuVisible -> viewModel.onEvent(ReaderEvent.ToggleMenu)
+        }
     }
     
     Box(
