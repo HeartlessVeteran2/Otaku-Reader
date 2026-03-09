@@ -10,6 +10,7 @@ import app.otakureader.core.navigation.GlobalSearchRoute
 import app.otakureader.core.navigation.HistoryRoute
 import app.otakureader.core.navigation.LibraryRoute
 import app.otakureader.core.navigation.MangaDetailRoute
+import app.otakureader.core.navigation.MigrationRoute
 import app.otakureader.core.navigation.ReaderRoute
 import app.otakureader.core.navigation.SettingsRoute
 import app.otakureader.core.navigation.SourceDetailRoute
@@ -22,6 +23,7 @@ import app.otakureader.feature.browse.navigation.sourceDetailScreen
 import app.otakureader.feature.details.navigation.detailsScreen
 import app.otakureader.feature.history.navigation.historyScreen
 import app.otakureader.feature.library.navigation.libraryScreen
+import app.otakureader.feature.migration.navigation.migrationScreen
 import app.otakureader.feature.reader.navigation.readerScreen
 import app.otakureader.feature.settings.navigation.settingsScreen
 import app.otakureader.feature.statistics.navigation.statisticsScreen
@@ -62,6 +64,9 @@ fun OtakuReaderNavHost(
             },
             onNavigateToDownloads = {
                 navController.navigate(DownloadsRoute)
+            },
+            onNavigateToMigration = { selectedMangaIds ->
+                navController.navigate(MigrationRoute(selectedMangaIds))
             }
         )
 
@@ -167,6 +172,13 @@ fun OtakuReaderNavHost(
 
         // Statistics screen
         statisticsScreen(
+            onNavigateBack = {
+                navController.popBackStack()
+            }
+        )
+
+        // Migration screen
+        migrationScreen(
             onNavigateBack = {
                 navController.popBackStack()
             }

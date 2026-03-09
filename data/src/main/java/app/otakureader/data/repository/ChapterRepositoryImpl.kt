@@ -15,6 +15,7 @@ import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.model.MangaUpdate
 import app.otakureader.domain.repository.ChapterRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -100,6 +101,20 @@ class ChapterRepositoryImpl @Inject constructor(
 
     override suspend fun clearAllHistory() {
         readingHistoryDao.deleteAll()
+    }
+
+    override suspend fun getChaptersByMangaIdSync(mangaId: Long): List<Chapter> {
+        return chapterDao.getChaptersByMangaId(mangaId).map { entities ->
+            entities.map { it.toDomain() }
+        }.first()
+    }
+
+    override suspend fun updateChapterMangaId(oldMangaId: Long, newMangaId: Long) {
+        chapterDao.updateChapterMangaId(oldMangaId, newMangaId)
+    }
+
+    override suspend fun deleteChaptersByMangaId(mangaId: Long) {
+        chapterDao.deleteByMangaId(mangaId)
     }
 
     private fun ChapterEntity.toDomain() = Chapter(

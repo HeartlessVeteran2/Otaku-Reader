@@ -20,4 +20,7 @@ interface ChapterRepository {
     suspend fun recordHistory(chapterId: Long, readAt: Long, readDurationMs: Long)
     suspend fun removeFromHistory(chapterId: Long)
     suspend fun clearAllHistory()
+
+    /** Migration-specific methods */
+    suspend fun getChaptersByMangaIdSync(mangaId: Long): List<Chapter>
 }
