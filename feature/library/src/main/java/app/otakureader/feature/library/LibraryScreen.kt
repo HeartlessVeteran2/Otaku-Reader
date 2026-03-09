@@ -122,12 +122,14 @@ fun LibraryScreen(
                         DropdownMenuItem(
                             text = { Text("Has notes") },
                             onClick = {
+                                showMenu = false
                                 viewModel.onEvent(LibraryEvent.FilterHasNotes(!state.filterHasNotes))
                             },
                             trailingIcon = {
                                 Checkbox(
                                     checked = state.filterHasNotes,
                                     onCheckedChange = { checked ->
+                                        showMenu = false
                                         viewModel.onEvent(LibraryEvent.FilterHasNotes(checked))
                                     }
                                 )
