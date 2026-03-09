@@ -203,7 +203,7 @@ fun ChapterListItem(
     onDownload: () -> Unit = {},
     onDeleteDownload: () -> Unit = {},
     onMarkPreviousRead: () -> Unit = {},
-    onExportAsCbz: () -> Unit,
+    onExportAsCbz: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val alpha by animateFloatAsState(
