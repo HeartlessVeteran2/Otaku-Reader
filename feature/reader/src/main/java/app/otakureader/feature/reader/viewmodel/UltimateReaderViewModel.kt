@@ -500,7 +500,6 @@ class UltimateReaderViewModel @Inject constructor(
 
     private fun navigateNextChapter() {
         viewModelScope.launch {
-            maybeDeleteAfterReading()
             _effect.send(ReaderEffect.ShowSnackbar("End of available chapters"))
         }
     }
