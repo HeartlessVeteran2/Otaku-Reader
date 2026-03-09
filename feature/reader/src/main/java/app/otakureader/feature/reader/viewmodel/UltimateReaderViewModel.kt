@@ -4,7 +4,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.otakureader.data.loader.PageLoader
-import app.otakureader.core.preferences.DeleteAfterReadMode
 import app.otakureader.core.preferences.DownloadPreferences
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
