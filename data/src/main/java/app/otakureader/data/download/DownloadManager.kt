@@ -121,6 +121,26 @@ class DownloadManager @Inject constructor(
     }
 
     /**
+     * Cancels the active download for [chapterId] and suspends until the download coroutine
+     * has fully stopped. Use this before performing filesystem operations on the chapter
+     * directory to eliminate races between job cancellation and file deletion.
+     *
+     * The mutex is released before [kotlinx.coroutines.Job.join] is called to avoid
+     * deadlocking with the job's own finally block, which also acquires the mutex.
+     */
+    suspend fun cancelAndJoin(chapterId: Long) {
+        val job = mutex.withLock {
+            val j = jobs.remove(chapterId)?.also { it.cancel() }
+            requests.remove(chapterId)
+            _downloads.update { list -> list.filterNot { it.chapterId == chapterId } }
+            j
+        }
+        // Join outside the lock: the job's finally block acquires the mutex to remove
+        // itself from `jobs` (now a no-op) but still needs the lock.
+        job?.join()
+    }
+
+    /**
      * Removes in-memory state for a chapter that has been deleted from disk.
      * Cancels any active download job and removes the item from the download queue.
      */

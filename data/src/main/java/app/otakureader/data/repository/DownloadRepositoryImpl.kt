@@ -74,13 +74,15 @@ class DownloadRepositoryImpl @Inject constructor(
         mangaTitle: String,
         chapterTitle: String
     ) {
-        // Cancel any active job for this chapter before touching the filesystem.
-        downloadManager.cancel(chapterId)
+        // Wait for any active download coroutine to fully stop before touching the
+        // filesystem, eliminating the race between job cancellation and file deletion.
+        // In-memory state is cleaned up as part of cancelAndJoin.
+        downloadManager.cancelAndJoin(chapterId)
 
         withContext(Dispatchers.IO) {
+            // deleteChapter throws IOException if the directory exists but cannot be removed;
+            // returns false (silently) if there was nothing to delete.
             DownloadProvider.deleteChapter(context, sourceName, mangaTitle, chapterTitle)
-            // Always remove in-memory state regardless of whether physical files existed.
-            downloadManager.remove(chapterId)
         }
     }
 

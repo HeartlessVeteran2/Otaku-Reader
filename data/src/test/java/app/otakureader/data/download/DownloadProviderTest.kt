@@ -186,4 +186,72 @@ class DownloadProviderTest {
             root.deleteRecursively()
         }
     }
+
+    // -------------------------------------------------------------------------
+    // deleteChapter()
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun deleteChapter_nonExistentDir_returnsFalse() {
+        val root = tempDir()
+        try {
+            assertFalse(DownloadProvider.deleteChapter(root, "source", "manga", "ch1"))
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun deleteChapter_existingDirWithFiles_returnsTrueAndRemovesDir() {
+        val root = tempDir()
+        try {
+            val pageFile = DownloadProvider.getPageFile(root, "source", "manga", "ch1", 0)
+            pageFile.parentFile?.mkdirs()
+            pageFile.writeText("fake image data")
+            assertTrue(pageFile.exists())
+
+            assertTrue(DownloadProvider.deleteChapter(root, "source", "manga", "ch1"))
+
+            assertFalse(pageFile.exists())
+            assertFalse(DownloadProvider.getChapterDir(root, "source", "manga", "ch1").exists())
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun deleteChapter_emptyDir_returnsTrueAndRemovesDir() {
+        val root = tempDir()
+        try {
+            val chapterDir = DownloadProvider.getChapterDir(root, "source", "manga", "ch1")
+            chapterDir.mkdirs()
+            assertTrue(chapterDir.exists())
+
+            assertTrue(DownloadProvider.deleteChapter(root, "source", "manga", "ch1"))
+
+            assertFalse(chapterDir.exists())
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun deleteChapter_doesNotAffectSiblingChapters() {
+        val root = tempDir()
+        try {
+            val page1 = DownloadProvider.getPageFile(root, "source", "manga", "ch1", 0)
+            val page2 = DownloadProvider.getPageFile(root, "source", "manga", "ch2", 0)
+            page1.parentFile?.mkdirs()
+            page2.parentFile?.mkdirs()
+            page1.writeText("data")
+            page2.writeText("data")
+
+            assertTrue(DownloadProvider.deleteChapter(root, "source", "manga", "ch1"))
+
+            assertFalse(page1.exists())
+            assertTrue(page2.exists())
+        } finally {
+            root.deleteRecursively()
+        }
+    }
 }
