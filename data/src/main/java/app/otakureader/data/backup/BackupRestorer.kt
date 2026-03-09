@@ -125,13 +125,14 @@ class BackupRestorer @Inject constructor(
         mangaCategoryDao.deleteAllForManga(mangaId)
 
         // Insert new associations
-        categoryIds.forEach { categoryId ->
-            mangaCategoryDao.upsert(
+        if (categoryIds.isNotEmpty()) {
+            val entities = categoryIds.map { categoryId ->
                 MangaCategoryEntity(
                     mangaId = mangaId,
                     categoryId = categoryId
                 )
-            )
+            }
+            mangaCategoryDao.upsertAll(entities)
         }
     }
 

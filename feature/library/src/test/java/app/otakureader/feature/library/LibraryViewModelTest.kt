@@ -29,6 +29,8 @@ class LibraryViewModelTest {
 
     private lateinit var getLibraryManga: GetLibraryMangaUseCase
     private lateinit var toggleFavoriteManga: ToggleFavoriteMangaUseCase
+    private lateinit var context: android.content.Context
+    private lateinit var libraryPreferences: app.otakureader.core.preferences.LibraryPreferences
 
     private val sampleMangas = listOf(
         Manga(id = 1L, sourceId = 1L, url = "/m/1", title = "Naruto", favorite = true, unreadCount = 3),
@@ -41,6 +43,11 @@ class LibraryViewModelTest {
         Dispatchers.setMain(testDispatcher)
         getLibraryManga = mockk()
         toggleFavoriteManga = mockk()
+        context = mockk()
+        libraryPreferences = mockk()
+
+        every { libraryPreferences.gridSize } returns kotlinx.coroutines.flow.flowOf(2)
+        every { libraryPreferences.showBadges } returns kotlinx.coroutines.flow.flowOf(true)
     }
 
     @After
@@ -49,7 +56,7 @@ class LibraryViewModelTest {
     }
 
     private fun createViewModel(): LibraryViewModel {
-        return LibraryViewModel(getLibraryManga, toggleFavoriteManga)
+        return LibraryViewModel(context, getLibraryManga, toggleFavoriteManga, libraryPreferences)
     }
 
     @Test
