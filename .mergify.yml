@@ -10,7 +10,7 @@ pull_request_rules:
       except for hotfix
     conditions:
       - or:
-          - schedule = Mon-Fri 09:00-17:00[America/Los_Angeles]
+          - schedule = Mon-Fri 09:00-17:00[America/Chicago]
           - label = hotfix
     actions:
       merge: {}
@@ -27,4 +27,4 @@ merge_protections:
     if:
       - base = main
     success_conditions:
-      - schedule = Mon-Fri 09:00-17:00[America/Los_Angeles]
+      - schedule = Mon-Fri 09:00-17:00[America/Chicago]
