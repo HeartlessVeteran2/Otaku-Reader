@@ -276,11 +276,19 @@ private fun ReaderContent(
 ) {
     // CompositingStrategy.Offscreen ensures blend modes in the Canvas overlay work correctly
     // against the already-rendered page content below them.
+    val boxModifier = Modifier
+        .fillMaxSize()
+        .background(androidx.compose.ui.graphics.Color.Black)
+        .let { base ->
+            if (state.colorFilterMode != ColorFilterMode.NONE) {
+                base.graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+            } else {
+                base
+            }
+        }
+
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(androidx.compose.ui.graphics.Color.Black)
-            .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+        modifier = boxModifier
     ) {
         when (state.mode) {
             ReaderMode.SINGLE_PAGE -> {
