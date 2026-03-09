@@ -52,8 +52,11 @@ class MangaRepositoryImplTest {
 
     @Test
     fun getLibraryManga_returnsFavoritesMapped() = runTest {
-        val entities = listOf(makeEntity(1L, favorite = true), makeEntity(2L, favorite = true))
-        every { mangaDao.getFavoriteManga() } returns flowOf(entities)
+        val entities = listOf(
+            app.otakureader.core.database.entity.MangaWithUnreadCount(makeEntity(1L, favorite = true), 0),
+            app.otakureader.core.database.entity.MangaWithUnreadCount(makeEntity(2L, favorite = true), 0)
+        )
+        every { mangaDao.getFavoriteMangaWithUnreadCount() } returns flowOf(entities)
 
         repository.getLibraryManga().test {
             val mangas = awaitItem()
@@ -65,7 +68,7 @@ class MangaRepositoryImplTest {
 
     @Test
     fun getLibraryManga_withEmptyFavorites_emitsEmptyList() = runTest {
-        every { mangaDao.getFavoriteManga() } returns flowOf(emptyList())
+        every { mangaDao.getFavoriteMangaWithUnreadCount() } returns flowOf(emptyList())
 
         repository.getLibraryManga().test {
             assertEquals(emptyList<Manga>(), awaitItem())
@@ -126,8 +129,8 @@ class MangaRepositoryImplTest {
 
     @Test
     fun getLibraryManga_genreString_splitIntoList() = runTest {
-        val entity = makeEntity(1L, genre = "Action|||Adventure|||Fantasy")
-        every { mangaDao.getFavoriteManga() } returns flowOf(listOf(entity))
+        val entity = app.otakureader.core.database.entity.MangaWithUnreadCount(makeEntity(1L, genre = "Action|||Adventure|||Fantasy"), 0)
+        every { mangaDao.getFavoriteMangaWithUnreadCount() } returns flowOf(listOf(entity))
 
         repository.getLibraryManga().test {
             val manga = awaitItem().first()
@@ -138,8 +141,8 @@ class MangaRepositoryImplTest {
 
     @Test
     fun getLibraryManga_nullGenre_returnsEmptyList() = runTest {
-        val entity = makeEntity(1L, genre = null)
-        every { mangaDao.getFavoriteManga() } returns flowOf(listOf(entity))
+        val entity = app.otakureader.core.database.entity.MangaWithUnreadCount(makeEntity(1L, genre = null), 0)
+        every { mangaDao.getFavoriteMangaWithUnreadCount() } returns flowOf(listOf(entity))
 
         repository.getLibraryManga().test {
             val manga = awaitItem().first()
