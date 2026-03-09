@@ -230,7 +230,8 @@ class ExtensionRemoteDataSourceImpl(
             try {
                 return fetchStandardIndex(trimmedBaseUrl)
             } catch (e2: Exception) {
-                // If both fail, throw the most recent error
+                // If both fail, attach the first error for debugging
+                e2.addSuppressed(e)
                 throw e2
             }
         }
