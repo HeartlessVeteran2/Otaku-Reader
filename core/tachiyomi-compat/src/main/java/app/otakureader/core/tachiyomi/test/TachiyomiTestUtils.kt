@@ -2,7 +2,6 @@ package app.otakureader.core.tachiyomi.test
 
 import android.content.Context
 import app.otakureader.core.tachiyomi.compat.TachiyomiExtensionLoader
-import app.otakureader.core.tachiyomi.local.LocalSource
 import app.otakureader.core.tachiyomi.repository.SourceRepositoryImpl
 import kotlinx.coroutines.runBlocking
 import java.io.File
