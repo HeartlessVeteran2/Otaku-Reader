@@ -43,10 +43,13 @@ class ChapterRepositoryImplTest {
         chapterNumber = chapterNumber
     )
 
+    private lateinit var readingHistoryDao: app.otakureader.core.database.dao.ReadingHistoryDao
+
     @Before
     fun setUp() {
         chapterDao = mockk()
-        repository = ChapterRepositoryImpl(chapterDao)
+        readingHistoryDao = mockk()
+        repository = ChapterRepositoryImpl(chapterDao, readingHistoryDao)
     }
 
     // ---- getChaptersByMangaId ----
@@ -180,56 +183,6 @@ class ChapterRepositoryImplTest {
         }
     }
 
-    // ---- observeHistory ----
-
-    @Test
-    fun observeHistory_throwsNotImplementedError() {
-        try {
-            repository.observeHistory()
-            throw AssertionError("Expected NotImplementedError to be thrown")
-        } catch (e: NotImplementedError) {
-            // expected — history requires ReadingHistoryDao join query (TODO)
-        }
-    }
-
-    // ---- recordHistory ----
-
-    @Test
-    fun recordHistory_upsertsHistoryEntity() = runTest {
-        coEvery { readingHistoryDao.upsert(any()) } returns Unit
-
-        repository.recordHistory(chapterId = 5L, readAt = 2000L, readDurationMs = 30_000L)
-
-        coVerify {
-            readingHistoryDao.upsert(match { entity ->
-                entity.chapterId == 5L &&
-                    entity.readAt == 2000L &&
-                    entity.readDurationMs == 30_000L
-            })
-        }
-    }
-
-    // ---- removeFromHistory ----
-
-    @Test
-    fun removeFromHistory_callsDaoDeleteForChapter() = runTest {
-        coEvery { readingHistoryDao.deleteHistoryForChapter(any()) } returns Unit
-
-        repository.removeFromHistory(chapterId = 3L)
-
-        coVerify { readingHistoryDao.deleteHistoryForChapter(3L) }
-    }
-
-    // ---- clearAllHistory ----
-
-    @Test
-    fun clearAllHistory_callsDaoDeleteAll() = runTest {
-        coEvery { readingHistoryDao.deleteAll() } returns Unit
-
-        repository.clearAllHistory()
-
-        coVerify { readingHistoryDao.deleteAll() }
-    }
 
     // ---- recordHistory ----
 

@@ -51,6 +51,13 @@ A modern, blazing-fast manga reader built from scratch with:
 - ✅ Incognito mode (session-only, no history recorded)
 - ✅ Background library update worker (WorkManager)
 
+## 💡 Future Roadmap & Suggestions
+
+- 🔮 Kotlin Multiplatform (KMP) support for cross-platform expansion
+- 🔮 Seamless OPDS catalog integration for wider content discovery
+- 🔮 Advanced background syncing and task management with WorkManager
+- 🔮 Enhanced list performance and data loading using Paging 3
+- 🔮 Comprehensive UI and performance testing via Macrobenchmark
 ## 🚧 In Progress / TODO
 
 - ⏳ Extension APK installation UI

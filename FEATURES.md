@@ -11,7 +11,7 @@ Complete documentation of all features available in Otaku Reader.
 - [Updates](#updates)
 - [Settings](#settings)
 - [Statistics](#statistics)
-- [2026 Enhancements](#2026-enhancements)
+- [Future Suggestions & Enhancements](#future-suggestions--enhancements)
 - [Usage Instructions](#usage-instructions)
 
 ## Feature Overview
@@ -367,93 +367,52 @@ Track your reading habits with detailed statistics and insights.
   <img src="docs/screenshots/stats_history.png" width="200" alt="History">
 </p>
 
-## 2026 Enhancements
+## Future Suggestions & Enhancements
 
-### AI-Powered Recommendations
+### Kotlin Multiplatform (KMP) Expansion
 
 Otaku Reader introduces smart manga recommendations based on your reading history.
 
-#### How It Works
+#### Key Benefits
+- **Shared Business Logic**: Share domain, data, and repository layers across platforms.
+- **Unified Testing**: Write unit tests once for the core logic.
+- **Native UI**: Retain Jetpack Compose on Android while using Compose Multiplatform for iOS and Desktop, providing a seamless multiplatform experience.
 
-1. **Analyzes Reading Patterns**: Tracks genres, authors, themes you enjoy
-2. **Machine Learning**: Uses on-device ML for personalized suggestions
-3. **Source Integration**: Searches all enabled sources for matches
-4. **Continuous Learning**: Improves recommendations over time
+### Seamless OPDS Catalog Integration
 
-#### Features
-
-- **For You Tab**: Personalized recommendations in Browse
-- **Similar Manga**: Find manga similar to what you're reading
-- **Trending**: Discover what's popular in the community
-
-### Cross-Device Sync
-
-Synchronize your library across multiple devices.
+Broaden content discovery by supporting the OPDS (Open Publication Distribution System) standard.
 
 #### Features
+- **Library Integration**: Allow users to add OPDS feeds from self-hosted solutions like Komga or Kavita.
+- **Rich Browsing**: Browse catalogs with cover art, summaries, and metadata.
+- **Direct Downloads**: Support seamless downloading of archives (CBZ/CBR) directly into the reader.
 
-- **Cloud Backup**: Automatic backup to cloud storage
-- **Device Sync**: Sync reading progress across devices
-- **Conflict Resolution**: Smart handling of sync conflicts
+### Advanced Background Syncing with WorkManager
 
-#### Supported Services
+Provide reliable and efficient background operations for library updates and chapter downloads.
 
-- Google Drive
-- Dropbox
-- OneDrive
-- Custom WebDAV
+#### Enhancements
+- **Scheduled Updates**: Utilize WorkManager for robust, battery-friendly scheduled library updates.
+- **Resilient Downloads**: Ensure chapter downloads automatically resume after network interruptions or app restarts.
+- **Constraints Management**: Allow granular control over when sync occurs (e.g., Unmetered Wi-Fi only, Device Charging).
 
-### Material You Theming
+### Enhanced List Performance using Paging 3
 
-Full support for Android 12+ dynamic theming.
+Improve the user experience in Browse and Library screens with infinite scrolling and robust caching.
 
-#### Features
+#### Improvements
+- **Infinite Scrolling**: Implement Paging 3 to smoothly handle vast extension catalogs without memory overhead.
+- **Network & Database Unification**: Combine network requests and Room database caching into a single source of truth for seamless offline/online experiences.
+- **UI State Management**: Simplify error handling and loading state representation using PagingData flows.
 
-- **Dynamic Colors**: App colors adapt to wallpaper
-- **Monet Palette**: Full Material You color palette
-- **Consistent Theme**: Matches system theme
+### Comprehensive UI Testing via Macrobenchmark
 
-### Predictive Back Gesture
+Guarantee a buttery-smooth reading experience on a wide range of devices.
 
-Android 15 predictive back gesture support.
-
-#### Features
-
-- **Visual Preview**: See where back gesture will take you
-- **Smooth Animation**: Fluid back gesture animation
-- **Custom Behavior**: Customize back gesture per screen
-
-### Per-App Language
-
-Android 13+ per-app language preferences.
-
-#### Supported Languages
-
-- English
-- Japanese
-- Korean
-- Chinese (Simplified)
-- Chinese (Traditional)
-- Spanish
-- French
-- German
-- Portuguese
-- Russian
-- And more...
-
-### Performance Optimizations
-
-#### Baseline Profiles
-
-- Pre-compiled hot paths for faster startup
-- Improved runtime performance
-- Reduced jank and stuttering
-
-#### Memory Management
-
-- Optimized image caching
-- Efficient memory usage
-- Reduced memory leaks
+#### Objectives
+- **Startup Metrics**: Track and optimize Time to Initial Display (TTID) and Time to Full Display (TTFD).
+- **Jank Detection**: Ensure scroll performance in reader and library screens maintains 60/120fps.
+- **Baseline Profiles Generation**: Automate the generation and distribution of Baseline Profiles to pre-compile critical code paths upon app installation.
 
 ## Usage Instructions
 
