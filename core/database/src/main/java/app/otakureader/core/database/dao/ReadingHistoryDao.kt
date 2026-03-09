@@ -38,4 +38,3 @@ interface ReadingHistoryDao {
     @Query("DELETE FROM reading_history")
     suspend fun deleteAll()
 }
-

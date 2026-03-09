@@ -318,27 +318,16 @@ private fun ReaderSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit
                 }
             )
 
-            // Volume key navigation
+            // Incognito mode
             ListItem(
-                headlineContent = { Text("Volume Keys") },
-                supportingContent = { Text("Use volume buttons to turn pages") },
+                headlineContent = { Text("Incognito Mode") },
+                supportingContent = { Text("Reading history and progress are not saved while enabled") },
                 trailingContent = {
                     Switch(
-                        checked = state.volumeKeysEnabled,
-                        onCheckedChange = { onEvent(SettingsEvent.SetVolumeKeysEnabled(it)) }
-                    )
-                }
-            )
-
-            // Invert volume key direction
-            ListItem(
-                headlineContent = { Text("Invert Volume Keys") },
-                supportingContent = { Text("Swap volume up/down navigation direction") },
-                trailingContent = {
-                    Switch(
-                        checked = state.volumeKeysInverted,
-                        onCheckedChange = { onEvent(SettingsEvent.SetVolumeKeysInverted(it)) },
-                        enabled = state.volumeKeysEnabled
+                        checked = state.incognitoMode,
+                        onCheckedChange = {
+                            onEvent(SettingsEvent.SetIncognitoMode(it))
+                        }
                     )
                 }
             )

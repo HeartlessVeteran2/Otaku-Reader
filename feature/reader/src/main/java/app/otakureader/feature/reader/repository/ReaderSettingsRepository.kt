@@ -135,7 +135,7 @@ class ReaderSettingsRepository @Inject constructor(
     }
     
     // ==================== Tap Zone Configuration ====================
-    
+
     val tapZoneConfig: Flow<TapZoneConfig> = dataStore.data.map { prefs ->
         TapZoneConfig(
             leftZoneWidth = prefs[Keys.TAP_ZONE_LEFT] ?: 0.25f,
@@ -143,13 +143,23 @@ class ReaderSettingsRepository @Inject constructor(
             rightZoneWidth = prefs[Keys.TAP_ZONE_RIGHT] ?: 0.25f
         )
     }
-    
+
     suspend fun setTapZoneConfig(config: TapZoneConfig) {
         dataStore.edit { prefs ->
             prefs[Keys.TAP_ZONE_LEFT] = config.leftZoneWidth
             prefs[Keys.TAP_ZONE_CENTER] = config.centerZoneWidth
             prefs[Keys.TAP_ZONE_RIGHT] = config.rightZoneWidth
         }
+    }
+
+    // ==================== Incognito Mode ====================
+
+    val incognitoMode: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.INCOGNITO_MODE] ?: false
+    }
+
+    suspend fun setIncognitoMode(enabled: Boolean) {
+        dataStore.edit { it[Keys.INCOGNITO_MODE] = enabled }
     }
     
     private object Keys {
@@ -167,6 +177,7 @@ class ReaderSettingsRepository @Inject constructor(
         val TAP_ZONE_LEFT = floatPreferencesKey("reader_tap_zone_left")
         val TAP_ZONE_CENTER = floatPreferencesKey("reader_tap_zone_center")
         val TAP_ZONE_RIGHT = floatPreferencesKey("reader_tap_zone_right")
+        val INCOGNITO_MODE = booleanPreferencesKey("reader_incognito_mode")
     }
     
     companion object {

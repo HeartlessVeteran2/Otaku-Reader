@@ -68,7 +68,10 @@ data class ReaderState(
     val showPageNumber: Boolean = true,
 
     /** Current chapter title */
-    val chapterTitle: String = ""
+    val chapterTitle: String = "",
+
+    /** Incognito mode - when enabled, reading history is not saved */
+    val incognitoMode: Boolean = false
 ) {
     /** Total pages in chapter (derived from pages.size) */
     val totalPages: Int get() = pages.size

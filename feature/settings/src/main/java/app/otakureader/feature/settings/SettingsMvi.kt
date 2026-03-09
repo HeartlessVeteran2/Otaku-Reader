@@ -10,8 +10,7 @@ data class SettingsState(
     val locale: String = "",           // BCP-47 tag, or "" for system default
     val readerMode: Int = 0,           // 0=single page, 1=webtoon, 2=dual page, 3=smart panels
     val keepScreenOn: Boolean = true,
-    val volumeKeysEnabled: Boolean = false,
-    val volumeKeysInverted: Boolean = false,
+    val incognitoMode: Boolean = false, // Incognito mode - reading history not saved
     val libraryGridSize: Int = 3,      // number of columns (2–5)
     val showBadges: Boolean = true,
     val updateCheckInterval: Int = 12, // hours
@@ -26,8 +25,7 @@ sealed interface SettingsEvent : UiEvent {
     data class SetLocale(val locale: String) : SettingsEvent
     data class SetReaderMode(val mode: Int) : SettingsEvent
     data class SetKeepScreenOn(val enabled: Boolean) : SettingsEvent
-    data class SetVolumeKeysEnabled(val enabled: Boolean) : SettingsEvent
-    data class SetVolumeKeysInverted(val inverted: Boolean) : SettingsEvent
+    data class SetIncognitoMode(val enabled: Boolean) : SettingsEvent
     data class SetLibraryGridSize(val size: Int) : SettingsEvent
     data class SetShowBadges(val enabled: Boolean) : SettingsEvent
     data class SetUpdateInterval(val hours: Int) : SettingsEvent
