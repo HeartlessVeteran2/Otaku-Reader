@@ -103,6 +103,7 @@ object DetailsContract {
         data class ToggleChapterBookmark(val chapterId: Long) : Event
         data class DownloadChapter(val chapterId: Long) : Event
         data class DeleteChapterDownload(val chapterId: Long) : Event
+        data class ExportChapterAsCbz(val chapterId: Long) : Event
         data class MarkPreviousAsRead(val chapterId: Long) : Event
         data object ShareManga : Event
         data class SetDeleteAfterReadOverride(val mode: DeleteAfterReadMode) : Event

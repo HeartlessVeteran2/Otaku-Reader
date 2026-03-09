@@ -1,5 +1,7 @@
 package app.otakureader.feature.library
 
+import android.content.Context
+import app.otakureader.core.preferences.LibraryPreferences
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.usecase.GetLibraryMangaUseCase
 import app.otakureader.domain.usecase.ToggleFavoriteMangaUseCase
@@ -27,8 +29,10 @@ class LibraryViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
 
+    private lateinit var context: Context
     private lateinit var getLibraryManga: GetLibraryMangaUseCase
     private lateinit var toggleFavoriteManga: ToggleFavoriteMangaUseCase
+    private lateinit var libraryPreferences: LibraryPreferences
 
     private val sampleMangas = listOf(
         Manga(id = 1L, sourceId = 1L, url = "/m/1", title = "Naruto", favorite = true, unreadCount = 3),
@@ -39,8 +43,13 @@ class LibraryViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
+        context = mockk(relaxed = true)
         getLibraryManga = mockk()
         toggleFavoriteManga = mockk()
+        libraryPreferences = mockk {
+            every { gridSize } returns flowOf(3)
+            every { showBadges } returns flowOf(true)
+        }
     }
 
     @After
@@ -49,7 +58,7 @@ class LibraryViewModelTest {
     }
 
     private fun createViewModel(): LibraryViewModel {
-        return LibraryViewModel(getLibraryManga, toggleFavoriteManga)
+        return LibraryViewModel(context, getLibraryManga, toggleFavoriteManga, libraryPreferences)
     }
 
     @Test

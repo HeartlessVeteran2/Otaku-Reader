@@ -31,7 +31,16 @@ class DownloadPreferences(private val dataStore: DataStore<Preferences>) {
     val autoDownloadLimit: Flow<Int> = dataStore.data.map { it[Keys.AUTO_DOWNLOAD_LIMIT] ?: 3 }
     suspend fun setAutoDownloadLimit(value: Int) = dataStore.edit { it[Keys.AUTO_DOWNLOAD_LIMIT] = value }
 
-    /** Whether to delete chapters after reading. Default: false. */
+    // --- Save as CBZ ---
+
+    /**
+     * Whether to compress downloaded chapter pages into a CBZ archive.
+     * Default: false (loose files are the default for compatibility).
+     */
+    val saveAsCbz: Flow<Boolean> = dataStore.data.map { it[Keys.SAVE_AS_CBZ] ?: false }
+    suspend fun setSaveAsCbz(value: Boolean) = dataStore.edit { it[Keys.SAVE_AS_CBZ] = value }
+
+    // --- Delete After Reading ---
     val deleteAfterReading: Flow<Boolean> = dataStore.data.map { it[Keys.DELETE_AFTER_READING] ?: false }
     suspend fun setDeleteAfterReading(value: Boolean) = dataStore.edit { it[Keys.DELETE_AFTER_READING] = value }
 
@@ -94,6 +103,7 @@ class DownloadPreferences(private val dataStore: DataStore<Preferences>) {
         val AUTO_DOWNLOAD_ENABLED = booleanPreferencesKey("auto_download_enabled")
         val DOWNLOAD_ONLY_ON_WIFI = booleanPreferencesKey("download_only_on_wifi")
         val AUTO_DOWNLOAD_LIMIT = intPreferencesKey("auto_download_limit")
+        val SAVE_AS_CBZ = booleanPreferencesKey("save_as_cbz")
         val DELETE_AFTER_READING = booleanPreferencesKey("delete_after_reading")
         val PER_MANGA_OVERRIDES = stringPreferencesKey("delete_after_reading_overrides")
     }

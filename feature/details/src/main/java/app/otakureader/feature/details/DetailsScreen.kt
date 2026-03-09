@@ -211,7 +211,8 @@ private fun DetailsContent(
             ChapterListItem(
                 chapter = chapter,
                 onClick = { onEvent(DetailsContract.Event.ChapterClick(chapter.id)) },
-                onLongClick = { onEvent(DetailsContract.Event.ChapterLongClick(chapter.id)) }
+                onLongClick = { onEvent(DetailsContract.Event.ChapterLongClick(chapter.id)) },
+                onExportAsCbz = { onEvent(DetailsContract.Event.ExportChapterAsCbz(chapter.id)) }
             )
         }
     }

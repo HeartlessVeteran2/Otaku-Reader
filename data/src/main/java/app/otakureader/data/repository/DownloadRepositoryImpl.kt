@@ -1,6 +1,7 @@
 package app.otakureader.data.repository
 
 import android.content.Context
+import app.otakureader.data.download.CbzCreator
 import app.otakureader.data.download.ChapterDownloadRequest
 import app.otakureader.data.download.DownloadManager
 import app.otakureader.data.download.DownloadProvider
@@ -93,5 +94,34 @@ class DownloadRepositoryImpl @Inject constructor(
         chapterTitle: String
     ): Boolean = withContext(Dispatchers.IO) {
         DownloadProvider.isChapterDownloaded(context, sourceName, mangaTitle, chapterTitle)
+    }
+
+    override suspend fun exportChapterAsCbz(
+        sourceName: String,
+        mangaTitle: String,
+        chapterTitle: String
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        val chapterDir = DownloadProvider.getChapterDir(context, sourceName, mangaTitle, chapterTitle)
+        if (!chapterDir.isDirectory) {
+            return@withContext Result.failure(IllegalStateException("Chapter not downloaded"))
+        }
+
+        // If the CBZ already exists (e.g. saved during auto-download), nothing to do.
+        val existingCbz = DownloadProvider.getCbzFile(context, sourceName, mangaTitle, chapterTitle)
+        if (existingCbz.exists()) {
+            return@withContext Result.success(Unit)
+        }
+
+        // Require at least one loose page image before attempting to pack.
+        val hasLoosePages = chapterDir.listFiles()
+            ?.any { it.isFile && it.extension.lowercase() in DownloadProvider.PAGE_EXTENSIONS }
+            ?: false
+        if (!hasLoosePages) {
+            return@withContext Result.failure(
+                IllegalStateException("No downloaded pages found to export as CBZ")
+            )
+        }
+
+        CbzCreator.createCbz(chapterDir).map { }
     }
 }

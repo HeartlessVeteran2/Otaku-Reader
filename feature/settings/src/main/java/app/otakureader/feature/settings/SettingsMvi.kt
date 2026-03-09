@@ -21,6 +21,7 @@ data class SettingsState(
     val keepScreenOn: Boolean = true,
     val incognitoMode: Boolean = false, // Incognito mode - reading history not saved
     val deleteAfterReading: Boolean = false,
+    val saveAsCbz: Boolean = false,    // Save downloaded chapters as CBZ archives
     val libraryGridSize: Int = 3,      // number of columns (2–5)
     val showBadges: Boolean = true,
     val updateCheckInterval: Int = 12, // hours
@@ -52,6 +53,7 @@ sealed interface SettingsEvent : UiEvent {
     data class SetAutoDownloadEnabled(val enabled: Boolean) : SettingsEvent
     data class SetDownloadOnlyOnWifi(val enabled: Boolean) : SettingsEvent
     data class SetAutoDownloadLimit(val limit: Int) : SettingsEvent
+    data class SetSaveAsCbz(val enabled: Boolean) : SettingsEvent
     data class SetLocalSourceDirectory(val path: String) : SettingsEvent
     data object OnCreateBackup : SettingsEvent
     data object OnRestoreBackup : SettingsEvent

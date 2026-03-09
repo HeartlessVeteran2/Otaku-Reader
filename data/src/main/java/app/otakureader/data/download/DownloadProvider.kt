@@ -15,6 +15,7 @@ import java.io.File
  *         0.jpg
  *         1.jpg
  *         …
+ *         chapter.cbz   ← optional CBZ archive
  * ```
  *
  * Using `Context.getExternalFilesDir` means no storage permission is required on
@@ -31,8 +32,15 @@ object DownloadProvider {
     /** Maximum number of page files to list per chapter for safety. */
     private const val MAX_PAGE_FILES = 1000
 
+    /**
+     * Subdirectory within a chapter directory used as a cache for pages
+     * extracted on-demand from a CBZ archive. Keeping them in a dedicated
+     * subdirectory prevents them from being mistaken for original loose files.
+     */
+    private const val PAGES_CACHE_SUBDIR = ".pages"
+
     /** The file extensions recognised as downloaded page images. */
-    private val PAGE_EXTENSIONS = setOf("jpg", "jpeg", "png", "webp")
+    internal val PAGE_EXTENSIONS = setOf("jpg", "jpeg", "png", "webp")
 
     // -------------------------------------------------------------------------
     // Context-based public API
@@ -62,7 +70,19 @@ object DownloadProvider {
     ): File = getPageFile(rootFor(context), sourceName, mangaTitle, chapterName, pageIndex)
 
     /**
-     * Returns `true` when the chapter directory exists and contains at least one page file.
+     * Returns the [File] path for the CBZ archive of [chapterName].
+     * The file may not exist yet.
+     */
+    fun getCbzFile(
+        context: Context,
+        sourceName: String,
+        mangaTitle: String,
+        chapterName: String
+    ): File = getCbzFile(rootFor(context), sourceName, mangaTitle, chapterName)
+
+    /**
+     * Returns `true` when the chapter directory exists and contains at least one page file
+     * or a CBZ archive.
      */
     fun isChapterDownloaded(
         context: Context,
@@ -74,6 +94,11 @@ object DownloadProvider {
     /**
      * Returns an ordered list of `file://` URIs for every page that has been
      * downloaded for the given chapter. Pages are sorted by their numeric filename.
+     *
+     * When the chapter was saved as a CBZ archive and no loose page files exist,
+     * the archive is extracted into the chapter directory on demand and those file
+     * URIs are returned.
+     *
      * Returns an empty list if nothing has been downloaded yet.
      */
     fun getDownloadedPageUris(
@@ -115,6 +140,13 @@ object DownloadProvider {
         pageIndex: Int
     ): File = File(getChapterDir(root, sourceName, mangaTitle, chapterName), "$pageIndex.jpg")
 
+    internal fun getCbzFile(
+        root: File,
+        sourceName: String,
+        mangaTitle: String,
+        chapterName: String
+    ): File = File(getChapterDir(root, sourceName, mangaTitle, chapterName), CbzCreator.CBZ_FILE_NAME)
+
     internal fun isChapterDownloaded(
         root: File,
         sourceName: String,
@@ -127,7 +159,8 @@ object DownloadProvider {
         // Use list() instead of listFiles() for better performance and null safety
         val fileList = dir.list() ?: return false
         return fileList.take(MAX_PAGE_FILES).any { filename ->
-            filename.substringAfterLast('.', "").lowercase() in PAGE_EXTENSIONS
+            filename == CbzCreator.CBZ_FILE_NAME ||
+                filename.substringAfterLast('.', "").lowercase() in PAGE_EXTENSIONS
         }
     }
 
@@ -140,16 +173,41 @@ object DownloadProvider {
         val dir = getChapterDir(root, sourceName, mangaTitle, chapterName)
         if (!dir.isDirectory) return emptyList()
 
+        // Prefer loose page files at the chapter directory level (backward-compatible).
         val files = dir.listFiles() ?: return emptyList()
-
-        // Apply bounds check to prevent excessive processing
-        return files
+        val looseFiles = files
             .asSequence()
-            .filter { it.extension.lowercase() in PAGE_EXTENSIONS }
+            .filter { it.isFile && it.extension.lowercase() in PAGE_EXTENSIONS }
             .sortedBy { it.nameWithoutExtension.toIntOrNull() ?: Int.MAX_VALUE }
             .take(MAX_PAGE_FILES)
-            .map { "file://${it.absolutePath}" }
             .toList()
+
+        if (looseFiles.isNotEmpty()) {
+            return looseFiles.map { "file://${it.absolutePath}" }
+        }
+
+        // Fall back to CBZ: extract pages on demand into a dedicated subdirectory so
+        // they are never confused with original loose-file downloads. The subdirectory
+        // is re-used on subsequent reads (no re-extraction if the cache is present).
+        val cbzFile = File(dir, CbzCreator.CBZ_FILE_NAME)
+        if (!cbzFile.exists()) return emptyList()
+
+        val cacheDir = File(dir, PAGES_CACHE_SUBDIR)
+        val cachedFiles = if (cacheDir.isDirectory) {
+            cacheDir.listFiles()
+                ?.filter { it.isFile && it.extension.lowercase() in PAGE_EXTENSIONS }
+                ?.sortedBy { it.nameWithoutExtension.toIntOrNull() ?: Int.MAX_VALUE }
+                ?: emptyList()
+        } else emptyList()
+
+        if (cachedFiles.isNotEmpty()) {
+            return cachedFiles.take(MAX_PAGE_FILES).map { "file://${it.absolutePath}" }
+        }
+
+        // Extract CBZ pages into the cache subdirectory for this and future reads.
+        val extracted = CbzCreator.extractCbzPages(cbzFile, cacheDir).getOrNull()
+            ?: return emptyList()
+        return extracted.take(MAX_PAGE_FILES).map { "file://${it.absolutePath}" }
     }
 
     internal fun deleteChapter(

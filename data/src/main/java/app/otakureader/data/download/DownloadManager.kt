@@ -1,6 +1,7 @@
 package app.otakureader.data.download
 
 import android.content.Context
+import app.otakureader.core.preferences.DownloadPreferences
 import app.otakureader.domain.model.DownloadItem
 import app.otakureader.domain.model.DownloadStatus
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -13,6 +14,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -49,7 +51,8 @@ data class ChapterDownloadRequest(
 @Singleton
 class DownloadManager @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val downloader: Downloader
+    private val downloader: Downloader,
+    private val downloadPreferences: DownloadPreferences
 ) {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -177,6 +180,10 @@ class DownloadManager @Inject constructor(
                         return@launch
                     }
 
+                    // Read the CBZ preference once before downloading to avoid
+                    // repeated Flow emissions during the download loop.
+                    val packAsCbz = downloadPreferences.saveAsCbz.first()
+
                     pageUrls.forEachIndexed { index, url ->
                         if (!isActive) return@launch
 
@@ -207,6 +214,24 @@ class DownloadManager @Inject constructor(
                     }
 
                     if (isActive) {
+                        // Optionally pack pages into a CBZ archive when the preference is enabled.
+                        if (packAsCbz) {
+                            val chapterDir = DownloadProvider.getChapterDir(
+                                context,
+                                request.sourceName,
+                                request.mangaTitle,
+                                request.chapterTitle
+                            )
+                            CbzCreator.createCbz(chapterDir).onSuccess {
+                                // Remove loose page files once the archive is created.
+                                chapterDir.listFiles()
+                                    ?.filter { file ->
+                                        file.isFile &&
+                                            file.extension.lowercase() in DownloadProvider.PAGE_EXTENSIONS
+                                    }
+                                    ?.forEach { it.delete() }
+                            }
+                        }
                         updateStatus(chapterId, DownloadStatus.COMPLETED)
                     }
                 } finally {

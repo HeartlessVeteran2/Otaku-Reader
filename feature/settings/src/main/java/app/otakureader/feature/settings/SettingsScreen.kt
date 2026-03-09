@@ -330,6 +330,19 @@ private fun DownloadsSection(state: SettingsState, onEvent: (SettingsEvent) -> U
                     )
                 }
             )
+
+            ListItem(
+                headlineContent = { Text("Save as CBZ") },
+                supportingContent = { Text("Compress downloaded chapters into CBZ archives") },
+                trailingContent = {
+                    Switch(
+                        checked = state.saveAsCbz,
+                        onCheckedChange = {
+                            onEvent(SettingsEvent.SetSaveAsCbz(it))
+                        }
+                    )
+                }
+            )
 }
 
 @Composable

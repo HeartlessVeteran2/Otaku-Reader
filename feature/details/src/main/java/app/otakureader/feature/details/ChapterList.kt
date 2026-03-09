@@ -74,6 +74,7 @@ fun ChapterList(
     onDownloadChapter: (Long) -> Unit,
     onDeleteDownload: (Long) -> Unit,
     onMarkPreviousRead: (Long) -> Unit,
+    onExportAsCbz: (Long) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.fillMaxSize()) {
@@ -110,7 +111,8 @@ fun ChapterList(
                         onToggleBookmark = { onToggleBookmark(chapter.id) },
                         onDownload = { onDownloadChapter(chapter.id) },
                         onDeleteDownload = { onDeleteDownload(chapter.id) },
-                        onMarkPreviousRead = { onMarkPreviousRead(chapter.id) }
+                        onMarkPreviousRead = { onMarkPreviousRead(chapter.id) },
+                        onExportAsCbz = { onExportAsCbz(chapter.id) }
                     )
                 }
             }
@@ -201,6 +203,7 @@ fun ChapterListItem(
     onDownload: () -> Unit = {},
     onDeleteDownload: () -> Unit = {},
     onMarkPreviousRead: () -> Unit = {},
+    onExportAsCbz: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val alpha by animateFloatAsState(
@@ -361,6 +364,13 @@ fun ChapterListItem(
                     text = { Text("Delete download") },
                     onClick = {
                         onDeleteDownload()
+                        showMenu = false
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Export as CBZ") },
+                    onClick = {
+                        onExportAsCbz()
                         showMenu = false
                     }
                 )
