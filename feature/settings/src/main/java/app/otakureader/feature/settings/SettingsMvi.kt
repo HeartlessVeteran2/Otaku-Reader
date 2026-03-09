@@ -4,6 +4,12 @@ import app.otakureader.core.common.mvi.UiEffect
 import app.otakureader.core.common.mvi.UiEvent
 import app.otakureader.core.common.mvi.UiState
 
+data class TrackerInfo(
+    val id: Int,
+    val name: String,
+    val isLoggedIn: Boolean
+)
+
 data class SettingsState(
     val themeMode: Int = 0,            // 0=system, 1=light, 2=dark
     val useDynamicColor: Boolean = true,
@@ -17,7 +23,9 @@ data class SettingsState(
     val updateCheckInterval: Int = 12, // hours
     val notificationsEnabled: Boolean = true,
     val isBackupInProgress: Boolean = false,
-    val isRestoreInProgress: Boolean = false
+    val isRestoreInProgress: Boolean = false,
+    val trackers: List<TrackerInfo> = emptyList(),
+    val trackingLoginInProgress: Boolean = false
 ) : UiState
 
 sealed interface SettingsEvent : UiEvent {
@@ -34,6 +42,8 @@ sealed interface SettingsEvent : UiEvent {
     data class SetNotificationsEnabled(val enabled: Boolean) : SettingsEvent
     data object OnCreateBackup : SettingsEvent
     data object OnRestoreBackup : SettingsEvent
+    data class LoginTracker(val trackerId: Int, val username: String, val password: String) : SettingsEvent
+    data class LogoutTracker(val trackerId: Int) : SettingsEvent
 }
 
 sealed interface SettingsEffect : UiEffect {
