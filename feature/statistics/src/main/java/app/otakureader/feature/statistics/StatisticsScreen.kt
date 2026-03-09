@@ -248,7 +248,7 @@ private fun ReadingActivityGrid(activityByDay: Map<String, Int>) {
         horizontalArrangement = Arrangement.spacedBy(3.dp),
         verticalArrangement = Arrangement.spacedBy(3.dp)
     ) {
-        for ((_, count) in activityByDay) {
+        for ((_, count) in activityByDay.entries.sortedBy { it.key }) {
             val fraction = count.toFloat() / maxCount.toFloat()
             val cellColor = lerp(emptyColor, baseColor, 0.2f + fraction * 0.8f)
             Box(
