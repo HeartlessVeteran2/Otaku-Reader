@@ -74,11 +74,15 @@ class DownloadRepositoryImpl @Inject constructor(
         mangaTitle: String,
         chapterTitle: String
     ) {
-        // Remove any active job or completed metadata for this chapter only.
-        downloadManager.remove(chapterId)
+        // Cancel any active job for this chapter before touching the filesystem.
+        downloadManager.cancel(chapterId)
 
         withContext(Dispatchers.IO) {
-            DownloadProvider.deleteChapter(context, sourceName, mangaTitle, chapterTitle)
+            val deleted = DownloadProvider.deleteChapter(context, sourceName, mangaTitle, chapterTitle)
+            if (deleted) {
+                // Remove any active job or completed metadata for this chapter only.
+                downloadManager.remove(chapterId)
+            }
         }
     }
 
