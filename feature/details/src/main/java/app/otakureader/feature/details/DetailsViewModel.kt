@@ -11,6 +11,7 @@ import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.core.preferences.DeleteAfterReadMode
 import app.otakureader.core.preferences.DownloadPreferences
+import app.otakureader.domain.usecase.UpdateMangaNoteUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,7 +35,8 @@ class DetailsViewModel @Inject constructor(
     private val mangaRepository: MangaRepository,
     private val chapterRepository: ChapterRepository,
     private val downloadRepository: DownloadRepository,
-    private val downloadPreferences: DownloadPreferences
+    private val downloadPreferences: DownloadPreferences,
+    private val updateMangaNote: UpdateMangaNoteUseCase = (TODO("UpdateMangaNoteUseCase must be provided") as UpdateMangaNoteUseCase)
 ) : ViewModel() {
 
     private val mangaId: Long = savedStateHandle.get<Long>(MANGA_ID_ARG) 
@@ -73,6 +75,10 @@ class DetailsViewModel @Inject constructor(
             is DetailsContract.Event.MarkPreviousAsRead -> markPreviousAsRead(event.chapterId)
             is DetailsContract.Event.ShareManga -> shareManga()
             is DetailsContract.Event.SetDeleteAfterReadOverride -> setDeleteAfterReadOverride(event.mode)
+            is DetailsContract.Event.ShowNoteEditor -> showNoteEditor()
+            is DetailsContract.Event.HideNoteEditor -> hideNoteEditor()
+            is DetailsContract.Event.UpdateNoteText -> updateNoteText(event.text)
+            is DetailsContract.Event.SaveNote -> saveNote()
         }
     }
 
@@ -388,6 +394,40 @@ class DetailsViewModel @Inject constructor(
                     "Delete-after-read is no longer supported."
                 )
             )
+        }
+    }
+
+    private fun showNoteEditor() {
+        val currentNote = _state.value.manga?.notes ?: ""
+        _state.update { it.copy(noteEditorVisible = true, noteEditorText = currentNote) }
+    }
+
+    private fun hideNoteEditor() {
+        _state.update { it.copy(noteEditorVisible = false) }
+    }
+
+    private fun updateNoteText(text: String) {
+        _state.update { it.copy(noteEditorText = text) }
+    }
+
+    private fun saveNote() {
+        viewModelScope.launch {
+            val text = _state.value.noteEditorText.trim().ifEmpty { null }
+            try {
+                updateMangaNote(mangaId, text)
+                _state.update { it.copy(noteEditorVisible = false) }
+                _effect.emit(DetailsContract.Effect.ShowSnackbar("Note saved"))
+            } catch (e: Exception) {
+                val errorMessage = buildString {
+                    append("Failed to save note")
+                    val detail = e.message
+                    if (!detail.isNullOrBlank()) {
+                        append(": ")
+                        append(detail)
+                    }
+                }
+                _effect.emit(DetailsContract.Effect.ShowError(errorMessage))
+            }
         }
     }
 

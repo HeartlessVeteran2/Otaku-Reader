@@ -41,7 +41,8 @@ data class BackupManga(
     val coverLastModified: Long = 0,
     val dateAdded: Long = 0,
     val chapters: List<BackupChapter> = emptyList(),
-    val categoryIds: List<Long> = emptyList()
+    val categoryIds: List<Long> = emptyList(),
+    val notes: String? = null
 )
 
 /**

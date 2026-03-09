@@ -32,7 +32,8 @@ data class MangaEntity(
     val chapterFlags: Int = 0,
     val coverLastModified: Long = 0,
     val dateAdded: Long = System.currentTimeMillis(),
-    val autoDownload: Boolean = false
+    val autoDownload: Boolean = false,
+    val notes: String? = null
 )
 
 enum class MangaStatus {

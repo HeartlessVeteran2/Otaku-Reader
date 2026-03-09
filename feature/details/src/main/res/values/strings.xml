@@ -1,4 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="share_manga">Share via</string>
+    <string name="notes_section_title">Notes</string>
+    <string name="notes_edit_content_description">Edit note</string>
+    <string name="notes_empty_hint">Tap the pencil icon to add a personal note.</string>
+    <string name="notes_editor_dialog_title">Edit Note</string>
+    <string name="notes_editor_placeholder">Write your note here…\nSupports **bold**, *italic*, and [links](url).</string>
+    <string name="notes_editor_save">Save</string>
+    <string name="notes_editor_cancel">Cancel</string>
+    <string name="notes_saved">Note saved</string>
+    <string name="notes_save_failed">Failed to save note: %1$s</string>
 </resources>

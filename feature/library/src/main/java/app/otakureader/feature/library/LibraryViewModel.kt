@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -40,10 +41,14 @@ class LibraryViewModel @Inject constructor(
     
     private val _effect = MutableSharedFlow<LibraryEffect>()
     val effect: SharedFlow<LibraryEffect> = _effect.asSharedFlow()
+
+    /** Holds the full, unfiltered library items for reactive filtering. */
+    private val _allItems = MutableStateFlow<List<LibraryMangaItem>>(emptyList())
     
     init {
         loadLibrary()
         observeLibraryPreferences()
+        observeFilteredItems()
     }
     
     fun onEvent(event: LibraryEvent) {
@@ -55,7 +60,7 @@ class LibraryViewModel @Inject constructor(
             is LibraryEvent.OnCategorySelected -> onCategorySelected(event.categoryId)
             is LibraryEvent.ClearSelection -> clearSelection()
             is LibraryEvent.ToggleFavorite -> toggleFavorite(event.mangaId)
-            is LibraryEvent.MigrateSelected -> onMigrateSelected()
+            is LibraryEvent.FilterHasNotes -> onFilterHasNotes(event.enabled)
         }
     }
 
@@ -83,14 +88,8 @@ class LibraryViewModel @Inject constructor(
                 mangaList.map { it.toLibraryItem() }
             }
             .onEach { items ->
-                _state.update {
-                    it.copy(
-                        isLoading = false,
-                        isRefreshing = false,
-                        mangaList = items,
-                        error = null
-                    )
-                }
+                _allItems.value = items
+                _state.update { it.copy(isLoading = false, isRefreshing = false, error = null) }
             }
             .catch { error ->
                 _state.update {
@@ -100,6 +99,19 @@ class LibraryViewModel @Inject constructor(
                         error = error.message
                     )
                 }
+            }
+            .launchIn(viewModelScope)
+    }
+
+    private fun observeFilteredItems() {
+        combine(
+            _allItems,
+            _state.map { it.filterHasNotes }.distinctUntilChanged()
+        ) { items, hasNotesFilter ->
+            if (hasNotesFilter) items.filter { it.hasNote } else items
+        }
+            .onEach { filtered ->
+                _state.update { it.copy(mangaList = filtered) }
             }
             .launchIn(viewModelScope)
     }
@@ -148,20 +160,16 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
-    private fun onMigrateSelected() {
-        viewModelScope.launch {
-            val selectedIds = _state.value.selectedManga.toList()
-            if (selectedIds.isNotEmpty()) {
-                _effect.emit(LibraryEffect.NavigateToMigration(selectedIds))
-            }
-        }
+    private fun onFilterHasNotes(enabled: Boolean) {
+        _state.update { it.copy(filterHasNotes = enabled) }
     }
-
+    
     private fun Manga.toLibraryItem() = LibraryMangaItem(
         id = id,
         title = title,
         thumbnailUrl = thumbnailUrl,
         unreadCount = unreadCount,
-        isFavorite = favorite
+        isFavorite = favorite,
+        hasNote = !notes.isNullOrBlank()
     )
 }

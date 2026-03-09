@@ -20,7 +20,8 @@ data class Manga(
     val totalChapters: Int = 0,
     val lastRead: Long? = null,
     val categoryIds: List<Long> = emptyList(),
-    val autoDownload: Boolean = false
+    val autoDownload: Boolean = false,
+    val notes: String? = null
 )
 
 @Serializable

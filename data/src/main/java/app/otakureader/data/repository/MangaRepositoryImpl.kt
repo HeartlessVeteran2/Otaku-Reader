@@ -68,25 +68,10 @@ class MangaRepositoryImpl @Inject constructor(
         return mangaDao.isFavorite(id)
     }
 
-    override suspend fun getMangaByIds(ids: List<Long>): List<Manga> {
-        return ids.mapNotNull { id -> mangaDao.getMangaById(id)?.toDomain() }
+    override suspend fun updateMangaNote(id: Long, notes: String?) {
+        mangaDao.updateNote(id, notes)
     }
-
-    override suspend fun getMangaBySourceAndUrl(sourceId: Long, url: String): Manga? {
-        return mangaDao.getMangaBySourceAndUrl(sourceId, url)?.toDomain()
-    }
-
-    override suspend fun updateMangaSource(mangaId: Long, newSourceId: Long, newUrl: String) {
-        val manga = mangaDao.getMangaById(mangaId) ?: return
-        mangaDao.update(
-            manga.copy(
-                sourceId = newSourceId,
-                url = newUrl,
-                initialized = false // Mark as not initialized so chapters will be re-fetched
-            )
-        )
-    }
-
+    
     private fun MangaEntity.toDomain(unreadCount: Int = 0) = Manga(
         id = id,
         sourceId = sourceId,
@@ -101,7 +86,8 @@ class MangaRepositoryImpl @Inject constructor(
         favorite = favorite,
         initialized = initialized,
         unreadCount = unreadCount,
-        autoDownload = autoDownload
+        autoDownload = autoDownload,
+        notes = notes
     )
     
     private fun Manga.toEntity() = MangaEntity(
@@ -117,6 +103,7 @@ class MangaRepositoryImpl @Inject constructor(
         status = status.ordinal,
         favorite = favorite,
         initialized = initialized,
-        autoDownload = autoDownload
+        autoDownload = autoDownload,
+        notes = notes
     )
 }
