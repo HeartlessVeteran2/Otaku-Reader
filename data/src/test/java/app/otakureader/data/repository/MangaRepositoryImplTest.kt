@@ -263,4 +263,24 @@ class MangaRepositoryImplTest {
             awaitComplete()
         }
     }
+
+    // ---- updateMangaNote ----
+
+    @Test
+    fun updateMangaNote_withNote_callsDaoWithCorrectArgs() = runTest {
+        coEvery { mangaDao.updateNote(1L, "Great manga!") } returns Unit
+
+        repository.updateMangaNote(1L, "Great manga!")
+
+        coVerify { mangaDao.updateNote(1L, "Great manga!") }
+    }
+
+    @Test
+    fun updateMangaNote_withNull_callsDaoWithNull() = runTest {
+        coEvery { mangaDao.updateNote(1L, null) } returns Unit
+
+        repository.updateMangaNote(1L, null)
+
+        coVerify { mangaDao.updateNote(1L, null) }
+    }
 }

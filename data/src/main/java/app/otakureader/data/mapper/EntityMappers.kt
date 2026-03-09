@@ -20,7 +20,8 @@ fun MangaEntity.toManga(): Manga = Manga(
     thumbnailUrl = thumbnailUrl,
     favorite = favorite,
     initialized = initialized,
-    autoDownload = autoDownload
+    autoDownload = autoDownload,
+    notes = notes
 )
 
 /** Maps domain [Manga] to [MangaEntity]. */
@@ -37,7 +38,8 @@ fun Manga.toEntity(): MangaEntity = MangaEntity(
     thumbnailUrl = thumbnailUrl,
     favorite = favorite,
     initialized = initialized,
-    autoDownload = autoDownload
+    autoDownload = autoDownload,
+    notes = notes
 )
 
 /** Maps [ChapterEntity] to domain [Chapter]. */

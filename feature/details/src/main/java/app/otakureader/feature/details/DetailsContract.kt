@@ -27,7 +27,9 @@ object DetailsContract {
         val isRefreshing: Boolean = false,
         val nextUnreadChapter: Chapter? = null,
         val deleteAfterReadOverride: DeleteAfterReadMode = DeleteAfterReadMode.INHERIT,
-        val globalDeleteAfterRead: Boolean = false
+        val globalDeleteAfterRead: Boolean = false,
+        val noteEditorVisible: Boolean = false,
+        val noteEditorText: String = ""
     ) : UiState {
         
         val canStartReading: Boolean
@@ -107,6 +109,10 @@ object DetailsContract {
         data class MarkPreviousAsRead(val chapterId: Long) : Event
         data object ShareManga : Event
         data class SetDeleteAfterReadOverride(val mode: DeleteAfterReadMode) : Event
+        data object ShowNoteEditor : Event
+        data object HideNoteEditor : Event
+        data class UpdateNoteText(val text: String) : Event
+        data object SaveNote : Event
     }
 
     /**

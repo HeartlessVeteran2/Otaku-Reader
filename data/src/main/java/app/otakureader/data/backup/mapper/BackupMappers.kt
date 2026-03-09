@@ -35,7 +35,8 @@ fun MangaEntity.toBackupManga(
     coverLastModified = coverLastModified,
     dateAdded = dateAdded,
     chapters = chapters,
-    categoryIds = categoryIds
+    categoryIds = categoryIds,
+    notes = notes
 )
 
 /**
@@ -59,7 +60,8 @@ fun BackupManga.toMangaEntity(): MangaEntity = MangaEntity(
     viewerFlags = viewerFlags,
     chapterFlags = chapterFlags,
     coverLastModified = coverLastModified,
-    dateAdded = dateAdded
+    dateAdded = dateAdded,
+    notes = notes
 )
 
 /**

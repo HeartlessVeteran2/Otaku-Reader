@@ -18,11 +18,13 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -32,6 +34,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -48,7 +51,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -59,6 +68,10 @@ import app.otakureader.feature.details.R
 import app.otakureader.core.preferences.DeleteAfterReadMode
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.flow.collectLatest
+
+private val MARKDOWN_BOLD_REGEX = Regex("""\*\*(.+?)\*\*""")
+private val MARKDOWN_ITALIC_REGEX = Regex("""(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)""")
+private val MARKDOWN_LINK_REGEX = Regex("""\[(.+?)]\((.+?)\)""")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -188,6 +201,13 @@ private fun DetailsContent(
         }
 
         item {
+            MangaNotes(
+                notes = manga.notes,
+                onEditClick = { onEvent(DetailsContract.Event.ShowNoteEditor) }
+            )
+        }
+
+        item {
             HorizontalDivider()
         }
 
@@ -215,6 +235,15 @@ private fun DetailsContent(
                 onExportAsCbz = { onEvent(DetailsContract.Event.ExportChapterAsCbz(chapter.id)) }
             )
         }
+    }
+
+    if (state.noteEditorVisible) {
+        NoteEditorDialog(
+            noteText = state.noteEditorText,
+            onTextChange = { onEvent(DetailsContract.Event.UpdateNoteText(it)) },
+            onSave = { onEvent(DetailsContract.Event.SaveNote) },
+            onDismiss = { onEvent(DetailsContract.Event.HideNoteEditor) }
+        )
     }
 }
 
@@ -279,6 +308,130 @@ private fun MangaHeader(
                     contentDescription = if (isFavorite) "Remove from library" else "Add to library"
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun MangaNotes(
+    notes: String?,
+    onEditClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.notes_section_title),
+                style = MaterialTheme.typography.titleMedium
+            )
+            IconButton(onClick = onEditClick) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = stringResource(R.string.notes_edit_content_description)
+                )
+            }
+        }
+
+        if (!notes.isNullOrBlank()) {
+            Text(
+                text = renderMarkdown(notes),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+        } else {
+            Text(
+                text = stringResource(R.string.notes_empty_hint),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun NoteEditorDialog(
+    noteText: String,
+    onTextChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.notes_editor_dialog_title)) },
+        text = {
+            OutlinedTextField(
+                value = noteText,
+                onValueChange = onTextChange,
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text(stringResource(R.string.notes_editor_placeholder)) },
+                minLines = 5,
+                maxLines = 12
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onSave) { Text(stringResource(R.string.notes_editor_save)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.notes_editor_cancel)) }
+        }
+    )
+}
+
+/**
+ * Renders a subset of Markdown as an [androidx.compose.ui.text.AnnotatedString].
+ * Supported syntax:
+ *  - `**text**` → bold
+ *  - `*text*`   → italic
+ *  - `[label](url)` → underlined link text
+ */
+private fun renderMarkdown(source: String): androidx.compose.ui.text.AnnotatedString {
+    return buildAnnotatedString {
+        var remaining = source
+        while (remaining.isNotEmpty()) {
+            val boldMatch = MARKDOWN_BOLD_REGEX.find(remaining)
+            val italicMatch = MARKDOWN_ITALIC_REGEX.find(remaining)
+            val linkMatch = MARKDOWN_LINK_REGEX.find(remaining)
+
+            // Find which match comes first
+            val firstMatch = listOfNotNull(boldMatch, italicMatch, linkMatch)
+                .minByOrNull { it.range.first }
+
+            if (firstMatch == null) {
+                append(remaining)
+                break
+            }
+
+            // Append text before the match
+            if (firstMatch.range.first > 0) {
+                append(remaining.substring(0, firstMatch.range.first))
+            }
+
+            when (firstMatch) {
+                boldMatch -> {
+                    val boldText = firstMatch.groupValues[1]
+                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
+                    append(boldText)
+                    pop()
+                }
+                italicMatch -> {
+                    val italicText = firstMatch.groupValues[1]
+                    pushStyle(SpanStyle(fontStyle = FontStyle.Italic))
+                    append(italicText)
+                    pop()
+                }
+                linkMatch -> {
+                    val label = firstMatch.groupValues[1]
+                    pushStyle(SpanStyle(textDecoration = TextDecoration.Underline))
+                    append(label)
+                    pop()
+                }
+            }
+
+            remaining = remaining.substring(firstMatch.range.last + 1)
         }
     }
 }

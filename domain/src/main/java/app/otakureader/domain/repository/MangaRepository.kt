@@ -14,4 +14,5 @@ interface MangaRepository {
     suspend fun toggleFavorite(id: Long)
     suspend fun updateAutoDownload(id: Long, autoDownload: Boolean)
     fun isFavorite(id: Long): Flow<Boolean>
+    suspend fun updateMangaNote(id: Long, notes: String?)
 }

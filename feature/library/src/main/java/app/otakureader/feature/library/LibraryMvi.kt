@@ -10,7 +10,8 @@ data class LibraryState(
     val categories: List<CategoryItem> = emptyList(),
     val selectedCategory: Long? = null,
     val gridSize: Int = 3,
-    val showBadges: Boolean = true
+    val showBadges: Boolean = true,
+    val filterHasNotes: Boolean = false
 )
 
 data class LibraryMangaItem(
@@ -18,7 +19,8 @@ data class LibraryMangaItem(
     val title: String,
     val thumbnailUrl: String?,
     val unreadCount: Int,
-    val isFavorite: Boolean
+    val isFavorite: Boolean,
+    val hasNote: Boolean = false
 )
 
 data class CategoryItem(
@@ -35,6 +37,7 @@ sealed class LibraryEvent {
     data class OnCategorySelected(val categoryId: Long?) : LibraryEvent()
     data object ClearSelection : LibraryEvent()
     data class ToggleFavorite(val mangaId: Long) : LibraryEvent()
+    data class FilterHasNotes(val enabled: Boolean) : LibraryEvent()
 }
 
 sealed class LibraryEffect {

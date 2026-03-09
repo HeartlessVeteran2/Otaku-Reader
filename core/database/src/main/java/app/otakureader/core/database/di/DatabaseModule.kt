@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import app.otakureader.core.database.BuildConfig
 import app.otakureader.core.database.OtakuReaderDatabase
 import dagger.Module
 import dagger.Provides
@@ -49,19 +50,32 @@ object DatabaseModule {
         }
     }
 
+    /**
+     * Adds the notes column to the manga table in database version 5.
+     */
+    private val MIGRATION_4_5 = object : Migration(4, 5) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `manga` ADD COLUMN `notes` TEXT")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(
         @ApplicationContext context: Context
     ): OtakuReaderDatabase {
-        return Room.databaseBuilder(
+        val builder = Room.databaseBuilder(
             context,
             OtakuReaderDatabase::class.java,
             OtakuReaderDatabase.DATABASE_NAME
         )
-            .addMigrations(MIGRATION_2_3, MIGRATION_3_4)
-            .fallbackToDestructiveMigration()
-            .build()
+            .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+        // Only allow destructive migration in debug builds to avoid silently wiping
+        // user data (including notes) in production if a migration is missing.
+        if (BuildConfig.DEBUG) {
+            builder.fallbackToDestructiveMigration(dropAllTables = true)
+        }
+        return builder.build()
     }
     
     @Provides

@@ -67,6 +67,10 @@ class MangaRepositoryImpl @Inject constructor(
     override fun isFavorite(id: Long): Flow<Boolean> {
         return mangaDao.isFavorite(id)
     }
+
+    override suspend fun updateMangaNote(id: Long, notes: String?) {
+        mangaDao.updateNote(id, notes)
+    }
     
     private fun MangaEntity.toDomain(unreadCount: Int = 0) = Manga(
         id = id,
@@ -82,7 +86,8 @@ class MangaRepositoryImpl @Inject constructor(
         favorite = favorite,
         initialized = initialized,
         unreadCount = unreadCount,
-        autoDownload = autoDownload
+        autoDownload = autoDownload,
+        notes = notes
     )
     
     private fun Manga.toEntity() = MangaEntity(
@@ -98,6 +103,7 @@ class MangaRepositoryImpl @Inject constructor(
         status = status.ordinal,
         favorite = favorite,
         initialized = initialized,
-        autoDownload = autoDownload
+        autoDownload = autoDownload,
+        notes = notes
     )
 }
