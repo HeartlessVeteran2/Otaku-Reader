@@ -267,8 +267,12 @@ class DetailsViewModel @Inject constructor(
 
     private fun deleteChapterDownload(chapterId: Long) {
         viewModelScope.launch {
-            downloadRepository.cancelDownload(chapterId)
-            _effect.emit(DetailsContract.Effect.ShowSnackbar("Download removed"))
+            try {
+                downloadRepository.deleteChapterDownload(chapterId)
+                _effect.emit(DetailsContract.Effect.ShowSnackbar("Download removed"))
+            } catch (e: Exception) {
+                _effect.emit(DetailsContract.Effect.ShowError("Failed to remove download: ${e.message}"))
+            }
         }
     }
 
