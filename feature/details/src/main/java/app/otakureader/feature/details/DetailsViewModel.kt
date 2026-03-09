@@ -134,15 +134,8 @@ class DetailsViewModel @Inject constructor(
     }
 
     private fun observeDeleteAfterReadSetting() {
-        combine(
-            downloadPreferences.deleteAfterReading,
-            downloadPreferences.perMangaOverrides
-        ) { global, overrides ->
-            val override = overrides[mangaId] ?: DeleteAfterReadMode.INHERIT
-            Pair(global, override)
-        }.onEach { (global, override) ->
-            _state.update { it.copy(globalDeleteAfterRead = global, deleteAfterReadOverride = override) }
-        }.launchIn(viewModelScope)
+        // Delete-after-reading feature has been removed
+        // This method is kept as a placeholder but does nothing
     }
 
     private fun refreshData() {
@@ -350,15 +343,8 @@ class DetailsViewModel @Inject constructor(
     }
 
     private fun setDeleteAfterReadOverride(mode: DeleteAfterReadMode) {
-        viewModelScope.launch {
-            downloadPreferences.setOverride(mangaId, mode)
-            val message = when (mode) {
-                DeleteAfterReadMode.INHERIT -> "Following global delete-after-read setting"
-                DeleteAfterReadMode.ENABLED -> "Will delete downloads after reading"
-                DeleteAfterReadMode.DISABLED -> "Will keep downloads after reading"
-            }
-            _effect.emit(DetailsContract.Effect.ShowSnackbar(message))
-        }
+        // Delete-after-reading feature has been removed
+        // This method is kept as a placeholder but does nothing
     }
 
     companion object {

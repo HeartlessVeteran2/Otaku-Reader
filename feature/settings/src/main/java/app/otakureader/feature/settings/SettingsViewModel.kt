@@ -49,16 +49,15 @@ class SettingsViewModel @Inject constructor(
                 generalPreferences.useDynamicColor,
                 generalPreferences.locale,
                 generalPreferences.notificationsEnabled,
-                generalPreferences.updateCheckInterval,
-                downloadPreferences.deleteAfterReading
-            ) { themeMode, dynamicColor, locale, notificationsEnabled, updateInterval, deleteAfterReading ->
+                generalPreferences.updateCheckInterval
+            ) { themeMode, dynamicColor, locale, notificationsEnabled, updateInterval ->
                 SettingsState(
                     themeMode = themeMode,
                     useDynamicColor = dynamicColor,
                     locale = locale,
                     notificationsEnabled = notificationsEnabled,
-                    updateCheckInterval = updateInterval,
-                    deleteAfterReading = deleteAfterReading
+                    updateCheckInterval = updateInterval
+                    // deleteAfterReading feature has been removed
                 )
             }.combine(libraryPreferences.gridSize) { state, gridSize ->
                 state.copy(libraryGridSize = gridSize)
@@ -109,6 +108,7 @@ class SettingsViewModel @Inject constructor(
                 is SettingsEvent.SetAutoDownloadEnabled -> downloadPreferences.setAutoDownloadEnabled(event.enabled)
                 is SettingsEvent.SetDownloadOnlyOnWifi -> downloadPreferences.setDownloadOnlyOnWifi(event.enabled)
                 is SettingsEvent.SetAutoDownloadLimit -> downloadPreferences.setAutoDownloadLimit(event.limit)
+                is SettingsEvent.SetDeleteAfterReading -> { /* Delete-after-reading feature has been removed */ }
                 is SettingsEvent.SetLocalSourceDirectory -> localSourcePreferences.setLocalSourceDirectory(event.path)
                 SettingsEvent.OnCreateBackup -> _effect.send(SettingsEffect.ShowBackupPicker)
                 SettingsEvent.OnRestoreBackup -> _effect.send(SettingsEffect.ShowRestorePicker)
