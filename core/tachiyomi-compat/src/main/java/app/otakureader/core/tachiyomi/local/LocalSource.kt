@@ -36,10 +36,10 @@ import java.util.zip.ZipFile
  * - CBZ / ZIP archives
  * - EPUB files (images extracted from the reading spine)
  *
- * Metadata sources (in priority order):
- * 1. `ComicInfo.xml` inside a CBZ/ZIP archive
- * 2. `series.json` in the manga's root folder
- * 3. Name inferred from the file/directory name
+ * Metadata sources (in priority order, per-format):
+ * - Folder-based manga: `series.json` → `ComicInfo.xml` (from first archive chapter) → directory name
+ * - CBZ/ZIP archives: `ComicInfo.xml` (embedded) → filename
+ * - EPUB files: OPF metadata → filename
  */
 class LocalSource(
     private val context: Context,
@@ -56,6 +56,9 @@ class LocalSource(
 
     private val archiveExtensions = setOf("cbz", "zip", "epub")
     private val imageExtensions = setOf("jpg", "jpeg", "png", "gif", "webp", "avif")
+
+    // Canonical base directory resolved once; null if the path cannot be canonicalized.
+    private val baseDirectory: File? = try { File(directory).canonicalFile } catch (_: Exception) { null }
 
     // ─── Directory scanning ───────────────────────────────────────────
 
@@ -228,12 +231,31 @@ class LocalSource(
     // ─── Helpers — page resolution ────────────────────────────────────
 
     /**
+     * Returns `true` if [file] (after canonical resolution) is equal to or a descendant of
+     * the configured [directory]. Used to guard against path-traversal via crafted URLs.
+     */
+    private fun isWithinBaseDirectory(file: File): Boolean {
+        val baseDir = baseDirectory ?: return false
+        val target = try { file.canonicalFile } catch (e: Exception) { return false }
+        val basePath = baseDir.absolutePath
+        val targetPath = target.absolutePath
+        return target == baseDir ||
+            (targetPath.startsWith(basePath) &&
+                (targetPath.length == basePath.length ||
+                    targetPath[basePath.length] == File.separatorChar))
+    }
+
+    /**
      * Resolves a chapter URL (produced by [chapterUrl]) into a list of [Page] objects
      * pointing to local file URIs so the image loader can display them without network.
      */
     private suspend fun resolvePages(chapterUrl: String): List<Page> = withContext(Dispatchers.IO) {
         val (mangaPath, chapterName) = parseChapterUrl(chapterUrl)
         val mangaFile = File(mangaPath)
+
+        // Guard against path-traversal via crafted chapter URLs — this method is called
+        // from the public fetchPageList override which bypasses findEntryByUrl.
+        if (!isWithinBaseDirectory(mangaFile)) return@withContext emptyList()
 
         when {
             // Manga is itself a single archive file
@@ -249,6 +271,8 @@ class LocalSource(
             }
             else -> {
                 val chapterFile = File(mangaFile, chapterName)
+                // Also validate the sub-chapter path (defense-in-depth for crafted chapterName)
+                if (!isWithinBaseDirectory(chapterFile)) return@withContext emptyList()
                 when {
                     chapterFile.isDirectory -> imagesInFolder(chapterFile)
                     chapterFile.extension.lowercase() == "epub" -> extractEpubPages(chapterFile)
@@ -611,33 +635,9 @@ class LocalSource(
         val mangaPath = parseChapterUrl(url).first
         val file = File(mangaPath)
 
-        // Ensure the resolved file is within the configured base directory to
-        // prevent access to arbitrary filesystem paths via crafted URLs.
-        val baseDir = try {
-            File(directory).canonicalFile
-        } catch (e: Exception) {
-            return null
-        }
+        if (!isWithinBaseDirectory(file)) return null
 
-        val target = try {
-            file.canonicalFile
-        } catch (e: Exception) {
-            return null
-        }
-
-        val basePath = baseDir.absolutePath
-        val targetPath = target.absolutePath
-
-        // Allow the base directory itself and any descendants.
-        val isUnderBaseDir = target == baseDir ||
-            (targetPath.startsWith(basePath) &&
-                (targetPath.length == basePath.length ||
-                 targetPath[basePath.length] == File.separatorChar))
-
-        if (!isUnderBaseDir) {
-            return null
-        }
-
+        val target = try { file.canonicalFile } catch (e: Exception) { return null }
         return when {
             target.isDirectory -> LocalMangaEntry.Folder(target)
             target.isFile -> LocalMangaEntry.Archive(target)
