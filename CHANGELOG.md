@@ -12,12 +12,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 📝 Professional GitHub project setup
 - 📚 Improved documentation
 
+## [0.2.0-alpha] - 2026-03-09
+
+### Added
+- 📜 Reading history screen with timestamps and read-duration tracking
+- 💾 Chapter download system: queue management, pause/resume, per-chapter progress
+- 🔔 Download notifications with progress (requires POST_NOTIFICATIONS on Android 13+)
+- 🗂️ Backup & restore: JSON export/import of library, chapters, categories, history, and preferences
+- 🕵️ Incognito mode (session-only via IncognitoManager, no history or progress saved)
+- ⚙️ Settings persistence via DataStore (general, library, and reader preferences)
+- 🔄 Background library update worker via WorkManager
+- 🖥️ Downloads screen with queue status (QUEUED, DOWNLOADING, PAUSED, COMPLETED, FAILED)
+
+### Changed
+- 🗄️ Database upgraded to version 3 with explicit MIGRATION_2_3 (adds `reading_history` table)
+- 📦 Removed SQLDelight; database layer now uses Room exclusively
+
 ## [0.1.0-alpha] - 2026-03-07
 
 ### Added
 - 🚀 Initial project setup
 - 📱 Core Android architecture (Clean Architecture + MVI)
-- 🗄️ Database layer (Room + SQLDelight)
+- 🗄️ Database layer (Room)
 - 📖 Library screen with manga grid
 - 📖 Basic reader with pager
 - 🔌 Extension system foundation
