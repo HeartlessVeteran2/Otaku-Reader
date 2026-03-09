@@ -252,7 +252,9 @@ private fun AppearanceSection(state: SettingsState, onEvent: (SettingsEvent) -> 
                         val intent = Intent(Settings.ACTION_APP_LOCALE_SETTINGS).apply {
                             data = Uri.fromParts("package", context.packageName, null)
                         }
-                        context.startActivity(intent)
+                        if (intent.resolveActivity(context.packageManager) != null) {
+                            context.startActivity(intent)
+                        }
                     }
                 )
             } else {
