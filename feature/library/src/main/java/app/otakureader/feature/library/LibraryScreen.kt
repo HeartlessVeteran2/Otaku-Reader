@@ -106,6 +106,8 @@ fun LibraryScreen(
                     } else {
                         Text("Library")
                     }
+                },
+                actions = {
                     IconButton(onClick = { showMenu = true }) {
                         Icon(Icons.Default.MoreVert, contentDescription = "More")
                     }

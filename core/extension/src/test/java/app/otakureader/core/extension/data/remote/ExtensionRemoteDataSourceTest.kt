@@ -94,10 +94,12 @@ class ExtensionRemoteDataSourceTest {
         assertEquals(1, extension.sources.size)
 
         // Verify APK URL is resolved correctly
-        assertTrue(extension.apkUrl?.contains("tachiyomi-en.mangadex-v1.2.3.apk") == true)
+        val expectedApkUrl = "$baseUrl/tachiyomi-en.mangadex-v1.2.3.apk"
+        assertEquals(expectedApkUrl, extension.apkUrl)
 
         // Verify icon URL is resolved correctly
-        assertTrue(extension.iconUrl?.contains("icon/tachiyomi-en.mangadex-v1.2.3.png") == true)
+        val expectedIconUrl = "$baseUrl/icon/tachiyomi-en.mangadex-v1.2.3.png"
+        assertEquals(expectedIconUrl, extension.iconUrl)
 
         // Verify source is parsed correctly
         val source = extension.sources[0]
@@ -168,6 +170,31 @@ class ExtensionRemoteDataSourceTest {
         assertEquals("1.2.3", extension.versionName)
         assertEquals("https://example.com/extensions/tachiyomi-en.mangadex-v1.2.3.apk", extension.apkUrl)
         assertEquals("abc123", extension.signatureHash)
+    }
+
+    @Test
+    fun `fetchAvailableExtensions when both index endpoints fail`() = runTest {
+        // Given: A repository URL where both index.min.json and index.json fail
+        val baseUrl = mockWebServer.url("/").toString().trimEnd('/')
+        coEvery { repoRepository.getRepositories() } returns flowOf(listOf(baseUrl))
+
+        // Enqueue failures for both index.min.json and index.json
+        mockWebServer.enqueue(
+            MockResponse()
+                .setResponseCode(404)
+                .setBody("Not Found")
+        )
+        mockWebServer.enqueue(
+            MockResponse()
+                .setResponseCode(500)
+                .setBody("Server Error")
+        )
+
+        // When: Fetching available extensions
+        val result = dataSource.fetchAvailableExtensions()
+
+        // Then: The failure is propagated (no extensions are returned)
+        assertTrue(result.isFailure)
     }
 
     @Test
@@ -263,11 +290,11 @@ class ExtensionRemoteDataSourceTest {
         // When: Fetching extensions
         val result = dataSource.fetchAvailableExtensions()
 
-        // Then: APK URL is resolved to absolute URL
+        // Then: APK URL is resolved to absolute URL using the mock server base URL
         assertTrue(result.isSuccess)
         val extensions = result.getOrThrow()
         assertEquals(1, extensions.size)
-        assertTrue(extensions[0].apkUrl?.startsWith("http") == true)
+        assertTrue(extensions[0].apkUrl?.startsWith(baseUrl) == true)
         assertTrue(extensions[0].apkUrl?.contains("apk/test-extension.apk") == true)
     }
 

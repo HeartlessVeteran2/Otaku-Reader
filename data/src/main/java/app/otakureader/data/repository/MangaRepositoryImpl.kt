@@ -45,7 +45,7 @@ class MangaRepositoryImpl @Inject constructor(
             mangaDao.getMangaByIds(chunk).map { it.toDomain() }
         }
     }
-    
+
     override fun getMangaByIdFlow(id: Long): Flow<Manga?> {
         return combine(
             mangaDao.getMangaByIdFlow(id),

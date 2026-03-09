@@ -294,4 +294,177 @@ class DownloadProviderTest {
             root.deleteRecursively()
         }
     }
+
+    // -------------------------------------------------------------------------
+    // migrateChapterDownload()
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun migrateChapterDownload_moveMode_movesFiles() {
+        val root = tempDir()
+        try {
+            // Create source chapter with loose pages
+            val sourceDir = DownloadProvider.getChapterDir(root, "source1", "manga1", "ch1")
+            sourceDir.mkdirs()
+            File(sourceDir, "0.jpg").writeText("page0")
+            File(sourceDir, "1.jpg").writeText("page1")
+
+            // Migrate in move mode (copy=false)
+            val result = DownloadProvider.migrateChapterDownload(
+                root, "source1", "manga1", "ch1",
+                "source2", "manga2", "ch2",
+                copy = false
+            )
+
+            assertTrue(result)
+
+            // Source directory should be deleted
+            assertFalse(sourceDir.exists())
+
+            // Target directory should have the files
+            val targetDir = DownloadProvider.getChapterDir(root, "source2", "manga2", "ch2")
+            assertTrue(targetDir.exists())
+            assertTrue(File(targetDir, "0.jpg").exists())
+            assertTrue(File(targetDir, "1.jpg").exists())
+            assertEquals("page0", File(targetDir, "0.jpg").readText())
+            assertEquals("page1", File(targetDir, "1.jpg").readText())
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun migrateChapterDownload_copyMode_copiesFiles() {
+        val root = tempDir()
+        try {
+            // Create source chapter with loose pages
+            val sourceDir = DownloadProvider.getChapterDir(root, "source1", "manga1", "ch1")
+            sourceDir.mkdirs()
+            File(sourceDir, "0.jpg").writeText("page0")
+            File(sourceDir, "1.jpg").writeText("page1")
+
+            // Migrate in copy mode (copy=true)
+            val result = DownloadProvider.migrateChapterDownload(
+                root, "source1", "manga1", "ch1",
+                "source2", "manga2", "ch2",
+                copy = true
+            )
+
+            assertTrue(result)
+
+            // Source directory should still exist
+            assertTrue(sourceDir.exists())
+            assertTrue(File(sourceDir, "0.jpg").exists())
+            assertTrue(File(sourceDir, "1.jpg").exists())
+
+            // Target directory should also have the files
+            val targetDir = DownloadProvider.getChapterDir(root, "source2", "manga2", "ch2")
+            assertTrue(targetDir.exists())
+            assertTrue(File(targetDir, "0.jpg").exists())
+            assertTrue(File(targetDir, "1.jpg").exists())
+            assertEquals("page0", File(targetDir, "0.jpg").readText())
+            assertEquals("page1", File(targetDir, "1.jpg").readText())
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun migrateChapterDownload_withCbzFile_migratesCbz() {
+        val root = tempDir()
+        try {
+            // Create source chapter with CBZ
+            val sourceDir = DownloadProvider.getChapterDir(root, "source1", "manga1", "ch1")
+            sourceDir.mkdirs()
+            File(sourceDir, "0.jpg").writeText("page0")
+            CbzCreator.createCbz(sourceDir)
+            File(sourceDir, "0.jpg").delete() // Remove loose file, keep only CBZ
+
+            // Migrate
+            val result = DownloadProvider.migrateChapterDownload(
+                root, "source1", "manga1", "ch1",
+                "source2", "manga2", "ch2",
+                copy = false
+            )
+
+            assertTrue(result)
+
+            // Target should have CBZ
+            val targetCbz = DownloadProvider.getCbzFile(root, "source2", "manga2", "ch2")
+            assertTrue(targetCbz.exists())
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun migrateChapterDownload_withPagesCacheSubdir_migratesSubdir() {
+        val root = tempDir()
+        try {
+            // Create source chapter with .pages cache subdirectory
+            val sourceDir = DownloadProvider.getChapterDir(root, "source1", "manga1", "ch1")
+            sourceDir.mkdirs()
+            File(sourceDir, CbzCreator.CBZ_FILE_NAME).writeText("fake cbz")
+            val pagesCache = File(sourceDir, ".pages")
+            pagesCache.mkdirs()
+            File(pagesCache, "0.jpg").writeText("cached page0")
+            File(pagesCache, "1.jpg").writeText("cached page1")
+
+            // Migrate
+            val result = DownloadProvider.migrateChapterDownload(
+                root, "source1", "manga1", "ch1",
+                "source2", "manga2", "ch2",
+                copy = false
+            )
+
+            assertTrue(result)
+
+            // Target should have .pages subdirectory
+            val targetPagesCache = File(
+                DownloadProvider.getChapterDir(root, "source2", "manga2", "ch2"),
+                ".pages"
+            )
+            assertTrue(targetPagesCache.exists())
+            assertTrue(File(targetPagesCache, "0.jpg").exists())
+            assertTrue(File(targetPagesCache, "1.jpg").exists())
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun migrateChapterDownload_nonExistentSource_returnsFalse() {
+        val root = tempDir()
+        try {
+            val result = DownloadProvider.migrateChapterDownload(
+                root, "source1", "manga1", "ch1",
+                "source2", "manga2", "ch2",
+                copy = false
+            )
+
+            assertFalse(result)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun migrateChapterDownload_emptySourceDir_returnsFalse() {
+        val root = tempDir()
+        try {
+            // Create empty source directory
+            val sourceDir = DownloadProvider.getChapterDir(root, "source1", "manga1", "ch1")
+            sourceDir.mkdirs()
+
+            val result = DownloadProvider.migrateChapterDownload(
+                root, "source1", "manga1", "ch1",
+                "source2", "manga2", "ch2",
+                copy = false
+            )
+
+            assertFalse(result)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
 }
