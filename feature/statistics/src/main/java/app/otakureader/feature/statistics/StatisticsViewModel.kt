@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.otakureader.domain.usecase.GetReadingStatsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,6 +22,8 @@ class StatisticsViewModel @Inject constructor(
     private val _state = MutableStateFlow(StatisticsState())
     val state: StateFlow<StatisticsState> = _state.asStateFlow()
 
+    private var statsJob: Job? = null
+
     init {
         loadStats()
     }
@@ -32,8 +35,9 @@ class StatisticsViewModel @Inject constructor(
     }
 
     private fun loadStats() {
+        statsJob?.cancel()
         _state.update { it.copy(isLoading = true) }
-        getReadingStatsUseCase()
+        statsJob = getReadingStatsUseCase()
             .onEach { stats ->
                 _state.update { it.copy(isLoading = false, stats = stats, error = null) }
             }
