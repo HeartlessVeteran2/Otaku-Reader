@@ -212,8 +212,10 @@ fun ReaderScreen(
         FullPageGallery(
             pages = state.pages,
             currentPage = state.currentPage,
+            columns = state.galleryColumns,
             onPageClick = { viewModel.jumpToPage(it) },
             onDismiss = { viewModel.onEvent(ReaderEvent.ToggleGallery) },
+            onColumnsChange = { viewModel.onEvent(ReaderEvent.SetGalleryColumns(it)) },
             isVisible = state.isGalleryOpen
         )
         

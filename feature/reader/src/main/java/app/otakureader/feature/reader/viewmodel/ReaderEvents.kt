@@ -50,6 +50,12 @@ sealed interface ReaderEvent {
     /** Toggle the page gallery/thumbnail view */
     data object ToggleGallery : ReaderEvent
 
+    /**
+     * Set the number of columns in the gallery grid
+     * @param columns Number of columns (2, 3, or 4)
+     */
+    data class SetGalleryColumns(val columns: Int) : ReaderEvent
+
     /** Toggle fullscreen mode */
     data object ToggleFullscreen : ReaderEvent
 
