@@ -26,13 +26,16 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Circle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.Downloading
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -64,6 +67,7 @@ import java.util.Locale
 @Composable
 fun ChapterList(
     chapters: List<DetailsContract.ChapterItem>,
+    selectedChapters: Set<Long>,
     groupedChapters: Map<String?, List<DetailsContract.ChapterItem>>,
     sortOrder: DetailsContract.ChapterSortOrder,
     onSortOrderChange: () -> Unit,
@@ -75,14 +79,29 @@ fun ChapterList(
     onDeleteDownload: (Long) -> Unit,
     onMarkPreviousRead: (Long) -> Unit,
     onExportAsCbz: (Long) -> Unit = {},
+    onClearSelection: () -> Unit = {},
+    onSelectAll: () -> Unit = {},
+    onDownloadSelected: () -> Unit = {},
+    onDeleteSelected: () -> Unit = {},
+    onMarkSelectedAsRead: () -> Unit = {},
+    onMarkSelectedAsUnread: () -> Unit = {},
+    onBookmarkSelected: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.fillMaxSize()) {
-        // Header with sort option
+        // Header with sort option and selection actions
         ChapterListHeader(
             chapterCount = chapters.size,
+            selectedCount = selectedChapters.size,
             sortOrder = sortOrder,
-            onSortOrderChange = onSortOrderChange
+            onSortOrderChange = onSortOrderChange,
+            onClearSelection = onClearSelection,
+            onSelectAll = onSelectAll,
+            onDownloadSelected = onDownloadSelected,
+            onDeleteSelected = onDeleteSelected,
+            onMarkSelectedAsRead = onMarkSelectedAsRead,
+            onMarkSelectedAsUnread = onMarkSelectedAsUnread,
+            onBookmarkSelected = onBookmarkSelected
         )
 
         // Chapter list
@@ -105,6 +124,7 @@ fun ChapterList(
                 ) { chapter ->
                     ChapterListItem(
                         chapter = chapter,
+                        isSelected = selectedChapters.contains(chapter.id),
                         onClick = { onChapterClick(chapter.id) },
                         onLongClick = { onChapterLongClick(chapter.id) },
                         onToggleRead = { onToggleRead(chapter.id) },
@@ -123,8 +143,16 @@ fun ChapterList(
 @Composable
 private fun ChapterListHeader(
     chapterCount: Int,
+    selectedCount: Int,
     sortOrder: DetailsContract.ChapterSortOrder,
     onSortOrderChange: () -> Unit,
+    onClearSelection: () -> Unit,
+    onSelectAll: () -> Unit,
+    onDownloadSelected: () -> Unit,
+    onDeleteSelected: () -> Unit,
+    onMarkSelectedAsRead: () -> Unit,
+    onMarkSelectedAsUnread: () -> Unit,
+    onBookmarkSelected: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -139,26 +167,74 @@ private fun ChapterListHeader(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "$chapterCount Chapters",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
-            )
-
-            IconButton(onClick = onSortOrderChange) {
+            if (selectedCount > 0) {
+                // Selection mode header
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.Sort,
-                        contentDescription = "Sort chapters"
+                    IconButton(onClick = onClearSelection) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Clear selection"
+                        )
+                    }
+                    Text(
+                        text = "$selectedCount selected",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Icon(
-                        imageVector = when (sortOrder) {
-                            DetailsContract.ChapterSortOrder.ASCENDING -> Icons.Default.KeyboardArrowUp
-                            DetailsContract.ChapterSortOrder.DESCENDING -> Icons.Default.KeyboardArrowDown
-                        },
-                        contentDescription = null
-                    )
+                }
+
+                // Action buttons
+                Row {
+                    IconButton(onClick = onDownloadSelected) {
+                        Icon(
+                            imageVector = Icons.Default.Download,
+                            contentDescription = "Download selected"
+                        )
+                    }
+                    IconButton(onClick = onMarkSelectedAsRead) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "Mark as read"
+                        )
+                    }
+                    IconButton(onClick = onBookmarkSelected) {
+                        Icon(
+                            imageVector = Icons.Default.Bookmark,
+                            contentDescription = "Bookmark selected"
+                        )
+                    }
+                }
+            } else {
+                // Normal mode header
+                Text(
+                    text = "$chapterCount Chapters",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                Row {
+                    IconButton(onClick = onSelectAll) {
+                        Icon(
+                            imageVector = Icons.Default.SelectAll,
+                            contentDescription = "Select all"
+                        )
+                    }
+                    IconButton(onClick = onSortOrderChange) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Sort,
+                                contentDescription = "Sort chapters"
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                imageVector = when (sortOrder) {
+                                    DetailsContract.ChapterSortOrder.ASCENDING -> Icons.Default.KeyboardArrowUp
+                                    DetailsContract.ChapterSortOrder.DESCENDING -> Icons.Default.KeyboardArrowDown
+                                },
+                                contentDescription = null
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -196,6 +272,7 @@ private fun VolumeHeader(
 @Composable
 fun ChapterListItem(
     chapter: DetailsContract.ChapterItem,
+    isSelected: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onToggleRead: () -> Unit = {},
@@ -237,6 +314,15 @@ fun ChapterListItem(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Show checkbox when selected
+            if (isSelected) {
+                Checkbox(
+                    checked = true,
+                    onCheckedChange = { onClick() },
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+            }
+
             // Chapter info
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -276,48 +362,50 @@ fun ChapterListItem(
                 }
             }
 
-            // Actions
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                // Read indicator
-                IconButton(onClick = onToggleRead) {
-                    Icon(
-                        imageVector = if (chapter.read) {
-                            Icons.Default.CheckCircle
-                        } else {
-                            Icons.Default.Circle
-                        },
-                        contentDescription = if (chapter.read) "Mark as unread" else "Mark as read",
-                        tint = if (chapter.read) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.outline
-                        }
+            // Actions (hidden when selected)
+            if (!isSelected) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Read indicator
+                    IconButton(onClick = onToggleRead) {
+                        Icon(
+                            imageVector = if (chapter.read) {
+                                Icons.Default.CheckCircle
+                            } else {
+                                Icons.Default.Circle
+                            },
+                            contentDescription = if (chapter.read) "Mark as unread" else "Mark as read",
+                            tint = if (chapter.read) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.outline
+                            }
+                        )
+                    }
+
+                    // Bookmark
+                    IconButton(onClick = onToggleBookmark) {
+                        Icon(
+                            imageVector = if (chapter.bookmark) {
+                                Icons.Default.Bookmark
+                            } else {
+                                Icons.Default.BookmarkBorder
+                            },
+                            contentDescription = if (chapter.bookmark) "Remove bookmark" else "Add bookmark",
+                            tint = if (chapter.bookmark) {
+                                MaterialTheme.colorScheme.secondary
+                            } else {
+                                MaterialTheme.colorScheme.outline
+                            }
+                        )
+                    }
+
+                    // Download status
+                    DownloadIcon(
+                        status = chapter.downloadStatus,
+                        onDownload = onDownload,
+                        onDelete = onDeleteDownload
                     )
                 }
-
-                // Bookmark
-                IconButton(onClick = onToggleBookmark) {
-                    Icon(
-                        imageVector = if (chapter.bookmark) {
-                            Icons.Default.Bookmark
-                        } else {
-                            Icons.Default.BookmarkBorder
-                        },
-                        contentDescription = if (chapter.bookmark) "Remove bookmark" else "Add bookmark",
-                        tint = if (chapter.bookmark) {
-                            MaterialTheme.colorScheme.secondary
-                        } else {
-                            MaterialTheme.colorScheme.outline
-                        }
-                    )
-                }
-
-                // Download status
-                DownloadIcon(
-                    status = chapter.downloadStatus,
-                    onDownload = onDownload,
-                    onDelete = onDeleteDownload
-                )
             }
         }
     }

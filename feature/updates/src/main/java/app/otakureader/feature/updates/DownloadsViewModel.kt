@@ -31,6 +31,8 @@ class DownloadsViewModel @Inject constructor(
 
     fun onEvent(event: DownloadsEvent) {
         when (event) {
+            is DownloadsEvent.OnItemClick -> onItemClick(event.id)
+            is DownloadsEvent.OnItemLongClick -> toggleSelection(event.id)
             is DownloadsEvent.Pause -> viewModelScope.launch {
                 downloadRepository.pauseDownload(event.id)
             }
@@ -46,6 +48,71 @@ class DownloadsViewModel @Inject constructor(
             DownloadsEvent.ClearAll -> viewModelScope.launch {
                 downloadRepository.clearAll()
             }
+
+            DownloadsEvent.ClearSelection -> clearSelection()
+            DownloadsEvent.SelectAll -> selectAll()
+            DownloadsEvent.PauseSelected -> pauseSelected()
+            DownloadsEvent.ResumeSelected -> resumeSelected()
+            DownloadsEvent.CancelSelected -> cancelSelected()
+        }
+    }
+
+    private fun onItemClick(id: Long) {
+        if (_state.value.selectedItems.isNotEmpty()) {
+            toggleSelection(id)
+        }
+    }
+
+    private fun toggleSelection(id: Long) {
+        _state.update { state ->
+            val currentSelection = state.selectedItems
+            val newSelection = if (currentSelection.contains(id)) {
+                currentSelection - id
+            } else {
+                currentSelection + id
+            }
+            state.copy(selectedItems = newSelection)
+        }
+    }
+
+    private fun clearSelection() {
+        _state.update { it.copy(selectedItems = emptySet()) }
+    }
+
+    private fun selectAll() {
+        _state.update { state ->
+            val allIds = state.items.map { it.id }.toSet()
+            state.copy(selectedItems = allIds)
+        }
+    }
+
+    private fun pauseSelected() {
+        viewModelScope.launch {
+            val selectedIds = _state.value.selectedItems
+            selectedIds.forEach { id ->
+                downloadRepository.pauseDownload(id)
+            }
+            clearSelection()
+        }
+    }
+
+    private fun resumeSelected() {
+        viewModelScope.launch {
+            val selectedIds = _state.value.selectedItems
+            selectedIds.forEach { id ->
+                downloadRepository.resumeDownload(id)
+            }
+            clearSelection()
+        }
+    }
+
+    private fun cancelSelected() {
+        viewModelScope.launch {
+            val selectedIds = _state.value.selectedItems
+            selectedIds.forEach { id ->
+                downloadRepository.cancelDownload(id)
+            }
+            clearSelection()
         }
     }
 }

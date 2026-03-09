@@ -1,6 +1,6 @@
 package app.otakureader.feature.history
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,8 +12,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.SelectAll
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -73,16 +75,37 @@ fun HistoryScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("History") },
+                title = {
+                    if (state.selectedItems.isNotEmpty()) {
+                        Text("${state.selectedItems.size} selected")
+                    } else {
+                        Text("History")
+                    }
+                },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    if (state.selectedItems.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.onEvent(HistoryEvent.ClearSelection) }) {
+                            Icon(Icons.Default.Close, contentDescription = "Clear selection")
+                        }
+                    } else {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
                     }
                 },
                 actions = {
-                    if (state.history.isNotEmpty()) {
-                        TextButton(onClick = { viewModel.onEvent(HistoryEvent.ClearHistory) }) {
-                            Text("Clear all")
+                    if (state.selectedItems.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.onEvent(HistoryEvent.RemoveSelectedFromHistory) }) {
+                            Icon(Icons.Default.Delete, contentDescription = "Delete selected")
+                        }
+                    } else {
+                        if (state.history.isNotEmpty()) {
+                            IconButton(onClick = { viewModel.onEvent(HistoryEvent.SelectAll) }) {
+                                Icon(Icons.Default.SelectAll, contentDescription = "Select all")
+                            }
+                            TextButton(onClick = { viewModel.onEvent(HistoryEvent.ClearHistory) }) {
+                                Text("Clear all")
+                            }
                         }
                     }
                 }
@@ -99,7 +122,7 @@ fun HistoryScreen(
                 trailingIcon = {
                     if (state.searchQuery.isNotEmpty()) {
                         IconButton(onClick = { viewModel.onEvent(HistoryEvent.OnSearchQueryChange("")) }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Clear search")
+                            Icon(Icons.Default.Close, contentDescription = "Clear search")
                         }
                     }
                 },
@@ -137,10 +160,14 @@ fun HistoryScreen(
                     items(state.history, key = { it.chapter.id }) { entry ->
                         HistoryItem(
                             entry = entry,
+                            isSelected = state.selectedItems.contains(entry.chapter.id),
                             onItemClick = {
                                 viewModel.onEvent(
                                     HistoryEvent.OnChapterClick(entry.chapter.mangaId, entry.chapter.id)
                                 )
+                            },
+                            onItemLongClick = {
+                                viewModel.onEvent(HistoryEvent.OnChapterLongClick(entry.chapter.id))
                             },
                             onRemoveClick = {
                                 viewModel.onEvent(HistoryEvent.RemoveFromHistory(entry.chapter.id))
@@ -157,18 +184,30 @@ fun HistoryScreen(
 @Composable
 private fun HistoryItem(
     entry: ChapterWithHistory,
+    isSelected: Boolean,
     onItemClick: () -> Unit,
+    onItemLongClick: () -> Unit,
     onRemoveClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onItemClick)
+            .combinedClickable(
+                onClick = onItemClick,
+                onLongClick = onItemLongClick
+            )
             .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
+        if (isSelected) {
+            Checkbox(
+                checked = true,
+                onCheckedChange = { onItemClick() },
+                modifier = Modifier.padding(end = 8.dp)
+            )
+        }
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = entry.chapter.name,
@@ -180,8 +219,10 @@ private fun HistoryItem(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        IconButton(onClick = onRemoveClick) {
-            Icon(Icons.Default.Delete, contentDescription = "Remove from history")
+        if (!isSelected) {
+            IconButton(onClick = onRemoveClick) {
+                Icon(Icons.Default.Delete, contentDescription = "Remove from history")
+            }
         }
     }
 }

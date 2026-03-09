@@ -50,13 +50,65 @@ class HistoryViewModel @Inject constructor(
 
     fun onEvent(event: HistoryEvent) {
         when (event) {
-            is HistoryEvent.OnChapterClick -> navigateToReader(event.mangaId, event.chapterId)
+            is HistoryEvent.OnChapterClick -> onChapterClick(event.mangaId, event.chapterId)
+            is HistoryEvent.OnChapterLongClick -> toggleSelection(event.chapterId)
             is HistoryEvent.ClearHistory -> clearHistory()
+            is HistoryEvent.ClearSelection -> clearSelection()
+            is HistoryEvent.SelectAll -> selectAll()
             is HistoryEvent.OnSearchQueryChange -> {
                 searchQuery.value = event.query
                 _state.update { it.copy(searchQuery = event.query) }
             }
             is HistoryEvent.RemoveFromHistory -> removeFromHistory(event.chapterId)
+            is HistoryEvent.RemoveSelectedFromHistory -> removeSelectedFromHistory()
+        }
+    }
+
+    private fun onChapterClick(mangaId: Long, chapterId: Long) {
+        if (_state.value.selectedItems.isNotEmpty()) {
+            toggleSelection(chapterId)
+        } else {
+            navigateToReader(mangaId, chapterId)
+        }
+    }
+
+    private fun toggleSelection(chapterId: Long) {
+        _state.update { state ->
+            val currentSelection = state.selectedItems
+            val newSelection = if (currentSelection.contains(chapterId)) {
+                currentSelection - chapterId
+            } else {
+                currentSelection + chapterId
+            }
+            state.copy(selectedItems = newSelection)
+        }
+    }
+
+    private fun clearSelection() {
+        _state.update { it.copy(selectedItems = emptySet()) }
+    }
+
+    private fun selectAll() {
+        _state.update { state ->
+            val allIds = state.history.map { it.chapter.id }.toSet()
+            state.copy(selectedItems = allIds)
+        }
+    }
+
+    private fun removeSelectedFromHistory() {
+        viewModelScope.launch {
+            try {
+                val selectedIds = _state.value.selectedItems
+                if (selectedIds.isNotEmpty()) {
+                    selectedIds.forEach { chapterId ->
+                        chapterRepository.removeFromHistory(chapterId)
+                    }
+                    clearSelection()
+                    _effect.emit(HistoryEffect.ShowSnackbar("Removed ${selectedIds.size} item(s) from history"))
+                }
+            } catch (e: Exception) {
+                _effect.emit(HistoryEffect.ShowSnackbar("Failed to remove from history"))
+            }
         }
     }
 
