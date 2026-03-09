@@ -1,9 +1,18 @@
 package app.otakureader.core.database.entity
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "manga")
+@Entity(
+    tableName = "manga",
+    indices = [
+        Index(value = ["sourceId"]),
+        Index(value = ["title"]),
+        Index(value = ["favorite"]),
+        Index(value = ["sourceId", "url"], unique = true)
+    ]
+)
 data class MangaEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,

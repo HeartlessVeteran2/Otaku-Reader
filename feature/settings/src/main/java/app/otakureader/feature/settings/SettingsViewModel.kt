@@ -47,16 +47,17 @@ class SettingsViewModel @Inject constructor(
             combine(
                 generalPreferences.themeMode,
                 generalPreferences.useDynamicColor,
-                generalPreferences.usePureBlackDarkMode,
-                generalPreferences.colorScheme,
-                generalPreferences.locale
-            ) { themeMode, dynamicColor, usePureBlack, colorScheme, locale ->
+                generalPreferences.locale,
+                generalPreferences.notificationsEnabled,
+                generalPreferences.updateCheckInterval
+            ) { themeMode, dynamicColor, locale, notificationsEnabled, updateInterval ->
                 SettingsState(
                     themeMode = themeMode,
                     useDynamicColor = dynamicColor,
-                    usePureBlackDarkMode = usePureBlack,
-                    colorScheme = colorScheme,
-                    locale = locale
+                    locale = locale,
+                    notificationsEnabled = notificationsEnabled,
+                    updateCheckInterval = updateInterval
+                    // deleteAfterReading feature has been removed
                 )
             }.combine(generalPreferences.notificationsEnabled) { state, notificationsEnabled ->
                 state.copy(notificationsEnabled = notificationsEnabled)
@@ -116,6 +117,7 @@ class SettingsViewModel @Inject constructor(
                 is SettingsEvent.SetAutoDownloadEnabled -> downloadPreferences.setAutoDownloadEnabled(event.enabled)
                 is SettingsEvent.SetDownloadOnlyOnWifi -> downloadPreferences.setDownloadOnlyOnWifi(event.enabled)
                 is SettingsEvent.SetAutoDownloadLimit -> downloadPreferences.setAutoDownloadLimit(event.limit)
+                is SettingsEvent.SetDeleteAfterReading -> { /* Delete-after-reading feature has been removed */ }
                 is SettingsEvent.SetLocalSourceDirectory -> localSourcePreferences.setLocalSourceDirectory(event.path)
                 SettingsEvent.OnCreateBackup -> _effect.send(SettingsEffect.ShowBackupPicker)
                 SettingsEvent.OnRestoreBackup -> _effect.send(SettingsEffect.ShowRestorePicker)
