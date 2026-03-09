@@ -5,8 +5,10 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import app.otakureader.core.database.entity.ChapterEntity
+import app.otakureader.core.database.entity.ChapterWithMangaEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -52,4 +54,18 @@ interface ChapterDao {
     
     @Query("SELECT COUNT(*) FROM chapters WHERE mangaId = :mangaId AND read = 1")
     fun getReadCountByMangaId(mangaId: Long): Flow<Int>
+
+    /**
+     * Returns the most recently fetched chapters (dateFetch > 0) for library manga,
+     * paired with their parent manga, ordered newest-first. Limited to 200 rows.
+     */
+    @Transaction
+    @Query(
+        "SELECT chapters.* FROM chapters " +
+            "INNER JOIN manga ON chapters.mangaId = manga.id " +
+            "WHERE chapters.dateFetch > 0 AND manga.favorite = 1 " +
+            "ORDER BY chapters.dateFetch DESC " +
+            "LIMIT 200"
+    )
+    fun getRecentUpdates(): Flow<List<ChapterWithMangaEntity>>
 }

@@ -2,6 +2,7 @@ package app.otakureader.domain.repository
 
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.ChapterWithHistory
+import app.otakureader.domain.model.MangaUpdate
 import kotlinx.coroutines.flow.Flow
 
 interface ChapterRepository {
@@ -15,6 +16,7 @@ interface ChapterRepository {
     suspend fun insertChapters(chapters: List<Chapter>)
     fun getUnreadCountByMangaId(mangaId: Long): Flow<Int>
     fun observeHistory(): Flow<List<ChapterWithHistory>>
+    fun getRecentUpdates(): Flow<List<MangaUpdate>>
     suspend fun recordHistory(chapterId: Long, readAt: Long, readDurationMs: Long)
     suspend fun removeFromHistory(chapterId: Long)
     suspend fun clearAllHistory()

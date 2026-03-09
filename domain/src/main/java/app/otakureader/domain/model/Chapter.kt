@@ -13,5 +13,6 @@ data class Chapter(
     val bookmark: Boolean = false,
     val lastPageRead: Int = 0,
     val chapterNumber: Float = -1f,
-    val dateUpload: Long = 0
+    val dateUpload: Long = 0,
+    val dateFetch: Long = 0
 )
