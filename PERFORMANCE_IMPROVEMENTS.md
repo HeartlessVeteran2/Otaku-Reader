@@ -193,7 +193,7 @@ Conditionally enable logging only in debug builds:
 ## 5. File Operations Bounds Checking
 
 ### Problem
-File operations on downloaded chapters had no upper bounds:
+File operations on downloaded chapters had no upper bound:
 ```kotlin
 dir.listFiles()?.filter { ... }?.sortedBy { ... }
 ```
