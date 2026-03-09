@@ -29,6 +29,15 @@ interface ReadingHistoryDao {
     )
     fun observeHistoryWithChapters(): Flow<List<ChapterWithHistoryEntity>>
 
+    @Query("SELECT COALESCE(SUM(read_duration_ms), 0) FROM reading_history")
+    fun getTotalReadingTimeMs(): Flow<Long>
+
+    @Query("SELECT COUNT(*) FROM reading_history")
+    fun getTotalChaptersRead(): Flow<Int>
+
+    @Query("SELECT read_at FROM reading_history WHERE read_at > 0 ORDER BY read_at ASC")
+    fun getAllReadTimestamps(): Flow<List<Long>>
+
     @Query("DELETE FROM reading_history WHERE read_at < :timestamp")
     suspend fun deleteHistoryBefore(timestamp: Long)
 

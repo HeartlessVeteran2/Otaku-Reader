@@ -54,6 +54,9 @@ interface MangaDao {
     @Query("SELECT COUNT(*) FROM manga WHERE favorite = 1")
     fun getFavoriteMangaCount(): Flow<Int>
 
+    @Query("SELECT genre FROM manga WHERE favorite = 1 AND genre IS NOT NULL")
+    fun getFavoriteMangaGenres(): Flow<List<String>>
+
     @Query("""
         SELECT m.*, COALESCE(SUM(CASE WHEN c.read = 0 THEN 1 ELSE 0 END), 0) as unreadCount
         FROM manga m

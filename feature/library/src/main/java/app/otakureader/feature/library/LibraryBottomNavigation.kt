@@ -5,6 +5,7 @@ import androidx.compose.material.icons.filled.CollectionsBookmark
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.NewReleases
+import androidx.compose.material.icons.filled.QueryStats
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -20,6 +21,7 @@ fun LibraryBottomNavigation(
     onNavigateToUpdates: () -> Unit,
     onNavigateToBrowse: () -> Unit,
     onNavigateToHistory: () -> Unit = {},
+    onNavigateToStatistics: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -49,6 +51,12 @@ fun LibraryBottomNavigation(
             label = { Text("History") },
             selected = selectedRoute == "history",
             onClick = onNavigateToHistory
+        )
+        NavigationBarItem(
+            icon = { Icon(Icons.Default.QueryStats, contentDescription = null) },
+            label = { Text("Stats") },
+            selected = selectedRoute == "statistics",
+            onClick = onNavigateToStatistics
         )
         NavigationBarItem(
             icon = { Icon(Icons.Default.Settings, contentDescription = null) },

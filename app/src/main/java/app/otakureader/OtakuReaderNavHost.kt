@@ -13,6 +13,7 @@ import app.otakureader.core.navigation.MangaDetailRoute
 import app.otakureader.core.navigation.ReaderRoute
 import app.otakureader.core.navigation.SettingsRoute
 import app.otakureader.core.navigation.SourceDetailRoute
+import app.otakureader.core.navigation.StatisticsRoute
 import app.otakureader.core.navigation.UpdatesRoute
 import app.otakureader.feature.browse.navigation.browseScreen
 import app.otakureader.feature.browse.navigation.extensionsBottomSheet
@@ -23,6 +24,7 @@ import app.otakureader.feature.history.navigation.historyScreen
 import app.otakureader.feature.library.navigation.libraryScreen
 import app.otakureader.feature.reader.navigation.readerScreen
 import app.otakureader.feature.settings.navigation.settingsScreen
+import app.otakureader.feature.statistics.navigation.statisticsScreen
 import app.otakureader.feature.updates.navigation.downloadsScreen
 import app.otakureader.feature.updates.navigation.updatesScreen
 import app.otakureader.core.navigation.DownloadsRoute
@@ -51,6 +53,9 @@ fun OtakuReaderNavHost(
             },
             onNavigateToHistory = {
                 navController.navigate(HistoryRoute)
+            },
+            onNavigateToStatistics = {
+                navController.navigate(StatisticsRoute)
             },
             onNavigateToSettings = {
                 navController.navigate(SettingsRoute)
@@ -155,6 +160,13 @@ fun OtakuReaderNavHost(
         )
 
         downloadsScreen(
+            onNavigateBack = {
+                navController.popBackStack()
+            }
+        )
+
+        // Statistics screen
+        statisticsScreen(
             onNavigateBack = {
                 navController.popBackStack()
             }
