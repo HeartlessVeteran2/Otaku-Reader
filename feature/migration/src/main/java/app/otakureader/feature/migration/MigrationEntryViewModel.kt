@@ -40,16 +40,18 @@ class MigrationEntryViewModel @Inject constructor(
             MigrationEntryEvent.ClearSelection -> clearSelection()
             MigrationEntryEvent.OnStartMigration -> startMigration()
             MigrationEntryEvent.NavigateBack -> navigateBack()
+            MigrationEntryEvent.Retry -> loadLibrary()
         }
     }
 
     private fun loadLibrary() {
-        _state.update { it.copy(isLoading = true) }
+        _state.update { it.copy(isLoading = true, error = null) }
         getLibraryManga()
             .onEach { manga ->
                 _state.update { state ->
                     state.copy(
                         isLoading = false,
+                        error = null,
                         mangaList = manga.map { m ->
                             MigrationEntryItem(
                                 id = m.id,
@@ -61,7 +63,9 @@ class MigrationEntryViewModel @Inject constructor(
                 }
             }
             .catch { e ->
-                _state.update { it.copy(isLoading = false, error = e.message) }
+                val message = e.message ?: "Failed to load library"
+                _state.update { it.copy(isLoading = false, error = message) }
+                _effect.emit(MigrationEntryEffect.ShowError(message))
             }
             .launchIn(viewModelScope)
     }

@@ -27,9 +27,11 @@ sealed class MigrationEntryEvent {
     data object ClearSelection : MigrationEntryEvent()
     data object OnStartMigration : MigrationEntryEvent()
     data object NavigateBack : MigrationEntryEvent()
+    data object Retry : MigrationEntryEvent()
 }
 
 sealed class MigrationEntryEffect {
     data class NavigateToMigration(val selectedMangaIds: List<Long>) : MigrationEntryEffect()
     data object NavigateBack : MigrationEntryEffect()
+    data class ShowError(val message: String) : MigrationEntryEffect()
 }

@@ -134,7 +134,7 @@ fun SettingsScreen(
             HorizontalDivider()
             NotificationsSection(state = state, onEvent = viewModel::onEvent)
             HorizontalDivider()
-            BackupRestoreSection(state = state, onEvent = viewModel::onEvent)
+            DataStorageSection(state = state, onEvent = viewModel::onEvent)
             HorizontalDivider()
             MigrationSection(state = state, onEvent = viewModel::onEvent)
         }
@@ -565,7 +565,7 @@ private fun NotificationsSection(state: SettingsState, onEvent: (SettingsEvent) 
 }
 
 @Composable
-private fun BackupRestoreSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
+private fun DataStorageSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
     // ── Data & Storage ────────────────────────────────────────────────
             SectionHeader(title = "Backup, Restore & Migration")
 
