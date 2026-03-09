@@ -42,7 +42,10 @@ class ChapterRepositoryImpl @Inject constructor(
     }
     
     override suspend fun updateChapterProgress(chapterIds: List<Long>, read: Boolean, lastPageRead: Int) {
-        chapterDao.updateChapterProgress(chapterIds, read, lastPageRead)
+        // SQLite limits bound parameters to 999 per query; chunk to stay within that limit.
+        chapterIds.chunked(999).forEach { chunk ->
+            chapterDao.updateChapterProgress(chunk, read, lastPageRead)
+        }
     }
 
     override suspend fun updateBookmark(chapterId: Long, bookmark: Boolean) {
