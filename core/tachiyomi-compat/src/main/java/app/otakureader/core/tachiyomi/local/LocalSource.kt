@@ -555,7 +555,7 @@ class LocalSource(
         // Ensure the resolved file is within the configured base directory to
         // prevent access to arbitrary filesystem paths via crafted URLs.
         val baseDir = try {
-            directory.canonicalFile
+            File(directory).canonicalFile
         } catch (e: Exception) {
             return null
         }
