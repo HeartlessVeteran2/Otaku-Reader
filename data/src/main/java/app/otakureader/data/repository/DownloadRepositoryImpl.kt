@@ -78,11 +78,7 @@ class DownloadRepositoryImpl @Inject constructor(
         downloadManager.cancel(chapterId)
 
         withContext(Dispatchers.IO) {
-            val deleted = DownloadProvider.deleteChapter(context, sourceName, mangaTitle, chapterTitle)
-            if (deleted) {
-                // Remove any active job or completed metadata for this chapter only.
-                downloadManager.remove(chapterId)
-            }
+            DownloadProvider.deleteChapter(context, sourceName, mangaTitle, chapterTitle)
         }
     }
 
