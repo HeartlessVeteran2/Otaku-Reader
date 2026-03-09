@@ -15,7 +15,12 @@ import androidx.room.PrimaryKey
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index(value = ["mangaId"])]
+    indices = [
+        Index(value = ["mangaId"]),
+        Index(value = ["mangaId", "url"], unique = true),
+        Index(value = ["read"]),
+        Index(value = ["bookmark"])
+    ]
 )
 data class ChapterEntity(
     @PrimaryKey(autoGenerate = true)

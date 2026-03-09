@@ -4,13 +4,10 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.otakureader.data.loader.PageLoader
-import app.otakureader.core.preferences.DeleteAfterReadMode
-import app.otakureader.core.preferences.DownloadPreferences
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.MangaRepository
-import app.otakureader.domain.usecase.DeleteChapterUseCase
 import app.otakureader.feature.reader.model.ReaderMode
 import app.otakureader.feature.reader.model.ReaderPage
 import app.otakureader.feature.reader.model.ReadingDirection
@@ -42,8 +39,6 @@ class UltimateReaderViewModel @Inject constructor(
     private val mangaRepository: MangaRepository,
     private val chapterRepository: ChapterRepository,
     private val settingsRepository: ReaderSettingsRepository,
-    private val downloadPreferences: DownloadPreferences,
-    private val deleteChapterUseCase: DeleteChapterUseCase,
     private val pageLoader: PageLoader,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -468,7 +463,8 @@ class UltimateReaderViewModel @Inject constructor(
     }
 
     /**
-     * Schedule auto-save of reading progress
+     * Schedule auto-save of reading progress with debouncing to prevent excessive database writes.
+     * Multiple rapid page changes will only trigger one save after the delay period.
      */
     private fun scheduleProgressSave() {
         autoSaveJob?.cancel()
@@ -537,23 +533,10 @@ class UltimateReaderViewModel @Inject constructor(
     }
 
     private fun maybeDeleteAfterReading() {
+        // Delete-after-reading feature has been removed. This method is kept as a placeholder
+        // for potential future implementation but currently does nothing.
         if (hasTriggeredDeletion) return
-        val manga = currentManga ?: return
-        val chapter = currentChapter ?: return
         hasTriggeredDeletion = true
-
-        viewModelScope.launch {
-            val effective = downloadPreferences.isDeleteAfterReadingEnabled(manga.id).first()
-
-            if (effective) {
-                deleteChapterUseCase(
-                    chapterId = chapter.id,
-                    sourceName = manga.sourceId.toString(),
-                    mangaTitle = manga.title,
-                    chapterTitle = chapter.name
-                )
-            }
-        }
     }
 
     override fun onCleared() {

@@ -28,6 +28,9 @@ object DownloadProvider {
 
     private const val ROOT_DIR = "OtakuReader"
 
+    /** Maximum number of page files to list per chapter for safety. */
+    private const val MAX_PAGE_FILES = 1000
+
     /** The file extensions recognised as downloaded page images. */
     private val PAGE_EXTENSIONS = setOf("jpg", "jpeg", "png", "webp")
 
@@ -119,8 +122,13 @@ object DownloadProvider {
         chapterName: String
     ): Boolean {
         val dir = getChapterDir(root, sourceName, mangaTitle, chapterName)
-        return dir.isDirectory && dir.listFiles()
-            ?.any { it.extension.lowercase() in PAGE_EXTENSIONS } == true
+        if (!dir.isDirectory) return false
+
+        // Use list() instead of listFiles() for better performance and null safety
+        val fileList = dir.list() ?: return false
+        return fileList.take(MAX_PAGE_FILES).any { filename ->
+            filename.substringAfterLast('.', "").lowercase() in PAGE_EXTENSIONS
+        }
     }
 
     internal fun getDownloadedPageUris(
@@ -131,11 +139,17 @@ object DownloadProvider {
     ): List<String> {
         val dir = getChapterDir(root, sourceName, mangaTitle, chapterName)
         if (!dir.isDirectory) return emptyList()
-        return dir.listFiles()
-            ?.filter { it.extension.lowercase() in PAGE_EXTENSIONS }
-            ?.sortedBy { it.nameWithoutExtension.toIntOrNull() ?: Int.MAX_VALUE }
-            ?.map { "file://${it.absolutePath}" }
-            ?: emptyList()
+
+        val files = dir.listFiles() ?: return emptyList()
+
+        // Apply bounds check to prevent excessive processing
+        return files
+            .asSequence()
+            .filter { it.extension.lowercase() in PAGE_EXTENSIONS }
+            .sortedBy { it.nameWithoutExtension.toIntOrNull() ?: Int.MAX_VALUE }
+            .take(MAX_PAGE_FILES)
+            .map { "file://${it.absolutePath}" }
+            .toList()
     }
 
     internal fun deleteChapter(
