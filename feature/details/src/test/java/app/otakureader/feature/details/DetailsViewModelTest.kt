@@ -2,7 +2,6 @@ package app.otakureader.feature.details
 
 import androidx.lifecycle.SavedStateHandle
 import app.otakureader.core.preferences.DownloadPreferences
-import app.otakureader.core.preferences.DeleteAfterReadMode
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MangaStatus
