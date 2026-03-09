@@ -145,9 +145,9 @@ object DownloadProvider {
         // Apply bounds check to prevent excessive processing
         return files
             .asSequence()
-            .take(MAX_PAGE_FILES)
             .filter { it.extension.lowercase() in PAGE_EXTENSIONS }
             .sortedBy { it.nameWithoutExtension.toIntOrNull() ?: Int.MAX_VALUE }
+            .take(MAX_PAGE_FILES)
             .map { "file://${it.absolutePath}" }
             .toList()
     }
