@@ -89,6 +89,7 @@ class UpdateLibraryMangaUseCase @Inject constructor(
         bookmark = false,
         lastPageRead = 0,
         chapterNumber = chapterNumber,
-        dateUpload = dateUpload
+        dateUpload = dateUpload,
+        dateFetch = System.currentTimeMillis()
     )
 }

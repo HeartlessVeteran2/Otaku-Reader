@@ -111,7 +111,7 @@ A modern, blazing-fast manga reader built from scratch with:
 | `domain` | Use cases and domain models | ✅ |
 | `data` | Repository implementations, downloads, backup | ✅ |
 | `core/common` | Shared utilities and extensions | ✅ |
-| `core/database` | Room database (v3) | ✅ |
+| `core/database` | Room database (v4) | ✅ |
 | `core/network` | Retrofit + OkHttp networking | ✅ |
 | `core/preferences` | DataStore preferences, IncognitoManager | ✅ |
 | `core/ui` | Shared Compose UI components | ✅ |
@@ -124,6 +124,7 @@ A modern, blazing-fast manga reader built from scratch with:
 | `feature/reader` | Ultimate reader | ✅ |
 | `feature/history` | History screen | ✅ |
 | `feature/settings` | Settings screen | ✅ |
+| `feature/statistics` | Reading statistics screen | ✅ |
 | `feature/updates` | Updates & downloads screen | 🚧 |
 
 ## 🎨 The Reader
@@ -157,7 +158,7 @@ Access the entire Tachiyomi ecosystem:
 - **UI**: Jetpack Compose + Material 3
 - **Architecture**: Clean Architecture + MVI
 - **DI**: Hilt
-- **Database**: Room (v3 with migrations)
+- **Database**: Room (v4 with migrations)
 - **Preferences**: DataStore
 - **Network**: Retrofit + OkHttp
 - **Images**: Coil 3

@@ -4,9 +4,15 @@ import app.otakureader.core.database.dao.ChapterDao
 import app.otakureader.core.database.dao.ReadingHistoryDao
 import app.otakureader.core.database.entity.ChapterEntity
 import app.otakureader.core.database.entity.ChapterWithHistoryEntity
+import app.otakureader.core.database.entity.ChapterWithMangaEntity
+import app.otakureader.core.database.entity.MangaEntity
+import app.otakureader.core.database.entity.MangaStatus as DbMangaStatus
 import app.otakureader.core.database.entity.ReadingHistoryEntity
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.ChapterWithHistory
+import app.otakureader.domain.model.Manga
+import app.otakureader.domain.model.MangaStatus
+import app.otakureader.domain.model.MangaUpdate
 import app.otakureader.domain.repository.ChapterRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -72,6 +78,12 @@ class ChapterRepositoryImpl @Inject constructor(
         }
     }
 
+    override fun getRecentUpdates(): Flow<List<MangaUpdate>> {
+        return chapterDao.getRecentUpdates().map { entities ->
+            entities.map { it.toDomain() }
+        }
+    }
+
     override suspend fun recordHistory(chapterId: Long, readAt: Long, readDurationMs: Long) {
         readingHistoryDao.upsert(
             ReadingHistoryEntity(
@@ -100,7 +112,8 @@ class ChapterRepositoryImpl @Inject constructor(
         bookmark = bookmark,
         lastPageRead = lastPageRead,
         chapterNumber = chapterNumber,
-        dateUpload = dateUpload
+        dateUpload = dateUpload,
+        dateFetch = dateFetch
     )
 
     private fun ChapterWithHistoryEntity.toDomain() = ChapterWithHistory(
@@ -108,7 +121,28 @@ class ChapterRepositoryImpl @Inject constructor(
         readAt = history.readAt,
         readDurationMs = history.readDurationMs
     )
-    
+
+    private fun ChapterWithMangaEntity.toDomain() = MangaUpdate(
+        manga = manga.toDomain(),
+        chapter = chapter.toDomain()
+    )
+
+    private fun MangaEntity.toDomain() = Manga(
+        id = id,
+        sourceId = sourceId,
+        url = url,
+        title = title,
+        thumbnailUrl = thumbnailUrl,
+        author = author,
+        artist = artist,
+        description = description,
+        genre = genre?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() } ?: emptyList(),
+        status = MangaStatus.fromOrdinal(status),
+        favorite = favorite,
+        initialized = initialized,
+        autoDownload = autoDownload
+    )
+
     private fun Chapter.toEntity() = ChapterEntity(
         id = id,
         mangaId = mangaId,
@@ -119,7 +153,8 @@ class ChapterRepositoryImpl @Inject constructor(
         bookmark = bookmark,
         lastPageRead = lastPageRead,
         chapterNumber = chapterNumber,
-        dateUpload = dateUpload
+        dateUpload = dateUpload,
+        dateFetch = dateFetch
     )
 }
 
