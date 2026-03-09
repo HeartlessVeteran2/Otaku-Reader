@@ -178,17 +178,61 @@ private fun AppearanceSection(state: SettingsState, onEvent: (SettingsEvent) -> 
                 }
             )
 
-            // Dynamic color
+            // Pure Black dark mode
             ListItem(
-                headlineContent = { Text("Dynamic Color (Material You)") },
-                supportingContent = { Text("Use wallpaper-based colors on Android 12+") },
+                headlineContent = { Text("Pure Black (AMOLED)") },
+                supportingContent = { Text("Use pure black background in dark mode") },
                 trailingContent = {
                     Switch(
-                        checked = state.useDynamicColor,
+                        checked = state.usePureBlackDarkMode,
                         onCheckedChange = {
-                            onEvent(SettingsEvent.SetDynamicColor(it))
+                            onEvent(SettingsEvent.SetPureBlackDarkMode(it))
                         }
                     )
+                }
+            )
+
+            // Color scheme picker
+            ListItem(
+                headlineContent = { Text("Color Scheme") },
+                supportingContent = {
+                    Column(modifier = Modifier.selectableGroup()) {
+                        val schemes = listOf(
+                            "System Default" to 0,
+                            "Dynamic (Material You)" to 1,
+                            "Green Apple" to 2,
+                            "Lavender" to 3,
+                            "Midnight Dusk" to 4,
+                            "Strawberry Daiquiri" to 5,
+                            "Tako" to 6,
+                            "Teal & Turquoise" to 7,
+                            "Tidal Wave" to 8,
+                            "Yotsuba" to 9,
+                            "Yin & Yang" to 10
+                        )
+                        schemes.forEach { (label, value) ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .selectable(
+                                        selected = state.colorScheme == value,
+                                        onClick = { onEvent(SettingsEvent.SetColorScheme(value)) },
+                                        role = Role.RadioButton
+                                    )
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                RadioButton(
+                                    selected = state.colorScheme == value,
+                                    onClick = null
+                                )
+                                Text(
+                                    text = label,
+                                    modifier = Modifier.padding(start = 8.dp)
+                                )
+                            }
+                        }
+                    }
                 }
             )
 

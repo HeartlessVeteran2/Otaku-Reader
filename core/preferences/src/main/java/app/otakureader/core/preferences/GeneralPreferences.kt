@@ -25,6 +25,27 @@ class GeneralPreferences(private val dataStore: DataStore<Preferences>) {
     val useDynamicColor: Flow<Boolean> = dataStore.data.map { it[Keys.USE_DYNAMIC_COLOR] ?: true }
     suspend fun setUseDynamicColor(value: Boolean) = dataStore.edit { it[Keys.USE_DYNAMIC_COLOR] = value }
 
+    /** Whether to use Pure Black (AMOLED) dark mode. */
+    val usePureBlackDarkMode: Flow<Boolean> = dataStore.data.map { it[Keys.USE_PURE_BLACK_DARK_MODE] ?: false }
+    suspend fun setUsePureBlackDarkMode(value: Boolean) = dataStore.edit { it[Keys.USE_PURE_BLACK_DARK_MODE] = value }
+
+    /**
+     * Color scheme selection:
+     * 0 = System Default (uses dynamic if available on Android 12+)
+     * 1 = Dynamic (Material You - forced on Android 12+)
+     * 2 = Green Apple
+     * 3 = Lavender
+     * 4 = Midnight Dusk
+     * 5 = Strawberry Daiquiri
+     * 6 = Tako
+     * 7 = Teal & Turquoise
+     * 8 = Tidal Wave
+     * 9 = Yotsuba
+     * 10 = Yin & Yang
+     */
+    val colorScheme: Flow<Int> = dataStore.data.map { it[Keys.COLOR_SCHEME] ?: 0 }
+    suspend fun setColorScheme(value: Int) = dataStore.edit { it[Keys.COLOR_SCHEME] = value }
+
     // --- Locale ---
 
     /** BCP-47 language tag for the app locale, or empty string to follow the system default. */
@@ -42,6 +63,8 @@ class GeneralPreferences(private val dataStore: DataStore<Preferences>) {
     private object Keys {
         val THEME_MODE = intPreferencesKey("theme_mode")
         val USE_DYNAMIC_COLOR = booleanPreferencesKey("use_dynamic_color")
+        val USE_PURE_BLACK_DARK_MODE = booleanPreferencesKey("use_pure_black_dark_mode")
+        val COLOR_SCHEME = intPreferencesKey("color_scheme")
         val LOCALE = stringPreferencesKey("locale")
         val NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
         val UPDATE_CHECK_INTERVAL = intPreferencesKey("update_check_interval")

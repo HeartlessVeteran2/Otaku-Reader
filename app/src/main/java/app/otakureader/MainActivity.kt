@@ -39,8 +39,10 @@ class MainActivity : ComponentActivity() {
         setContent {
             val themeMode by generalPreferences.themeMode
                 .collectAsStateWithLifecycle(initialValue = 0)
-            val useDynamicColor by generalPreferences.useDynamicColor
-                .collectAsStateWithLifecycle(initialValue = true)
+            val colorScheme by generalPreferences.colorScheme
+                .collectAsStateWithLifecycle(initialValue = 0)
+            val usePureBlackDarkMode by generalPreferences.usePureBlackDarkMode
+                .collectAsStateWithLifecycle(initialValue = false)
 
             val darkTheme = when (themeMode) {
                 1 -> false              // light
@@ -48,7 +50,11 @@ class MainActivity : ComponentActivity() {
                 else -> isSystemInDarkTheme() // system default
             }
 
-            OtakuReaderTheme(darkTheme = darkTheme, dynamicColor = useDynamicColor) {
+            OtakuReaderTheme(
+                darkTheme = darkTheme,
+                colorScheme = colorScheme,
+                usePureBlack = usePureBlackDarkMode
+            ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
