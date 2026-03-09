@@ -64,6 +64,7 @@ fun LibraryScreen(
     onNavigateToUpdates: () -> Unit,
     onNavigateToBrowse: () -> Unit,
     onNavigateToHistory: () -> Unit,
+    onNavigateToStatistics: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToDownloads: () -> Unit,
     viewModel: LibraryViewModel = hiltViewModel()
@@ -128,6 +129,7 @@ fun LibraryScreen(
                 onNavigateToUpdates = onNavigateToUpdates,
                 onNavigateToBrowse = onNavigateToBrowse,
                 onNavigateToHistory = onNavigateToHistory,
+                onNavigateToStatistics = onNavigateToStatistics,
                 onNavigateToSettings = onNavigateToSettings
             )
         },

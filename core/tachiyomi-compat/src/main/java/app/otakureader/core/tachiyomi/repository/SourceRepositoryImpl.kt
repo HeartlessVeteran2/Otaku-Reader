@@ -1,7 +1,9 @@
 package app.otakureader.core.tachiyomi.repository
 
 import android.content.Context
+import app.otakureader.core.preferences.LocalSourcePreferences
 import app.otakureader.core.tachiyomi.compat.TachiyomiExtensionLoader
+import app.otakureader.core.tachiyomi.local.LocalSource
 import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.sourceapi.MangaPage
 import app.otakureader.sourceapi.MangaSource
@@ -13,6 +15,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -21,15 +24,35 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Implementation of SourceRepository using Tachiyomi extension adapters.
+ * Also includes the built-in [LocalSource] for on-device manga.
  */
 class SourceRepositoryImpl(
-    private val context: Context
+    private val context: Context,
+    private val localSourcePreferences: LocalSourcePreferences
 ) : SourceRepository {
+
+    /**
+     * Secondary constructor for tests or other call-sites that already know the directory path
+     * and do not have a [LocalSourcePreferences] instance available.
+     */
+    constructor(context: Context, localDirectory: String) : this(
+        context,
+        LocalSourcePreferences.ofDirectory(localDirectory)
+    )
 
     private val extensionLoader = TachiyomiExtensionLoader(
         context.packageManager,
         context.cacheDir
     )
+
+    /**
+     * Returns a fresh [LocalSource] using the current scan directory from preferences.
+     * Reading from the Flow is deferred to suspend call-sites so no blocking occurs at init.
+     */
+    private suspend fun currentLocalSource(): LocalSource {
+        val dir = localSourcePreferences.localSourceDirectory.first()
+        return LocalSource(context, dir)
+    }
 
     private val _sources = MutableStateFlow<List<MangaSource>>(emptyList())
     override fun getSources(): Flow<List<MangaSource>> = _sources.asStateFlow()
@@ -197,14 +220,24 @@ class SourceRepositoryImpl(
 
     override suspend fun refreshSources() {
         withContext(Dispatchers.IO) {
+            // Resolve the local source outside try/catch so errors reading preferences
+            // don't get swallowed — and so the catch block can safely reference it.
+            val local = try {
+                currentLocalSource()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                return@withContext
+            }
             try {
                 // Load all installed Tachiyomi extensions
                 val extensions = extensionLoader.loadAllExtensions()
-                val sources = extensions.flatMap { it.sources }
-                _sources.value = sources.distinctBy { it.id }
+                val extensionSources = extensions.flatMap { it.sources }
+                // Always prepend the built-in local source
+                _sources.value = (listOf(local) + extensionSources).distinctBy { it.id }
             } catch (e: Exception) {
-                // Log error but don't crash
+                // Log error but don't crash; still expose the local source
                 e.printStackTrace()
+                _sources.value = listOf(local)
             }
         }
     }

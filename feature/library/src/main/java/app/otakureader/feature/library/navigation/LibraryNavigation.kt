@@ -10,6 +10,7 @@ fun NavGraphBuilder.libraryScreen(
     onNavigateToUpdates: () -> Unit,
     onNavigateToBrowse: () -> Unit,
     onNavigateToHistory: () -> Unit,
+    onNavigateToStatistics: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToDownloads: () -> Unit
 ) {
@@ -19,6 +20,7 @@ fun NavGraphBuilder.libraryScreen(
             onNavigateToUpdates = onNavigateToUpdates,
             onNavigateToBrowse = onNavigateToBrowse,
             onNavigateToHistory = onNavigateToHistory,
+            onNavigateToStatistics = onNavigateToStatistics,
             onNavigateToSettings = onNavigateToSettings,
             onNavigateToDownloads = onNavigateToDownloads
         )

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import app.otakureader.core.preferences.DownloadPreferences
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.LibraryPreferences
+import app.otakureader.core.preferences.LocalSourcePreferences
 import app.otakureader.core.preferences.ReaderPreferences
 import app.otakureader.data.tracking.TrackManager
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -24,6 +25,7 @@ class SettingsViewModel @Inject constructor(
     private val libraryPreferences: LibraryPreferences,
     private val readerPreferences: ReaderPreferences,
     private val downloadPreferences: DownloadPreferences,
+    private val localSourcePreferences: LocalSourcePreferences,
     private val backupRepository: app.otakureader.data.backup.repository.BackupRepository,
     private val readerSettingsRepository: app.otakureader.feature.reader.repository.ReaderSettingsRepository,
     private val trackManager: TrackManager
@@ -72,6 +74,8 @@ class SettingsViewModel @Inject constructor(
                 state.copy(downloadOnlyOnWifi = downloadOnlyOnWifi)
             }.combine(downloadPreferences.autoDownloadLimit) { state, autoDownloadLimit ->
                 state.copy(autoDownloadLimit = autoDownloadLimit)
+            }.combine(localSourcePreferences.localSourceDirectory) { state, localDir ->
+                state.copy(localSourceDirectory = localDir)
             }.collect { newState ->
                 _state.update { current ->
                     newState.copy(
@@ -103,6 +107,7 @@ class SettingsViewModel @Inject constructor(
                 is SettingsEvent.SetAutoDownloadEnabled -> downloadPreferences.setAutoDownloadEnabled(event.enabled)
                 is SettingsEvent.SetDownloadOnlyOnWifi -> downloadPreferences.setDownloadOnlyOnWifi(event.enabled)
                 is SettingsEvent.SetAutoDownloadLimit -> downloadPreferences.setAutoDownloadLimit(event.limit)
+                is SettingsEvent.SetLocalSourceDirectory -> localSourcePreferences.setLocalSourceDirectory(event.path)
                 SettingsEvent.OnCreateBackup -> _effect.send(SettingsEffect.ShowBackupPicker)
                 SettingsEvent.OnRestoreBackup -> _effect.send(SettingsEffect.ShowRestorePicker)
                 is SettingsEvent.LoginTracker -> loginTracker(event.trackerId, event.username, event.password)

@@ -117,6 +117,8 @@ fun SettingsScreen(
             HorizontalDivider()
             ReaderSection(state = state, onEvent = viewModel::onEvent)
             HorizontalDivider()
+            LocalSourceSection(state = state, onEvent = viewModel::onEvent)
+            HorizontalDivider()
             TrackingSection(state = state, onEvent = viewModel::onEvent)
             HorizontalDivider()
             NotificationsSection(state = state, onEvent = viewModel::onEvent)
@@ -480,6 +482,51 @@ private fun BackupRestoreSection(state: SettingsState, onEvent: (SettingsEvent) 
                     }
                 }
             )
+}
+
+@Composable
+private fun LocalSourceSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
+    // ── Local Source ──────────────────────────────────────────────────
+    SectionHeader(title = "Local Source")
+
+    var directoryText by remember(state.localSourceDirectory) {
+        mutableStateOf(state.localSourceDirectory)
+    }
+
+    ListItem(
+        headlineContent = { Text("Scan Directory") },
+        supportingContent = {
+            Column {
+                Text(
+                    text = "Directory scanned for local manga (CBZ, ZIP, EPUB and image folders).",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                OutlinedTextField(
+                    value = directoryText,
+                    onValueChange = { directoryText = it },
+                    label = { Text("Directory path") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    trailingIcon = {
+                        Button(
+                            onClick = {
+                                onEvent(SettingsEvent.SetLocalSourceDirectory(directoryText))
+                            }
+                        ) {
+                            Text("Save")
+                        }
+                    }
+                )
+                Text(
+                    text = "Supported: CBZ, ZIP (including ComicInfo.xml), EPUB, and plain image folders.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+        }
+    )
 }
 
 @Composable

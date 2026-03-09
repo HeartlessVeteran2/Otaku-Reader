@@ -95,7 +95,7 @@ object TachiyomiTestUtils {
         sourceId: String
     ): Result<List<String>> {
         return try {
-            val repository = SourceRepositoryImpl(context)
+            val repository = SourceRepositoryImpl(context, app.otakureader.core.preferences.LocalSourcePreferences.defaultDirectory())
             val result = repository.getPopularManga(sourceId, 1)
 
             result.map { page ->

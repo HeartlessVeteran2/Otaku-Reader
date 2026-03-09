@@ -15,6 +15,7 @@ dependencies {
     implementation(project(":source-api"))
     implementation(project(":domain"))
     implementation(project(":core:common"))
+    implementation(project(":core:preferences"))
 
     // RxJava 1.x — required by the Tachiyomi extension API (Observable-based methods)
     implementation("io.reactivex:rxjava:1.3.8")
