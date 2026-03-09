@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_language">Langue</string>
+    <string name="settings_language_system_settings_hint">Modifier la langue de l\'application dans les paramètres système</string>
+    <string name="settings_language_system_default">Langue du système</string>
+</resources>

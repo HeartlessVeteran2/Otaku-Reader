@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_language">Язык</string>
+    <string name="settings_language_system_settings_hint">Изменить язык приложения в настройках системы</string>
+    <string name="settings_language_system_default">По умолчанию</string>
+</resources>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_language">Language</string>
+    <string name="settings_language_system_settings_hint">Change the app language in system settings</string>
+    <string name="settings_language_system_default">System default</string>
+</resources>

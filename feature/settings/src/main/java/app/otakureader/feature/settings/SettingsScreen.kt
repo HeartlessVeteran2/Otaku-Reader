@@ -45,11 +45,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import java.util.Locale
 import kotlin.math.roundToInt
 
 /**
@@ -246,8 +248,8 @@ private fun AppearanceSection(state: SettingsState, onEvent: (SettingsEvent) -> 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 // Android 13+: delegate to the system per-app language picker
                 ListItem(
-                    headlineContent = { Text("Language") },
-                    supportingContent = { Text("Change the app language in system settings") },
+                    headlineContent = { Text(stringResource(R.string.settings_language)) },
+                    supportingContent = { Text(stringResource(R.string.settings_language_system_settings_hint)) },
                     modifier = Modifier.clickable {
                         val intent = Intent(Settings.ACTION_APP_LOCALE_SETTINGS).apply {
                             data = Uri.fromParts("package", context.packageName, null)
@@ -260,22 +262,18 @@ private fun AppearanceSection(state: SettingsState, onEvent: (SettingsEvent) -> 
             } else {
                 // Android 12 and below: in-app language picker
                 ListItem(
-                    headlineContent = { Text("Language") },
+                    headlineContent = { Text(stringResource(R.string.settings_language)) },
                     supportingContent = {
                         Column(modifier = Modifier.selectableGroup()) {
-                            val locales = listOf(
-                                "System default" to "",
-                                "English" to "en",
-                                "Japanese" to "ja",
-                                "Korean" to "ko",
-                                "Chinese (Simplified)" to "zh-Hans",
-                                "Spanish" to "es",
-                                "French" to "fr",
-                                "German" to "de",
-                                "Portuguese" to "pt",
-                                "Russian" to "ru"
-                            )
-                            locales.forEach { (label, tag) ->
+                            val localeTags = listOf("", "en", "ja", "ko", "zh-Hans", "es", "fr", "de", "pt", "ru")
+                            val systemDefaultLabel = stringResource(R.string.settings_language_system_default)
+                            localeTags.forEach { tag ->
+                                val label = if (tag.isEmpty()) {
+                                    systemDefaultLabel
+                                } else {
+                                    val loc = Locale.forLanguageTag(tag)
+                                    loc.getDisplayName(loc).replaceFirstChar { it.uppercase() }
+                                }
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier

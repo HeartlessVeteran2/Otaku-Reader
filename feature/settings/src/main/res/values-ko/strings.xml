@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_language">언어</string>
+    <string name="settings_language_system_settings_hint">시스템 설정에서 앱 언어 변경</string>
+    <string name="settings_language_system_default">시스템 기본값</string>
+</resources>

@@ -1,5 +1,6 @@
 package app.otakureader
 
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -71,6 +72,13 @@ class MainActivity : ComponentActivity() {
                 generalPreferences.locale
                     .distinctUntilChanged()
                     .collect { locale ->
+                        // On API 33+, the system manages per-app language via LocaleManager.
+                        // Calling setApplicationLocales with an empty list would override
+                        // any language the user selected in the system per-app language
+                        // picker. Skip the call and let the system be the source of truth.
+                        if (locale.isEmpty() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            return@collect
+                        }
                         val localeList = if (locale.isEmpty()) {
                             LocaleListCompat.getEmptyLocaleList()
                         } else {

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_language">语言</string>
+    <string name="settings_language_system_settings_hint">在系统设置中更改应用语言</string>
+    <string name="settings_language_system_default">系统默认</string>
+</resources>
