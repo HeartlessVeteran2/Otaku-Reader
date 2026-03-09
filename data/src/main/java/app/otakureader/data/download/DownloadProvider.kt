@@ -80,16 +80,6 @@ object DownloadProvider {
         chapterName: String
     ): List<String> = getDownloadedPageUris(rootFor(context), sourceName, mangaTitle, chapterName)
 
-    /**
-     * Deletes all downloaded files for the given chapter. Returns true if anything was removed.
-     */
-    fun deleteChapter(
-        context: Context,
-        sourceName: String,
-        mangaTitle: String,
-        chapterName: String
-    ): Boolean = deleteChapter(rootFor(context), sourceName, mangaTitle, chapterName)
-
     // -------------------------------------------------------------------------
     // Internal root-File overloads (used for testing without a real Context)
     // -------------------------------------------------------------------------
@@ -136,17 +126,6 @@ object DownloadProvider {
             ?.sortedBy { it.nameWithoutExtension.toIntOrNull() ?: Int.MAX_VALUE }
             ?.map { "file://${it.absolutePath}" }
             ?: emptyList()
-    }
-
-    internal fun deleteChapter(
-        root: File,
-        sourceName: String,
-        mangaTitle: String,
-        chapterName: String
-    ): Boolean {
-        val dir = getChapterDir(root, sourceName, mangaTitle, chapterName)
-        if (!dir.exists()) return false
-        return dir.deleteRecursively()
     }
 
     // -------------------------------------------------------------------------

@@ -31,12 +31,6 @@ interface DownloadRepository {
     suspend fun pauseDownload(chapterId: Long)
     suspend fun resumeDownload(chapterId: Long)
     suspend fun cancelDownload(chapterId: Long)
-    suspend fun deleteChapterDownload(
-        chapterId: Long,
-        sourceName: String,
-        mangaTitle: String,
-        chapterTitle: String
-    )
     suspend fun clearAll()
 
     /**

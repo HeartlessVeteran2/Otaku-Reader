@@ -14,8 +14,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
@@ -31,8 +29,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -48,7 +44,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -56,7 +51,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.otakureader.core.ui.component.ErrorScreen
 import app.otakureader.core.ui.component.LoadingScreen
 import app.otakureader.feature.details.R
-import app.otakureader.core.preferences.DeleteAfterReadMode
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.flow.collectLatest
 
@@ -192,14 +186,6 @@ private fun DetailsContent(
         }
 
         item {
-            DeleteAfterReadOption(
-                override = state.deleteAfterReadOverride,
-                globalEnabled = state.globalDeleteAfterRead,
-                onChange = { onEvent(DetailsContract.Event.SetDeleteAfterReadOverride(it)) }
-            )
-        }
-
-        item {
             ChapterListHeader(
                 chapterCount = state.chapters.size,
                 sortOrder = state.chapterSortOrder,
@@ -304,51 +290,6 @@ private fun MangaDescription(
                 Text(if (expanded) "Show less" else "Show more")
             }
         }
-    }
-}
-
-@Composable
-private fun DeleteAfterReadOption(
-    override: DeleteAfterReadMode,
-    globalEnabled: Boolean,
-    onChange: (DeleteAfterReadMode) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(modifier = modifier) {
-        ListItem(
-            headlineContent = { Text("Delete downloads after reading") },
-            supportingContent = {
-                Column(modifier = Modifier.selectableGroup()) {
-                    val options = listOf(
-                        "Follow global (${if (globalEnabled) "On" else "Off"})" to DeleteAfterReadMode.INHERIT,
-                        "On for this manga" to DeleteAfterReadMode.ENABLED,
-                        "Off for this manga" to DeleteAfterReadMode.DISABLED
-                    )
-                    options.forEach { (label, value) ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .selectable(
-                                    selected = override == value,
-                                    onClick = { onChange(value) },
-                                    role = Role.RadioButton
-                                )
-                                .padding(vertical = 4.dp)
-                        ) {
-                            RadioButton(
-                                selected = override == value,
-                                onClick = null
-                            )
-                            Text(
-                                text = label,
-                                modifier = Modifier.padding(start = 8.dp)
-                            )
-                        }
-                    }
-                }
-            }
-        )
     }
 }
 
