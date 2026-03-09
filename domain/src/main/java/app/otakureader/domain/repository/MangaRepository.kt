@@ -14,4 +14,9 @@ interface MangaRepository {
     suspend fun toggleFavorite(id: Long)
     suspend fun updateAutoDownload(id: Long, autoDownload: Boolean)
     fun isFavorite(id: Long): Flow<Boolean>
+
+    /** Migration-specific methods */
+    suspend fun getMangaByIds(ids: List<Long>): List<Manga>
+    suspend fun getMangaBySourceAndUrl(sourceId: Long, url: String): Manga?
+    suspend fun updateMangaSource(mangaId: Long, newSourceId: Long, newUrl: String)
 }

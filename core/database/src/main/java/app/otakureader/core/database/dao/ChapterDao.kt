@@ -49,4 +49,8 @@ interface ChapterDao {
     
     @Query("SELECT COUNT(*) FROM chapters WHERE mangaId = :mangaId AND read = 1")
     fun getReadCountByMangaId(mangaId: Long): Flow<Int>
+
+    /** Migration-specific methods */
+    @Query("UPDATE chapters SET mangaId = :newMangaId WHERE mangaId = :oldMangaId")
+    suspend fun updateChapterMangaId(oldMangaId: Long, newMangaId: Long)
 }

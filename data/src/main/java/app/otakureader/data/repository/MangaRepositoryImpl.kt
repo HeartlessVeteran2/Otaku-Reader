@@ -67,7 +67,26 @@ class MangaRepositoryImpl @Inject constructor(
     override fun isFavorite(id: Long): Flow<Boolean> {
         return mangaDao.isFavorite(id)
     }
-    
+
+    override suspend fun getMangaByIds(ids: List<Long>): List<Manga> {
+        return ids.mapNotNull { id -> mangaDao.getMangaById(id)?.toDomain() }
+    }
+
+    override suspend fun getMangaBySourceAndUrl(sourceId: Long, url: String): Manga? {
+        return mangaDao.getMangaBySourceAndUrl(sourceId, url)?.toDomain()
+    }
+
+    override suspend fun updateMangaSource(mangaId: Long, newSourceId: Long, newUrl: String) {
+        val manga = mangaDao.getMangaById(mangaId) ?: return
+        mangaDao.update(
+            manga.copy(
+                sourceId = newSourceId,
+                url = newUrl,
+                initialized = false // Mark as not initialized so chapters will be re-fetched
+            )
+        )
+    }
+
     private fun MangaEntity.toDomain(unreadCount: Int = 0) = Manga(
         id = id,
         sourceId = sourceId,
