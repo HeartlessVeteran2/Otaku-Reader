@@ -1,7 +1,6 @@
 queue_rules:
   - name: Merge Bot
     allow_queue_branch_edit: true
-    autoqueue: true
 merge_queue:
   skip_intermediate_results: true
 pull_request_rules:
@@ -9,6 +8,7 @@ pull_request_rules:
     description: Merge when PR passes all branch protection during office hours,
       except for hotfix
     conditions:
+      - "#approved-reviews-by >= 1"
       - or:
           - schedule = Mon-Fri 09:00-17:00[America/Chicago]
           - label = hotfix
@@ -27,4 +27,5 @@ merge_protections:
     if:
       - base = main
     success_conditions:
+      - "#approved-reviews-by >= 1"
       - schedule = Mon-Fri 09:00-17:00[America/Chicago]
