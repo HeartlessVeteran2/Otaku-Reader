@@ -9,6 +9,8 @@ import app.otakureader.domain.model.Manga
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.MangaRepository
+import app.otakureader.core.preferences.DeleteAfterReadMode
+import app.otakureader.core.preferences.DownloadPreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,7 +33,8 @@ class DetailsViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
     private val mangaRepository: MangaRepository,
     private val chapterRepository: ChapterRepository,
-    private val downloadRepository: DownloadRepository
+    private val downloadRepository: DownloadRepository,
+    private val downloadPreferences: DownloadPreferences
 ) : ViewModel() {
 
     private val mangaId: Long = savedStateHandle.get<Long>(MANGA_ID_ARG) 
@@ -49,6 +52,7 @@ class DetailsViewModel @Inject constructor(
         observeFavoriteStatus()
         loadNextUnreadChapter()
         observeDownloads()
+        observeDeleteAfterReadSetting()
     }
 
     fun onEvent(event: DetailsContract.Event) {
@@ -67,6 +71,7 @@ class DetailsViewModel @Inject constructor(
             is DetailsContract.Event.DeleteChapterDownload -> deleteChapterDownload(event.chapterId)
             is DetailsContract.Event.MarkPreviousAsRead -> markPreviousAsRead(event.chapterId)
             is DetailsContract.Event.ShareManga -> shareManga()
+            is DetailsContract.Event.SetDeleteAfterReadOverride -> setDeleteAfterReadOverride(event.mode)
         }
     }
 
@@ -126,6 +131,18 @@ class DetailsViewModel @Inject constructor(
                 }
             }
             .launchIn(viewModelScope)
+    }
+
+    private fun observeDeleteAfterReadSetting() {
+        combine(
+            downloadPreferences.deleteAfterReading,
+            downloadPreferences.perMangaOverrides
+        ) { global, overrides ->
+            val override = overrides[mangaId] ?: DeleteAfterReadMode.INHERIT
+            Pair(global, override)
+        }.onEach { (global, override) ->
+            _state.update { it.copy(globalDeleteAfterRead = global, deleteAfterReadOverride = override) }
+        }.launchIn(viewModelScope)
     }
 
     private fun refreshData() {
@@ -267,8 +284,20 @@ class DetailsViewModel @Inject constructor(
 
     private fun deleteChapterDownload(chapterId: Long) {
         viewModelScope.launch {
-            downloadRepository.cancelDownload(chapterId)
-            _effect.emit(DetailsContract.Effect.ShowSnackbar("Download canceled"))
+            val chapter = _state.value.chapters.firstOrNull { it.id == chapterId }
+            val manga = _state.value.manga
+            if (chapter != null && manga != null) {
+                downloadRepository.deleteChapterDownload(
+                    chapterId = chapterId,
+                    sourceName = manga.sourceId.toString(),
+                    mangaTitle = manga.title,
+                    chapterTitle = chapter.name
+                )
+                _effect.emit(DetailsContract.Effect.ShowSnackbar("Download removed"))
+            } else {
+                downloadRepository.cancelDownload(chapterId)
+                _effect.emit(DetailsContract.Effect.ShowSnackbar("Download removed"))
+            }
         }
     }
 
@@ -317,6 +346,18 @@ class DetailsViewModel @Inject constructor(
                     )
                 )
             }
+        }
+    }
+
+    private fun setDeleteAfterReadOverride(mode: DeleteAfterReadMode) {
+        viewModelScope.launch {
+            downloadPreferences.setOverride(mangaId, mode)
+            val message = when (mode) {
+                DeleteAfterReadMode.INHERIT -> "Following global delete-after-read setting"
+                DeleteAfterReadMode.ENABLED -> "Will delete downloads after reading"
+                DeleteAfterReadMode.DISABLED -> "Will keep downloads after reading"
+            }
+            _effect.emit(DetailsContract.Effect.ShowSnackbar(message))
         }
     }
 

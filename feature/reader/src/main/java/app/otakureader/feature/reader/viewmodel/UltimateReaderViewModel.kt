@@ -4,8 +4,13 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.otakureader.data.loader.PageLoader
+import app.otakureader.core.preferences.DeleteAfterReadMode
+import app.otakureader.core.preferences.DownloadPreferences
+import app.otakureader.domain.model.Chapter
+import app.otakureader.domain.model.Manga
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.MangaRepository
+import app.otakureader.domain.usecase.DeleteChapterUseCase
 import app.otakureader.feature.reader.model.ReaderMode
 import app.otakureader.feature.reader.model.ReaderPage
 import app.otakureader.feature.reader.model.ReadingDirection
@@ -37,6 +42,8 @@ class UltimateReaderViewModel @Inject constructor(
     private val mangaRepository: MangaRepository,
     private val chapterRepository: ChapterRepository,
     private val settingsRepository: ReaderSettingsRepository,
+    private val downloadPreferences: DownloadPreferences,
+    private val deleteChapterUseCase: DeleteChapterUseCase,
     private val pageLoader: PageLoader,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -49,6 +56,10 @@ class UltimateReaderViewModel @Inject constructor(
 
     private val _effect = Channel<ReaderEffect>(Channel.BUFFERED)
     val effect = _effect.receiveAsFlow()
+
+    private var currentManga: Manga? = null
+    private var currentChapter: Chapter? = null
+    private var hasTriggeredDeletion = false
 
     private var autoSaveJob: Job? = null
     private var preloadJob: Job? = null
@@ -143,6 +154,10 @@ class UltimateReaderViewModel @Inject constructor(
                     }
                     return@launch
                 }
+
+                currentManga = manga
+                currentChapter = chapter
+                hasTriggeredDeletion = false
 
                 // Fetch pages from source; PageLoader will transparently substitute
                 // local file URIs for any page that has already been downloaded.
@@ -281,6 +296,10 @@ class UltimateReaderViewModel @Inject constructor(
             _state.update { it.copy(currentPage = validPage) }
             preloadPages(validPage)
             scheduleProgressSave()
+            val pages = _state.value.pages
+            if (pages.isNotEmpty() && validPage == pages.lastIndex) {
+                maybeDeleteAfterReading()
+            }
         }
     }
 
@@ -515,6 +534,26 @@ class UltimateReaderViewModel @Inject constructor(
     fun jumpToPage(page: Int) {
         changePage(page)
         _state.update { it.copy(isGalleryOpen = false) }
+    }
+
+    private fun maybeDeleteAfterReading() {
+        if (hasTriggeredDeletion) return
+        val manga = currentManga ?: return
+        val chapter = currentChapter ?: return
+        hasTriggeredDeletion = true
+
+        viewModelScope.launch {
+            val effective = downloadPreferences.isDeleteAfterReadingEnabled(manga.id).first()
+
+            if (effective) {
+                deleteChapterUseCase(
+                    chapterId = chapter.id,
+                    sourceName = manga.sourceId.toString(),
+                    mangaTitle = manga.title,
+                    chapterTitle = chapter.name
+                )
+            }
+        }
     }
 
     override fun onCleared() {
