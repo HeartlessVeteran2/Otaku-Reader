@@ -133,6 +133,8 @@ fun SettingsScreen(
             NotificationsSection(state = state, onEvent = viewModel::onEvent)
             HorizontalDivider()
             BackupRestoreSection(state = state, onEvent = viewModel::onEvent)
+            HorizontalDivider()
+            MigrationSection(state = state, onEvent = viewModel::onEvent)
         }
     }
 }
@@ -720,4 +722,87 @@ private fun TrackingSection(state: SettingsState, onEvent: (SettingsEvent) -> Un
             }
         }
     }
+}
+
+@Composable
+private fun MigrationSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
+    // ── Migration ─────────────────────────────────────────────────────
+    SectionHeader(title = "Migration")
+
+    // Similarity threshold slider
+    var thresholdSlider by remember(state.migrationSimilarityThreshold) {
+        mutableFloatStateOf(state.migrationSimilarityThreshold)
+    }
+    ListItem(
+        headlineContent = {
+            Text("Similarity Threshold: ${(thresholdSlider * 100).roundToInt()}%")
+        },
+        supportingContent = {
+            Column {
+                Text(
+                    text = "Minimum score to auto-migrate without confirmation",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Slider(
+                    value = thresholdSlider,
+                    onValueChange = { thresholdSlider = it },
+                    onValueChangeFinished = {
+                        onEvent(
+                            SettingsEvent.SetMigrationSimilarityThreshold(thresholdSlider)
+                        )
+                    },
+                    valueRange = 0.5f..1.0f,
+                    steps = 9,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+    )
+
+    // Always confirm toggle
+    ListItem(
+        headlineContent = { Text("Always Show Confirmation") },
+        supportingContent = { Text("Always ask before migrating, even when confidence is high") },
+        trailingContent = {
+            Switch(
+                checked = state.migrationAlwaysConfirm,
+                onCheckedChange = {
+                    onEvent(SettingsEvent.SetMigrationAlwaysConfirm(it))
+                }
+            )
+        }
+    )
+
+    // Minimum chapter count slider
+    var minChaptersSlider by remember(state.migrationMinChapterCount) {
+        mutableFloatStateOf(state.migrationMinChapterCount.toFloat())
+    }
+    ListItem(
+        headlineContent = {
+            Text(
+                if (minChaptersSlider.roundToInt() == 0) "Min. Chapter Count: No filter"
+                else "Min. Chapter Count: ${minChaptersSlider.roundToInt()}"
+            )
+        },
+        supportingContent = {
+            Column {
+                Text(
+                    text = "Ignore candidates with fewer chapters than this threshold",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Slider(
+                    value = minChaptersSlider,
+                    onValueChange = { minChaptersSlider = it },
+                    onValueChangeFinished = {
+                        onEvent(
+                            SettingsEvent.SetMigrationMinChapterCount(minChaptersSlider.roundToInt())
+                        )
+                    },
+                    valueRange = 0f..50f,
+                    steps = 49,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+    )
 }

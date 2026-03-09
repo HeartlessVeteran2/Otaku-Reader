@@ -19,7 +19,15 @@ data class MigrationState(
     val error: String? = null,
     val isSearching: Boolean = false,
     val showConfirmationDialog: Boolean = false,
-    val currentCandidates: List<MigrationCandidate> = emptyList()
+    val currentCandidates: List<MigrationCandidate> = emptyList(),
+    /** Whether to show the completion summary dialog. */
+    val showCompletionSummary: Boolean = false,
+    /** Number of successfully completed migrations (populated when showCompletionSummary = true). */
+    val completedCount: Int = 0,
+    /** Number of failed migrations (populated when showCompletionSummary = true). */
+    val failedCount: Int = 0,
+    /** Number of skipped migrations (populated when showCompletionSummary = true). */
+    val skippedCount: Int = 0
 )
 
 /**
@@ -30,7 +38,9 @@ data class MigrationTaskItem(
     val status: MigrationStatus,
     val targetCandidate: MigrationCandidate? = null,
     val chaptersMatched: Int = 0,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    /** Detailed human-readable description of the current operation. */
+    val statusMessage: String? = null
 )
 
 /**
@@ -56,6 +66,10 @@ sealed class MigrationEvent {
     data object DismissError : MigrationEvent()
     data object NavigateBack : MigrationEvent()
     data object DismissConfirmationDialog : MigrationEvent()
+    /** Resets all FAILED tasks to PENDING and restarts migration. */
+    data object RetryFailed : MigrationEvent()
+    /** Dismisses the completion summary dialog. */
+    data object DismissCompletionSummary : MigrationEvent()
 }
 
 /**

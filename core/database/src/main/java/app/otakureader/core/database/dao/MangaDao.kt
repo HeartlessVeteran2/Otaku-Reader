@@ -26,6 +26,9 @@ interface MangaDao {
     
     @Query("SELECT * FROM manga WHERE sourceId = :sourceId AND url = :url")
     suspend fun getMangaBySourceAndUrl(sourceId: Long, url: String): MangaEntity?
+
+    @Query("SELECT * FROM manga WHERE id IN (:ids)")
+    suspend fun getMangaByIds(ids: List<Long>): List<MangaEntity>
     
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(manga: MangaEntity): Long

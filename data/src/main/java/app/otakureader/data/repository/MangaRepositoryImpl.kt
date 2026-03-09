@@ -38,6 +38,15 @@ class MangaRepositoryImpl @Inject constructor(
         return mangaDao.getMangaBySourceAndUrl(sourceId, url)?.toDomain()
     }
 
+    override suspend fun getMangaByIds(ids: List<Long>): List<Manga> {
+        if (ids.isEmpty()) return emptyList()
+        // Chunk to stay within SQLite's 999 bind-parameter limit, then re-order to match `ids`
+        val resultMap = ids.chunked(997).flatMap { chunk ->
+            mangaDao.getMangaByIds(chunk).map { it.toDomain() }
+        }.associateBy { it.id }
+        return ids.mapNotNull { resultMap[it] }
+    }
+
     override fun getMangaByIdFlow(id: Long): Flow<Manga?> {
         return combine(
             mangaDao.getMangaByIdFlow(id),

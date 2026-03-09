@@ -313,7 +313,7 @@ class LocalSource(
                             .trimStart('.')
                         val outFile = File(cacheDir, safeName)
                         // Guard against path traversal attacks
-                        if (!outFile.canonicalPath.startsWith(cacheDir.canonicalPath)) {
+                        if (!outFile.canonicalPath.startsWith(cacheDir.canonicalPath + File.separator)) {
                             return@mapIndexed null
                         }
                         if (!outFile.exists()) {

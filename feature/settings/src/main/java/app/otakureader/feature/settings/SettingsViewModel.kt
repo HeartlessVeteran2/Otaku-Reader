@@ -2,6 +2,7 @@ package app.otakureader.feature.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.otakureader.core.preferences.AppPreferences
 import app.otakureader.core.preferences.DownloadPreferences
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.LibraryPreferences
@@ -28,7 +29,8 @@ class SettingsViewModel @Inject constructor(
     private val localSourcePreferences: LocalSourcePreferences,
     private val backupRepository: app.otakureader.data.backup.repository.BackupRepository,
     private val readerSettingsRepository: app.otakureader.feature.reader.repository.ReaderSettingsRepository,
-    private val trackManager: TrackManager
+    private val trackManager: TrackManager,
+    private val appPreferences: AppPreferences
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SettingsState())
@@ -85,6 +87,12 @@ class SettingsViewModel @Inject constructor(
                 state.copy(saveAsCbz = saveAsCbz)
             }.combine(localSourcePreferences.localSourceDirectory) { state, localDir ->
                 state.copy(localSourceDirectory = localDir)
+            }.combine(appPreferences.migrationSimilarityThreshold) { state, threshold ->
+                state.copy(migrationSimilarityThreshold = threshold)
+            }.combine(appPreferences.migrationAlwaysConfirm) { state, alwaysConfirm ->
+                state.copy(migrationAlwaysConfirm = alwaysConfirm)
+            }.combine(appPreferences.migrationMinChapterCount) { state, minChapters ->
+                state.copy(migrationMinChapterCount = minChapters)
             }.collect { newState ->
                 _state.update { current ->
                     newState.copy(
@@ -125,6 +133,12 @@ class SettingsViewModel @Inject constructor(
                 SettingsEvent.OnRestoreBackup -> _effect.send(SettingsEffect.ShowRestorePicker)
                 is SettingsEvent.LoginTracker -> loginTracker(event.trackerId, event.username, event.password)
                 is SettingsEvent.LogoutTracker -> logoutTracker(event.trackerId)
+                is SettingsEvent.SetMigrationSimilarityThreshold ->
+                    appPreferences.setMigrationSimilarityThreshold(event.threshold)
+                is SettingsEvent.SetMigrationAlwaysConfirm ->
+                    appPreferences.setMigrationAlwaysConfirm(event.enabled)
+                is SettingsEvent.SetMigrationMinChapterCount ->
+                    appPreferences.setMigrationMinChapterCount(event.count)
             }
         }
     }

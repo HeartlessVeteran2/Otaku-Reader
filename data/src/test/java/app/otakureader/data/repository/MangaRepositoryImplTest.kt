@@ -283,4 +283,66 @@ class MangaRepositoryImplTest {
 
         coVerify { mangaDao.updateNote(1L, null) }
     }
+
+    // ---- getMangaByIds ----
+
+    @Test
+    fun getMangaByIds_emptyList_returnsEmptyList() = runTest {
+        val result = repository.getMangaByIds(emptyList())
+        assertEquals(emptyList<Manga>(), result)
+        coVerify(exactly = 0) { mangaDao.getMangaByIds(any()) }
+    }
+
+    @Test
+    fun getMangaByIds_singleChunk_returnsMappedMangas() = runTest {
+        val ids = listOf(1L, 2L, 3L)
+        val entities = ids.map { makeEntity(it) }
+        coEvery { mangaDao.getMangaByIds(ids) } returns entities
+
+        val result = repository.getMangaByIds(ids)
+
+        assertEquals(ids.size, result.size)
+        assertEquals(ids, result.map { it.id })
+    }
+
+    @Test
+    fun getMangaByIds_preservesInputOrder() = runTest {
+        // Return in reversed order from the DAO to verify re-ordering
+        val ids = listOf(3L, 1L, 2L)
+        val entitiesInDbOrder = listOf(makeEntity(1L), makeEntity(2L), makeEntity(3L))
+        coEvery { mangaDao.getMangaByIds(ids) } returns entitiesInDbOrder
+
+        val result = repository.getMangaByIds(ids)
+
+        assertEquals(listOf(3L, 1L, 2L), result.map { it.id })
+    }
+
+    @Test
+    fun getMangaByIds_multipleChunks_aggregatesAndPreservesOrder() = runTest {
+        // Build a list of 1000 ids to force chunking (chunks of 997)
+        val ids = (1L..1000L).toList()
+        val firstChunk = ids.take(997)
+        val secondChunk = ids.drop(997)
+
+        // Return entities for each chunk (in reversed order within chunk to test re-ordering)
+        coEvery { mangaDao.getMangaByIds(firstChunk) } returns firstChunk.reversed().map { makeEntity(it) }
+        coEvery { mangaDao.getMangaByIds(secondChunk) } returns secondChunk.reversed().map { makeEntity(it) }
+
+        val result = repository.getMangaByIds(ids)
+
+        assertEquals(1000, result.size)
+        // Result should follow the input ids order
+        assertEquals(ids, result.map { it.id })
+    }
+
+    @Test
+    fun getMangaByIds_missingIdsInDb_areOmitted() = runTest {
+        val ids = listOf(1L, 2L, 999L)
+        // DAO only returns entities for ids 1 and 2 (999 doesn't exist)
+        coEvery { mangaDao.getMangaByIds(ids) } returns listOf(makeEntity(1L), makeEntity(2L))
+
+        val result = repository.getMangaByIds(ids)
+
+        assertEquals(listOf(1L, 2L), result.map { it.id })
+    }
 }

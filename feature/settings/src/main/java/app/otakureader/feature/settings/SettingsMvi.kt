@@ -33,7 +33,11 @@ data class SettingsState(
     val isBackupInProgress: Boolean = false,
     val isRestoreInProgress: Boolean = false,
     val trackers: List<TrackerInfo> = emptyList(),
-    val trackingLoginInProgress: Boolean = false
+    val trackingLoginInProgress: Boolean = false,
+    // --- Migration settings ---
+    val migrationSimilarityThreshold: Float = 0.7f,
+    val migrationAlwaysConfirm: Boolean = false,
+    val migrationMinChapterCount: Int = 0
 ) : UiState
 
 sealed interface SettingsEvent : UiEvent {
@@ -59,6 +63,9 @@ sealed interface SettingsEvent : UiEvent {
     data object OnRestoreBackup : SettingsEvent
     data class LoginTracker(val trackerId: Int, val username: String, val password: String) : SettingsEvent
     data class LogoutTracker(val trackerId: Int) : SettingsEvent
+    data class SetMigrationSimilarityThreshold(val threshold: Float) : SettingsEvent
+    data class SetMigrationAlwaysConfirm(val enabled: Boolean) : SettingsEvent
+    data class SetMigrationMinChapterCount(val count: Int) : SettingsEvent
 }
 
 sealed interface SettingsEffect : UiEffect {
