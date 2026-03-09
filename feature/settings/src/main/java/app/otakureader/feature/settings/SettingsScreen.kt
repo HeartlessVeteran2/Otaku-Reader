@@ -1,8 +1,12 @@
 package app.otakureader.feature.settings
 
+import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -40,6 +44,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -236,37 +241,64 @@ private fun AppearanceSection(state: SettingsState, onEvent: (SettingsEvent) -> 
                 }
             )
 
-            // Locale
-            ListItem(
-                headlineContent = { Text("Language") },
-                supportingContent = {
-                    Column(modifier = Modifier.selectableGroup()) {
-                        val locales = listOf("System default" to "", "English" to "en", "Japanese" to "ja")
-                        locales.forEach { (label, tag) ->
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .selectable(
+            // Language
+            val context = LocalContext.current
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                // Android 13+: delegate to the system per-app language picker
+                ListItem(
+                    headlineContent = { Text("Language") },
+                    supportingContent = { Text("Change the app language in system settings") },
+                    modifier = Modifier.clickable {
+                        val intent = Intent(Settings.ACTION_APP_LOCALE_SETTINGS).apply {
+                            data = Uri.fromParts("package", context.packageName, null)
+                        }
+                        context.startActivity(intent)
+                    }
+                )
+            } else {
+                // Android 12 and below: in-app language picker
+                ListItem(
+                    headlineContent = { Text("Language") },
+                    supportingContent = {
+                        Column(modifier = Modifier.selectableGroup()) {
+                            val locales = listOf(
+                                "System default" to "",
+                                "English" to "en",
+                                "Japanese" to "ja",
+                                "Korean" to "ko",
+                                "Chinese (Simplified)" to "zh-Hans",
+                                "Spanish" to "es",
+                                "French" to "fr",
+                                "German" to "de",
+                                "Portuguese" to "pt",
+                                "Russian" to "ru"
+                            )
+                            locales.forEach { (label, tag) ->
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .selectable(
+                                            selected = state.locale == tag,
+                                            onClick = { onEvent(SettingsEvent.SetLocale(tag)) },
+                                            role = Role.RadioButton
+                                        )
+                                        .padding(vertical = 4.dp)
+                                ) {
+                                    RadioButton(
                                         selected = state.locale == tag,
-                                        onClick = { onEvent(SettingsEvent.SetLocale(tag)) },
-                                        role = Role.RadioButton
+                                        onClick = null
                                     )
-                                    .padding(vertical = 4.dp)
-                            ) {
-                                RadioButton(
-                                    selected = state.locale == tag,
-                                    onClick = null
-                                )
-                                Text(
-                                    text = label,
-                                    modifier = Modifier.padding(start = 8.dp)
-                                )
+                                    Text(
+                                        text = label,
+                                        modifier = Modifier.padding(start = 8.dp)
+                                    )
+                                }
                             }
                         }
                     }
-                }
-            )
+                )
+            }
 
 }
 
