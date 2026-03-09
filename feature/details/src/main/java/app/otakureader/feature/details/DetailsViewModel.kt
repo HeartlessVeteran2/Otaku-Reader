@@ -267,11 +267,23 @@ class DetailsViewModel @Inject constructor(
 
     private fun deleteChapterDownload(chapterId: Long) {
         viewModelScope.launch {
-            try {
-                downloadRepository.deleteChapterDownload(chapterId)
-                _effect.emit(DetailsContract.Effect.ShowSnackbar("Download removed"))
-            } catch (e: Exception) {
-                _effect.emit(DetailsContract.Effect.ShowError("Failed to remove download: ${e.message}"))
+            val chapter = _state.value.chapters.firstOrNull { it.id == chapterId }
+            val manga = _state.value.manga
+            if (chapter != null && manga != null) {
+                try {
+                    downloadRepository.deleteChapterDownload(
+                        chapterId = chapterId,
+                        sourceName = manga.sourceId.toString(),
+                        mangaTitle = manga.title,
+                        chapterTitle = chapter.name
+                    )
+                    _effect.emit(DetailsContract.Effect.ShowSnackbar("Download removed"))
+                } catch (e: Exception) {
+                    _effect.emit(DetailsContract.Effect.ShowError("Failed to remove download: ${e.message}"))
+                }
+            } else {
+                downloadRepository.cancelDownload(chapterId)
+                _effect.emit(DetailsContract.Effect.ShowSnackbar("Download cancelled"))
             }
         }
     }
