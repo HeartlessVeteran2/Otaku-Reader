@@ -317,6 +317,20 @@ private fun ReaderSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit
                     )
                 }
             )
+
+            // Incognito mode
+            ListItem(
+                headlineContent = { Text("Incognito Mode") },
+                supportingContent = { Text("Reading history and progress are not saved while enabled") },
+                trailingContent = {
+                    Switch(
+                        checked = state.incognitoMode,
+                        onCheckedChange = {
+                            onEvent(SettingsEvent.SetIncognitoMode(it))
+                        }
+                    )
+                }
+            )
 }
 
 @Composable

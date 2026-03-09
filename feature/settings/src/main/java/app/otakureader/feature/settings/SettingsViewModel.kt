@@ -21,7 +21,8 @@ class SettingsViewModel @Inject constructor(
     private val generalPreferences: GeneralPreferences,
     private val libraryPreferences: LibraryPreferences,
     private val readerPreferences: ReaderPreferences,
-    private val backupRepository: app.otakureader.data.backup.repository.BackupRepository
+    private val backupRepository: app.otakureader.data.backup.repository.BackupRepository,
+    private val readerSettingsRepository: app.otakureader.feature.reader.repository.ReaderSettingsRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SettingsState())
@@ -58,6 +59,8 @@ class SettingsViewModel @Inject constructor(
                 state.copy(readerMode = readerMode)
             }.combine(readerPreferences.keepScreenOn) { state, keepScreenOn ->
                 state.copy(keepScreenOn = keepScreenOn)
+            }.combine(readerSettingsRepository.incognitoMode) { state, incognitoMode ->
+                state.copy(incognitoMode = incognitoMode)
             }.collect { newState ->
                 _state.update { newState }
             }
@@ -76,6 +79,7 @@ class SettingsViewModel @Inject constructor(
                 is SettingsEvent.SetShowBadges -> libraryPreferences.setShowBadges(event.enabled)
                 is SettingsEvent.SetReaderMode -> readerPreferences.setReaderMode(event.mode)
                 is SettingsEvent.SetKeepScreenOn -> readerPreferences.setKeepScreenOn(event.enabled)
+                is SettingsEvent.SetIncognitoMode -> readerSettingsRepository.setIncognitoMode(event.enabled)
                 SettingsEvent.OnCreateBackup -> _effect.send(SettingsEffect.ShowBackupPicker)
                 SettingsEvent.OnRestoreBackup -> _effect.send(SettingsEffect.ShowRestorePicker)
             }
