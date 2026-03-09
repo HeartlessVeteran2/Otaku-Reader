@@ -134,7 +134,7 @@ object CbzCreator {
                         ?: Int.MAX_VALUE
                 }
                 .forEach { entry ->
-                    val safeName = entry.name.substringAfterLast('/')
+                    val safeName = entry.name.replace('/', '_').replace('\\', '_').trimStart('.')
                     val outFile = File(destDir, safeName)
                     // Guard against path traversal: ensure the resolved path stays within destDir
                     if (!outFile.canonicalPath.startsWith(destDir.canonicalPath + File.separator)) {
