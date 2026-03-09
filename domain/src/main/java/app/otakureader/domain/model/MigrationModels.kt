@@ -32,16 +32,6 @@ data class MigrationCandidate(
 )
 
 /**
- * Represents a migration task for a single manga.
- */
-data class MigrationTask(
-    val sourceManga: Manga,
-    val targetCandidate: MigrationCandidate? = null,
-    val mode: MigrationMode = MigrationMode.MOVE,
-    val status: MigrationStatus = MigrationStatus.PENDING
-)
-
-/**
  * Status of a migration task.
  */
 enum class MigrationStatus {
