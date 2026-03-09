@@ -18,5 +18,4 @@ interface MangaRepository {
     /** Migration-specific methods */
     suspend fun getMangaByIds(ids: List<Long>): List<Manga>
     suspend fun getMangaBySourceAndUrl(sourceId: Long, url: String): Manga?
-    suspend fun updateMangaSource(mangaId: Long, newSourceId: Long, newUrl: String)
 }
