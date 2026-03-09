@@ -20,6 +20,7 @@ dependencies {
     implementation(libs.paging.runtime)
     implementation(libs.workmanager.ktx)
     implementation(libs.hilt.work)
+    implementation(libs.retrofit.kotlinx.serialization)
     ksp(libs.hilt.compiler)
 
     testImplementation(libs.junit)

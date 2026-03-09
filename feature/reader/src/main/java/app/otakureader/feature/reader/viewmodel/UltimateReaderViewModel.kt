@@ -68,7 +68,7 @@ class UltimateReaderViewModel @Inject constructor(
             // Resolve the incognito flag directly from settings to avoid races with loadSettings()
             val isIncognito = runCatching {
                 // Assuming settingsRepository exposes a Flow of settings
-                settingsRepository.getSettings().first().incognitoMode
+                settingsRepository.incognitoMode.first()
             }.getOrElse {
                 // Fall back to the current state if settings cannot be read
                 _state.value.incognitoMode
@@ -110,7 +110,8 @@ class UltimateReaderViewModel @Inject constructor(
                     keepScreenOn = keepScreenOn,
                     showPageNumber = showPageNumber,
                     readingDirection = direction,
-                    volumeKeyNavigation = volumeKeyNav,
+                    volumeKeysEnabled = volumeKeysEnabled,
+                    volumeKeysInverted = volumeKeysInverted,
                     isFullscreen = fullscreen,
                     incognitoMode = incognitoMode
                 )
