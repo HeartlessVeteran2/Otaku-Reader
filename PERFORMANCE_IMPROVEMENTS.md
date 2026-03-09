@@ -166,18 +166,22 @@ HTTP logging was enabled in all builds:
 This could expose sensitive data (URLs, headers, tokens) in production logs.
 
 ### Solution
-Conditionally enable logging only in debug builds:
+Conditionally enable logging via a dedicated flag, which is disabled in production:
 ```kotlin
-.apply {
-    // Only enable HTTP logging in debug builds to prevent information disclosure
-    if (app.otakureader.core.network.BuildConfig.DEBUG) {
-        addInterceptor(
-            HttpLoggingInterceptor().apply {
-                level = HttpLoggingInterceptor.Level.BASIC
-            }
-        )
+// Central flag controlling whether HTTP logging is enabled
+private const val loggingEnabled: Boolean = false
+
+OkHttpClient.Builder()
+    .apply {
+        // Only enable HTTP logging when explicitly allowed to prevent information disclosure
+        if (loggingEnabled) {
+            addInterceptor(
+                HttpLoggingInterceptor().apply {
+                    level = HttpLoggingInterceptor.Level.BASIC
+                }
+            )
+        }
     }
-}
 ```
 
 ### Impact
