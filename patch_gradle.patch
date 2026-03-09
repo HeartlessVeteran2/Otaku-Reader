@@ -1,13 +1,1 @@
---- core/database/build.gradle.kts
-+++ core/database/build.gradle.kts
-@@ -16,7 +16,7 @@
-     testImplementation(libs.mockk)
-     testImplementation(libs.kotlinx.coroutines.test)
-     testImplementation(libs.turbine)
--    testImplementation("org.robolectric:robolectric:4.14.1")
--    testImplementation("androidx.test.ext:junit:1.1.5")
--    testImplementation("androidx.test:core:1.5.0")
-+    testImplementation(libs.robolectric)
-+    testImplementation(libs.androidx.test.ext.junit)
-+    testImplementation(libs.androidx.test.core)
- }
+This file is intentionally left empty; previous contents were a temporary Gradle patch artifact.
