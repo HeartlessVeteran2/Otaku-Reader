@@ -19,7 +19,8 @@ fun MangaEntity.toManga(): Manga = Manga(
     status = MangaStatus.entries.getOrNull(status) ?: MangaStatus.UNKNOWN,
     thumbnailUrl = thumbnailUrl,
     favorite = favorite,
-    initialized = initialized
+    initialized = initialized,
+    autoDownload = autoDownload
 )
 
 /** Maps domain [Manga] to [MangaEntity]. */
@@ -35,7 +36,8 @@ fun Manga.toEntity(): MangaEntity = MangaEntity(
     status = status.ordinal,
     thumbnailUrl = thumbnailUrl,
     favorite = favorite,
-    initialized = initialized
+    initialized = initialized,
+    autoDownload = autoDownload
 )
 
 /** Maps [ChapterEntity] to domain [Chapter]. */

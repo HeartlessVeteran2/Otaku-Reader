@@ -44,7 +44,10 @@ interface MangaDao {
     
     @Query("UPDATE manga SET favorite = :favorite WHERE id = :id")
     suspend fun updateFavorite(id: Long, favorite: Boolean)
-    
+
+    @Query("UPDATE manga SET autoDownload = :autoDownload WHERE id = :id")
+    suspend fun updateAutoDownload(id: Long, autoDownload: Boolean)
+
     @Query("SELECT EXISTS(SELECT 1 FROM manga WHERE id = :id AND favorite = 1)")
     fun isFavorite(id: Long): Flow<Boolean>
     

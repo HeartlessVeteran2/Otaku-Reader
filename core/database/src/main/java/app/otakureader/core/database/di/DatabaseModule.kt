@@ -40,6 +40,15 @@ object DatabaseModule {
         }
     }
 
+    /**
+     * Adds the autoDownload column to the manga table in database version 4.
+     */
+    private val MIGRATION_3_4 = object : Migration(3, 4) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `manga` ADD COLUMN `autoDownload` INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(
@@ -50,7 +59,7 @@ object DatabaseModule {
             OtakuReaderDatabase::class.java,
             OtakuReaderDatabase.DATABASE_NAME
         )
-            .addMigrations(MIGRATION_2_3)
+            .addMigrations(MIGRATION_2_3, MIGRATION_3_4)
             .fallbackToDestructiveMigration()
             .build()
     }

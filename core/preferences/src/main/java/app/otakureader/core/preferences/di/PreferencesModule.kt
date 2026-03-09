@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import app.otakureader.core.preferences.AppPreferences
+import app.otakureader.core.preferences.DownloadPreferences
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.LibraryPreferences
 import app.otakureader.core.preferences.ReaderPreferences
@@ -45,4 +46,9 @@ object PreferencesModule {
     @Singleton
     fun provideReaderPreferences(dataStore: DataStore<Preferences>): ReaderPreferences =
         ReaderPreferences(dataStore)
+
+    @Provides
+    @Singleton
+    fun provideDownloadPreferences(dataStore: DataStore<Preferences>): DownloadPreferences =
+        DownloadPreferences(dataStore)
 }
