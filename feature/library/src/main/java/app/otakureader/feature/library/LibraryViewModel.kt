@@ -55,6 +55,7 @@ class LibraryViewModel @Inject constructor(
             is LibraryEvent.OnCategorySelected -> onCategorySelected(event.categoryId)
             is LibraryEvent.ClearSelection -> clearSelection()
             is LibraryEvent.ToggleFavorite -> toggleFavorite(event.mangaId)
+            is LibraryEvent.MigrateSelected -> onMigrateSelected()
         }
     }
 
@@ -146,7 +147,16 @@ class LibraryViewModel @Inject constructor(
             toggleFavoriteManga(mangaId)
         }
     }
-    
+
+    private fun onMigrateSelected() {
+        viewModelScope.launch {
+            val selectedIds = _state.value.selectedManga.toList()
+            if (selectedIds.isNotEmpty()) {
+                _effect.emit(LibraryEffect.NavigateToMigration(selectedIds))
+            }
+        }
+    }
+
     private fun Manga.toLibraryItem() = LibraryMangaItem(
         id = id,
         title = title,

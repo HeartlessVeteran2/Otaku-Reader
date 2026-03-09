@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
@@ -33,6 +34,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -67,6 +69,7 @@ fun LibraryScreen(
     onNavigateToStatistics: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToDownloads: () -> Unit,
+    onNavigateToMigration: (List<Long>) -> Unit = {},
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -84,6 +87,9 @@ fun LibraryScreen(
                         snackbarHostState.showSnackbar(effect.message)
                     }
                 }
+                is LibraryEffect.NavigateToMigration -> {
+                    onNavigateToMigration(effect.selectedMangaIds)
+                }
                 else -> {}
             }
         }
@@ -92,32 +98,48 @@ fun LibraryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Library") },
+                title = {
+                    if (state.selectedManga.isNotEmpty()) {
+                        Text("${state.selectedManga.size} selected")
+                    } else {
+                        Text("Library")
+                    }
+                },
                 actions = {
-                    IconButton(onClick = { /* Search - Phase 1 */ }) {
-                        Icon(Icons.Default.Search, contentDescription = "Search")
-                    }
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "More")
-                    }
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Downloads") },
-                            onClick = {
-                                showMenu = false
-                                onNavigateToDownloads()
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Settings") },
-                            onClick = {
-                                showMenu = false
-                                onNavigateToSettings()
-                            }
-                        )
+                    if (state.selectedManga.isNotEmpty()) {
+                        // Show migration action when items are selected
+                        TextButton(onClick = { viewModel.onEvent(LibraryEvent.MigrateSelected) }) {
+                            Text("Migrate")
+                        }
+                        IconButton(onClick = { viewModel.onEvent(LibraryEvent.ClearSelection) }) {
+                            Icon(Icons.Default.Close, contentDescription = "Clear Selection")
+                        }
+                    } else {
+                        IconButton(onClick = { /* Search - Phase 1 */ }) {
+                            Icon(Icons.Default.Search, contentDescription = "Search")
+                        }
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "More")
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Downloads") },
+                                onClick = {
+                                    showMenu = false
+                                    onNavigateToDownloads()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Settings") },
+                                onClick = {
+                                    showMenu = false
+                                    onNavigateToSettings()
+                                }
+                            )
+                        }
                     }
                 }
             )

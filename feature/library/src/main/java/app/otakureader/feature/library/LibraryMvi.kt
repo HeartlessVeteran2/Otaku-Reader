@@ -35,10 +35,12 @@ sealed class LibraryEvent {
     data class OnCategorySelected(val categoryId: Long?) : LibraryEvent()
     data object ClearSelection : LibraryEvent()
     data class ToggleFavorite(val mangaId: Long) : LibraryEvent()
+    data object MigrateSelected : LibraryEvent()
 }
 
 sealed class LibraryEffect {
     data class NavigateToManga(val mangaId: Long) : LibraryEffect()
     data class NavigateToReader(val mangaId: Long, val chapterId: Long?) : LibraryEffect()
     data class ShowError(val message: String) : LibraryEffect()
+    data class NavigateToMigration(val selectedMangaIds: List<Long>) : LibraryEffect()
 }
