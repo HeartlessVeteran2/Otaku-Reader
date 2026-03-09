@@ -10,7 +10,6 @@ import app.otakureader.core.preferences.DownloadPreferences
 import app.otakureader.data.download.ChapterDownloadRequest
 import app.otakureader.data.download.DownloadManager
 import app.otakureader.domain.repository.ChapterRepository
-import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.domain.usecase.GetLibraryMangaUseCase
 import app.otakureader.domain.usecase.UpdateLibraryMangaUseCase
 import dagger.assisted.Assisted
@@ -30,8 +29,7 @@ class LibraryUpdateWorker @AssistedInject constructor(
     private val updateLibraryManga: UpdateLibraryMangaUseCase,
     private val downloadPreferences: DownloadPreferences,
     private val downloadManager: DownloadManager,
-    private val chapterRepository: ChapterRepository,
-    private val sourceRepository: SourceRepository
+    private val chapterRepository: ChapterRepository
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
@@ -64,11 +62,12 @@ class LibraryUpdateWorker @AssistedInject constructor(
                     // Auto-download new chapters if enabled and conditions are met
                     if (shouldAutoDownload && newChapterCount > 0) {
                         // Check if auto-download is enabled for this specific manga (per-manga override)
-                        val mangaAutoDownloadEnabled = manga.autoDownload ||
-                            (autoDownloadEnabled && !manga.autoDownload)
+                        // If manga.autoDownload is true, always download
+                        // If manga.autoDownload is false and global setting is true, download
+                        val shouldDownloadForManga = manga.autoDownload || autoDownloadEnabled
 
-                        if (mangaAutoDownloadEnabled || (!manga.autoDownload && autoDownloadEnabled)) {
-                            enqueueAutoDownloads(manga.id, autoDownloadLimit)
+                        if (shouldDownloadForManga) {
+                            enqueueAutoDownloads(manga.id, manga.sourceId, manga.title, autoDownloadLimit)
                         }
                     }
                 }.onFailure {
@@ -87,7 +86,7 @@ class LibraryUpdateWorker @AssistedInject constructor(
         }
     }
 
-    private suspend fun enqueueAutoDownloads(mangaId: Long, limit: Int) {
+    private suspend fun enqueueAutoDownloads(mangaId: Long, sourceId: Long, mangaTitle: String, limit: Int) {
         try {
             // Get unread chapters for this manga, limited by the auto-download limit
             val chapters = chapterRepository.getChaptersByMangaId(mangaId).first()
@@ -95,31 +94,20 @@ class LibraryUpdateWorker @AssistedInject constructor(
                 .sortedByDescending { it.chapterNumber }
                 .take(limit)
 
-            // Get manga details for download request
-            val manga = getLibraryManga().first().firstOrNull { it.id == mangaId } ?: return
-
-            // Get source name from source ID
-            val source = sourceRepository.getSourceById(manga.sourceId) ?: return
+            // Use sourceId as a stable directory key (same as in DetailsViewModel)
+            val sourceName = sourceId.toString()
 
             for (chapter in chapters) {
-                // Fetch page URLs for the chapter
-                val pageUrls = try {
-                    sourceRepository.getPageList(source, chapter).getOrNull() ?: emptyList()
-                } catch (e: Exception) {
-                    emptyList()
-                }
-
-                if (pageUrls.isNotEmpty()) {
-                    val request = ChapterDownloadRequest(
-                        mangaId = manga.id,
-                        chapterId = chapter.id,
-                        sourceName = source.name,
-                        mangaTitle = manga.title,
-                        chapterTitle = chapter.name,
-                        pageUrls = pageUrls
-                    )
-                    downloadManager.enqueue(request)
-                }
+                // Enqueue with empty pageUrls - DownloadManager will handle fetching them later
+                val request = ChapterDownloadRequest(
+                    mangaId = mangaId,
+                    chapterId = chapter.id,
+                    sourceName = sourceName,
+                    mangaTitle = mangaTitle,
+                    chapterTitle = chapter.name,
+                    pageUrls = emptyList() // Pages will be fetched when download actually starts
+                )
+                downloadManager.enqueue(request)
             }
         } catch (e: Exception) {
             // Log error but don't fail the entire worker
