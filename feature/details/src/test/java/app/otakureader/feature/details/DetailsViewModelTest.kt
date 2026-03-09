@@ -1,6 +1,8 @@
 package app.otakureader.feature.details
 
 import androidx.lifecycle.SavedStateHandle
+import app.otakureader.core.preferences.DownloadPreferences
+import app.otakureader.core.preferences.DeleteAfterReadMode
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MangaStatus
@@ -37,6 +39,7 @@ class DetailsViewModelTest {
     private lateinit var mangaRepository: MangaRepository
     private lateinit var chapterRepository: ChapterRepository
     private lateinit var downloadRepository: DownloadRepository
+    private lateinit var downloadPreferences: DownloadPreferences
     private lateinit var savedStateHandle: SavedStateHandle
 
     private val sampleManga = Manga(
@@ -60,6 +63,7 @@ class DetailsViewModelTest {
         mangaRepository = mockk()
         chapterRepository = mockk()
         downloadRepository = mockk()
+        downloadPreferences = mockk()
         savedStateHandle = SavedStateHandle(mapOf(DetailsViewModel.MANGA_ID_ARG to mangaId))
     }
 
@@ -69,7 +73,7 @@ class DetailsViewModelTest {
     }
 
     private fun createViewModel(): DetailsViewModel {
-        return DetailsViewModel(savedStateHandle, mangaRepository, chapterRepository, downloadRepository)
+        return DetailsViewModel(savedStateHandle, mangaRepository, chapterRepository, downloadRepository, downloadPreferences)
     }
 
     private fun setUpDefaultMocks() {
@@ -78,6 +82,8 @@ class DetailsViewModelTest {
         every { mangaRepository.isFavorite(mangaId) } returns flowOf(false)
         every { downloadRepository.observeDownloads() } returns flowOf(emptyList())
         coEvery { chapterRepository.getNextUnreadChapter(mangaId) } returns sampleChapters[1]
+        every { downloadPreferences.deleteAfterReading } returns flowOf(false)
+        every { downloadPreferences.perMangaOverrides } returns flowOf(emptyMap())
     }
 
     // ---- Initial load ----
