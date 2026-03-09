@@ -27,21 +27,26 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
-        .apply {
-            // Only enable HTTP logging in debug builds to prevent information disclosure
-            if (app.otakureader.core.network.BuildConfig.DEBUG) {
-                addInterceptor(
-                    HttpLoggingInterceptor().apply {
-                        level = HttpLoggingInterceptor.Level.BASIC
-                    }
-                )
-            }
+    fun provideOkHttpClient(): OkHttpClient {
+        val builder = OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+
+        // Only enable HTTP logging in debug builds to prevent information disclosure
+        // Note: In production/release builds, logging should be disabled
+        // This can be controlled via build variants or feature flags
+        val loggingEnabled = false  // Set to true only for debug builds
+        if (loggingEnabled) {
+            builder.addInterceptor(
+                HttpLoggingInterceptor().apply {
+                    level = HttpLoggingInterceptor.Level.BASIC
+                }
+            )
         }
-        .build()
+
+        return builder.build()
+    }
 
     @Provides
     @Singleton
