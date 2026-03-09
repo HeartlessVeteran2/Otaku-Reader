@@ -13,22 +13,16 @@ android {
     defaultConfig {
         // Register your Discord Application ID at https://discord.com/developers/applications
         // Set via local.properties or CI environment: discordApplicationId=<your_id>
+        // If not set, Discord Rich Presence will be silently disabled at runtime.
         val discordAppId = project.findProperty("discordApplicationId")?.toString() ?: ""
-        buildConfigField("String", "DISCORD_APPLICATION_ID", "\"$discordAppId\"")
-    }
-
-    buildTypes {
-        release {
-            // Fail the release build if the Discord Application ID is not configured
-            val discordAppId = project.findProperty("discordApplicationId")?.toString()
-            if (discordAppId.isNullOrBlank()) {
-                logger.warn(
-                    "WARNING: discordApplicationId is not set. " +
-                    "Discord Rich Presence will not work in release builds. " +
-                    "Set it in local.properties or as a project property."
-                )
-            }
+        if (discordAppId.isBlank()) {
+            logger.warn(
+                "WARNING: discordApplicationId is not set. " +
+                "Discord Rich Presence will not work. " +
+                "Set it in local.properties or as a project property."
+            )
         }
+        buildConfigField("String", "DISCORD_APPLICATION_ID", "\"$discordAppId\"")
     }
 }
 

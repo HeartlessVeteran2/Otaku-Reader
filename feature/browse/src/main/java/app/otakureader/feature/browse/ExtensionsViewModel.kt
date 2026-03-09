@@ -73,7 +73,6 @@ class ExtensionsViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
-    private val _showNsfw = MutableStateFlow(false)
     private val _sortMode = MutableStateFlow(SortMode.NAME)
 
     private val _state = MutableStateFlow(ExtensionsState())
@@ -156,7 +155,9 @@ class ExtensionsViewModel @Inject constructor(
             is ExtensionsEvent.RemoveRepository -> removeRepository(event.url)
             is ExtensionsEvent.SetActiveRepository -> setActiveRepository(event.url)
             is ExtensionsEvent.UpdateAllExtensions -> updateAllExtensions()
-            is ExtensionsEvent.ToggleNsfw -> _showNsfw.value = event.show
+            is ExtensionsEvent.ToggleNsfw -> viewModelScope.launch {
+                generalPreferences.setShowNsfwContent(event.show)
+            }
             is ExtensionsEvent.SetSortMode -> _sortMode.value = event.mode
         }
     }

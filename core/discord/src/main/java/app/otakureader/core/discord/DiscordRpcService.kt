@@ -25,7 +25,7 @@ class DiscordRpcService @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private var kizzyRpc: KizzyRPC? = null
+    @Volatile private var kizzyRpc: KizzyRPC? = null
 
     private val _connectionState = MutableStateFlow<ConnectionState>(ConnectionState.Disconnected)
     val connectionState: Flow<ConnectionState> = _connectionState.asStateFlow()
@@ -41,20 +41,31 @@ class DiscordRpcService @Inject constructor(
      * Should be called when the app starts if Discord RPC is enabled.
      */
     fun initialize() {
-        if (kizzyRpc != null) return
+        // Guard against concurrent initialize() calls; only one connection is created.
+        synchronized(this) {
+            if (kizzyRpc != null) return
+        }
 
         scope.launch {
             try {
-                kizzyRpc = KizzyRPC(
+                val rpc = KizzyRPC(
                     appId = BuildConfig.DISCORD_APPLICATION_ID,
                     status = "online"
                 )
-                _connectionState.value = ConnectionState.Connected
-                // Apply any activity that was requested before the connection was ready
-                pendingActivity?.let { activity ->
+                // Atomically store the connection and flush any queued activity.
+                val pending: Activity?
+                synchronized(this@DiscordRpcService) {
+                    if (kizzyRpc != null) {
+                        // Another coroutine beat us here; close the duplicate.
+                        rpc.closeRPC()
+                        return@launch
+                    }
+                    kizzyRpc = rpc
+                    pending = pendingActivity
                     pendingActivity = null
-                    kizzyRpc?.updatePresence(activity)
                 }
+                _connectionState.value = ConnectionState.Connected
+                pending?.let { rpc.updatePresence(it) }
             } catch (e: Exception) {
                 _connectionState.value = ConnectionState.Error(e.message ?: "Unknown error")
             }
