@@ -418,7 +418,15 @@ class DetailsViewModel @Inject constructor(
                 _state.update { it.copy(noteEditorVisible = false) }
                 _effect.emit(DetailsContract.Effect.ShowSnackbar("Note saved"))
             } catch (e: Exception) {
-                _effect.emit(DetailsContract.Effect.ShowError("Failed to save note: ${e.message}"))
+                val errorMessage = buildString {
+                    append("Failed to save note")
+                    val detail = e.message
+                    if (!detail.isNullOrBlank()) {
+                        append(": ")
+                        append(detail)
+                    }
+                }
+                _effect.emit(DetailsContract.Effect.ShowError(errorMessage))
             }
         }
     }
