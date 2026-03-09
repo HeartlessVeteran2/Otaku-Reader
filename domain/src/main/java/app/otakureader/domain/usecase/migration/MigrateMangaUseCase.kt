@@ -2,7 +2,6 @@ package app.otakureader.domain.usecase.migration
 
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
-import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.model.MigrationCandidate
 import app.otakureader.domain.model.MigrationMode
 import app.otakureader.domain.model.MigrationResult
