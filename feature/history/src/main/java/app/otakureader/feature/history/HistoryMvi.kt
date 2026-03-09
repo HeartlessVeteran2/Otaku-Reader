@@ -9,14 +9,19 @@ data class HistoryState(
     val isLoading: Boolean = false,
     val history: List<ChapterWithHistory> = emptyList(),
     val searchQuery: String = "",
-    val error: String? = null
+    val error: String? = null,
+    val selectedItems: Set<Long> = emptySet()
 ) : UiState
 
 sealed interface HistoryEvent : UiEvent {
     data class OnChapterClick(val mangaId: Long, val chapterId: Long) : HistoryEvent
+    data class OnChapterLongClick(val chapterId: Long) : HistoryEvent
     data object ClearHistory : HistoryEvent
+    data object ClearSelection : HistoryEvent
+    data object SelectAll : HistoryEvent
     data class OnSearchQueryChange(val query: String) : HistoryEvent
     data class RemoveFromHistory(val chapterId: Long) : HistoryEvent
+    data object RemoveSelectedFromHistory : HistoryEvent
 }
 
 sealed interface HistoryEffect : UiEffect {

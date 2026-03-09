@@ -79,6 +79,13 @@ class DetailsViewModel @Inject constructor(
             is DetailsContract.Event.HideNoteEditor -> hideNoteEditor()
             is DetailsContract.Event.UpdateNoteText -> updateNoteText(event.text)
             is DetailsContract.Event.SaveNote -> saveNote()
+            is DetailsContract.Event.ClearChapterSelection -> clearChapterSelection()
+            is DetailsContract.Event.SelectAllChapters -> selectAllChapters()
+            is DetailsContract.Event.DownloadSelectedChapters -> downloadSelectedChapters()
+            is DetailsContract.Event.DeleteSelectedChapters -> deleteSelectedChapters()
+            is DetailsContract.Event.MarkSelectedAsRead -> markSelectedAsRead()
+            is DetailsContract.Event.MarkSelectedAsUnread -> markSelectedAsUnread()
+            is DetailsContract.Event.BookmarkSelectedChapters -> bookmarkSelectedChapters()
         }
     }
 
@@ -232,15 +239,137 @@ class DetailsViewModel @Inject constructor(
     }
 
     private fun onChapterClick(chapterId: Long) {
-        viewModelScope.launch {
-            _effect.emit(DetailsContract.Effect.NavigateToReader(mangaId, chapterId))
+        if (_state.value.selectedChapters.isNotEmpty()) {
+            toggleChapterSelection(chapterId)
+        } else {
+            viewModelScope.launch {
+                _effect.emit(DetailsContract.Effect.NavigateToReader(mangaId, chapterId))
+            }
         }
     }
 
     private fun onChapterLongClick(chapterId: Long) {
-        // Show chapter options menu (could be implemented with a bottom sheet)
+        toggleChapterSelection(chapterId)
+    }
+
+    private fun toggleChapterSelection(chapterId: Long) {
+        _state.update { state ->
+            val currentSelection = state.selectedChapters
+            val newSelection = if (currentSelection.contains(chapterId)) {
+                currentSelection - chapterId
+            } else {
+                currentSelection + chapterId
+            }
+            state.copy(selectedChapters = newSelection)
+        }
+    }
+
+    private fun clearChapterSelection() {
+        _state.update { it.copy(selectedChapters = emptySet()) }
+    }
+
+    private fun selectAllChapters() {
+        _state.update { state ->
+            val allIds = state.chapters.map { it.id }.toSet()
+            state.copy(selectedChapters = allIds)
+        }
+    }
+
+    private fun downloadSelectedChapters() {
         viewModelScope.launch {
-            _effect.emit(DetailsContract.Effect.ShowSnackbar("Chapter options coming soon"))
+            val selectedIds = _state.value.selectedChapters
+            val manga = _state.value.manga
+            val chapters = _state.value.chapters.filter { selectedIds.contains(it.id) }
+            val mangaTitle = manga?.title ?: "Manga"
+            val sourceName = manga?.sourceId?.toString() ?: ""
+
+            chapters.forEach { chapter ->
+                downloadRepository.enqueueChapter(
+                    mangaId = chapter.mangaId,
+                    chapterId = chapter.id,
+                    sourceName = sourceName,
+                    mangaTitle = mangaTitle,
+                    chapterTitle = chapter.name
+                )
+            }
+            clearChapterSelection()
+            _effect.emit(DetailsContract.Effect.ShowSnackbar("${chapters.size} chapter(s) added to download queue"))
+        }
+    }
+
+    private fun deleteSelectedChapters() {
+        viewModelScope.launch {
+            val selectedIds = _state.value.selectedChapters
+            val manga = _state.value.manga
+            val chapters = _state.value.chapters.filter { selectedIds.contains(it.id) }
+
+            if (manga != null) {
+                chapters.forEach { chapter ->
+                    downloadRepository.deleteChapterDownload(
+                        chapterId = chapter.id,
+                        sourceName = manga.sourceId.toString(),
+                        mangaTitle = manga.title,
+                        chapterTitle = chapter.name
+                    )
+                }
+            }
+            clearChapterSelection()
+            _effect.emit(DetailsContract.Effect.ShowSnackbar("Deleted ${chapters.size} download(s)"))
+        }
+    }
+
+    private fun markSelectedAsRead() {
+        viewModelScope.launch {
+            try {
+                val selectedIds = _state.value.selectedChapters.toList()
+                if (selectedIds.isNotEmpty()) {
+                    chapterRepository.updateChapterProgress(
+                        chapterIds = selectedIds,
+                        read = true,
+                        lastPageRead = 0
+                    )
+                    clearChapterSelection()
+                    _effect.emit(DetailsContract.Effect.ShowSnackbar("Marked ${selectedIds.size} chapter(s) as read"))
+                }
+            } catch (e: Exception) {
+                _effect.emit(DetailsContract.Effect.ShowError("Failed to mark chapters as read: ${e.message}"))
+            }
+        }
+    }
+
+    private fun markSelectedAsUnread() {
+        viewModelScope.launch {
+            try {
+                val selectedIds = _state.value.selectedChapters.toList()
+                if (selectedIds.isNotEmpty()) {
+                    chapterRepository.updateChapterProgress(
+                        chapterIds = selectedIds,
+                        read = false,
+                        lastPageRead = 0
+                    )
+                    clearChapterSelection()
+                    _effect.emit(DetailsContract.Effect.ShowSnackbar("Marked ${selectedIds.size} chapter(s) as unread"))
+                }
+            } catch (e: Exception) {
+                _effect.emit(DetailsContract.Effect.ShowError("Failed to mark chapters as unread: ${e.message}"))
+            }
+        }
+    }
+
+    private fun bookmarkSelectedChapters() {
+        viewModelScope.launch {
+            try {
+                val selectedIds = _state.value.selectedChapters
+                if (selectedIds.isNotEmpty()) {
+                    selectedIds.forEach { chapterId ->
+                        chapterRepository.updateBookmark(chapterId, true)
+                    }
+                    clearChapterSelection()
+                    _effect.emit(DetailsContract.Effect.ShowSnackbar("Bookmarked ${selectedIds.size} chapter(s)"))
+                }
+            } catch (e: Exception) {
+                _effect.emit(DetailsContract.Effect.ShowError("Failed to bookmark chapters: ${e.message}"))
+            }
         }
     }
 

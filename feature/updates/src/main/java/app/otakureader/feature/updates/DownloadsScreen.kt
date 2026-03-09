@@ -1,5 +1,6 @@
 package app.otakureader.feature.updates
 
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,8 +18,10 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -51,19 +54,46 @@ fun DownloadsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Downloads") },
+                title = {
+                    if (state.selectedItems.isNotEmpty()) {
+                        Text("${state.selectedItems.size} selected")
+                    } else {
+                        Text("Downloads")
+                    }
+                },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
+                    if (state.selectedItems.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.onEvent(DownloadsEvent.ClearSelection) }) {
+                            Icon(Icons.Default.Close, contentDescription = "Clear selection")
+                        }
+                    } else {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back"
+                            )
+                        }
                     }
                 },
                 actions = {
-                    if (state.hasDownloads) {
-                        TextButton(onClick = { viewModel.onEvent(DownloadsEvent.ClearAll) }) {
-                            Text("Clear All")
+                    if (state.selectedItems.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.onEvent(DownloadsEvent.PauseSelected) }) {
+                            Icon(Icons.Default.Pause, contentDescription = "Pause selected")
+                        }
+                        IconButton(onClick = { viewModel.onEvent(DownloadsEvent.ResumeSelected) }) {
+                            Icon(Icons.Default.PlayArrow, contentDescription = "Resume selected")
+                        }
+                        IconButton(onClick = { viewModel.onEvent(DownloadsEvent.CancelSelected) }) {
+                            Icon(Icons.Default.Close, contentDescription = "Cancel selected")
+                        }
+                    } else {
+                        if (state.hasDownloads) {
+                            IconButton(onClick = { viewModel.onEvent(DownloadsEvent.SelectAll) }) {
+                                Icon(Icons.Default.SelectAll, contentDescription = "Select all")
+                            }
+                            TextButton(onClick = { viewModel.onEvent(DownloadsEvent.ClearAll) }) {
+                                Text("Clear All")
+                            }
                         }
                     }
                 }
@@ -89,6 +119,9 @@ fun DownloadsScreen(
                 ) { item ->
                     DownloadListItem(
                         item = item,
+                        isSelected = state.selectedItems.contains(item.id),
+                        onClick = { viewModel.onEvent(DownloadsEvent.OnItemClick(item.id)) },
+                        onLongClick = { viewModel.onEvent(DownloadsEvent.OnItemLongClick(item.id)) },
                         onPause = { viewModel.onEvent(DownloadsEvent.Pause(it)) },
                         onResume = { viewModel.onEvent(DownloadsEvent.Resume(it)) },
                         onCancel = { viewModel.onEvent(DownloadsEvent.Cancel(it)) }
@@ -102,6 +135,9 @@ fun DownloadsScreen(
 @Composable
 private fun DownloadListItem(
     item: DownloadItem,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
     onPause: (Long) -> Unit,
     onResume: (Long) -> Unit,
     onCancel: (Long) -> Unit,
@@ -110,7 +146,11 @@ private fun DownloadListItem(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 12.dp)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            ),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
         )
@@ -126,6 +166,14 @@ private fun DownloadListItem(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
+                if (isSelected) {
+                    Checkbox(
+                        checked = true,
+                        onCheckedChange = { onClick() },
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                }
+
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
@@ -146,38 +194,40 @@ private fun DownloadListItem(
                     )
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    when (item.status) {
-                        DownloadStatus.DOWNLOADING, DownloadStatus.QUEUED -> {
-                            IconButton(onClick = { onPause(item.id) }) {
-                                Icon(
-                                    imageVector = Icons.Default.Pause,
-                                    contentDescription = "Pause",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                if (!isSelected) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        when (item.status) {
+                            DownloadStatus.DOWNLOADING, DownloadStatus.QUEUED -> {
+                                IconButton(onClick = { onPause(item.id) }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Pause,
+                                        contentDescription = "Pause",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
+
+                            DownloadStatus.PAUSED -> {
+                                IconButton(onClick = { onResume(item.id) }) {
+                                    Icon(
+                                        imageVector = Icons.Default.PlayArrow,
+                                        contentDescription = "Resume",
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+
+                            else -> Unit
                         }
 
-                        DownloadStatus.PAUSED -> {
-                            IconButton(onClick = { onResume(item.id) }) {
+                        if (item.status != DownloadStatus.COMPLETED) {
+                            IconButton(onClick = { onCancel(item.id) }) {
                                 Icon(
-                                    imageVector = Icons.Default.PlayArrow,
-                                    contentDescription = "Resume",
-                                    tint = MaterialTheme.colorScheme.primary
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Cancel",
+                                    tint = MaterialTheme.colorScheme.error
                                 )
                             }
-                        }
-
-                        else -> Unit
-                    }
-
-                    if (item.status != DownloadStatus.COMPLETED) {
-                        IconButton(onClick = { onCancel(item.id) }) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Cancel",
-                                tint = MaterialTheme.colorScheme.error
-                            )
                         }
                     }
                 }
