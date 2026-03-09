@@ -1,24 +1,2 @@
-plugins {
-    alias(libs.plugins.otakureader.android.library)
-    alias(libs.plugins.otakureader.android.room)
-    alias(libs.plugins.otakureader.android.hilt)
-}
-
-android {
-    namespace = "app.otakureader.core.database"
-}
-
-dependencies {
-    implementation(projects.core.common)
-    implementation(projects.domain)
-    api(libs.room.paging)
-    implementation(libs.paging.runtime)
-
-    testImplementation(libs.junit)
-    testImplementation(libs.mockk)
-    testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(libs.turbine)
-    testImplementation("org.robolectric:robolectric:4.14.1")
-    testImplementation("androidx.test.ext:junit:1.1.5")
-    testImplementation("androidx.test:core:1.5.0")
-}
+// This file was a backup of core/database/build.gradle.kts and is intentionally left empty.
+// The canonical Gradle configuration for this module is in build.gradle.kts.
