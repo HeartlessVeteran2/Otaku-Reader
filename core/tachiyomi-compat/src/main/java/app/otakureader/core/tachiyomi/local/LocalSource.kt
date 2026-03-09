@@ -551,9 +551,37 @@ class LocalSource(
     private fun findEntryByUrl(url: String): LocalMangaEntry? {
         val mangaPath = parseChapterUrl(url).first
         val file = File(mangaPath)
+
+        // Ensure the resolved file is within the configured base directory to
+        // prevent access to arbitrary filesystem paths via crafted URLs.
+        val baseDir = try {
+            directory.canonicalFile
+        } catch (e: Exception) {
+            return null
+        }
+
+        val target = try {
+            file.canonicalFile
+        } catch (e: Exception) {
+            return null
+        }
+
+        val basePath = baseDir.path
+        val targetPath = target.path
+
+        // Allow the base directory itself and any descendants.
+        val isUnderBaseDir = target == baseDir ||
+            (targetPath.startsWith(basePath) &&
+                (targetPath.length == basePath.length ||
+                 targetPath[basePath.length] == File.separatorChar))
+
+        if (!isUnderBaseDir) {
+            return null
+        }
+
         return when {
-            file.isDirectory -> LocalMangaEntry.Folder(file)
-            file.isFile -> LocalMangaEntry.Archive(file)
+            target.isDirectory -> LocalMangaEntry.Folder(target)
+            target.isFile -> LocalMangaEntry.Archive(target)
             else -> null
         }
     }
