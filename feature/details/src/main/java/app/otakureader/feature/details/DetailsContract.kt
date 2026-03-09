@@ -20,6 +20,7 @@ object DetailsContract {
         val isLoading: Boolean = true,
         val manga: Manga? = null,
         val chapters: List<ChapterItem> = emptyList(),
+        val selectedChapters: Set<Long> = emptySet(),
         val isFavorite: Boolean = false,
         val descriptionExpanded: Boolean = false,
         val chapterSortOrder: ChapterSortOrder = ChapterSortOrder.DESCENDING,
@@ -113,6 +114,13 @@ object DetailsContract {
         data object HideNoteEditor : Event
         data class UpdateNoteText(val text: String) : Event
         data object SaveNote : Event
+        data object ClearChapterSelection : Event
+        data object SelectAllChapters : Event
+        data object DownloadSelectedChapters : Event
+        data object DeleteSelectedChapters : Event
+        data object MarkSelectedAsRead : Event
+        data object MarkSelectedAsUnread : Event
+        data object BookmarkSelectedChapters : Event
     }
 
     /**
