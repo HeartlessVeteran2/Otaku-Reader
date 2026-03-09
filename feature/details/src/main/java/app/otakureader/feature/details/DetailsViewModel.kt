@@ -349,8 +349,15 @@ class DetailsViewModel @Inject constructor(
     }
 
     private fun setDeleteAfterReadOverride(mode: DeleteAfterReadMode) {
-        // Delete-after-reading feature has been removed
-        // This method is kept as a placeholder but does nothing
+        // Delete-after-reading feature has been removed.
+        // Provide explicit feedback so the user is aware this action is no longer supported.
+        viewModelScope.launch {
+            _effect.emit(
+                DetailsContract.Effect.ShowSnackbar(
+                    "Delete-after-read is no longer supported."
+                )
+            )
+        }
     }
 
     companion object {
