@@ -59,6 +59,12 @@ class SettingsViewModel @Inject constructor(
                     updateCheckInterval = updateInterval
                     // deleteAfterReading feature has been removed
                 )
+            }.combine(generalPreferences.notificationsEnabled) { state, notificationsEnabled ->
+                state.copy(notificationsEnabled = notificationsEnabled)
+            }.combine(generalPreferences.updateCheckInterval) { state, updateInterval ->
+                state.copy(updateCheckInterval = updateInterval)
+            }.combine(downloadPreferences.deleteAfterReading) { state, deleteAfterReading ->
+                state.copy(deleteAfterReading = deleteAfterReading)
             }.combine(libraryPreferences.gridSize) { state, gridSize ->
                 state.copy(libraryGridSize = gridSize)
             }.combine(libraryPreferences.showBadges) { state, showBadges ->
@@ -97,6 +103,8 @@ class SettingsViewModel @Inject constructor(
             when (event) {
                 is SettingsEvent.SetThemeMode -> generalPreferences.setThemeMode(event.mode)
                 is SettingsEvent.SetDynamicColor -> generalPreferences.setUseDynamicColor(event.enabled)
+                is SettingsEvent.SetPureBlackDarkMode -> generalPreferences.setUsePureBlackDarkMode(event.enabled)
+                is SettingsEvent.SetColorScheme -> generalPreferences.setColorScheme(event.scheme)
                 is SettingsEvent.SetLocale -> generalPreferences.setLocale(event.locale)
                 is SettingsEvent.SetNotificationsEnabled -> generalPreferences.setNotificationsEnabled(event.enabled)
                 is SettingsEvent.SetUpdateInterval -> generalPreferences.setUpdateCheckInterval(event.hours)
@@ -105,6 +113,7 @@ class SettingsViewModel @Inject constructor(
                 is SettingsEvent.SetReaderMode -> readerPreferences.setReaderMode(event.mode)
                 is SettingsEvent.SetKeepScreenOn -> readerPreferences.setKeepScreenOn(event.enabled)
                 is SettingsEvent.SetIncognitoMode -> readerSettingsRepository.setIncognitoMode(event.enabled)
+                is SettingsEvent.SetDeleteAfterReading -> downloadPreferences.setDeleteAfterReading(event.enabled)
                 is SettingsEvent.SetAutoDownloadEnabled -> downloadPreferences.setAutoDownloadEnabled(event.enabled)
                 is SettingsEvent.SetDownloadOnlyOnWifi -> downloadPreferences.setDownloadOnlyOnWifi(event.enabled)
                 is SettingsEvent.SetAutoDownloadLimit -> downloadPreferences.setAutoDownloadLimit(event.limit)
