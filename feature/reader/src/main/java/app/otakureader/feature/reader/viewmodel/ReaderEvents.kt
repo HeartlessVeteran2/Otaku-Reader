@@ -1,5 +1,6 @@
 package app.otakureader.feature.reader.viewmodel
 
+import app.otakureader.feature.reader.model.ColorFilterMode
 import app.otakureader.feature.reader.model.ReaderMode
 import app.otakureader.feature.reader.model.ReadingDirection
 import app.otakureader.feature.reader.model.TapZoneConfig
@@ -181,6 +182,19 @@ sealed interface ReaderEvent {
 
     /** Retry failed operation */
     data object Retry : ReaderEvent
+
+    // ==================== Color Filter Events ====================
+
+    /**
+     * Set the color filter overlay mode.
+     * @param mode The new [ColorFilterMode] to apply.
+     */
+    data class SetColorFilterMode(val mode: ColorFilterMode) : ReaderEvent
+
+    /**
+     * Set the custom tint color (ARGB packed int) used when mode is [ColorFilterMode.CUSTOM_TINT].
+     */
+    data class SetCustomTintColor(val color: Long) : ReaderEvent
 
     companion object {
         /** Default zoom increment for zoom in/out operations */

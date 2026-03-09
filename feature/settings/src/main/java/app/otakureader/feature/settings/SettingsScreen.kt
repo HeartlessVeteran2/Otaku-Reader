@@ -124,6 +124,8 @@ fun SettingsScreen(
             HorizontalDivider()
             LibrarySection(state = state, onEvent = viewModel::onEvent)
             HorizontalDivider()
+            BrowseSection(state = state, onEvent = viewModel::onEvent)
+            HorizontalDivider()
             DownloadsSettingsSection(state = state, onEvent = viewModel::onEvent)
             HorizontalDivider()
             ReaderSection(state = state, onEvent = viewModel::onEvent)
@@ -350,9 +352,26 @@ private fun LibrarySection(state: SettingsState, onEvent: (SettingsEvent) -> Uni
 }
 
 @Composable
+private fun BrowseSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
+    // ── Browse ────────────────────────────────────────────────────────
+    SectionHeader(title = "Browse")
+
+    ListItem(
+        headlineContent = { Text("Show NSFW Sources") },
+        supportingContent = { Text("Display adult (18+) extensions and sources in Browse") },
+        trailingContent = {
+            Switch(
+                checked = state.showNsfwContent,
+                onCheckedChange = {
+                    onEvent(SettingsEvent.SetShowNsfwContent(it))
+                }
+            )
+        }
+    )
+}
+
+@Composable
 private fun DownloadsSettingsSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
-    // ── Downloads ─────────────────────────────────────────────────────
-            SectionHeader(title = "Downloads")
 
             ListItem(
                 headlineContent = { Text("Remove chapter after reading") },

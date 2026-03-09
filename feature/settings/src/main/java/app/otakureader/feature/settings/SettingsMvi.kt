@@ -37,7 +37,9 @@ data class SettingsState(
     // --- Migration settings ---
     val migrationSimilarityThreshold: Float = 0.7f,
     val migrationAlwaysConfirm: Boolean = false,
-    val migrationMinChapterCount: Int = 0
+    val migrationMinChapterCount: Int = 0,
+    // --- Browse ---
+    val showNsfwContent: Boolean = false
 ) : UiState
 
 sealed interface SettingsEvent : UiEvent {
@@ -67,6 +69,7 @@ sealed interface SettingsEvent : UiEvent {
     data class SetMigrationAlwaysConfirm(val enabled: Boolean) : SettingsEvent
     data class SetMigrationMinChapterCount(val count: Int) : SettingsEvent
     data object OnNavigateToMigration : SettingsEvent
+    data class SetShowNsfwContent(val enabled: Boolean) : SettingsEvent
 }
 
 sealed interface SettingsEffect : UiEffect {

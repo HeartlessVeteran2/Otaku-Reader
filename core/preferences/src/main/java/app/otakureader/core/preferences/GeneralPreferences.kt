@@ -60,6 +60,12 @@ class GeneralPreferences(private val dataStore: DataStore<Preferences>) {
     val updateCheckInterval: Flow<Int> = dataStore.data.map { it[Keys.UPDATE_CHECK_INTERVAL] ?: 12 }
     suspend fun setUpdateCheckInterval(value: Int) = dataStore.edit { it[Keys.UPDATE_CHECK_INTERVAL] = value }
 
+    // --- Browse ---
+
+    /** Whether to show NSFW (18+) sources and extensions in the Browse screen. */
+    val showNsfwContent: Flow<Boolean> = dataStore.data.map { it[Keys.SHOW_NSFW_CONTENT] ?: false }
+    suspend fun setShowNsfwContent(value: Boolean) = dataStore.edit { it[Keys.SHOW_NSFW_CONTENT] = value }
+
     private object Keys {
         val THEME_MODE = intPreferencesKey("theme_mode")
         val USE_DYNAMIC_COLOR = booleanPreferencesKey("use_dynamic_color")
@@ -68,5 +74,6 @@ class GeneralPreferences(private val dataStore: DataStore<Preferences>) {
         val LOCALE = stringPreferencesKey("locale")
         val NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
         val UPDATE_CHECK_INTERVAL = intPreferencesKey("update_check_interval")
+        val SHOW_NSFW_CONTENT = booleanPreferencesKey("show_nsfw_content")
     }
 }

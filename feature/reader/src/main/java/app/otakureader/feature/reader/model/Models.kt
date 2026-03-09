@@ -141,6 +141,36 @@ data class TapZoneConfig(
 }
 
 /**
+ * Color filter modes for the reader overlay.
+ */
+enum class ColorFilterMode {
+    /** No color filter applied. */
+    NONE,
+
+    /** Warm sepia tone – reduces eye strain in low light. */
+    SEPIA,
+
+    /** Desaturates the image to greyscale. */
+    GRAYSCALE,
+
+    /** Inverts all colors – useful in pitch-black environments. */
+    INVERT,
+
+    /** User-defined tint with configurable color and opacity. */
+    CUSTOM_TINT;
+
+    companion object {
+        fun displayName(mode: ColorFilterMode): String = when (mode) {
+            NONE -> "None"
+            SEPIA -> "Sepia"
+            GRAYSCALE -> "Greyscale"
+            INVERT -> "Invert"
+            CUSTOM_TINT -> "Custom Tint"
+        }
+    }
+}
+
+/**
  * Page transition animation types
  */
 enum class PageTransition {

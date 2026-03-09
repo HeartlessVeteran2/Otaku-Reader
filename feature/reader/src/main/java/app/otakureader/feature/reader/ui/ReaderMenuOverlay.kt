@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -32,6 +34,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ZoomIn
 import androidx.compose.material.icons.filled.ZoomOut
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -49,6 +52,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import app.otakureader.feature.reader.model.ColorFilterMode
 import app.otakureader.feature.reader.model.ReaderMode
 
 /**
@@ -65,8 +69,10 @@ fun ReaderMenuOverlay(
     currentMode: ReaderMode,
     zoomLevel: Float,
     brightness: Float,
+    colorFilterMode: ColorFilterMode = ColorFilterMode.NONE,
     onBrightnessChange: (Float) -> Unit,
     onModeChange: (ReaderMode) -> Unit,
+    onColorFilterChange: (ColorFilterMode) -> Unit = {},
     onZoomIn: () -> Unit,
     onZoomOut: () -> Unit,
     onResetZoom: () -> Unit,
@@ -149,6 +155,15 @@ fun ReaderMenuOverlay(
                 BrightnessControl(
                     brightness = brightness,
                     onBrightnessChange = onBrightnessChange,
+                    modifier = Modifier.padding(16.dp)
+                )
+
+                HorizontalDivider()
+
+                // Color filter selector
+                ColorFilterControl(
+                    currentMode = colorFilterMode,
+                    onModeChange = onColorFilterChange,
                     modifier = Modifier.padding(16.dp)
                 )
                 
@@ -334,5 +349,43 @@ fun BrightnessControl(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.width(48.dp)
         )
+    }
+}
+
+/**
+ * Compact row of chips for selecting the active color-filter mode.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ColorFilterControl(
+    currentMode: ColorFilterMode,
+    onModeChange: (ColorFilterMode) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = "Color Filter",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(ColorFilterMode.entries) { mode ->
+                FilterChip(
+                    selected = currentMode == mode,
+                    onClick = { onModeChange(mode) },
+                    label = {
+                        Text(
+                            text = ColorFilterMode.displayName(mode),
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                )
+            }
+        }
     }
 }

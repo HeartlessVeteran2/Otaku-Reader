@@ -9,6 +9,7 @@ import app.otakureader.core.extension.domain.model.Extension
 import app.otakureader.core.extension.domain.repository.ExtensionRepoRepository
 import app.otakureader.core.extension.domain.repository.ExtensionRepository
 import app.otakureader.core.extension.installer.ExtensionInstaller
+import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.domain.repository.SourceRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
@@ -30,7 +31,8 @@ data class ExtensionsState(
     val updateCount: Int = 0,
     val repositories: List<String> = emptyList(),
     val activeRepository: String? = null,
-    val error: String? = null
+    val error: String? = null,
+    val showNsfwContent: Boolean = false
 ) : UiState
 
 sealed interface ExtensionsEvent : UiEvent {
@@ -55,7 +57,8 @@ class ExtensionsViewModel @Inject constructor(
     private val extensionRepository: ExtensionRepository,
     private val extensionInstaller: ExtensionInstaller,
     private val extensionRepoRepository: ExtensionRepoRepository,
-    private val sourceRepository: SourceRepository
+    private val sourceRepository: SourceRepository,
+    private val generalPreferences: GeneralPreferences
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
@@ -63,23 +66,30 @@ class ExtensionsViewModel @Inject constructor(
     private val _state = MutableStateFlow(ExtensionsState())
     val state = combine(
         _state,
-        _searchQuery
-    ) { state, query ->
+        _searchQuery,
+        generalPreferences.showNsfwContent
+    ) { state, query, showNsfw ->
+        // Apply NSFW filter then search filter
+        val visibleInstalled = state.installedExtensions
+            .filter { showNsfw || !it.isNsfw }
+        val visibleAvailable = state.availableExtensions
+            .filter { showNsfw || !it.isNsfw }
+
         state.copy(
             searchQuery = query,
-            // Filter extensions based on search query
+            showNsfwContent = showNsfw,
             installedExtensions = if (query.isBlank()) {
-                state.installedExtensions
+                visibleInstalled
             } else {
-                state.installedExtensions.filter {
+                visibleInstalled.filter {
                     it.name.contains(query, ignoreCase = true) ||
                     it.sources.any { s -> s.name.contains(query, ignoreCase = true) }
                 }
             },
             availableExtensions = if (query.isBlank()) {
-                state.availableExtensions
+                visibleAvailable
             } else {
-                state.availableExtensions.filter {
+                visibleAvailable.filter {
                     it.name.contains(query, ignoreCase = true)
                 }
             }

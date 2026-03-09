@@ -8,6 +8,7 @@ import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.MangaRepository
+import app.otakureader.feature.reader.model.ColorFilterMode
 import app.otakureader.feature.reader.model.ReaderMode
 import app.otakureader.feature.reader.model.ReaderPage
 import app.otakureader.feature.reader.model.ReadingDirection
@@ -108,6 +109,8 @@ class UltimateReaderViewModel @Inject constructor(
             val volumeKeysInverted = settingsRepository.volumeKeysInverted.first()
             val fullscreen = settingsRepository.fullscreen.first()
             val incognitoMode = settingsRepository.incognitoMode.first()
+            val colorFilterMode = settingsRepository.colorFilterMode.first()
+            val customTintColor = settingsRepository.customTintColor.first()
 
             _state.update {
                 it.copy(
@@ -119,7 +122,9 @@ class UltimateReaderViewModel @Inject constructor(
                     volumeKeysEnabled = volumeKeysEnabled,
                     volumeKeysInverted = volumeKeysInverted,
                     isFullscreen = fullscreen,
-                    incognitoMode = incognitoMode
+                    incognitoMode = incognitoMode,
+                    colorFilterMode = colorFilterMode,
+                    customTintColor = customTintColor
                 )
             }
         }
@@ -274,6 +279,8 @@ class UltimateReaderViewModel @Inject constructor(
             ReaderEvent.SharePage -> sharePage()
             ReaderEvent.BrightnessUp -> updateBrightness(_state.value.brightness + BRIGHTNESS_INCREMENT)
             ReaderEvent.BrightnessDown -> updateBrightness(_state.value.brightness - BRIGHTNESS_INCREMENT)
+            is ReaderEvent.SetColorFilterMode -> updateColorFilterMode(event.mode)
+            is ReaderEvent.SetCustomTintColor -> updateCustomTintColor(event.color)
             ReaderEvent.AutoScrollSpeedUp -> updateAutoScrollSpeed(_state.value.autoScrollSpeed + AUTO_SCROLL_INCREMENT)
             ReaderEvent.AutoScrollSpeedDown -> updateAutoScrollSpeed(_state.value.autoScrollSpeed - AUTO_SCROLL_INCREMENT)
             ReaderEvent.FirstPage -> changePage(0)
@@ -331,6 +338,20 @@ class UltimateReaderViewModel @Inject constructor(
         // Save brightness setting
         viewModelScope.launch {
             settingsRepository.setBrightness(clampedBrightness)
+        }
+    }
+
+    private fun updateColorFilterMode(mode: ColorFilterMode) {
+        _state.update { it.copy(colorFilterMode = mode) }
+        viewModelScope.launch {
+            settingsRepository.setColorFilterMode(mode)
+        }
+    }
+
+    private fun updateCustomTintColor(color: Long) {
+        _state.update { it.copy(customTintColor = color) }
+        viewModelScope.launch {
+            settingsRepository.setCustomTintColor(color)
         }
     }
 

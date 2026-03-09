@@ -93,6 +93,8 @@ class SettingsViewModel @Inject constructor(
                 state.copy(migrationAlwaysConfirm = alwaysConfirm)
             }.combine(appPreferences.migrationMinChapterCount) { state, minChapters ->
                 state.copy(migrationMinChapterCount = minChapters)
+            }.combine(generalPreferences.showNsfwContent) { state, showNsfw ->
+                state.copy(showNsfwContent = showNsfw)
             }.collect { newState ->
                 _state.update { current ->
                     newState.copy(
@@ -141,6 +143,8 @@ class SettingsViewModel @Inject constructor(
                     appPreferences.setMigrationMinChapterCount(event.count)
                 SettingsEvent.OnNavigateToMigration ->
                     _effect.send(SettingsEffect.NavigateToMigrationEntry)
+                is SettingsEvent.SetShowNsfwContent ->
+                    generalPreferences.setShowNsfwContent(event.enabled)
             }
         }
     }

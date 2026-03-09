@@ -6,7 +6,9 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import app.otakureader.core.preferences.AppPreferences
+import app.otakureader.feature.reader.model.ColorFilterMode
 import app.otakureader.feature.reader.model.ReaderMode
 import app.otakureader.feature.reader.model.ReadingDirection
 import app.otakureader.feature.reader.model.TapZoneConfig
@@ -161,7 +163,24 @@ class ReaderSettingsRepository @Inject constructor(
     suspend fun setIncognitoMode(enabled: Boolean) {
         dataStore.edit { it[Keys.INCOGNITO_MODE] = enabled }
     }
-    
+
+    val colorFilterMode: Flow<ColorFilterMode> = dataStore.data.map { prefs ->
+        ColorFilterMode.entries.getOrNull(prefs[Keys.COLOR_FILTER_MODE] ?: 0)
+            ?: ColorFilterMode.NONE
+    }
+
+    suspend fun setColorFilterMode(mode: ColorFilterMode) {
+        dataStore.edit { it[Keys.COLOR_FILTER_MODE] = mode.ordinal }
+    }
+
+    val customTintColor: Flow<Long> = dataStore.data.map { prefs ->
+        prefs[Keys.CUSTOM_TINT_COLOR] ?: 0x4000AAFFL
+    }
+
+    suspend fun setCustomTintColor(color: Long) {
+        dataStore.edit { it[Keys.CUSTOM_TINT_COLOR] = color }
+    }
+
     private object Keys {
         val READER_MODE = intPreferencesKey("reader_mode_setting")
         val BRIGHTNESS = floatPreferencesKey("reader_brightness")
@@ -178,6 +197,8 @@ class ReaderSettingsRepository @Inject constructor(
         val TAP_ZONE_CENTER = floatPreferencesKey("reader_tap_zone_center")
         val TAP_ZONE_RIGHT = floatPreferencesKey("reader_tap_zone_right")
         val INCOGNITO_MODE = booleanPreferencesKey("reader_incognito_mode")
+        val COLOR_FILTER_MODE = intPreferencesKey("reader_color_filter_mode")
+        val CUSTOM_TINT_COLOR = longPreferencesKey("reader_custom_tint_color")
     }
     
     companion object {
