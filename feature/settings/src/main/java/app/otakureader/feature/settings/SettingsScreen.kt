@@ -115,8 +115,6 @@ fun SettingsScreen(
             HorizontalDivider()
             LibrarySection(state = state, onEvent = viewModel::onEvent)
             HorizontalDivider()
-            DownloadsSection(state = state, onEvent = viewModel::onEvent)
-            HorizontalDivider()
             ReaderSection(state = state, onEvent = viewModel::onEvent)
             HorizontalDivider()
             TrackingSection(state = state, onEvent = viewModel::onEvent)
@@ -261,25 +259,6 @@ private fun LibrarySection(state: SettingsState, onEvent: (SettingsEvent) -> Uni
                         checked = state.showBadges,
                         onCheckedChange = {
                             onEvent(SettingsEvent.SetShowBadges(it))
-                        }
-                    )
-                }
-            )
-}
-
-@Composable
-private fun DownloadsSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
-    // ── Downloads ─────────────────────────────────────────────────────
-            SectionHeader(title = "Downloads")
-
-            ListItem(
-                headlineContent = { Text("Remove chapter after reading") },
-                supportingContent = { Text("Automatically delete downloaded chapters once finished") },
-                trailingContent = {
-                    Switch(
-                        checked = state.deleteAfterReading,
-                        onCheckedChange = {
-                            onEvent(SettingsEvent.SetDeleteAfterReading(it))
                         }
                     )
                 }

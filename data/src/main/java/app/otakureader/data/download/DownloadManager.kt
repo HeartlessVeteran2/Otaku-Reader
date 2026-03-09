@@ -120,18 +120,6 @@ class DownloadManager @Inject constructor(
         }
     }
 
-    /**
-     * Removes a completed or paused download and its in-memory metadata.
-     * This is used when the on-disk chapter is deleted.
-     */
-    suspend fun remove(chapterId: Long) {
-        mutex.withLock {
-            jobs.remove(chapterId)?.cancel()
-            requests.remove(chapterId)
-            _downloads.update { list -> list.filterNot { it.chapterId == chapterId } }
-        }
-    }
-
     suspend fun clearAll() {
         mutex.withLock {
             jobs.values.forEach { it.cancel() }

@@ -47,16 +47,14 @@ class SettingsViewModel @Inject constructor(
                 generalPreferences.useDynamicColor,
                 generalPreferences.locale,
                 generalPreferences.notificationsEnabled,
-                generalPreferences.updateCheckInterval,
-                downloadPreferences.deleteAfterReading
-            ) { themeMode, dynamicColor, locale, notificationsEnabled, updateInterval, deleteAfterReading ->
+                generalPreferences.updateCheckInterval
+            ) { themeMode, dynamicColor, locale, notificationsEnabled, updateInterval ->
                 SettingsState(
                     themeMode = themeMode,
                     useDynamicColor = dynamicColor,
                     locale = locale,
                     notificationsEnabled = notificationsEnabled,
-                    updateCheckInterval = updateInterval,
-                    deleteAfterReading = deleteAfterReading
+                    updateCheckInterval = updateInterval
                 )
             }.combine(libraryPreferences.gridSize) { state, gridSize ->
                 state.copy(libraryGridSize = gridSize)

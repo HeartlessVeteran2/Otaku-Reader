@@ -17,7 +17,6 @@ data class SettingsState(
     val readerMode: Int = 0,           // 0=single page, 1=webtoon, 2=dual page, 3=smart panels
     val keepScreenOn: Boolean = true,
     val incognitoMode: Boolean = false, // Incognito mode - reading history not saved
-    val deleteAfterReading: Boolean = false,
     val libraryGridSize: Int = 3,      // number of columns (2–5)
     val showBadges: Boolean = true,
     val updateCheckInterval: Int = 12, // hours
@@ -38,7 +37,6 @@ sealed interface SettingsEvent : UiEvent {
     data class SetReaderMode(val mode: Int) : SettingsEvent
     data class SetKeepScreenOn(val enabled: Boolean) : SettingsEvent
     data class SetIncognitoMode(val enabled: Boolean) : SettingsEvent
-    data class SetDeleteAfterReading(val enabled: Boolean) : SettingsEvent
     data class SetLibraryGridSize(val size: Int) : SettingsEvent
     data class SetShowBadges(val enabled: Boolean) : SettingsEvent
     data class SetUpdateInterval(val hours: Int) : SettingsEvent

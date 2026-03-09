@@ -1,9 +1,7 @@
 package app.otakureader.data.di
 
 import app.otakureader.domain.repository.ChapterRepository
-import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.MangaRepository
-import app.otakureader.domain.usecase.DeleteChapterUseCase
 import app.otakureader.domain.usecase.GetChaptersUseCase
 import app.otakureader.domain.usecase.GetHistoryUseCase
 import app.otakureader.domain.usecase.GetLibraryUseCase
@@ -31,8 +29,4 @@ object UseCaseModule {
     @Provides
     fun provideGetHistoryUseCase(chapterRepository: ChapterRepository): GetHistoryUseCase =
         GetHistoryUseCase(chapterRepository)
-
-    @Provides
-    fun provideDeleteChapterUseCase(downloadRepository: DownloadRepository): DeleteChapterUseCase =
-        DeleteChapterUseCase(downloadRepository)
 }

@@ -68,24 +68,6 @@ class DownloadRepositoryImpl @Inject constructor(
         downloadManager.cancel(id)
     }
 
-    override suspend fun deleteChapterDownload(
-        chapterId: Long,
-        sourceName: String,
-        mangaTitle: String,
-        chapterTitle: String
-    ) {
-        // Cancel any active job for this chapter before touching the filesystem.
-        downloadManager.cancel(chapterId)
-
-        withContext(Dispatchers.IO) {
-            val deleted = DownloadProvider.deleteChapter(context, sourceName, mangaTitle, chapterTitle)
-            if (deleted) {
-                // Remove any active job or completed metadata for this chapter only.
-                downloadManager.remove(chapterId)
-            }
-        }
-    }
-
     override suspend fun clearAll() {
         downloadManager.clearAll()
         notifier.cancel()

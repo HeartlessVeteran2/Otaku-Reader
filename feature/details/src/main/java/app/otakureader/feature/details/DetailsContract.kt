@@ -3,7 +3,6 @@ package app.otakureader.feature.details
 import app.otakureader.core.common.mvi.UiEffect
 import app.otakureader.core.common.mvi.UiEvent
 import app.otakureader.core.common.mvi.UiState
-import app.otakureader.core.preferences.DeleteAfterReadMode
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MangaStatus
@@ -25,9 +24,7 @@ object DetailsContract {
         val chapterSortOrder: ChapterSortOrder = ChapterSortOrder.DESCENDING,
         val error: String? = null,
         val isRefreshing: Boolean = false,
-        val nextUnreadChapter: Chapter? = null,
-        val deleteAfterReadOverride: DeleteAfterReadMode = DeleteAfterReadMode.INHERIT,
-        val globalDeleteAfterRead: Boolean = false
+        val nextUnreadChapter: Chapter? = null
     ) : UiState {
         
         val canStartReading: Boolean
@@ -44,13 +41,6 @@ object DetailsContract {
         
         val groupedChapters: Map<String?, List<ChapterItem>>
             get() = sortedChapters.groupBy { it.volume }
-
-        val isDeleteAfterReadEnabled: Boolean
-            get() = when (deleteAfterReadOverride) {
-                DeleteAfterReadMode.ENABLED -> true
-                DeleteAfterReadMode.DISABLED -> false
-                DeleteAfterReadMode.INHERIT -> globalDeleteAfterRead
-            }
     }
 
     /**
@@ -105,7 +95,6 @@ object DetailsContract {
         data class DeleteChapterDownload(val chapterId: Long) : Event
         data class MarkPreviousAsRead(val chapterId: Long) : Event
         data object ShareManga : Event
-        data class SetDeleteAfterReadOverride(val mode: DeleteAfterReadMode) : Event
     }
 
     /**

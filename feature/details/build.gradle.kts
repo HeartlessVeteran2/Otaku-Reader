@@ -9,7 +9,6 @@ android {
 
 dependencies {
     implementation(projects.core.common)
-    implementation(projects.core.preferences)
     implementation(projects.core.ui)
     implementation(projects.core.navigation)
     implementation(projects.domain)
