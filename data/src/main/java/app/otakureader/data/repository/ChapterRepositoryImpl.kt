@@ -13,6 +13,9 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/** SQLite's default maximum number of bound parameters per query. */
+private const val SQLITE_MAX_BIND_PARAMETERS = 999
+
 @Singleton
 class ChapterRepositoryImpl @Inject constructor(
     private val chapterDao: ChapterDao,
@@ -41,6 +44,16 @@ class ChapterRepositoryImpl @Inject constructor(
         chapterDao.updateChapterProgress(chapterId, read, lastPageRead)
     }
     
+    override suspend fun updateChapterProgress(chapterIds: List<Long>, read: Boolean, lastPageRead: Int) {
+        // SQLite's bound-parameter limit is 999. This query also binds `read` and `lastPageRead`
+        // (2 parameters), so the IN (:chapterIds) list must be at most 997 to avoid
+        // "too many SQL variables" at runtime.
+        val chunkSize = SQLITE_MAX_BIND_PARAMETERS - 2
+        chapterIds.chunked(chunkSize).forEach { chunk ->
+            chapterDao.updateChapterProgress(chunk, read, lastPageRead)
+        }
+    }
+
     override suspend fun updateBookmark(chapterId: Long, bookmark: Boolean) {
         chapterDao.updateBookmark(chapterId, bookmark)
     }

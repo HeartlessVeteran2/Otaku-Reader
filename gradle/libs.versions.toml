@@ -49,10 +49,12 @@ workmanager = "2.11.1"
 # Testing
 junit = "4.13.2"
 junit5 = "5.11.0"
-androidxTest = "1.6.1"
+androidxTest = "1.1.5"
+androidxTestCore = "1.5.0"
 espresso = "3.7.0"
 mockk = "1.14.9"
 turbine = "1.2.1"
+robolectric = "4.14.1"
 
 [libraries]
 # Kotlin
@@ -130,6 +132,8 @@ androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version
 androidx-test-espresso = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+androidx-test-core = { group = "androidx.test", name = "core", version.ref = "androidxTestCore" }
 
 # Build plugins (for convention plugins)
 android-gradlePlugin = { group = "com.android.tools.build", name = "gradle", version.ref = "agp" }

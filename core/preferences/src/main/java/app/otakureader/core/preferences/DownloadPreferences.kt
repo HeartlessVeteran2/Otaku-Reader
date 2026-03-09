@@ -11,7 +11,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 
 /**
- * Preference store for download settings including auto-download configuration.
+ * Preference store for download settings including auto-download configuration
+ * and delete-after-reading behaviour.
  * Exposes reactive [Flow] properties and suspend setter functions backed by DataStore.
  */
 class DownloadPreferences(private val dataStore: DataStore<Preferences>) {

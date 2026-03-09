@@ -130,11 +130,33 @@ class ChapterRepositoryImplTest {
 
     @Test
     fun updateChapterProgress_callsDaoWithCorrectArgs() = runTest {
-        coEvery { chapterDao.updateChapterProgress(any(), any(), any()) } returns Unit
+        coEvery { chapterDao.updateChapterProgress(any<Long>(), any(), any()) } returns Unit
 
         repository.updateChapterProgress(chapterId = 7L, read = true, lastPageRead = 10)
 
         coVerify { chapterDao.updateChapterProgress(7L, true, 10) }
+    }
+
+    @Test
+    fun updateChapterProgress_list_callsDaoWithCorrectArgs() = runTest {
+        coEvery { chapterDao.updateChapterProgress(any<List<Long>>(), any(), any()) } returns Unit
+
+        repository.updateChapterProgress(chapterIds = listOf(7L, 8L), read = true, lastPageRead = 10)
+
+        coVerify { chapterDao.updateChapterProgress(listOf(7L, 8L), true, 10) }
+    }
+
+    @Test
+    fun updateChapterProgress_list_chunksLargeListsToAvoidSqliteLimit() = runTest {
+        coEvery { chapterDao.updateChapterProgress(any<List<Long>>(), any(), any()) } returns Unit
+
+        // 1001 IDs should be split into a chunk of 997 and a chunk of 4
+        val ids = (1L..1001L).toList()
+        repository.updateChapterProgress(chapterIds = ids, read = true, lastPageRead = 0)
+
+        coVerify(exactly = 1) { chapterDao.updateChapterProgress(ids.take(997), true, 0) }
+        coVerify(exactly = 1) { chapterDao.updateChapterProgress(ids.drop(997), true, 0) }
+        coVerify(exactly = 2) { chapterDao.updateChapterProgress(any<List<Long>>(), any(), any()) }
     }
 
     // ---- updateBookmark ----
