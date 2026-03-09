@@ -31,6 +31,9 @@ data class ReaderState(
     /** Whether the page gallery/thumbnail view is open */
     val isGalleryOpen: Boolean = false,
 
+    /** Number of columns displayed in the gallery grid (2, 3, or 4) */
+    val galleryColumns: Int = 3,
+
     /** Screen brightness level (0.1 - 1.5) */
     val brightness: Float = 1f,
 

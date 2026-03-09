@@ -250,6 +250,7 @@ class UltimateReaderViewModel @Inject constructor(
             is ReaderEvent.OnDirectionChange -> updateReadingDirection(event.direction)
             ReaderEvent.ToggleMenu -> toggleMenu()
             ReaderEvent.ToggleGallery -> toggleGallery()
+            is ReaderEvent.SetGalleryColumns -> setGalleryColumns(event.columns)
             ReaderEvent.NextPage -> navigatePage(1)
             ReaderEvent.PrevPage -> navigatePage(-1)
             ReaderEvent.NextPanel -> navigatePanel(1)
@@ -360,6 +361,11 @@ class UltimateReaderViewModel @Inject constructor(
 
     private fun toggleGallery() {
         _state.update { it.copy(isGalleryOpen = !it.isGalleryOpen) }
+    }
+
+    private fun setGalleryColumns(columns: Int) {
+        val clamped = columns.coerceIn(2, 4)
+        _state.update { it.copy(galleryColumns = clamped) }
     }
 
     private fun toggleFullscreen() {
