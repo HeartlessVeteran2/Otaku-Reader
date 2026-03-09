@@ -316,7 +316,10 @@ class DetailsViewModel @Inject constructor(
                 chapterTitle = chapter.name
             ).fold(
                 onSuccess = { _effect.emit(DetailsContract.Effect.ShowSnackbar("Exported as CBZ")) },
-                onFailure = { _effect.emit(DetailsContract.Effect.ShowError("Export failed: ${it.message}")) }
+                onFailure = {
+                    val reason = it.message ?: "Unknown error"
+                    _effect.emit(DetailsContract.Effect.ShowError("Export failed: $reason"))
+                }
             )
         }
     }
