@@ -113,6 +113,8 @@ fun SettingsScreen(
             HorizontalDivider()
             ReaderSection(state = state, onEvent = viewModel::onEvent)
             HorizontalDivider()
+            DownloadSection(state = state, onEvent = viewModel::onEvent)
+            HorizontalDivider()
             NotificationsSection(state = state, onEvent = viewModel::onEvent)
             HorizontalDivider()
             BackupRestoreSection(state = state, onEvent = viewModel::onEvent)
@@ -328,6 +330,62 @@ private fun ReaderSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit
                         onCheckedChange = {
                             onEvent(SettingsEvent.SetIncognitoMode(it))
                         }
+                    )
+                }
+            )
+}
+
+@Composable
+private fun DownloadSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
+    // ── Downloads ─────────────────────────────────────────────────────
+            SectionHeader(title = "Downloads")
+
+            // Auto-download new chapters
+            ListItem(
+                headlineContent = { Text("Auto-Download New Chapters") },
+                supportingContent = { Text("Automatically download new chapters found during library updates") },
+                trailingContent = {
+                    Switch(
+                        checked = state.autoDownloadEnabled,
+                        onCheckedChange = {
+                            onEvent(SettingsEvent.SetAutoDownloadEnabled(it))
+                        }
+                    )
+                }
+            )
+
+            // Download only on Wi-Fi
+            ListItem(
+                headlineContent = { Text("Download Only on Wi-Fi") },
+                supportingContent = { Text("Restrict downloads to Wi-Fi connections only") },
+                trailingContent = {
+                    Switch(
+                        checked = state.downloadOnlyOnWifi,
+                        onCheckedChange = {
+                            onEvent(SettingsEvent.SetDownloadOnlyOnWifi(it))
+                        }
+                    )
+                }
+            )
+
+            // Auto-download limit
+            var sliderPosition by remember(state.autoDownloadLimit) {
+                mutableFloatStateOf(state.autoDownloadLimit.toFloat())
+            }
+            ListItem(
+                headlineContent = { Text("Auto-Download Limit: ${sliderPosition.roundToInt()} chapters") },
+                supportingContent = {
+                    Slider(
+                        value = sliderPosition,
+                        onValueChange = { sliderPosition = it },
+                        onValueChangeFinished = {
+                            onEvent(
+                                SettingsEvent.SetAutoDownloadLimit(sliderPosition.roundToInt())
+                            )
+                        },
+                        valueRange = 1f..10f,
+                        steps = 8,
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
             )

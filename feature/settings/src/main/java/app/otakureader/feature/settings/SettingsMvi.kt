@@ -15,6 +15,9 @@ data class SettingsState(
     val showBadges: Boolean = true,
     val updateCheckInterval: Int = 12, // hours
     val notificationsEnabled: Boolean = true,
+    val autoDownloadEnabled: Boolean = false, // Auto-download new chapters
+    val downloadOnlyOnWifi: Boolean = true,   // Download only when connected to Wi-Fi
+    val autoDownloadLimit: Int = 3,           // Max chapters to auto-download per manga
     val isBackupInProgress: Boolean = false,
     val isRestoreInProgress: Boolean = false
 ) : UiState
@@ -30,6 +33,9 @@ sealed interface SettingsEvent : UiEvent {
     data class SetShowBadges(val enabled: Boolean) : SettingsEvent
     data class SetUpdateInterval(val hours: Int) : SettingsEvent
     data class SetNotificationsEnabled(val enabled: Boolean) : SettingsEvent
+    data class SetAutoDownloadEnabled(val enabled: Boolean) : SettingsEvent
+    data class SetDownloadOnlyOnWifi(val enabled: Boolean) : SettingsEvent
+    data class SetAutoDownloadLimit(val limit: Int) : SettingsEvent
     data object OnCreateBackup : SettingsEvent
     data object OnRestoreBackup : SettingsEvent
 }

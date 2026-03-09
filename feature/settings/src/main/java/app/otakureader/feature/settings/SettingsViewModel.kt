@@ -2,6 +2,7 @@ package app.otakureader.feature.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.otakureader.core.preferences.DownloadPreferences
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.LibraryPreferences
 import app.otakureader.core.preferences.ReaderPreferences
@@ -21,6 +22,7 @@ class SettingsViewModel @Inject constructor(
     private val generalPreferences: GeneralPreferences,
     private val libraryPreferences: LibraryPreferences,
     private val readerPreferences: ReaderPreferences,
+    private val downloadPreferences: DownloadPreferences,
     private val backupRepository: app.otakureader.data.backup.repository.BackupRepository,
     private val readerSettingsRepository: app.otakureader.feature.reader.repository.ReaderSettingsRepository
 ) : ViewModel() {
@@ -61,6 +63,12 @@ class SettingsViewModel @Inject constructor(
                 state.copy(keepScreenOn = keepScreenOn)
             }.combine(readerSettingsRepository.incognitoMode) { state, incognitoMode ->
                 state.copy(incognitoMode = incognitoMode)
+            }.combine(downloadPreferences.autoDownloadEnabled) { state, autoDownloadEnabled ->
+                state.copy(autoDownloadEnabled = autoDownloadEnabled)
+            }.combine(downloadPreferences.downloadOnlyOnWifi) { state, downloadOnlyOnWifi ->
+                state.copy(downloadOnlyOnWifi = downloadOnlyOnWifi)
+            }.combine(downloadPreferences.autoDownloadLimit) { state, autoDownloadLimit ->
+                state.copy(autoDownloadLimit = autoDownloadLimit)
             }.collect { newState ->
                 _state.update { newState }
             }
@@ -80,6 +88,9 @@ class SettingsViewModel @Inject constructor(
                 is SettingsEvent.SetReaderMode -> readerPreferences.setReaderMode(event.mode)
                 is SettingsEvent.SetKeepScreenOn -> readerPreferences.setKeepScreenOn(event.enabled)
                 is SettingsEvent.SetIncognitoMode -> readerSettingsRepository.setIncognitoMode(event.enabled)
+                is SettingsEvent.SetAutoDownloadEnabled -> downloadPreferences.setAutoDownloadEnabled(event.enabled)
+                is SettingsEvent.SetDownloadOnlyOnWifi -> downloadPreferences.setDownloadOnlyOnWifi(event.enabled)
+                is SettingsEvent.SetAutoDownloadLimit -> downloadPreferences.setAutoDownloadLimit(event.limit)
                 SettingsEvent.OnCreateBackup -> _effect.send(SettingsEffect.ShowBackupPicker)
                 SettingsEvent.OnRestoreBackup -> _effect.send(SettingsEffect.ShowRestorePicker)
             }
