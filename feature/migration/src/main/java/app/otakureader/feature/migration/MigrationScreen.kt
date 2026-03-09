@@ -55,11 +55,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.model.MigrationCandidate
 import app.otakureader.domain.model.MigrationMode
 import app.otakureader.domain.model.MigrationStatus
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.flow.collectLatest
+
+/** Converts a [MangaStatus] to a human-readable display string. */
+private fun MangaStatus.toDisplayString(): String =
+    name.replace("_", " ").lowercase().replaceFirstChar { it.uppercase() }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -348,10 +353,7 @@ private fun MigrationConfirmationDialog(
                             )
                         }
                         Text(
-                            text = sourceManga.status.name
-                                .replace("_", " ")
-                                .lowercase()
-                                .replaceFirstChar { it.uppercase() },
+                            text = sourceManga.status.toDisplayString(),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -438,10 +440,7 @@ private fun MigrationCandidateCard(
                     )
                 }
                 Text(
-                    text = candidate.status.name
-                        .replace("_", " ")
-                        .lowercase()
-                        .replaceFirstChar { it.uppercase() },
+                    text = candidate.status.toDisplayString(),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
