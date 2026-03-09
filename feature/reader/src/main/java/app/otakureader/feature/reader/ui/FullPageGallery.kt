@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -100,7 +99,7 @@ fun FullPageGallery(
                             FilterChip(
                                 selected = columns == count,
                                 onClick = { onColumnsChange(count) },
-                                label = { Text(count.toString()) },
+                                label = { Text("$count columns") },
                                 modifier = Modifier.padding(end = 4.dp)
                             )
                         }
