@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Extension filter/sort controls -->
+    <string name="extensions_nsfw_label">NSFW</string>
+    <string name="extensions_sort_name">Name</string>
+    <string name="extensions_sort_recently_added">Recently Added</string>
+    <string name="extensions_sort_language">Language</string>
+
+    <!-- Update All button -->
+    <string name="extensions_update_all">Update All</string>
+    <string name="extensions_updating_all">Updating all\u2026</string>
+    <plurals name="extensions_updates_available">
+        <item quantity="one">%d update available</item>
+        <item quantity="other">%d updates available</item>
+    </plurals>
+</resources>

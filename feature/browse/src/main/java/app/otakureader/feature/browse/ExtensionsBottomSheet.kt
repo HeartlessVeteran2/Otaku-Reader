@@ -17,15 +17,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Update
-import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Sort
+import androidx.compose.material.icons.filled.Update
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -59,6 +59,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -67,6 +69,7 @@ import app.otakureader.core.extension.domain.model.Extension
 import app.otakureader.core.extension.domain.model.InstallStatus
 import app.otakureader.core.ui.component.ErrorScreen
 import app.otakureader.core.ui.component.LoadingScreen
+import app.otakureader.feature.browse.R
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.launch
 
@@ -154,8 +157,8 @@ private fun ExtensionsContent(
                 onSetSortMode = { onEvent(ExtensionsEvent.SetSortMode(it)) }
             )
 
-            // Update All button (only in Updates tab)
-            if (selectedTab == 2 && state.extensionsWithUpdates.isNotEmpty()) {
+            // Update All button (only in Updates tab, visible whenever updates exist)
+            if (selectedTab == 2 && state.updateCount > 0) {
                 UpdateAllButton(
                     updateCount = state.updateCount,
                     isUpdating = state.isUpdatingAll,
@@ -426,7 +429,7 @@ private fun FilterAndSortRow(
             )
             Spacer(modifier = Modifier.width(4.dp))
             Text(
-                text = "NSFW",
+                text = stringResource(R.string.extensions_nsfw_label),
                 style = MaterialTheme.typography.labelMedium,
                 color = if (showNsfw) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -450,9 +453,9 @@ private fun FilterAndSortRow(
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = when (sortMode) {
-                        SortMode.NAME -> "Name"
-                        SortMode.RECENTLY_ADDED -> "Recent"
-                        SortMode.LANGUAGE -> "Language"
+                        SortMode.NAME -> stringResource(R.string.extensions_sort_name)
+                        SortMode.RECENTLY_ADDED -> stringResource(R.string.extensions_sort_recently_added)
+                        SortMode.LANGUAGE -> stringResource(R.string.extensions_sort_language)
                     }
                 )
             }
@@ -462,7 +465,7 @@ private fun FilterAndSortRow(
                 onDismissRequest = { showSortMenu = false }
             ) {
                 DropdownMenuItem(
-                    text = { Text("Name") },
+                    text = { Text(stringResource(R.string.extensions_sort_name)) },
                     onClick = {
                         onSetSortMode(SortMode.NAME)
                         showSortMenu = false
@@ -474,7 +477,7 @@ private fun FilterAndSortRow(
                     }
                 )
                 DropdownMenuItem(
-                    text = { Text("Recently Added") },
+                    text = { Text(stringResource(R.string.extensions_sort_recently_added)) },
                     onClick = {
                         onSetSortMode(SortMode.RECENTLY_ADDED)
                         showSortMenu = false
@@ -486,7 +489,7 @@ private fun FilterAndSortRow(
                     }
                 )
                 DropdownMenuItem(
-                    text = { Text("Language") },
+                    text = { Text(stringResource(R.string.extensions_sort_language)) },
                     onClick = {
                         onSetSortMode(SortMode.LANGUAGE)
                         showSortMenu = false
@@ -537,11 +540,11 @@ private fun UpdateAllButton(
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(
-                        text = if (isUpdating) "Updating all..." else "Update All",
+                        text = if (isUpdating) stringResource(R.string.extensions_updating_all) else stringResource(R.string.extensions_update_all),
                         style = MaterialTheme.typography.titleMedium
                     )
                     Text(
-                        text = "$updateCount update${if (updateCount > 1) "s" else ""} available",
+                        text = pluralStringResource(R.plurals.extensions_updates_available, updateCount, updateCount),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

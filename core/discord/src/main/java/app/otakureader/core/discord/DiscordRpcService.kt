@@ -1,6 +1,7 @@
 package app.otakureader.core.discord
 
 import android.content.Context
+import app.otakureader.core.discord.BuildConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
 import de.jensklingenberg.kizzyrpc.KizzyRPC
 import de.jensklingenberg.kizzyrpc.entities.Activity
@@ -32,6 +33,9 @@ class DiscordRpcService @Inject constructor(
     private var currentActivity: ReadingActivity? = null
     private var sessionStartTime: Long = System.currentTimeMillis()
 
+    /** Activity queued while the connection is being established. Applied once connected. */
+    @Volatile private var pendingActivity: Activity? = null
+
     /**
      * Initialize the Discord RPC connection.
      * Should be called when the app starts if Discord RPC is enabled.
@@ -42,10 +46,15 @@ class DiscordRpcService @Inject constructor(
         scope.launch {
             try {
                 kizzyRpc = KizzyRPC(
-                    appId = DISCORD_APPLICATION_ID,
+                    appId = BuildConfig.DISCORD_APPLICATION_ID,
                     status = "online"
                 )
                 _connectionState.value = ConnectionState.Connected
+                // Apply any activity that was requested before the connection was ready
+                pendingActivity?.let { activity ->
+                    pendingActivity = null
+                    kizzyRpc?.updatePresence(activity)
+                }
             } catch (e: Exception) {
                 _connectionState.value = ConnectionState.Error(e.message ?: "Unknown error")
             }
@@ -84,8 +93,6 @@ class DiscordRpcService @Inject constructor(
         page: Int? = null,
         totalPages: Int? = null
     ) {
-        if (kizzyRpc == null) return
-
         val activity = ReadingActivity(
             mangaTitle = mangaTitle,
             chapterName = chapterName,
@@ -96,12 +103,17 @@ class DiscordRpcService @Inject constructor(
         )
         currentActivity = activity
 
+        val discordActivity = buildActivity(activity)
         scope.launch {
-            try {
-                val discordActivity = buildActivity(activity)
-                kizzyRpc?.updatePresence(discordActivity)
-            } catch (e: Exception) {
-                _connectionState.value = ConnectionState.Error(e.message ?: "Failed to update presence")
+            val rpc = kizzyRpc
+            if (rpc != null) {
+                try {
+                    rpc.updatePresence(discordActivity)
+                } catch (e: Exception) {
+                    _connectionState.value = ConnectionState.Error(e.message ?: "Failed to update presence")
+                }
+            } else {
+                pendingActivity = discordActivity
             }
         }
     }
@@ -110,23 +122,25 @@ class DiscordRpcService @Inject constructor(
      * Clear the reading presence and show browsing status or disconnect.
      */
     fun clearReadingPresence(showBrowsing: Boolean = true) {
-        if (kizzyRpc == null) return
-
         if (showBrowsing) {
             updateBrowsingPresence()
         } else {
+            val idleActivity = Activity(
+                details = "Idle",
+                state = "Not reading",
+                largeImage = DISCORD_LOGO_IMAGE,
+                largeText = APP_NAME
+            )
             scope.launch {
-                try {
-                    kizzyRpc?.updatePresence(
-                        Activity(
-                            details = "Idle",
-                            state = "Not reading",
-                            largeImage = DISCORD_LOGO_IMAGE,
-                            largeText = APP_NAME
-                        )
-                    )
-                } catch (e: Exception) {
-                    // Ignore errors when clearing presence
+                val rpc = kizzyRpc
+                if (rpc != null) {
+                    try {
+                        rpc.updatePresence(idleActivity)
+                    } catch (e: Exception) {
+                        // Ignore errors when clearing presence
+                    }
+                } else {
+                    pendingActivity = idleActivity
                 }
             }
         }
@@ -136,20 +150,23 @@ class DiscordRpcService @Inject constructor(
      * Update presence to show browsing status.
      */
     fun updateBrowsingPresence() {
-        if (kizzyRpc == null) return
-
+        val activity = Activity(
+            details = "Browsing library",
+            state = "Looking for manga",
+            largeImage = DISCORD_LOGO_IMAGE,
+            largeText = APP_NAME,
+            timestamps = Timestamps(start = sessionStartTime)
+        )
         scope.launch {
-            try {
-                val activity = Activity(
-                    details = "Browsing library",
-                    state = "Looking for manga",
-                    largeImage = DISCORD_LOGO_IMAGE,
-                    largeText = APP_NAME,
-                    timestamps = Timestamps(start = sessionStartTime)
-                )
-                kizzyRpc?.updatePresence(activity)
-            } catch (e: Exception) {
-                // Ignore errors
+            val rpc = kizzyRpc
+            if (rpc != null) {
+                try {
+                    rpc.updatePresence(activity)
+                } catch (e: Exception) {
+                    // Ignore errors
+                }
+            } else {
+                pendingActivity = activity
             }
         }
     }
@@ -200,10 +217,6 @@ class DiscordRpcService @Inject constructor(
     fun isConnected(): Boolean = kizzyRpc != null && _connectionState.value == ConnectionState.Connected
 
     companion object {
-        // Discord Application ID for Otaku Reader
-        // This is a placeholder - in production, register an app at https://discord.com/developers/applications
-        private const val DISCORD_APPLICATION_ID = "1234567890123456789"
-
         private const val APP_NAME = "Otaku Reader"
 
         // Asset keys for Discord images (these would be uploaded to Discord Developer Portal)
