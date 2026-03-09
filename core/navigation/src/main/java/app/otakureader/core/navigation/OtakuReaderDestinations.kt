@@ -65,3 +65,7 @@ data class GlobalSearchRoute(val query: String = "") : OtakuReaderDestination
 /** Mass migration screen. */
 @Serializable
 data class MigrationRoute(val selectedMangaIds: List<Long> = emptyList()) : OtakuReaderDestination
+
+/** Migration entry screen – select library manga to migrate. */
+@Serializable
+object MigrationEntryRoute : OtakuReaderDestination

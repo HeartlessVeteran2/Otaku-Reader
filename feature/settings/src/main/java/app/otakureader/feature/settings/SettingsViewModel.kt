@@ -139,6 +139,8 @@ class SettingsViewModel @Inject constructor(
                     appPreferences.setMigrationAlwaysConfirm(event.enabled)
                 is SettingsEvent.SetMigrationMinChapterCount ->
                     appPreferences.setMigrationMinChapterCount(event.count)
+                SettingsEvent.OnNavigateToMigration ->
+                    _effect.send(SettingsEffect.NavigateToMigrationEntry)
             }
         }
     }

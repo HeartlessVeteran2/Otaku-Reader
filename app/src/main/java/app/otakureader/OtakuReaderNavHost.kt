@@ -10,7 +10,9 @@ import app.otakureader.core.navigation.GlobalSearchRoute
 import app.otakureader.core.navigation.HistoryRoute
 import app.otakureader.core.navigation.LibraryRoute
 import app.otakureader.core.navigation.MangaDetailRoute
+import app.otakureader.core.navigation.MigrationEntryRoute
 import app.otakureader.core.navigation.MigrationRoute
+import app.otakureader.feature.migration.navigation.migrationEntryScreen
 import app.otakureader.core.navigation.ReaderRoute
 import app.otakureader.core.navigation.SettingsRoute
 import app.otakureader.core.navigation.SourceDetailRoute
@@ -161,6 +163,9 @@ fun OtakuReaderNavHost(
         settingsScreen(
             onNavigateBack = {
                 navController.popBackStack()
+            },
+            onNavigateToMigrationEntry = {
+                navController.navigate(MigrationEntryRoute)
             }
         )
 
@@ -181,6 +186,16 @@ fun OtakuReaderNavHost(
         migrationScreen(
             onNavigateBack = {
                 navController.popBackStack()
+            }
+        )
+
+        // Migration entry screen (for selection from Settings)
+        migrationEntryScreen(
+            onNavigateBack = {
+                navController.popBackStack()
+            },
+            onNavigateToMigration = { selectedMangaIds ->
+                navController.navigate(MigrationRoute(selectedMangaIds))
             }
         )
     }

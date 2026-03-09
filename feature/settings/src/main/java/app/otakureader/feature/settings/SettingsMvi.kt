@@ -66,10 +66,12 @@ sealed interface SettingsEvent : UiEvent {
     data class SetMigrationSimilarityThreshold(val threshold: Float) : SettingsEvent
     data class SetMigrationAlwaysConfirm(val enabled: Boolean) : SettingsEvent
     data class SetMigrationMinChapterCount(val count: Int) : SettingsEvent
+    data object OnNavigateToMigration : SettingsEvent
 }
 
 sealed interface SettingsEffect : UiEffect {
     data class ShowSnackbar(val message: String) : SettingsEffect
     data object ShowBackupPicker : SettingsEffect
     data object ShowRestorePicker : SettingsEffect
+    data object NavigateToMigrationEntry : SettingsEffect
 }
