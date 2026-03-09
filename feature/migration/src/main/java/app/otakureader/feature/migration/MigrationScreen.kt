@@ -63,7 +63,7 @@ fun MigrationScreen(
         viewModel.onEvent(MigrationEvent.Initialize(selectedMangaIds))
     }
 
-    LaunchedEffect(viewModel.effect) {
+    LaunchedEffect(Unit) {
         viewModel.effect.collectLatest { effect ->
             when (effect) {
                 is MigrationEffect.NavigateBack -> onNavigateBack()
