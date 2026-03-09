@@ -56,7 +56,10 @@ data class ReaderState(
     val doubleTapZoomEnabled: Boolean = true,
 
     /** Whether volume keys can be used for navigation */
-    val volumeKeyNavigation: Boolean = true,
+    val volumeKeysEnabled: Boolean = false,
+
+    /** Whether volume key directions are inverted (up=next) */
+    val volumeKeysInverted: Boolean = false,
 
     /** Keep screen on while reading */
     val keepScreenOn: Boolean = true,
@@ -65,7 +68,10 @@ data class ReaderState(
     val showPageNumber: Boolean = true,
 
     /** Current chapter title */
-    val chapterTitle: String = ""
+    val chapterTitle: String = "",
+
+    /** Incognito mode - when enabled, reading history is not saved */
+    val incognitoMode: Boolean = false
 ) {
     /** Total pages in chapter (derived from pages.size) */
     val totalPages: Int get() = pages.size

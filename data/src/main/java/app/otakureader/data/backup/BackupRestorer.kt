@@ -155,5 +155,7 @@ class BackupRestorer @Inject constructor(
         // Reader preferences
         readerPreferences.setReaderMode(prefs.readerMode)
         readerPreferences.setKeepScreenOn(prefs.keepScreenOn)
+        readerPreferences.setVolumeKeysEnabled(prefs.volumeKeysEnabled)
+        readerPreferences.setVolumeKeysInverted(prefs.volumeKeysInverted)
     }
 }

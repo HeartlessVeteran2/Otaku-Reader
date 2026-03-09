@@ -1,0 +1,94 @@
+# Labeler configuration for Otaku-Reader
+# Labels are applied to pull requests based on changed file paths.
+# https://github.com/actions/labeler
+
+"app":
+  - changed-files:
+    - any-glob-to-any-file: "app/**"
+
+"feature:reader":
+  - changed-files:
+    - any-glob-to-any-file: "feature/reader/**"
+
+"feature:library":
+  - changed-files:
+    - any-glob-to-any-file: "feature/library/**"
+
+"feature:browse":
+  - changed-files:
+    - any-glob-to-any-file: "feature/browse/**"
+
+"feature:settings":
+  - changed-files:
+    - any-glob-to-any-file: "feature/settings/**"
+
+"feature:details":
+  - changed-files:
+    - any-glob-to-any-file: "feature/details/**"
+
+"feature:history":
+  - changed-files:
+    - any-glob-to-any-file: "feature/history/**"
+
+"feature:updates":
+  - changed-files:
+    - any-glob-to-any-file: "feature/updates/**"
+
+"core:database":
+  - changed-files:
+    - any-glob-to-any-file: "core/database/**"
+
+"core:network":
+  - changed-files:
+    - any-glob-to-any-file: "core/network/**"
+
+"core:ui":
+  - changed-files:
+    - any-glob-to-any-file: "core/ui/**"
+
+"core:preferences":
+  - changed-files:
+    - any-glob-to-any-file: "core/preferences/**"
+
+"core:common":
+  - changed-files:
+    - any-glob-to-any-file: "core/common/**"
+
+"core:extension":
+  - changed-files:
+    - any-glob-to-any-file: "core/extension/**"
+
+"core:navigation":
+  - changed-files:
+    - any-glob-to-any-file: "core/navigation/**"
+
+"data":
+  - changed-files:
+    - any-glob-to-any-file: "data/**"
+
+"domain":
+  - changed-files:
+    - any-glob-to-any-file: "domain/**"
+
+"source-api":
+  - changed-files:
+    - any-glob-to-any-file: "source-api/**"
+
+"build-logic":
+  - changed-files:
+    - any-glob-to-any-file: "build-logic/**"
+
+"ci/cd":
+  - changed-files:
+    - any-glob-to-any-file: ".github/**"
+
+"dependencies":
+  - changed-files:
+    - any-glob-to-any-file: "gradle/**"
+    - any-glob-to-any-file: "**/*.gradle.kts"
+    - any-glob-to-any-file: "**/libs.versions.toml"
+
+"documentation":
+  - changed-files:
+    - any-glob-to-any-file: "*.md"
+    - any-glob-to-any-file: "**/*.md"

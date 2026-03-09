@@ -16,7 +16,7 @@ Complete documentation of all features available in Otaku Reader.
 
 ## Feature Overview
 
-Komikku 2026 offers a comprehensive set of features for manga enthusiasts:
+Otaku Reader offers a comprehensive set of features for manga enthusiasts:
 
 | Category | Features |
 |----------|----------|
@@ -49,7 +49,6 @@ The Library is your personal manga collection, organized with categories and tra
 - **Grid Layout**: 2-4 columns (configurable)
 - **Compact Mode**: Smaller cards for more content
 - **Badges**: Unread count, download status, update indicator
-- **Badges**: Unread count, download status, update indicator
 - **Swipe Actions**: Quick mark as read, delete, share
 
 #### Filters
@@ -67,7 +66,7 @@ The Library is your personal manga collection, organized with categories and tra
 - By Title (A-Z, Z-A)
 - By Last Read
 - By Last Update
-n- By Unread Count
+- By Unread Count
 - By Date Added
 - By Total Chapters
 
@@ -249,7 +248,7 @@ The Updates feature keeps track of new chapters and notifies you of updates.
 
 ### Overview
 
-Comprehensive settings to customize your Komikku experience.
+Comprehensive settings to customize your Otaku Reader experience.
 
 ### Categories
 
@@ -372,7 +371,7 @@ Track your reading habits with detailed statistics and insights.
 
 ### Kotlin Multiplatform (KMP) Expansion
 
-Otaku Reader aims to expand beyond Android to iOS and Desktop by adopting Kotlin Multiplatform.
+Otaku Reader introduces smart manga recommendations based on your reading history.
 
 #### Key Benefits
 - **Shared Business Logic**: Share domain, data, and repository layers across platforms.
@@ -419,7 +418,7 @@ Guarantee a buttery-smooth reading experience on a wide range of devices.
 
 ### Getting Started
 
-1. **Install Komikku 2026**
+1. **Install Otaku Reader**
    - Download from GitHub releases or build from source
 
 2. **Add Sources**

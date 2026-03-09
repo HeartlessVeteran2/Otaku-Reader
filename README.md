@@ -2,7 +2,7 @@
 
 A modern Android manga reader built with Kotlin and Jetpack Compose.
 
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.0-blue.svg)](https://kotlinlang.org/)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.3-blue.svg)](https://kotlinlang.org/)
 [![Android](https://img.shields.io/badge/Android-26+-green.svg)](https://developer.android.com/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg)](LICENSE)
 
@@ -11,20 +11,20 @@ A modern Android manga reader built with Kotlin and Jetpack Compose.
 | Component | Status | Notes |
 |-----------|--------|-------|
 | **Core Architecture** | ✅ Complete | Clean Architecture, MVI, Hilt DI |
-| **Library Screen** | ✅ Complete | Grid, categories, favorites |
-| **Browse Screen** | ✅ Complete | Sources, filters, manga grid |
-| **Manga Details** | ✅ Complete | Chapter list, info, status |
-| **Reader** | ✅ Complete | 4 modes, zoom, brightness, gallery |
-| **Updates Screen** | ⚠️ Placeholder | UI exists, needs logic |
-| **History Screen** | ⚠️ Placeholder | UI exists, needs logic |
-| **Settings Screen** | ⚠️ Placeholder | UI exists, needs prefs |
-| **Extension System** | 🚧 Partial | Core loader ready, needs APK install |
-| **Downloads** | ❌ Not started | Offline reading |
+| **Library Screen** | ✅ Complete | Grid, categories, favorites, unread badges |
+| **Browse Screen** | ✅ Complete | Sources, filters, manga grid, global search |
+| **Manga Details** | ✅ Complete | Chapter list, info, status, bookmarks |
+| **Reader** | ✅ Complete | 4 modes, zoom, brightness, gallery, volume keys, incognito |
+| **History Screen** | ✅ Complete | Reading history with timestamps and duration |
+| **Settings Screen** | ✅ Complete | DataStore persistence, backup/restore, reader prefs |
+| **Downloads** | ✅ Complete | Offline reading, queue management, progress tracking |
+| **Updates Screen** | 🚧 Partial | Download queue UI complete; auto-update notification UI pending |
+| **Extension System** | 🚧 Partial | Core loader ready, needs APK install UI |
 | **Cloud Sync** | ❌ Not started | Firebase or P2P |
 | **AI Features** | ❌ Not started | Recommendations, summaries |
 
-**Current:** App compiles, navigates, reads manga from sources.  
-**Next:** Extension APK installation, downloads, polish.
+**Current:** App compiles, navigates, reads manga from sources with full download and history support.  
+**Next:** Extension APK installation UI, updates notification system, polish.
 
 ## 🎯 Vision
 
@@ -38,13 +38,18 @@ A modern, blazing-fast manga reader built from scratch with:
 
 - ✅ Modern Jetpack Compose UI with Material 3
 - ✅ Clean Architecture (MVI + MVVM)
-- ✅ Room + SQLDelight database
+- ✅ Room database with migrations
 - ✅ Navigation with bottom bar
-- ✅ Extension system foundation (loader, API)
-- ✅ Tachiyomi compatibility layer
-- ✅ Ultimate reader with 4 modes
-- ✅ Manga details with chapter list
-- ✅ Browse with source filtering
+- ✅ Extension system foundation (loader, API, Tachiyomi compatibility)
+- ✅ Ultimate reader with 4 modes (Single Page, Dual Page, Webtoon, Smart Panels)
+- ✅ Manga details with chapter list, bookmarks, and read progress
+- ✅ Browse with source filtering and global search
+- ✅ Reading history with timestamps and duration tracking
+- ✅ Chapter download system with queue, pause/resume, and progress tracking
+- ✅ Settings persistence via DataStore (reader, library, general preferences)
+- ✅ Backup and restore (JSON export/import of library, chapters, history, preferences)
+- ✅ Incognito mode (session-only, no history recorded)
+- ✅ Background library update worker (WorkManager)
 
 ## 💡 Future Roadmap & Suggestions
 
@@ -53,6 +58,21 @@ A modern, blazing-fast manga reader built from scratch with:
 - 🔮 Advanced background syncing and task management with WorkManager
 - 🔮 Enhanced list performance and data loading using Paging 3
 - 🔮 Comprehensive UI and performance testing via Macrobenchmark
+## 🚧 In Progress / TODO
+
+- ⏳ Extension APK installation UI
+- ⏳ Updates screen notification system (new chapter alerts)
+- ⏳ New chapter update checking UI
+- ⏳ Search functionality improvements
+
+## 📋 Future Ideas
+
+- 🔮 Cloud sync (Firebase or Syncthing)
+- 🔮 AI recommendations
+- 🔮 Reading time estimation
+- 🔮 Auto-categorization
+- 🔮 Panel-by-panel reader
+- 🔮 SFX translation
 
 ## 🏗️ Architecture
 
@@ -75,9 +95,9 @@ A modern, blazing-fast manga reader built from scratch with:
                           │
 ┌─────────────────────────┼───────────────────────────────┐
 │  Data Layer             │                               │
-│  ┌──────────┐ ┌────────┼──┐ ┌──────────┐ ┌──────────┐  │
-│  │  Room    │ │SQLDelight│ │  APIs    │ │Extension │  │
-│  │ Database │ │  Schema  │ │(Sources) │ │  Loader  │  │
+│  ┌──────────┐ ┌─────────┴┐ ┌──────────┐ ┌──────────┐  │
+│  │  Room    │ │DataStore │ │  APIs    │ │Extension │  │
+│  │ Database │ │  Prefs   │ │(Sources) │ │  Loader  │  │
 │  └──────────┘ └──────────┘ └──────────┘ └──────────┘  │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -88,16 +108,23 @@ A modern, blazing-fast manga reader built from scratch with:
 |--------|---------|--------|
 | `app` | Main application entry | ✅ |
 | `source-api` | Extension API contracts | ✅ |
-| `core/common` | Shared utilities | ✅ |
-| `core/database` | Room + SQLDelight | ✅ |
+| `domain` | Use cases and domain models | ✅ |
+| `data` | Repository implementations, downloads, backup | ✅ |
+| `core/common` | Shared utilities and extensions | ✅ |
+| `core/database` | Room database (v3) | ✅ |
+| `core/network` | Retrofit + OkHttp networking | ✅ |
+| `core/preferences` | DataStore preferences, IncognitoManager | ✅ |
+| `core/ui` | Shared Compose UI components | ✅ |
+| `core/navigation` | Navigation routing | ✅ |
 | `core/extension` | Extension loading | 🚧 |
+| `core/tachiyomi-compat` | Tachiyomi extension compatibility | ✅ |
 | `feature/library` | Library screen | ✅ |
 | `feature/browse` | Browse sources | ✅ |
 | `feature/details` | Manga details | ✅ |
 | `feature/reader` | Ultimate reader | ✅ |
-| `feature/updates` | Updates screen | ⚠️ |
-| `feature/history` | History screen | ⚠️ |
-| `feature/settings` | Settings screen | ⚠️ |
+| `feature/history` | History screen | ✅ |
+| `feature/settings` | Settings screen | ✅ |
+| `feature/updates` | Updates & downloads screen | 🚧 |
 
 ## 🎨 The Reader
 
@@ -126,13 +153,16 @@ Access the entire Tachiyomi ecosystem:
 
 ## 🛠️ Tech Stack
 
-- **Language**: Kotlin 2.0
+- **Language**: Kotlin 2.3
 - **UI**: Jetpack Compose + Material 3
 - **Architecture**: Clean Architecture + MVI
 - **DI**: Hilt
-- **Database**: Room + SQLDelight
+- **Database**: Room (v3 with migrations)
+- **Preferences**: DataStore
 - **Network**: Retrofit + OkHttp
 - **Images**: Coil 3
+- **Background Work**: WorkManager
+- **Paging**: Paging 3
 
 ## 🚀 Getting Started
 

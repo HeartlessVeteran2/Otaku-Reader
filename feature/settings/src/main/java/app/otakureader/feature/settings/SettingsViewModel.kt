@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.LibraryPreferences
 import app.otakureader.core.preferences.ReaderPreferences
+import app.otakureader.data.tracking.TrackManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,7 +22,9 @@ class SettingsViewModel @Inject constructor(
     private val generalPreferences: GeneralPreferences,
     private val libraryPreferences: LibraryPreferences,
     private val readerPreferences: ReaderPreferences,
-    private val backupRepository: app.otakureader.data.backup.repository.BackupRepository
+    private val backupRepository: app.otakureader.data.backup.repository.BackupRepository,
+    private val readerSettingsRepository: app.otakureader.feature.reader.repository.ReaderSettingsRepository,
+    private val trackManager: TrackManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SettingsState())
@@ -32,6 +35,7 @@ class SettingsViewModel @Inject constructor(
 
     init {
         observePreferences()
+        refreshTrackers()
     }
 
     private fun observePreferences() {
@@ -58,10 +62,21 @@ class SettingsViewModel @Inject constructor(
                 state.copy(readerMode = readerMode)
             }.combine(readerPreferences.keepScreenOn) { state, keepScreenOn ->
                 state.copy(keepScreenOn = keepScreenOn)
+            }.combine(readerSettingsRepository.incognitoMode) { state, incognitoMode ->
+                state.copy(incognitoMode = incognitoMode)
             }.collect { newState ->
-                _state.update { newState }
+                _state.update { current ->
+                    newState.copy(
+                        trackers = current.trackers,
+                        trackingLoginInProgress = current.trackingLoginInProgress
+                    )
+                }
             }
         }
+    }
+
+    private fun refreshTrackers() {
+        _state.update { it.copy(trackers = trackManager.all.map { t -> TrackerInfo(t.id, t.name, t.isLoggedIn) }) }
     }
 
     fun onEvent(event: SettingsEvent) {
@@ -76,9 +91,35 @@ class SettingsViewModel @Inject constructor(
                 is SettingsEvent.SetShowBadges -> libraryPreferences.setShowBadges(event.enabled)
                 is SettingsEvent.SetReaderMode -> readerPreferences.setReaderMode(event.mode)
                 is SettingsEvent.SetKeepScreenOn -> readerPreferences.setKeepScreenOn(event.enabled)
+                is SettingsEvent.SetIncognitoMode -> readerSettingsRepository.setIncognitoMode(event.enabled)
                 SettingsEvent.OnCreateBackup -> _effect.send(SettingsEffect.ShowBackupPicker)
                 SettingsEvent.OnRestoreBackup -> _effect.send(SettingsEffect.ShowRestorePicker)
+                is SettingsEvent.LoginTracker -> loginTracker(event.trackerId, event.username, event.password)
+                is SettingsEvent.LogoutTracker -> logoutTracker(event.trackerId)
             }
+        }
+    }
+
+    private fun loginTracker(trackerId: Int, username: String, password: String) {
+        viewModelScope.launch {
+            _state.update { it.copy(trackingLoginInProgress = true) }
+            val tracker = trackManager.get(trackerId)
+            val success = tracker?.login(username, password) ?: false
+            refreshTrackers()
+            _state.update { it.copy(trackingLoginInProgress = false) }
+            val trackerName = tracker?.name ?: "tracker"
+            val message = if (success) "Logged in to $trackerName" else "Login failed"
+            _effect.send(SettingsEffect.ShowSnackbar(message))
+        }
+    }
+
+    private fun logoutTracker(trackerId: Int) {
+        viewModelScope.launch {
+            val tracker = trackManager.get(trackerId)
+            tracker?.logout()
+            refreshTrackers()
+            val trackerName = tracker?.name ?: "tracker"
+            _effect.send(SettingsEffect.ShowSnackbar("Logged out of $trackerName"))
         }
     }
 
@@ -116,3 +157,4 @@ class SettingsViewModel @Inject constructor(
         }
     }
 }
+

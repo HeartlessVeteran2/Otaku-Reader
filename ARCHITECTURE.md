@@ -123,27 +123,34 @@ class MangaRepositoryImpl @Inject constructor(
 ### Module Overview
 
 ```
-komikku-2026/
+otaku-reader/
 ├── app/                    # Application entry point
 ├── core/                   # Shared core modules
 │   ├── common/            # Utilities and extensions
-│   ├── database/          # Room database
+│   ├── database/          # Room database (v3)
+│   ├── extension/         # Extension loading
 │   ├── navigation/        # Navigation components
-│   ├── notifications/     # Notification handling
-│   ├── preferences/       # DataStore preferences
-│   ├── sync/              # Synchronization logic
+│   ├── network/           # Retrofit + OkHttp networking
+│   ├── preferences/       # DataStore preferences & IncognitoManager
+│   ├── tachiyomi-compat/  # Legacy Tachiyomi extension support
 │   └── ui/                # Shared UI components
 ├── domain/                # Domain layer (pure Kotlin)
 ├── data/                  # Data layer implementations
+│   ├── backup/            # Backup & restore
+│   ├── download/          # Download manager & provider
+│   ├── loader/            # Page loader (local-first)
+│   ├── repository/        # Repository implementations
+│   └── worker/            # WorkManager background jobs
 ├── feature/               # Feature modules
-│   ├── browse/            # Browse manga
+│   ├── browse/            # Browse manga & extensions
+│   ├── details/           # Manga details & chapter list
+│   ├── history/           # Reading history
 │   ├── library/           # Library management
 │   ├── reader/            # Manga reader
-│   ├── search/            # Search functionality
 │   ├── settings/          # App settings
-│   ├── stats/             # Reading statistics
-│   └── updates/           # Chapter updates
-└── source-api/            # Extension API
+│   └── updates/           # Updates & downloads
+├── source-api/            # Extension API contracts
+└── baselineprofile/       # Baseline profile for startup optimization
 ```
 
 ### Module Dependencies
@@ -176,7 +183,7 @@ core:*
 
 ### Unidirectional Data Flow
 
-Komikku 2026 follows a unidirectional data flow pattern:
+Otaku Reader follows a unidirectional data flow pattern:
 
 ```
 User Action → ViewModel → Use Case → Repository → Data Source
@@ -271,7 +278,7 @@ class MangaRepositoryImpl @Inject constructor(
 
 ### MVI Pattern
 
-Komikku 2026 uses the MVI (Model-View-Intent) pattern for state management:
+Otaku Reader uses the MVI (Model-View-Intent) pattern for state management:
 
 ```kotlin
 // Contract: Defines UI State and Events
@@ -369,7 +376,7 @@ private fun LibraryContent(
 
 ### Navigation Structure
 
-Komikku 2026 uses Navigation Compose with type-safe navigation:
+Otaku Reader uses Navigation Compose with type-safe navigation:
 
 ```kotlin
 // Navigation Routes
@@ -389,7 +396,7 @@ sealed class Screen(val route: String) {
 
 ```kotlin
 @Composable
-fun KomikkuNavHost(
+fun OtakuReaderNavHost(
     navController: NavHostController,
     modifier: Modifier = Modifier
 ) {
@@ -447,7 +454,7 @@ fun KomikkuNavHost(
 
 ```kotlin
 @Composable
-fun KomikkuBottomBar(
+fun OtakuReaderBottomBar(
     navController: NavHostController,
     currentDestination: NavDestination?
 ) {
@@ -483,12 +490,12 @@ fun KomikkuBottomBar(
 
 ### Hilt Setup
 
-Komikku 2026 uses Hilt for dependency injection:
+Otaku Reader uses Hilt for dependency injection:
 
 ```kotlin
 // Application class
 @HiltAndroidApp
-class KomikkuApplication : Application()
+class OtakuReaderApplication : Application()
 
 // Module definition
 @Module

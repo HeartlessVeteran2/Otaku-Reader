@@ -93,6 +93,8 @@ data class BackupPreferences(
     val locale: String = "",
     val readerMode: Int = 0,
     val keepScreenOn: Boolean = true,
+    val volumeKeysEnabled: Boolean = false,
+    val volumeKeysInverted: Boolean = false,
     val libraryGridSize: Int = 3,
     val showBadges: Boolean = true,
     val updateCheckInterval: Int = 12,

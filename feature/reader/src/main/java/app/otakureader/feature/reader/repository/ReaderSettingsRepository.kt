@@ -98,12 +98,20 @@ class ReaderSettingsRepository @Inject constructor(
     
     // ==================== Volume Key Navigation ====================
     
-    val volumeKeyNavigation: Flow<Boolean> = dataStore.data.map { prefs ->
-        prefs[Keys.VOLUME_KEY_NAV] ?: false
+    val volumeKeysEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.VOLUME_KEYS_ENABLED] ?: false
     }
     
-    suspend fun setVolumeKeyNavigation(enabled: Boolean) {
-        dataStore.edit { it[Keys.VOLUME_KEY_NAV] = enabled }
+    suspend fun setVolumeKeysEnabled(enabled: Boolean) {
+        dataStore.edit { it[Keys.VOLUME_KEYS_ENABLED] = enabled }
+    }
+
+    val volumeKeysInverted: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.VOLUME_KEYS_INVERTED] ?: false
+    }
+
+    suspend fun setVolumeKeysInverted(inverted: Boolean) {
+        dataStore.edit { it[Keys.VOLUME_KEYS_INVERTED] = inverted }
     }
     
     // ==================== Fullscreen ====================
@@ -127,7 +135,7 @@ class ReaderSettingsRepository @Inject constructor(
     }
     
     // ==================== Tap Zone Configuration ====================
-    
+
     val tapZoneConfig: Flow<TapZoneConfig> = dataStore.data.map { prefs ->
         TapZoneConfig(
             leftZoneWidth = prefs[Keys.TAP_ZONE_LEFT] ?: 0.25f,
@@ -135,13 +143,23 @@ class ReaderSettingsRepository @Inject constructor(
             rightZoneWidth = prefs[Keys.TAP_ZONE_RIGHT] ?: 0.25f
         )
     }
-    
+
     suspend fun setTapZoneConfig(config: TapZoneConfig) {
         dataStore.edit { prefs ->
             prefs[Keys.TAP_ZONE_LEFT] = config.leftZoneWidth
             prefs[Keys.TAP_ZONE_CENTER] = config.centerZoneWidth
             prefs[Keys.TAP_ZONE_RIGHT] = config.rightZoneWidth
         }
+    }
+
+    // ==================== Incognito Mode ====================
+
+    val incognitoMode: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.INCOGNITO_MODE] ?: false
+    }
+
+    suspend fun setIncognitoMode(enabled: Boolean) {
+        dataStore.edit { it[Keys.INCOGNITO_MODE] = enabled }
     }
     
     private object Keys {
@@ -152,12 +170,14 @@ class ReaderSettingsRepository @Inject constructor(
         val KEEP_SCREEN_ON = booleanPreferencesKey("reader_keep_screen_on")
         val SHOW_PAGE_NUMBER = booleanPreferencesKey("reader_show_page_number")
         val READING_DIRECTION = intPreferencesKey("reader_direction")
-        val VOLUME_KEY_NAV = booleanPreferencesKey("reader_volume_key_nav")
+        val VOLUME_KEYS_ENABLED = booleanPreferencesKey("reader_volume_keys_enabled")
+        val VOLUME_KEYS_INVERTED = booleanPreferencesKey("reader_volume_keys_inverted")
         val FULLSCREEN = booleanPreferencesKey("reader_fullscreen")
         val AUTO_SCROLL_SPEED = floatPreferencesKey("reader_auto_scroll_speed")
         val TAP_ZONE_LEFT = floatPreferencesKey("reader_tap_zone_left")
         val TAP_ZONE_CENTER = floatPreferencesKey("reader_tap_zone_center")
         val TAP_ZONE_RIGHT = floatPreferencesKey("reader_tap_zone_right")
+        val INCOGNITO_MODE = booleanPreferencesKey("reader_incognito_mode")
     }
     
     companion object {

@@ -99,6 +99,8 @@ class BackupCreator @Inject constructor(
         locale = generalPreferences.locale.first(),
         readerMode = readerPreferences.readerMode.first(),
         keepScreenOn = readerPreferences.keepScreenOn.first(),
+        volumeKeysEnabled = readerPreferences.volumeKeysEnabled.first(),
+        volumeKeysInverted = readerPreferences.volumeKeysInverted.first(),
         libraryGridSize = libraryPreferences.gridSize.first(),
         showBadges = libraryPreferences.showBadges.first(),
         updateCheckInterval = generalPreferences.updateCheckInterval.first(),
