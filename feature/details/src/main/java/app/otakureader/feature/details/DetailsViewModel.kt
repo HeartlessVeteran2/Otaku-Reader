@@ -36,7 +36,7 @@ class DetailsViewModel @Inject constructor(
     private val chapterRepository: ChapterRepository,
     private val downloadRepository: DownloadRepository,
     private val downloadPreferences: DownloadPreferences,
-    private val updateMangaNote: UpdateMangaNoteUseCase = (TODO("UpdateMangaNoteUseCase must be provided") as UpdateMangaNoteUseCase)
+    private val updateMangaNote: UpdateMangaNoteUseCase
 ) : ViewModel() {
 
     private val mangaId: Long = savedStateHandle.get<Long>(MANGA_ID_ARG) 

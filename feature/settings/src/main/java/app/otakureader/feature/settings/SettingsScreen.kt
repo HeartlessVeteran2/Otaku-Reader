@@ -122,7 +122,7 @@ fun SettingsScreen(
             HorizontalDivider()
             LibrarySection(state = state, onEvent = viewModel::onEvent)
             HorizontalDivider()
-            DownloadsSection(state = state, onEvent = viewModel::onEvent)
+            DownloadsSettingsSection(state = state, onEvent = viewModel::onEvent)
             HorizontalDivider()
             ReaderSection(state = state, onEvent = viewModel::onEvent)
             HorizontalDivider()
@@ -346,7 +346,7 @@ private fun LibrarySection(state: SettingsState, onEvent: (SettingsEvent) -> Uni
 }
 
 @Composable
-private fun DownloadsSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
+private fun DownloadsSettingsSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
     // ── Downloads ─────────────────────────────────────────────────────
             SectionHeader(title = "Downloads")
 
