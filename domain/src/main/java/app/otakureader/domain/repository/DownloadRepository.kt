@@ -68,4 +68,27 @@ interface DownloadRepository {
         mangaTitle: String,
         chapterTitle: String
     ): Result<Unit>
+
+    /**
+     * Migrates downloaded chapter files from one manga/source to another.
+     * Used during manga migration to preserve downloads when moving between sources.
+     *
+     * @param fromSourceName Source name of the original manga
+     * @param fromMangaTitle Manga title of the original manga
+     * @param fromChapterName Chapter name in the original manga
+     * @param toSourceName Source name of the target manga
+     * @param toMangaTitle Manga title of the target manga
+     * @param toChapterName Chapter name in the target manga
+     * @param copy If true, copies files (COPY mode). If false, moves files (MOVE mode)
+     * @return true if migration was successful, false if no files to migrate or migration failed
+     */
+    suspend fun migrateChapterDownload(
+        fromSourceName: String,
+        fromMangaTitle: String,
+        fromChapterName: String,
+        toSourceName: String,
+        toMangaTitle: String,
+        toChapterName: String,
+        copy: Boolean = false
+    ): Boolean
 }

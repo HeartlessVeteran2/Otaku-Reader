@@ -124,4 +124,25 @@ class DownloadRepositoryImpl @Inject constructor(
 
         CbzCreator.createCbz(chapterDir).map { }
     }
+
+    override suspend fun migrateChapterDownload(
+        fromSourceName: String,
+        fromMangaTitle: String,
+        fromChapterName: String,
+        toSourceName: String,
+        toMangaTitle: String,
+        toChapterName: String,
+        copy: Boolean
+    ): Boolean = withContext(Dispatchers.IO) {
+        DownloadProvider.migrateChapterDownload(
+            context,
+            fromSourceName,
+            fromMangaTitle,
+            fromChapterName,
+            toSourceName,
+            toMangaTitle,
+            toChapterName,
+            copy
+        )
+    }
 }

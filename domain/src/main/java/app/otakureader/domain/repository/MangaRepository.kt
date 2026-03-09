@@ -8,6 +8,7 @@ interface MangaRepository {
     fun searchLibraryManga(query: String): Flow<List<Manga>>
     suspend fun getMangaById(id: Long): Manga?
     fun getMangaByIdFlow(id: Long): Flow<Manga?>
+    suspend fun getMangaBySourceAndUrl(sourceId: Long, url: String): Manga?
     suspend fun insertManga(manga: Manga): Long
     suspend fun updateManga(manga: Manga)
     suspend fun deleteManga(id: Long)

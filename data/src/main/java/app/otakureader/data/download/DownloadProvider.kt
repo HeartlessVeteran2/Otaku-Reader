@@ -118,6 +118,40 @@ object DownloadProvider {
         chapterName: String
     ): Boolean = deleteChapter(rootFor(context), sourceName, mangaTitle, chapterName)
 
+    /**
+     * Migrates downloaded chapter files from one location to another.
+     * Used during manga migration to preserve downloads when moving between sources.
+     *
+     * @param context Android context for filesystem access
+     * @param fromSourceName Source name of the original manga
+     * @param fromMangaTitle Manga title of the original manga
+     * @param fromChapterName Chapter name in the original manga
+     * @param toSourceName Source name of the target manga
+     * @param toMangaTitle Manga title of the target manga
+     * @param toChapterName Chapter name in the target manga
+     * @param copy If true, copies files (COPY mode). If false, moves files (MOVE mode)
+     * @return true if migration was successful, false if no files to migrate or migration failed
+     */
+    fun migrateChapterDownload(
+        context: Context,
+        fromSourceName: String,
+        fromMangaTitle: String,
+        fromChapterName: String,
+        toSourceName: String,
+        toMangaTitle: String,
+        toChapterName: String,
+        copy: Boolean = false
+    ): Boolean = migrateChapterDownload(
+        rootFor(context),
+        fromSourceName,
+        fromMangaTitle,
+        fromChapterName,
+        toSourceName,
+        toMangaTitle,
+        toChapterName,
+        copy
+    )
+
     // -------------------------------------------------------------------------
     // Internal root-File overloads (used for testing without a real Context)
     // -------------------------------------------------------------------------
@@ -219,6 +253,60 @@ object DownloadProvider {
         val dir = getChapterDir(root, sourceName, mangaTitle, chapterName)
         if (!dir.exists()) return false
         return dir.deleteRecursively()
+    }
+
+    internal fun migrateChapterDownload(
+        root: File,
+        fromSourceName: String,
+        fromMangaTitle: String,
+        fromChapterName: String,
+        toSourceName: String,
+        toMangaTitle: String,
+        toChapterName: String,
+        copy: Boolean = false
+    ): Boolean {
+        val fromDir = getChapterDir(root, fromSourceName, fromMangaTitle, fromChapterName)
+        val toDir = getChapterDir(root, toSourceName, toMangaTitle, toChapterName)
+
+        // Nothing to migrate if source directory doesn't exist or has no files
+        if (!fromDir.isDirectory) return false
+        val files = fromDir.listFiles() ?: return false
+        if (files.isEmpty()) return false
+
+        // Create destination directory
+        toDir.mkdirs()
+
+        // Copy or move all files from source to destination
+        return try {
+            files.forEach { file ->
+                if (file.isFile) {
+                    val destFile = File(toDir, file.name)
+                    if (copy) {
+                        file.copyTo(destFile, overwrite = true)
+                    } else {
+                        file.renameTo(destFile)
+                    }
+                } else if (file.isDirectory) {
+                    // Handle subdirectories (e.g., .pages cache)
+                    val destSubdir = File(toDir, file.name)
+                    if (copy) {
+                        file.copyRecursively(destSubdir, overwrite = true)
+                    } else {
+                        file.renameTo(destSubdir)
+                    }
+                }
+            }
+
+            // If moving (not copying), delete the now-empty source directory
+            if (!copy) {
+                fromDir.deleteRecursively()
+            }
+
+            true
+        } catch (e: Exception) {
+            // Migration failed, but don't throw - just return false
+            false
+        }
     }
 
     // -------------------------------------------------------------------------

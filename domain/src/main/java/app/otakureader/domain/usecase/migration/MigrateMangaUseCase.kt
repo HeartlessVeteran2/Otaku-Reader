@@ -8,6 +8,7 @@ import app.otakureader.domain.model.MigrationResult
 import app.otakureader.domain.model.MigrationStatus
 import app.otakureader.domain.repository.CategoryRepository
 import app.otakureader.domain.repository.ChapterRepository
+import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.sourceapi.SourceChapter
@@ -17,13 +18,14 @@ import javax.inject.Inject
 /**
  * Use case for migrating a manga from one source to another.
  * Handles both MOVE (replace) and COPY (keep both) modes.
- * Preserves reading history, bookmarks, and categories.
+ * Preserves reading history, bookmarks, categories, and downloaded chapters.
  */
 class MigrateMangaUseCase @Inject constructor(
     private val mangaRepository: MangaRepository,
     private val chapterRepository: ChapterRepository,
     private val categoryRepository: CategoryRepository,
-    private val sourceRepository: SourceRepository
+    private val sourceRepository: SourceRepository,
+    private val downloadRepository: DownloadRepository
 ) {
     /**
      * Migrate a manga to a new source.
@@ -84,11 +86,14 @@ class MigrateMangaUseCase @Inject constructor(
             // Get source manga chapters
             val sourceChapters = chapterRepository.getChaptersByMangaIdSync(sourceManga.id)
 
-            // Match chapters and migrate reading progress
+            // Match chapters and migrate reading progress and downloads
             val matchedCount = matchAndMigrateChapters(
+                sourceManga = sourceManga,
                 sourceChapters = sourceChapters,
+                targetManga = targetCandidate,
+                targetMangaId = targetMangaId,
                 targetChapters = targetChapters,
-                targetMangaId = targetMangaId
+                mode = mode
             )
 
             // Migrate categories
@@ -137,13 +142,16 @@ class MigrateMangaUseCase @Inject constructor(
     }
 
     /**
-     * Match chapters between source and target, and migrate reading progress.
+     * Match chapters between source and target, migrate reading progress and downloads.
      * Returns the number of chapters successfully matched.
      */
     private suspend fun matchAndMigrateChapters(
+        sourceManga: Manga,
         sourceChapters: List<Chapter>,
+        targetManga: MigrationCandidate,
+        targetMangaId: Long,
         targetChapters: List<SourceChapter>,
-        targetMangaId: Long
+        mode: MigrationMode
     ): Int {
         var matchedCount = 0
 
@@ -152,12 +160,38 @@ class MigrateMangaUseCase @Inject constructor(
             .filter { it.chapterNumber >= 0 }
             .associateBy { it.chapterNumber }
 
+        // Source names for download migration
+        val fromSourceName = sourceManga.sourceId.toString()
+        val fromMangaTitle = sourceManga.title
+        val toSourceName = targetManga.sourceId.toString()
+        val toMangaTitle = targetManga.title
+
         // Insert target chapters with matched reading progress
         val chaptersToInsert = targetChapters.mapIndexed { index, targetChapter ->
             val sourceChapter = sourceChapterMap[targetChapter.chapterNumber]
 
             if (sourceChapter != null) {
                 matchedCount++
+
+                // Migrate downloaded chapters if they exist
+                val isDownloaded = downloadRepository.isChapterDownloaded(
+                    sourceName = fromSourceName,
+                    mangaTitle = fromMangaTitle,
+                    chapterTitle = sourceChapter.name
+                )
+
+                if (isDownloaded) {
+                    // Migrate downloads: copy for COPY mode, move for MOVE mode
+                    downloadRepository.migrateChapterDownload(
+                        fromSourceName = fromSourceName,
+                        fromMangaTitle = fromMangaTitle,
+                        fromChapterName = sourceChapter.name,
+                        toSourceName = toSourceName,
+                        toMangaTitle = toMangaTitle,
+                        toChapterName = targetChapter.name,
+                        copy = mode == MigrationMode.COPY
+                    )
+                }
             }
 
             Chapter(

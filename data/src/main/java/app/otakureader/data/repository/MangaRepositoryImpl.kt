@@ -33,7 +33,11 @@ class MangaRepositoryImpl @Inject constructor(
     override suspend fun getMangaById(id: Long): Manga? {
         return mangaDao.getMangaById(id)?.toDomain()
     }
-    
+
+    override suspend fun getMangaBySourceAndUrl(sourceId: Long, url: String): Manga? {
+        return mangaDao.getMangaBySourceAndUrl(sourceId, url)?.toDomain()
+    }
+
     override fun getMangaByIdFlow(id: Long): Flow<Manga?> {
         return combine(
             mangaDao.getMangaByIdFlow(id),
