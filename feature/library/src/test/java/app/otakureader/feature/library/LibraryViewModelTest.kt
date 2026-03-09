@@ -46,8 +46,8 @@ class LibraryViewModelTest {
         context = mockk()
         libraryPreferences = mockk()
 
-        every { libraryPreferences.gridSize } returns kotlinx.coroutines.flow.flowOf(2)
-        every { libraryPreferences.showBadges } returns kotlinx.coroutines.flow.flowOf(true)
+        every { libraryPreferences.gridSize } returns flowOf(2)
+        every { libraryPreferences.showBadges } returns flowOf(true)
     }
 
     @After
