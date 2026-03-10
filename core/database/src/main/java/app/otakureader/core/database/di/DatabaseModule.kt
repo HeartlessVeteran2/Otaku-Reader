@@ -80,6 +80,23 @@ object DatabaseModule {
         }
     }
 
+    /**
+     * Adds per-manga reader settings and page preloading configuration in database version 8.
+     * Issues #260 and #264.
+     */
+    private val MIGRATION_7_8 = object : Migration(7, 8) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Per-manga reader settings (#260)
+            db.execSQL("ALTER TABLE `manga` ADD COLUMN `readerDirection` INTEGER")
+            db.execSQL("ALTER TABLE `manga` ADD COLUMN `readerMode` INTEGER")
+            db.execSQL("ALTER TABLE `manga` ADD COLUMN `readerColorFilter` INTEGER")
+            db.execSQL("ALTER TABLE `manga` ADD COLUMN `readerCustomTintColor` INTEGER")
+            // Page preloading settings (#264)
+            db.execSQL("ALTER TABLE `manga` ADD COLUMN `preloadPagesBefore` INTEGER")
+            db.execSQL("ALTER TABLE `manga` ADD COLUMN `preloadPagesAfter` INTEGER")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(
@@ -90,7 +107,7 @@ object DatabaseModule {
             OtakuReaderDatabase::class.java,
             OtakuReaderDatabase.DATABASE_NAME
         )
-            .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+            .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
         // Only allow destructive migration in debug builds to avoid silently wiping
         // user data (including notes) in production if a migration is missing.
         if (BuildConfig.DEBUG) {

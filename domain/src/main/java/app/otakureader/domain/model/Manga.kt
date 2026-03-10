@@ -22,7 +22,15 @@ data class Manga(
     val categoryIds: List<Long> = emptyList(),
     val autoDownload: Boolean = false,
     val notes: String? = null,
-    val notifyNewChapters: Boolean = true
+    val notifyNewChapters: Boolean = true,
+    // Per-manga reader settings (#260)
+    val readerDirection: Int? = null, // 0=LTR, 1=RTL
+    val readerMode: Int? = null, // 0=single, 1=dual, 2=webtoon, 3=smart panels
+    val readerColorFilter: Int? = null, // ColorFilterMode ordinal
+    val readerCustomTintColor: Long? = null, // ARGB color
+    // Page preloading settings (#264)
+    val preloadPagesBefore: Int? = null,
+    val preloadPagesAfter: Int? = null
 )
 
 @Serializable

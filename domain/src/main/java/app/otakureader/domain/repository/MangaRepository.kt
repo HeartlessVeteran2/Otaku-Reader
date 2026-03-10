@@ -18,4 +18,14 @@ interface MangaRepository {
     fun isFavorite(id: Long): Flow<Boolean>
     suspend fun updateMangaNote(id: Long, notes: String?)
     suspend fun updateNotifyNewChapters(id: Long, notify: Boolean)
+
+    // Per-manga reader settings (#260)
+    suspend fun updateReaderDirection(id: Long, direction: Int?)
+    suspend fun updateReaderMode(id: Long, mode: Int?)
+    suspend fun updateReaderColorFilter(id: Long, filter: Int?)
+    suspend fun updateReaderCustomTintColor(id: Long, color: Long?)
+
+    // Page preloading settings (#264)
+    suspend fun updatePreloadPagesBefore(id: Long, count: Int?)
+    suspend fun updatePreloadPagesAfter(id: Long, count: Int?)
 }

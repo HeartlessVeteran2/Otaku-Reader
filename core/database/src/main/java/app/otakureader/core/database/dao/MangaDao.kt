@@ -57,6 +57,26 @@ interface MangaDao {
     @Query("UPDATE manga SET notifyNewChapters = :notify WHERE id = :id")
     suspend fun updateNotifyNewChapters(id: Long, notify: Boolean)
 
+    // Per-manga reader settings (#260)
+    @Query("UPDATE manga SET readerDirection = :direction WHERE id = :id")
+    suspend fun updateReaderDirection(id: Long, direction: Int?)
+
+    @Query("UPDATE manga SET readerMode = :mode WHERE id = :id")
+    suspend fun updateReaderMode(id: Long, mode: Int?)
+
+    @Query("UPDATE manga SET readerColorFilter = :filter WHERE id = :id")
+    suspend fun updateReaderColorFilter(id: Long, filter: Int?)
+
+    @Query("UPDATE manga SET readerCustomTintColor = :color WHERE id = :id")
+    suspend fun updateReaderCustomTintColor(id: Long, color: Long?)
+
+    // Page preloading settings (#264)
+    @Query("UPDATE manga SET preloadPagesBefore = :count WHERE id = :id")
+    suspend fun updatePreloadPagesBefore(id: Long, count: Int?)
+
+    @Query("UPDATE manga SET preloadPagesAfter = :count WHERE id = :id")
+    suspend fun updatePreloadPagesAfter(id: Long, count: Int?)
+
     @Query("SELECT EXISTS(SELECT 1 FROM manga WHERE id = :id AND favorite = 1)")
     fun isFavorite(id: Long): Flow<Boolean>
     
