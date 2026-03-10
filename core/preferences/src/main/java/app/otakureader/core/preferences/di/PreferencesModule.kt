@@ -1,8 +1,10 @@
 package app.otakureader.core.preferences.di
 
 import android.content.Context
+import androidx.datastore.core.DataMigration
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import app.otakureader.core.preferences.AppPreferences
 import app.otakureader.core.preferences.DownloadPreferences
@@ -17,7 +19,42 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "otakureader_prefs")
+// Legacy key for the library-scoped NSFW setting that was merged into GeneralPreferences.
+private val LEGACY_LIBRARY_SHOW_NSFW = booleanPreferencesKey("library_show_nsfw")
+// Current global NSFW key owned by GeneralPreferences.
+private val GENERAL_SHOW_NSFW_CONTENT = booleanPreferencesKey("show_nsfw_content")
+
+/**
+ * One-time DataStore migration: copies any existing `library_show_nsfw` value into
+ * `show_nsfw_content` (if not already set) and removes the legacy key.
+ *
+ * This avoids resetting users' NSFW preference when upgrading from the version that
+ * introduced the now-removed library-specific NSFW toggle.
+ */
+private object LibraryNsfwToGeneralMigration : DataMigration<Preferences> {
+    override suspend fun shouldMigrate(currentData: Preferences): Boolean =
+        currentData[LEGACY_LIBRARY_SHOW_NSFW] != null
+
+    override suspend fun migrate(currentData: Preferences): Preferences {
+        return currentData.toMutablePreferences().apply {
+            val legacyValue = currentData[LEGACY_LIBRARY_SHOW_NSFW] ?: return@apply
+            // Only propagate if the global key has not been explicitly set yet.
+            if (this[GENERAL_SHOW_NSFW_CONTENT] == null) {
+                this[GENERAL_SHOW_NSFW_CONTENT] = legacyValue
+            }
+            remove(LEGACY_LIBRARY_SHOW_NSFW)
+        }.toPreferences()
+    }
+
+    override suspend fun cleanUp() {
+        // No additional cleanup needed; the legacy key is removed in migrate().
+    }
+}
+
+private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
+    name = "otakureader_prefs",
+    produceMigrations = { _ -> listOf(LibraryNsfwToGeneralMigration) }
+)
 
 @Module
 @InstallIn(SingletonComponent::class)
