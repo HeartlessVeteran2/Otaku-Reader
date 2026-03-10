@@ -30,9 +30,9 @@ object TitleNormalizer {
         // Remove common English articles and prefixes
         normalized = removeCommonPrefixes(normalized)
 
-        // Replace special characters and punctuation with spaces (but keep alphanumeric and existing spaces)
+        // Replace special characters and punctuation with spaces (but keep letters, numbers, combining marks, and existing spaces)
         // Do this before suffix removal so we don't have leftover special chars
-        normalized = normalized.replace(Regex("""[^\w\s]"""), " ")
+        normalized = normalized.replace(Regex("""[^\p{L}\p{N}\p{M}\s]"""), " ")
 
         // Normalize whitespace before suffix removal
         normalized = normalized.replace(Regex("""\s+"""), " ").trim()
