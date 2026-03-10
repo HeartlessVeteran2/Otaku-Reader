@@ -14,7 +14,6 @@ dependencies {
     implementation(libs.paging.compose)
     implementation(libs.lifecycle.viewmodel.ktx)
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.browser)
 
     testImplementation(libs.junit)
     testImplementation(libs.mockk)

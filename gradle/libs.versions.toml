@@ -46,6 +46,9 @@ paging = "3.4.1"
 # WorkManager
 workmanager = "2.11.1"
 
+# Discord
+kizzy-rpc = "1.0.0"
+
 # Testing
 junit = "4.13.2"
 junit5 = "5.11.0"
@@ -126,6 +129,9 @@ paging-compose = { group = "androidx.paging", name = "paging-compose", version.r
 
 # WorkManager
 workmanager-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workmanager" }
+
+# Discord Rich Presence (Kizzy)
+kizzy-rpc = { group = "com.github.dead8309", name = "Kizzy", version.ref = "kizzy-rpc" }
 
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }
