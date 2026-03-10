@@ -21,6 +21,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.PlayArrow
@@ -49,7 +51,9 @@ import android.content.Intent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -226,6 +230,13 @@ private fun DetailsContent(
             NotificationOption(
                 notifyEnabled = manga.notifyNewChapters,
                 onToggle = { onEvent(DetailsContract.Event.ToggleNotifications) }
+            )
+        }
+
+        item {
+            ReaderSettingsSection(
+                manga = manga,
+                onEvent = onEvent
             )
         }
 
@@ -547,6 +558,164 @@ private fun NotificationOption(
         },
         modifier = modifier
     )
+}
+
+/**
+ * Reader settings section for per-manga configuration (#260, #264)
+ */
+@Composable
+private fun ReaderSettingsSection(
+    manga: app.otakureader.domain.model.Manga,
+    onEvent: (DetailsContract.Event) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Column(modifier = modifier) {
+        ListItem(
+            headlineContent = { Text("Reader Settings") },
+            supportingContent = {
+                val hasOverrides = manga.readerDirection != null || 
+                                   manga.readerMode != null || 
+                                   manga.readerColorFilter != null ||
+                                   manga.preloadPagesBefore != null ||
+                                   manga.preloadPagesAfter != null
+                Text(
+                    if (hasOverrides) "Custom settings applied"
+                    else "Using default settings"
+                )
+            },
+            trailingContent = {
+                IconButton(onClick = { expanded = !expanded }) {
+                    Icon(
+                        imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = if (expanded) "Collapse" else "Expand"
+                    )
+                }
+            }
+        )
+
+        if (expanded) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                // Reading Direction
+                Text(
+                    text = "Reading Direction",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(modifier = Modifier.selectableGroup()) {
+                    DirectionOption("Left to Right", 0, manga.readerDirection, onEvent)
+                    DirectionOption("Right to Left", 1, manga.readerDirection, onEvent)
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Preload Pages
+                Text(
+                    text = "Page Preloading",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                PreloadOption(
+                    label = "Pages before current",
+                    value = manga.preloadPagesBefore,
+                    onChange = { onEvent(DetailsContract.Event.SetPreloadPagesBefore(it)) }
+                )
+                PreloadOption(
+                    label = "Pages after current",
+                    value = manga.preloadPagesAfter,
+                    onChange = { onEvent(DetailsContract.Event.SetPreloadPagesAfter(it)) }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Reset button
+                TextButton(
+                    onClick = {
+                        onEvent(DetailsContract.Event.SetReaderDirection(null))
+                        onEvent(DetailsContract.Event.SetReaderMode(null))
+                        onEvent(DetailsContract.Event.SetReaderColorFilter(null))
+                        onEvent(DetailsContract.Event.SetReaderCustomTintColor(null))
+                        onEvent(DetailsContract.Event.SetPreloadPagesBefore(null))
+                        onEvent(DetailsContract.Event.SetPreloadPagesAfter(null))
+                    },
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text("Reset to defaults")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DirectionOption(
+    label: String,
+    value: Int,
+    currentValue: Int?,
+    onEvent: (DetailsContract.Event) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .selectable(
+                selected = currentValue == value,
+                onClick = { onEvent(DetailsContract.Event.SetReaderDirection(value)) },
+                role = Role.RadioButton
+            )
+            .padding(vertical = 4.dp, horizontal = 8.dp)
+    ) {
+        RadioButton(
+            selected = currentValue == value,
+            onClick = null
+        )
+        Text(
+            text = label,
+            modifier = Modifier.padding(start = 8.dp)
+        )
+    }
+}
+
+@Composable
+private fun PreloadOption(
+    label: String,
+    value: Int?,
+    onChange: (Int?) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(
+                onClick = { onChange((value ?: 0).coerceAtLeast(0) - 1) },
+                enabled = (value ?: 0) > 0
+            ) {
+                Text("-")
+            }
+            Text(
+                text = (value ?: 0).toString(),
+                modifier = Modifier.padding(horizontal = 8.dp)
+            )
+            TextButton(
+                onClick = { onChange((value ?: 0).coerceAtMost(9) + 1) },
+                enabled = (value ?: 0) < 10
+            ) {
+                Text("+")
+            }
+        }
+    }
 }
 
 @Composable

@@ -122,6 +122,16 @@ object DetailsContract {
         data object MarkSelectedAsUnread : Event
         data object BookmarkSelectedChapters : Event
         data object ToggleNotifications : Event
+
+        // Per-manga reader settings (#260)
+        data class SetReaderDirection(val direction: Int?) : Event
+        data class SetReaderMode(val mode: Int?) : Event
+        data class SetReaderColorFilter(val filter: Int?) : Event
+        data class SetReaderCustomTintColor(val color: Long?) : Event
+
+        // Page preloading settings (#264)
+        data class SetPreloadPagesBefore(val count: Int?) : Event
+        data class SetPreloadPagesAfter(val count: Int?) : Event
     }
 
     /**

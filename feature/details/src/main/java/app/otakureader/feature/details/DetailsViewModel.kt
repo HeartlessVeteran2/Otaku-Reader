@@ -89,6 +89,16 @@ class DetailsViewModel @Inject constructor(
             is DetailsContract.Event.MarkSelectedAsUnread -> markSelectedAsUnread()
             is DetailsContract.Event.BookmarkSelectedChapters -> bookmarkSelectedChapters()
             is DetailsContract.Event.ToggleNotifications -> toggleNotifications()
+
+            // Per-manga reader settings (#260)
+            is DetailsContract.Event.SetReaderDirection -> setReaderDirection(event.direction)
+            is DetailsContract.Event.SetReaderMode -> setReaderMode(event.mode)
+            is DetailsContract.Event.SetReaderColorFilter -> setReaderColorFilter(event.filter)
+            is DetailsContract.Event.SetReaderCustomTintColor -> setReaderCustomTintColor(event.color)
+
+            // Page preloading settings (#264)
+            is DetailsContract.Event.SetPreloadPagesBefore -> setPreloadPagesBefore(event.count)
+            is DetailsContract.Event.SetPreloadPagesAfter -> setPreloadPagesAfter(event.count)
         }
     }
 
@@ -576,6 +586,74 @@ class DetailsViewModel @Inject constructor(
                 _effect.emit(DetailsContract.Effect.ShowSnackbar(message))
             } catch (e: Exception) {
                 _effect.emit(DetailsContract.Effect.ShowError("Failed to update notification setting"))
+            }
+        }
+    }
+
+    // Per-manga reader settings (#260)
+    private fun setReaderDirection(direction: Int?) {
+        viewModelScope.launch {
+            try {
+                mangaRepository.updateReaderDirection(mangaId, direction)
+                _effect.emit(DetailsContract.Effect.ShowSnackbar("Reader direction updated"))
+            } catch (e: Exception) {
+                _effect.emit(DetailsContract.Effect.ShowError("Failed to update reader direction"))
+            }
+        }
+    }
+
+    private fun setReaderMode(mode: Int?) {
+        viewModelScope.launch {
+            try {
+                mangaRepository.updateReaderMode(mangaId, mode)
+                _effect.emit(DetailsContract.Effect.ShowSnackbar("Reader mode updated"))
+            } catch (e: Exception) {
+                _effect.emit(DetailsContract.Effect.ShowError("Failed to update reader mode"))
+            }
+        }
+    }
+
+    private fun setReaderColorFilter(filter: Int?) {
+        viewModelScope.launch {
+            try {
+                mangaRepository.updateReaderColorFilter(mangaId, filter)
+                _effect.emit(DetailsContract.Effect.ShowSnackbar("Color filter updated"))
+            } catch (e: Exception) {
+                _effect.emit(DetailsContract.Effect.ShowError("Failed to update color filter"))
+            }
+        }
+    }
+
+    private fun setReaderCustomTintColor(color: Long?) {
+        viewModelScope.launch {
+            try {
+                mangaRepository.updateReaderCustomTintColor(mangaId, color)
+                _effect.emit(DetailsContract.Effect.ShowSnackbar("Custom tint color updated"))
+            } catch (e: Exception) {
+                _effect.emit(DetailsContract.Effect.ShowError("Failed to update tint color"))
+            }
+        }
+    }
+
+    // Page preloading settings (#264)
+    private fun setPreloadPagesBefore(count: Int?) {
+        viewModelScope.launch {
+            try {
+                mangaRepository.updatePreloadPagesBefore(mangaId, count)
+                _effect.emit(DetailsContract.Effect.ShowSnackbar("Preload pages (before) updated"))
+            } catch (e: Exception) {
+                _effect.emit(DetailsContract.Effect.ShowError("Failed to update preload setting"))
+            }
+        }
+    }
+
+    private fun setPreloadPagesAfter(count: Int?) {
+        viewModelScope.launch {
+            try {
+                mangaRepository.updatePreloadPagesAfter(mangaId, count)
+                _effect.emit(DetailsContract.Effect.ShowSnackbar("Preload pages (after) updated"))
+            } catch (e: Exception) {
+                _effect.emit(DetailsContract.Effect.ShowError("Failed to update preload setting"))
             }
         }
     }
