@@ -148,7 +148,7 @@ internal class UpdateNotifier(private val context: Context) {
 
         return PendingIntent.getActivity(
             context,
-            mangaId.toInt(),
+            mangaId.hashCode(),
             launchIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
