@@ -35,3 +35,29 @@ sealed class Filter<T>(val name: String, var state: T) {
 class FilterList(val filters: List<Filter<*>> = emptyList()) {
     constructor(vararg filters: Filter<*>) : this(filters.toList())
 }
+
+/**
+ * Concrete filter implementations for use by source adapters and the app UI.
+ * Extensions subclass the abstract [Filter] types; these classes provide
+ * instantiable versions the app can create when converting from external
+ * filter representations (e.g., Tachiyomi compat layer).
+ */
+object Filters {
+    class SelectFilter(name: String, values: Array<String>, state: Int = 0) :
+        Filter.Select<String>(name, values, state)
+
+    class TextFilter(name: String, state: String = "") :
+        Filter.Text(name, state)
+
+    class CheckBoxFilter(name: String, state: Boolean = false) :
+        Filter.CheckBox(name, state)
+
+    class TriStateFilter(name: String, state: Int = STATE_IGNORE) :
+        Filter.TriState(name, state)
+
+    class GroupFilter(name: String, state: List<Filter<*>>) :
+        Filter.Group<Filter<*>>(name, state)
+
+    class SortFilter(name: String, values: Array<String>, state: Selection? = null) :
+        Filter.Sort(name, values, state)
+}
