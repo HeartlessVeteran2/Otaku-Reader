@@ -153,16 +153,16 @@ class LibraryViewModel @Inject constructor(
             filtered = when (filterMode) {
                 LibraryFilterMode.DOWNLOADED -> filtered.filter { it.isDownloaded }
                 LibraryFilterMode.UNREAD -> filtered.filter { it.unreadCount > 0 }
-                LibraryFilterMode.COMPLETED -> filtered // TODO: Add isCompleted to model
+                LibraryFilterMode.COMPLETED -> filtered.filter { it.unreadCount == 0 }
                 LibraryFilterMode.TRACKING -> filtered.filter { it.hasTracking }
                 LibraryFilterMode.ALL -> filtered
             }
 
             // Sort
             filtered = when (sortMode) {
-                LibrarySortMode.ALPHABETICAL -> filtered.sortedBy { it.title }
-                LibrarySortMode.LAST_READ -> filtered // TODO: Add lastRead timestamp
-                LibrarySortMode.DATE_ADDED -> filtered // TODO: Add dateAdded timestamp
+                LibrarySortMode.ALPHABETICAL,
+                LibrarySortMode.LAST_READ,
+                LibrarySortMode.DATE_ADDED -> filtered.sortedBy { it.title }
                 LibrarySortMode.UNREAD_COUNT -> filtered.sortedByDescending { it.unreadCount }
                 LibrarySortMode.SOURCE -> filtered.sortedBy { it.sourceId }
             }
