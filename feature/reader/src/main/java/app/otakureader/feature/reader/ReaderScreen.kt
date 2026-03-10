@@ -46,6 +46,7 @@ import app.otakureader.feature.reader.modes.SmartPanelsReader
 import app.otakureader.feature.reader.modes.WebtoonReader
 import app.otakureader.feature.reader.ui.BrightnessSliderOverlay
 import app.otakureader.feature.reader.ui.FullPageGallery
+import app.otakureader.feature.reader.ui.PageSlider
 import app.otakureader.feature.reader.ui.PageThumbnailStrip
 import app.otakureader.feature.reader.ui.ReaderMenuOverlay
 import app.otakureader.feature.reader.ui.SimpleTapZoneOverlay
@@ -255,6 +256,16 @@ fun ReaderScreen(
             onBrightnessChange = { viewModel.onEvent(ReaderEvent.OnBrightnessChange(it)) },
             isVisible = showBrightnessSlider,
             modifier = Modifier.align(Alignment.CenterStart)
+        )
+
+        // Page slider — shown when the menu is visible so users can quickly scrub pages
+        PageSlider(
+            currentPage = state.currentPage,
+            totalPages = state.totalPages,
+            onPageSeek = { viewModel.onEvent(ReaderEvent.OnPageChange(it)) },
+            readingDirection = state.readingDirection,
+            isVisible = state.isMenuVisible && state.pages.isNotEmpty(),
+            modifier = Modifier.align(Alignment.BottomCenter)
         )
         
         // Snackbar host
