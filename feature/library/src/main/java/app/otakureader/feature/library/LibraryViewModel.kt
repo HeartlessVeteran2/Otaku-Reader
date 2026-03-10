@@ -151,10 +151,12 @@ class LibraryViewModel @Inject constructor(
 
             // Filter mode
             filtered = when (filterMode) {
-                LibraryFilterMode.DOWNLOADED -> filtered.filter { it.isDownloaded }
+                // TODO: Re-enable download filtering when isDownloaded is correctly populated
+                LibraryFilterMode.DOWNLOADED -> filtered
                 LibraryFilterMode.UNREAD -> filtered.filter { it.unreadCount > 0 }
-                LibraryFilterMode.COMPLETED -> filtered.filter { it.unreadCount == 0 }
-                LibraryFilterMode.TRACKING -> filtered.filter { it.hasTracking }
+                LibraryFilterMode.COMPLETED -> filtered // TODO: Add isCompleted to model
+                // TODO: Re-enable tracking filtering when hasTracking is correctly populated
+                LibraryFilterMode.TRACKING -> filtered
                 LibraryFilterMode.ALL -> filtered
             }
 
