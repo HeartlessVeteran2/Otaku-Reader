@@ -158,7 +158,12 @@ private fun HeaderFilter(filter: Filter.Header) {
 private fun SelectFilter(filter: Filter.Select<*>, onUpdate: (Filter<*>) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     val currentIndex = filter.state
-    val options = filter.values.map { it.toString() }
+    val options = remember(filter.name, filter.values.size) {
+        filter.values.map { it.toString() }
+    }
+    val optionsArray = remember(filter.name, filter.values.size) {
+        filter.values.map { it.toString() }.toTypedArray()
+    }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
@@ -191,7 +196,7 @@ private fun SelectFilter(filter: Filter.Select<*>, onUpdate: (Filter<*>) -> Unit
                     onClick = {
                         expanded = false
                         onUpdate(
-                            Filters.SelectFilter(filter.name, options.toTypedArray(), index)
+                            Filters.SelectFilter(filter.name, optionsArray, index)
                         )
                     }
                 )
@@ -332,7 +337,7 @@ private fun GroupFilter(filter: Filter.Group<*>, onUpdate: (Filter<*>) -> Unit) 
 
         if (expanded) {
             @Suppress("UNCHECKED_CAST")
-            val childFilters = filter.state as? List<Filter<*>> ?: return
+            val childFilters = filter.state as? List<Filter<*>> ?: emptyList()
 
             // For groups of TriState filters, use a compact FlowRow layout
             if (childFilters.all { it is Filter.TriState }) {

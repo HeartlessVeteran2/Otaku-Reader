@@ -171,7 +171,10 @@ class TachiyomiSourceAdapter(
         sourceFilters: List<Filter<*>>,
         tachiyomiFilters: List<eu.kanade.tachiyomi.source.model.Filter<*>>
     ) {
-        sourceFilters.zip(tachiyomiFilters).forEach { (src, dst) ->
+        val count = minOf(sourceFilters.size, tachiyomiFilters.size)
+        for (i in 0 until count) {
+            val src = sourceFilters[i]
+            val dst = tachiyomiFilters[i]
             @Suppress("UNCHECKED_CAST")
             when {
                 src is Filter.Select<*> && dst is eu.kanade.tachiyomi.source.model.Filter.Select<*> -> {
