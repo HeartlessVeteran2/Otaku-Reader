@@ -184,8 +184,8 @@ class LibraryViewModel @Inject constructor(
             LibraryFilterMode.UNREAD -> filtered.filter { it.unreadCount > 0 }
             LibraryFilterMode.COMPLETED -> filtered.filter { it.status == MangaStatus.COMPLETED }
             // TODO: Re-enable tracking filtering when hasTracking is correctly populated
-            // (hasTracking is always false until the tracking repository is wired)
-            LibraryFilterMode.TRACKING -> filtered.filter { it.hasTracking }
+            // (currently left as a no-op because hasTracking is always false until tracking is wired)
+            LibraryFilterMode.TRACKING -> filtered
             LibraryFilterMode.ALL -> filtered
         }
 
