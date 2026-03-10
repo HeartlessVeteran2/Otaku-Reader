@@ -224,7 +224,7 @@ private fun DetailsContent(
 
         item {
             NotificationOption(
-                notifyEnabled = state.manga?.notifyNewChapters ?: true,
+                notifyEnabled = manga.notifyNewChapters,
                 onToggle = { onEvent(DetailsContract.Event.ToggleNotifications) }
             )
         }
