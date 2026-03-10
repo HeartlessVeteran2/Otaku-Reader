@@ -19,7 +19,8 @@ import androidx.room.PrimaryKey
         Index(value = ["mangaId"]),
         Index(value = ["mangaId", "url"], unique = true),
         Index(value = ["read"]),
-        Index(value = ["bookmark"])
+        Index(value = ["bookmark"]),
+        Index(value = ["dateFetch"])
     ]
 )
 data class ChapterEntity(

@@ -206,6 +206,29 @@ class ChapterRepositoryImplTest {
     }
 
 
+    // ---- countNewUpdatesSince ----
+
+    @Test
+    fun countNewUpdatesSince_delegatesToDaoAndPropagatesCount() = runTest {
+        val since = 1_000_000L
+        every { chapterDao.countNewUpdatesSince(since) } returns flowOf(7)
+
+        repository.countNewUpdatesSince(since).test {
+            assertEquals(7, awaitItem())
+            awaitComplete()
+        }
+    }
+
+    @Test
+    fun countNewUpdatesSince_withZeroSince_returnsCountFromDao() = runTest {
+        every { chapterDao.countNewUpdatesSince(0L) } returns flowOf(42)
+
+        repository.countNewUpdatesSince(0L).test {
+            assertEquals(42, awaitItem())
+            awaitComplete()
+        }
+    }
+
     // ---- recordHistory ----
 
     @Test

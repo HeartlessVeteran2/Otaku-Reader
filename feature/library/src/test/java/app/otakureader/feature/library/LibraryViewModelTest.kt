@@ -5,6 +5,7 @@ import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.LibraryPreferences
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MangaStatus
+import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.usecase.GetLibraryMangaUseCase
 import app.otakureader.domain.usecase.ToggleFavoriteMangaUseCase
 import app.cash.turbine.test
@@ -36,6 +37,7 @@ class LibraryViewModelTest {
     private lateinit var toggleFavoriteManga: ToggleFavoriteMangaUseCase
     private lateinit var libraryPreferences: LibraryPreferences
     private lateinit var generalPreferences: GeneralPreferences
+    private lateinit var chapterRepository: ChapterRepository
 
     private val sampleMangas = listOf(
         Manga(id = 1L, sourceId = 10L, url = "/m/1", title = "Naruto", favorite = true, unreadCount = 3, lastRead = 1000L, status = MangaStatus.ONGOING),
@@ -58,6 +60,10 @@ class LibraryViewModelTest {
         }
         generalPreferences = mockk {
             every { showNsfwContent } returns flowOf(true)
+            every { lastUpdatesViewedAt } returns flowOf(0L)
+        }
+        chapterRepository = mockk {
+            every { countNewUpdatesSince(any()) } returns flowOf(0)
         }
     }
 
@@ -67,7 +73,7 @@ class LibraryViewModelTest {
     }
 
     private fun createViewModel(): LibraryViewModel {
-        return LibraryViewModel(context, getLibraryManga, toggleFavoriteManga, libraryPreferences, generalPreferences)
+        return LibraryViewModel(context, getLibraryManga, toggleFavoriteManga, libraryPreferences, generalPreferences, chapterRepository)
     }
 
     @Test
@@ -381,5 +387,31 @@ class LibraryViewModelTest {
         // Only Naruto and One Piece have sourceId 10
         assertEquals(2, viewModel.state.value.mangaList.size)
         assertTrue(viewModel.state.value.mangaList.all { it.sourceId == 10L })
+    }
+
+    // --- Badge counter (newUpdatesCount) ---
+
+    @Test
+    fun newUpdatesCount_reflectsChapterRepositoryCount() = runTest {
+        every { getLibraryManga() } returns flowOf(emptyList())
+        every { chapterRepository.countNewUpdatesSince(0L) } returns flowOf(5)
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(5, viewModel.state.value.newUpdatesCount)
+    }
+
+    @Test
+    fun newUpdatesCount_usesLastUpdatesViewedAt_asWindowStart() = runTest {
+        every { getLibraryManga() } returns flowOf(emptyList())
+        val lastViewed = 9_000_000L
+        every { generalPreferences.lastUpdatesViewedAt } returns flowOf(lastViewed)
+        every { chapterRepository.countNewUpdatesSince(lastViewed) } returns flowOf(3)
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(3, viewModel.state.value.newUpdatesCount)
     }
 }

@@ -8,6 +8,7 @@ import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.domain.repository.DownloadRepository
+import app.otakureader.domain.usecase.SetMangaNotificationsUseCase
 import app.otakureader.domain.usecase.UpdateMangaNoteUseCase
 import app.cash.turbine.test
 import io.mockk.coEvery
@@ -41,6 +42,7 @@ class DetailsViewModelTest {
     private lateinit var downloadRepository: DownloadRepository
     private lateinit var downloadPreferences: DownloadPreferences
     private lateinit var updateMangaNote: UpdateMangaNoteUseCase
+    private lateinit var setMangaNotifications: SetMangaNotificationsUseCase
     private lateinit var savedStateHandle: SavedStateHandle
 
     private val sampleManga = Manga(
@@ -49,7 +51,8 @@ class DetailsViewModelTest {
         url = "/m/42",
         title = "Attack on Titan",
         status = MangaStatus.COMPLETED,
-        favorite = false
+        favorite = false,
+        notifyNewChapters = true
     )
 
     private val sampleChapters = listOf(
@@ -66,6 +69,7 @@ class DetailsViewModelTest {
         downloadRepository = mockk()
         downloadPreferences = mockk()
         updateMangaNote = mockk()
+        setMangaNotifications = mockk()
         savedStateHandle = SavedStateHandle(mapOf(DetailsViewModel.MANGA_ID_ARG to mangaId))
     }
 
@@ -75,7 +79,7 @@ class DetailsViewModelTest {
     }
 
     private fun createViewModel(): DetailsViewModel {
-        return DetailsViewModel(savedStateHandle, mangaRepository, chapterRepository, downloadRepository, downloadPreferences, updateMangaNote)
+        return DetailsViewModel(savedStateHandle, mangaRepository, chapterRepository, downloadRepository, downloadPreferences, updateMangaNote, setMangaNotifications)
     }
 
     private fun setUpDefaultMocks() {
@@ -409,6 +413,71 @@ class DetailsViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
 
             expectNoEvents()
+        }
+    }
+
+    // ---- ToggleNotifications ----
+
+    @Test
+    fun onEvent_ToggleNotifications_disablesNotifications_whenCurrentlyEnabled() = runTest {
+        setUpDefaultMocks()
+        // sampleManga has notifyNewChapters = true
+        coEvery { setMangaNotifications(mangaId, false) } returns Unit
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.ToggleNotifications)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            coVerify { setMangaNotifications(mangaId, false) }
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.ShowSnackbar)
+            assertTrue((effect as DetailsContract.Effect.ShowSnackbar).message.contains("muted", ignoreCase = true))
+        }
+    }
+
+    @Test
+    fun onEvent_ToggleNotifications_enablesNotifications_whenCurrentlyMuted() = runTest {
+        val mutedManga = sampleManga.copy(notifyNewChapters = false)
+        every { mangaRepository.getMangaByIdFlow(mangaId) } returns flowOf(mutedManga)
+        every { chapterRepository.getChaptersByMangaId(mangaId) } returns flowOf(sampleChapters)
+        every { mangaRepository.isFavorite(mangaId) } returns flowOf(false)
+        every { downloadRepository.observeDownloads() } returns flowOf(emptyList())
+        coEvery { chapterRepository.getNextUnreadChapter(mangaId) } returns sampleChapters[1]
+        every { downloadPreferences.deleteAfterReading } returns flowOf(false)
+        every { downloadPreferences.perMangaOverrides } returns flowOf(emptyMap())
+        coEvery { setMangaNotifications(mangaId, true) } returns Unit
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.ToggleNotifications)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            coVerify { setMangaNotifications(mangaId, true) }
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.ShowSnackbar)
+            assertTrue((effect as DetailsContract.Effect.ShowSnackbar).message.contains("enabled", ignoreCase = true))
+        }
+    }
+
+    @Test
+    fun onEvent_ToggleNotifications_onError_emitsErrorEffect() = runTest {
+        setUpDefaultMocks()
+        coEvery { setMangaNotifications(any(), any()) } throws RuntimeException("DB error")
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.ToggleNotifications)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.ShowError)
         }
     }
 
