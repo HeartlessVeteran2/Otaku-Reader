@@ -34,6 +34,30 @@ sealed class Filter<T>(val name: String, var state: T) {
 
 class FilterList(val filters: List<Filter<*>> = emptyList()) {
     constructor(vararg filters: Filter<*>) : this(filters.toList())
+
+    /**
+     * Returns `true` when at least one filter has been changed from its default state.
+     * Recurses into [Filter.Group] children.
+     */
+    fun hasActiveFilters(): Boolean = filters.any { it.isActive() }
+}
+
+/**
+ * Checks whether a single filter has a non-default state.
+ * For groups, recurses into children.
+ */
+fun Filter<*>.isActive(): Boolean = when (this) {
+    is Filter.Select<*> -> state != 0
+    is Filter.Text -> state.isNotBlank()
+    is Filter.CheckBox -> state
+    is Filter.TriState -> state != Filter.TriState.STATE_IGNORE
+    is Filter.Sort -> state != null
+    is Filter.Group<*> -> {
+        @Suppress("UNCHECKED_CAST")
+        val children = (state as? List<*>)?.filterIsInstance<Filter<*>>() ?: emptyList()
+        children.any { it.isActive() }
+    }
+    else -> false
 }
 
 /**

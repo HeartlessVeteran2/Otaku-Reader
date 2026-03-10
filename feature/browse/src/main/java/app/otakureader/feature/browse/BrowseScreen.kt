@@ -48,6 +48,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.otakureader.sourceapi.Filter
+import app.otakureader.sourceapi.isActive
 import app.otakureader.sourceapi.SourceManga
 import coil3.compose.AsyncImage
 
@@ -221,24 +222,8 @@ private fun FilterButton(
 /**
  * Count the number of filters that have been changed from their default state.
  */
-private fun isFilterActive(filter: Filter<*>): Boolean {
-    return when (filter) {
-        is Filter.Select<*> -> filter.state != 0
-        is Filter.Text -> filter.state.isNotBlank()
-        is Filter.CheckBox -> filter.state
-        is Filter.TriState -> filter.state != Filter.TriState.STATE_IGNORE
-        is Filter.Sort -> filter.state != null
-        is Filter.Group<*> -> {
-            // Recursively check all child filters in this group, including nested groups.
-            val children = (filter.state as? List<*>)?.filterIsInstance<Filter<*>>() ?: emptyList()
-            children.any { child -> isFilterActive(child) }
-        }
-        else -> false
-    }
-}
-
 private fun countActiveFilters(filters: app.otakureader.sourceapi.FilterList): Int {
-    return filters.filters.count { filter -> isFilterActive(filter) }
+    return filters.filters.count { filter -> filter.isActive() }
 }
 @Composable
 private fun SourcesContent(

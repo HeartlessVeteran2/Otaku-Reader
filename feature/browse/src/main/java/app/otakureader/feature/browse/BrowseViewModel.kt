@@ -207,8 +207,8 @@ class BrowseViewModel @Inject constructor(
         val sourceId = _state.value.currentSourceId ?: return
         val filters = _state.value.activeFilters
 
-        // Allow filter-only search (empty query with active filters)
-        if (query.isBlank() && filters.filters.isEmpty()) return
+        // Allow filter-only search only when at least one filter is non-default
+        if (query.isBlank() && !filters.hasActiveFilters()) return
 
         viewModelScope.launch {
             _state.update { it.copy(isSearching = true, error = null) }

@@ -135,8 +135,10 @@ class SourceRepositoryImpl(
                 val source = getSource(sourceId)
                     ?: return@withContext Result.failure(IllegalArgumentException("Source not found: $sourceId"))
 
-                // Only use cache for searches without filters (default empty filters)
-                if (filters.filters.isEmpty()) {
+                val filtersAreActive = filters.hasActiveFilters()
+
+                // Use cache when no filters are active (all at defaults)
+                if (!filtersAreActive) {
                     val cacheKey = query to page
                     searchCache[sourceId]?.get(cacheKey)?.let {
                         return@withContext Result.success(it)
@@ -149,8 +151,8 @@ class SourceRepositoryImpl(
                     filters = filters
                 )
 
-                // Cache only when no filters are applied
-                if (filters.filters.isEmpty()) {
+                // Cache only when no filters are active
+                if (!filtersAreActive) {
                     val cacheKey = query to page
                     searchCache.computeIfAbsent(sourceId) { ConcurrentHashMap() }[cacheKey] = mangaPage
                 }
