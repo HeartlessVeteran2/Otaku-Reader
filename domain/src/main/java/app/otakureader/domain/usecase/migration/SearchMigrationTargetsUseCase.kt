@@ -4,6 +4,7 @@ import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.model.MigrationCandidate
 import app.otakureader.domain.repository.SourceRepository
+import app.otakureader.domain.util.TitleNormalizer
 import app.otakureader.sourceapi.SourceManga
 import javax.inject.Inject
 
@@ -17,9 +18,15 @@ class SearchMigrationTargetsUseCase @Inject constructor(
 ) {
     /**
      * Search for migration targets in the specified source.
+     * Uses multiple matching strategies for improved accuracy:
+     * 1. Title matching with normalization
+     * 2. Author name matching
+     * 3. Genre overlap checking
+     * 4. Romanization variant detection
+     *
      * @param sourceManga The manga to migrate
      * @param targetSourceId The target source ID to search in
-     * @return Result with list of migration candidates sorted by similarity score
+     * @return Result with list of migration candidates sorted by combined similarity score
      */
     suspend operator fun invoke(
         sourceManga: Manga,
@@ -45,11 +52,11 @@ class SearchMigrationTargetsUseCase @Inject constructor(
                 return Result.success(emptyList())
             }
 
-            // Convert search results to migration candidates with similarity scores
+            // Convert search results to migration candidates with enhanced similarity scores
             val candidates = mangaPage.mangas.map { sourceMangaResult ->
-                val similarityScore = calculateSimilarity(
-                    sourceManga.title,
-                    sourceMangaResult.title
+                val similarityScore = calculateEnhancedSimilarity(
+                    sourceManga,
+                    sourceMangaResult
                 )
 
                 sourceMangaResult.toMigrationCandidate(
@@ -62,6 +69,104 @@ class SearchMigrationTargetsUseCase @Inject constructor(
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    /**
+     * Calculate enhanced similarity score using multiple matching strategies.
+     * Combines:
+     * - Title similarity (weighted 0.6)
+     * - Author matching (weighted 0.2)
+     * - Genre overlap (weighted 0.2)
+     * - Romanization variant bonus
+     *
+     * @param sourceManga The source manga to match
+     * @param targetManga The target manga candidate
+     * @return Combined similarity score from 0.0 to 1.0
+     */
+    private fun calculateEnhancedSimilarity(
+        sourceManga: Manga,
+        targetManga: SourceManga
+    ): Float {
+        // Base title similarity (60% weight)
+        val titleScore = calculateTitleSimilarity(sourceManga.title, targetManga.title)
+        var finalScore = titleScore * 0.6f
+
+        // Author matching (20% weight)
+        val authorScore = calculateAuthorSimilarity(sourceManga.author, targetManga.author)
+        finalScore += authorScore * 0.2f
+
+        // Genre overlap (20% weight)
+        val targetGenres = targetManga.genre?.split(",")?.map { it.trim() } ?: emptyList()
+        val genreScore = TitleNormalizer.calculateGenreOverlap(sourceManga.genre, targetGenres)
+        finalScore += genreScore * 0.2f
+
+        // Romanization bonus: if titles are known variants, boost the score
+        if (TitleNormalizer.areRomanizationVariants(sourceManga.title, targetManga.title)) {
+            // Add a significant bonus (0.3) but cap at 1.0
+            finalScore = minOf(1.0f, finalScore + 0.3f)
+        }
+
+        return finalScore.coerceIn(0.0f, 1.0f)
+    }
+
+    /**
+     * Calculate title similarity with advanced normalization.
+     * Uses multiple strategies:
+     * 1. Exact match after normalization (returns 1.0)
+     * 2. Levenshtein distance on normalized titles
+     * 3. Levenshtein distance on original titles (fallback)
+     */
+    private fun calculateTitleSimilarity(title1: String, title2: String): Float {
+        // Try exact match first
+        if (title1.equals(title2, ignoreCase = true)) {
+            return 1.0f
+        }
+
+        // Normalize both titles
+        val normalized1 = TitleNormalizer.normalize(title1)
+        val normalized2 = TitleNormalizer.normalize(title2)
+
+        // Check for exact match after normalization
+        if (normalized1 == normalized2 && normalized1.isNotEmpty()) {
+            return 1.0f
+        }
+
+        // Calculate Levenshtein on normalized titles
+        val normalizedScore = calculateSimilarity(normalized1, normalized2)
+
+        // Calculate Levenshtein on original titles (with basic normalization)
+        val originalScore = calculateSimilarity(
+            title1.lowercase().trim(),
+            title2.lowercase().trim()
+        )
+
+        // Use the better score
+        return maxOf(normalizedScore, originalScore)
+    }
+
+    /**
+     * Calculate author name similarity.
+     * Returns 1.0 for exact match, 0.5 for partial match, 0.0 otherwise.
+     */
+    private fun calculateAuthorSimilarity(author1: String?, author2: String?): Float {
+        if (author1.isNullOrBlank() || author2.isNullOrBlank()) {
+            return 0.0f
+        }
+
+        val normalized1 = TitleNormalizer.normalizeAuthor(author1)
+        val normalized2 = TitleNormalizer.normalizeAuthor(author2)
+
+        // Exact match after normalization
+        if (normalized1 == normalized2) {
+            return 1.0f
+        }
+
+        // Check if one author name contains the other (handles different name ordering)
+        if (normalized1.contains(normalized2) || normalized2.contains(normalized1)) {
+            return 0.5f
+        }
+
+        return 0.0f
     }
 
     /**
