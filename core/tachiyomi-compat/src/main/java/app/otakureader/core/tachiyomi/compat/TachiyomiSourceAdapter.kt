@@ -19,7 +19,8 @@ import rx.Observable
  * underlying Tachiyomi source, with proper model conversion.
  */
 class TachiyomiSourceAdapter(
-    private val tachiyomiSource: CatalogueSource
+    private val tachiyomiSource: CatalogueSource,
+    override val isNsfw: Boolean = false
 ) : MangaSource {
 
     override val id: String

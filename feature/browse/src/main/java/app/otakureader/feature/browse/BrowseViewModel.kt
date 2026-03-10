@@ -2,6 +2,7 @@ package app.otakureader.feature.browse
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.domain.usecase.source.GetLatestUpdatesUseCase
 import app.otakureader.domain.usecase.source.GetPopularMangaUseCase
 import app.otakureader.domain.usecase.source.GetSourcesUseCase
@@ -24,7 +25,8 @@ class BrowseViewModel @Inject constructor(
     private val getSourcesUseCase: GetSourcesUseCase,
     private val getPopularMangaUseCase: GetPopularMangaUseCase,
     private val getLatestUpdatesUseCase: GetLatestUpdatesUseCase,
-    private val searchMangaUseCase: SearchMangaUseCase
+    private val searchMangaUseCase: SearchMangaUseCase,
+    private val generalPreferences: GeneralPreferences
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(BrowseState())
@@ -40,11 +42,20 @@ class BrowseViewModel @Inject constructor(
     val effect = _effect.receiveAsFlow()
 
     init {
-        // Collect sources from the repository
+        // Collect sources and filter by NSFW preference
         viewModelScope.launch {
-            getSourcesUseCase().collect { sources ->
-                _sources.value = sources
-                _state.update { it.copy(sources = sources.map { s -> s.id }) }
+            combine(
+                getSourcesUseCase(),
+                generalPreferences.showNsfwContent
+            ) { sources, showNsfw ->
+                if (showNsfw) {
+                    sources
+                } else {
+                    sources.filter { !it.isNsfw }
+                }
+            }.collect { filteredSources ->
+                _sources.value = filteredSources
+                _state.update { it.copy(sources = filteredSources.map { s -> s.id }) }
             }
         }
     }

@@ -230,6 +230,7 @@ private fun DetailsContent(
         items(state.sortedChapters, key = { it.id }) { chapter ->
             ChapterListItem(
                 chapter = chapter,
+                isSelected = state.selectedChapters.contains(chapter.id),
                 onClick = { onEvent(DetailsContract.Event.ChapterClick(chapter.id)) },
                 onLongClick = { onEvent(DetailsContract.Event.ChapterLongClick(chapter.id)) },
                 onExportAsCbz = { onEvent(DetailsContract.Event.ExportChapterAsCbz(chapter.id)) }

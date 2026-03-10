@@ -133,7 +133,6 @@ internal class UpdateNotifier(private val context: Context) {
                 val request = ImageRequest.Builder(context)
                     .data(url)
                     .size(256, 256)
-                    .allowHardware(false)
                     .build()
 
                 val result = context.imageLoader.execute(request)
