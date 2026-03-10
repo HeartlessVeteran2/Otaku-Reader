@@ -6,6 +6,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
@@ -21,6 +22,10 @@ internal const val UPDATE_CHANNEL_ID = "library_updates_channel"
 internal const val GROUP_KEY_UPDATES = "library_updates"
 internal const val UPDATE_NOTIFICATION_TAG = "library_update"
 internal const val SUMMARY_NOTIFICATION_ID = Int.MAX_VALUE
+
+private const val EXTRA_MANGA_ID = "mangaId"
+private const val EXTRA_DESTINATION = "destination"
+private const val DESTINATION_UPDATES = "updates"
 
 /**
  * Data class for notification manga info.
@@ -85,8 +90,8 @@ internal class UpdateNotifier(private val context: Context) {
             loadCoverImage(url)
         }
 
-        // Build action intent to open manga, fall back to launch intent if unavailable
-        val openIntent = buildOpenMangaIntent(manga.id) ?: buildLaunchIntent()
+        // Build action intent to open manga (always non-null, falls back to CATEGORY_LAUNCHER)
+        val openIntent = buildOpenMangaIntent(manga.id)
 
         return NotificationCompat.Builder(context, UPDATE_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_notify_more)
@@ -118,7 +123,7 @@ internal class UpdateNotifier(private val context: Context) {
             .setAutoCancel(true)
             .setGroup(GROUP_KEY_UPDATES)
             .setGroupSummary(true)
-            .apply { buildLaunchIntent()?.let { setContentIntent(it) } }
+            .setContentIntent(buildLaunchIntent())
             .build()
     }
 
@@ -139,13 +144,11 @@ internal class UpdateNotifier(private val context: Context) {
         }
     }
 
-    private fun buildOpenMangaIntent(mangaId: Long): PendingIntent? {
-        // Create intent to open specific manga
-        val launchIntent = context.packageManager
-            .getLaunchIntentForPackage(context.packageName)?.apply {
-                putExtra("mangaId", mangaId)
-                putExtra("destination", "updates")
-            } ?: return null
+    private fun buildOpenMangaIntent(mangaId: Long): PendingIntent {
+        val launchIntent = createLauncherIntent().apply {
+            putExtra(EXTRA_MANGA_ID, mangaId)
+            putExtra(EXTRA_DESTINATION, DESTINATION_UPDATES)
+        }
 
         return PendingIntent.getActivity(
             context,
@@ -155,15 +158,27 @@ internal class UpdateNotifier(private val context: Context) {
         )
     }
 
-    private fun buildLaunchIntent(): PendingIntent? {
-        val launchIntent = context.packageManager
-            .getLaunchIntentForPackage(context.packageName) ?: return null
+    private fun buildLaunchIntent(): PendingIntent {
         return PendingIntent.getActivity(
             context,
             0,
-            launchIntent,
+            createLauncherIntent(),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+    }
+
+    /**
+     * Returns a launcher [Intent] for this package. Prefers [PackageManager.getLaunchIntentForPackage]
+     * and falls back to ACTION_MAIN/CATEGORY_LAUNCHER when that call returns null (e.g. on some
+     * OEM ROMs or work-profile setups where the method is unreliable).
+     */
+    private fun createLauncherIntent(): Intent {
+        return context.packageManager
+            .getLaunchIntentForPackage(context.packageName)
+            ?: Intent(Intent.ACTION_MAIN).apply {
+                addCategory(Intent.CATEGORY_LAUNCHER)
+                setPackage(context.packageName)
+            }
     }
 
     private fun createChannel() {
