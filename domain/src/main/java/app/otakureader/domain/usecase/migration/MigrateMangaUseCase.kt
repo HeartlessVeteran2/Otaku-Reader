@@ -11,21 +11,24 @@ import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.domain.repository.SourceRepository
+import app.otakureader.domain.tracking.TrackRepository
 import app.otakureader.sourceapi.SourceChapter
 import app.otakureader.sourceapi.SourceManga
 import javax.inject.Inject
+import kotlinx.coroutines.flow.first
 
 /**
  * Use case for migrating a manga from one source to another.
  * Handles both MOVE (replace) and COPY (keep both) modes.
- * Preserves reading history, bookmarks, categories, and downloaded chapters.
+ * Preserves reading history, bookmarks, categories, tracker links, and downloaded chapters.
  */
 class MigrateMangaUseCase @Inject constructor(
     private val mangaRepository: MangaRepository,
     private val chapterRepository: ChapterRepository,
     private val categoryRepository: CategoryRepository,
     private val sourceRepository: SourceRepository,
-    private val downloadRepository: DownloadRepository
+    private val downloadRepository: DownloadRepository,
+    private val trackRepository: TrackRepository
 ) {
     /**
      * Migrate a manga to a new source.
@@ -107,6 +110,13 @@ class MigrateMangaUseCase @Inject constructor(
                 }
             }
 
+            // Migrate tracker links
+            val trackerEntries = trackRepository.observeEntriesForManga(sourceManga.id).first()
+            trackerEntries.forEach { entry ->
+                val migratedEntry = entry.copy(mangaId = targetMangaId)
+                trackRepository.upsertEntry(migratedEntry)
+            }
+
             // Handle MOVE vs COPY mode
             when (mode) {
                 MigrationMode.MOVE -> {
@@ -120,6 +130,7 @@ class MigrateMangaUseCase @Inject constructor(
                             }
                         }
                     }
+                    // Tracker entries have already been moved via upsert; no deletion needed here.
                     mangaRepository.deleteManga(sourceManga.id)
                     // Chapters will be cascade deleted by foreign key
                 }
