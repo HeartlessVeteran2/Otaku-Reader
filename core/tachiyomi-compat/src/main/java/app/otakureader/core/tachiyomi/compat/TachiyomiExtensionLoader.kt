@@ -175,7 +175,7 @@ class TachiyomiExtensionLoader(
             },
             lang = lang,
             isNsfw = isNsfw,
-            sources = sources.map { TachiyomiSourceAdapter(it) },
+            sources = sources.map { TachiyomiSourceAdapter(it, isNsfw) },
             apkPath = apkPath,
             classLoader = classLoader,
         )
