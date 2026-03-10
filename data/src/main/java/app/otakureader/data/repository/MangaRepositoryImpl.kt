@@ -17,7 +17,7 @@ class MangaRepositoryImpl @Inject constructor(
     private val mangaDao: MangaDao,
     private val chapterDao: ChapterDao
 ) : MangaRepository {
-    
+
     override fun getLibraryManga(): Flow<List<Manga>> {
         return mangaDao.getFavoriteMangaWithUnreadCount().map { mangaWithUnreadList ->
             mangaWithUnreadList.map { it.manga.toDomain(it.unreadCount) }
@@ -29,7 +29,7 @@ class MangaRepositoryImpl @Inject constructor(
             entities.map { it.toDomain() }
         }
     }
-    
+
     override suspend fun getMangaById(id: Long): Manga? {
         return mangaDao.getMangaById(id)?.toDomain()
     }
@@ -55,19 +55,19 @@ class MangaRepositoryImpl @Inject constructor(
             mangaEntity?.toDomain(unreadCount)
         }
     }
-    
+
     override suspend fun insertManga(manga: Manga): Long {
         return mangaDao.insert(manga.toEntity())
     }
-    
+
     override suspend fun updateManga(manga: Manga) {
         mangaDao.update(manga.toEntity())
     }
-    
+
     override suspend fun deleteManga(id: Long) {
         mangaDao.deleteById(id)
     }
-    
+
     override suspend fun toggleFavorite(id: Long) {
         val manga = mangaDao.getMangaById(id) ?: return
         mangaDao.updateFavorite(id, !manga.favorite)
@@ -84,7 +84,11 @@ class MangaRepositoryImpl @Inject constructor(
     override suspend fun updateMangaNote(id: Long, notes: String?) {
         mangaDao.updateNote(id, notes)
     }
-    
+
+    override suspend fun updateNotifyNewChapters(id: Long, notify: Boolean) {
+        mangaDao.updateNotifyNewChapters(id, notify)
+    }
+
     private fun MangaEntity.toDomain(unreadCount: Int = 0) = Manga(
         id = id,
         sourceId = sourceId,
@@ -100,9 +104,10 @@ class MangaRepositoryImpl @Inject constructor(
         initialized = initialized,
         unreadCount = unreadCount,
         autoDownload = autoDownload,
-        notes = notes
+        notes = notes,
+        notifyNewChapters = notifyNewChapters
     )
-    
+
     private fun Manga.toEntity() = MangaEntity(
         id = id,
         sourceId = sourceId,
@@ -117,6 +122,7 @@ class MangaRepositoryImpl @Inject constructor(
         favorite = favorite,
         initialized = initialized,
         autoDownload = autoDownload,
-        notes = notes
+        notes = notes,
+        notifyNewChapters = notifyNewChapters
     )
 }

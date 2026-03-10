@@ -54,6 +54,9 @@ interface MangaDao {
     @Query("UPDATE manga SET notes = :notes WHERE id = :id")
     suspend fun updateNote(id: Long, notes: String?)
 
+    @Query("UPDATE manga SET notifyNewChapters = :notify WHERE id = :id")
+    suspend fun updateNotifyNewChapters(id: Long, notify: Boolean)
+
     @Query("SELECT EXISTS(SELECT 1 FROM manga WHERE id = :id AND favorite = 1)")
     fun isFavorite(id: Long): Flow<Boolean>
     

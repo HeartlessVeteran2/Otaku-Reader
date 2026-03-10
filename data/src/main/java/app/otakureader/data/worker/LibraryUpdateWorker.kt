@@ -52,8 +52,7 @@ class LibraryUpdateWorker @AssistedInject constructor(
             val shouldAutoDownload = autoDownloadEnabled &&
                 (!downloadOnlyOnWifi || isConnectedToWifi())
 
-            var totalNewChapters = 0
-            var mangaWithNewChapters = 0
+            val mangaWithNewChapters = mutableListOf<NotificationManga>()
             var failedUpdates = 0
 
             // Update each manga
@@ -62,15 +61,21 @@ class LibraryUpdateWorker @AssistedInject constructor(
 
                 result.onSuccess { newChapterCount ->
                     if (newChapterCount > 0) {
-                        totalNewChapters += newChapterCount
-                        mangaWithNewChapters++
+                        // Only add to notification list if notifications enabled for this manga
+                        if (manga.notifyNewChapters) {
+                            mangaWithNewChapters.add(
+                                NotificationManga(
+                                    id = manga.id,
+                                    title = manga.title,
+                                    coverUrl = manga.thumbnailUrl,
+                                    newChapterCount = newChapterCount
+                                )
+                            )
+                        }
                     }
 
                     // Auto-download new chapters if enabled and conditions are met
                     if (shouldAutoDownload && newChapterCount > 0) {
-                        // Check if auto-download is enabled for this specific manga (per-manga override)
-                        // If manga.autoDownload is true, always download
-                        // If manga.autoDownload is false and global setting is true, download
                         val shouldDownloadForManga = manga.autoDownload || autoDownloadEnabled
 
                         if (shouldDownloadForManga) {
@@ -83,8 +88,12 @@ class LibraryUpdateWorker @AssistedInject constructor(
             }
 
             // Send notification if new chapters were found and notifications are enabled
-            if (notificationsEnabled && mangaWithNewChapters > 0) {
-                UpdateNotifier(applicationContext).notify(mangaWithNewChapters, totalNewChapters)
+            if (notificationsEnabled && mangaWithNewChapters.isNotEmpty()) {
+                val totalNewChapters = mangaWithNewChapters.sumOf { it.newChapterCount }
+                UpdateNotifier(applicationContext).notify(
+                    mangaWithNewChapters,
+                    totalNewChapters
+                )
             }
 
             // Consider it a success if at least some manga were updated successfully

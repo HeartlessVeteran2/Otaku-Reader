@@ -17,4 +17,5 @@ interface MangaRepository {
     suspend fun updateAutoDownload(id: Long, autoDownload: Boolean)
     fun isFavorite(id: Long): Flow<Boolean>
     suspend fun updateMangaNote(id: Long, notes: String?)
+    suspend fun updateNotifyNewChapters(id: Long, notify: Boolean)
 }
