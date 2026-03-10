@@ -2,6 +2,7 @@ package app.otakureader.feature.browse
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.domain.usecase.source.GetSourcesUseCase
 import app.otakureader.domain.usecase.source.GlobalSearchUseCase
 import app.otakureader.sourceapi.MangaSource
@@ -10,6 +11,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -20,7 +22,8 @@ import javax.inject.Inject
 @HiltViewModel
 class GlobalSearchViewModel @Inject constructor(
     private val getSourcesUseCase: GetSourcesUseCase,
-    private val globalSearchUseCase: GlobalSearchUseCase
+    private val globalSearchUseCase: GlobalSearchUseCase,
+    private val generalPreferences: GeneralPreferences
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(GlobalSearchState())
@@ -68,7 +71,14 @@ class GlobalSearchViewModel @Inject constructor(
         // Cancel any in-flight search so stale results can't overwrite the new query's results
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
-            val sources: List<MangaSource> = getSourcesUseCase().first()
+            // Filter sources by NSFW preference
+            val allSources: List<MangaSource> = getSourcesUseCase().first()
+            val showNsfw = generalPreferences.showNsfwContent.first()
+            val sources = if (showNsfw) {
+                allSources
+            } else {
+                allSources.filter { !it.isNsfw }
+            }
 
             if (sources.isEmpty()) {
                 _state.update { it.copy(isSearching = false, sourceResults = emptyList()) }
