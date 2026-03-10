@@ -65,7 +65,7 @@ internal class UpdateNotifier(private val context: Context) {
         // Build individual notifications for each manga
         mangaList.forEach { manga ->
             val notification = buildMangaNotification(manga)
-            notificationManager.notify(manga.id.toInt(), notification)
+            notificationManager.notify(manga.id.hashCode(), notification)
         }
 
         // Build and show summary notification
