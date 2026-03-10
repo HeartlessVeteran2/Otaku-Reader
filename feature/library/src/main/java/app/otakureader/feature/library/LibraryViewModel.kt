@@ -257,6 +257,6 @@ class LibraryViewModel @Inject constructor(
         sourceId = sourceId,
         isDownloaded = false, // TODO: Check download status
         hasTracking = false, // TODO: Check tracking status
-        isNsfw = false // TODO: Get from source extension
+        isNsfw = isNsfw
     )
 }
