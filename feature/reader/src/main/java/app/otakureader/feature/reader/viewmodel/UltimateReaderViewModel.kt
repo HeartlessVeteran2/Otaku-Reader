@@ -118,9 +118,9 @@ class UltimateReaderViewModel @Inject constructor(
 
             // Apply per-manga overrides if they exist (#260)
             val effectiveMode = manga?.readerMode?.let { ReaderMode.entries.getOrNull(it) } ?: mode
-            val effectiveDirection = manga?.readerDirection?.let { 
-                if (it == 0) ReadingDirection.LTR else ReadingDirection.RTL 
-            } ?: direction
+            val effectiveDirection = manga?.readerDirection
+                ?.let { ReadingDirection.entries.getOrNull(it) }
+                ?: direction
             val effectiveColorFilter = manga?.readerColorFilter?.let { 
                 ColorFilterMode.entries.getOrNull(it) 
             } ?: colorFilterMode
