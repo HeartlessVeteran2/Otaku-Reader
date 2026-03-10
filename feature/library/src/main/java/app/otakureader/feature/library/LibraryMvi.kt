@@ -1,5 +1,23 @@
 package app.otakureader.feature.library
 
+import app.otakureader.domain.model.MangaStatus
+
+enum class LibrarySortMode {
+    ALPHABETICAL,
+    LAST_READ,
+    DATE_ADDED,
+    UNREAD_COUNT,
+    SOURCE
+}
+
+enum class LibraryFilterMode {
+    ALL,
+    DOWNLOADED,
+    UNREAD,
+    COMPLETED,
+    TRACKING
+}
+
 data class LibraryState(
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
@@ -11,7 +29,11 @@ data class LibraryState(
     val selectedCategory: Long? = null,
     val gridSize: Int = 3,
     val showBadges: Boolean = true,
-    val filterHasNotes: Boolean = false
+    val filterHasNotes: Boolean = false,
+    val sortMode: LibrarySortMode = LibrarySortMode.ALPHABETICAL,
+    val filterMode: LibraryFilterMode = LibraryFilterMode.ALL,
+    val filterSourceId: Long? = null,
+    val showNsfw: Boolean = false
 )
 
 data class LibraryMangaItem(
@@ -20,7 +42,13 @@ data class LibraryMangaItem(
     val thumbnailUrl: String?,
     val unreadCount: Int,
     val isFavorite: Boolean,
-    val hasNote: Boolean = false
+    val hasNote: Boolean = false,
+    val sourceId: Long = 0,
+    val isDownloaded: Boolean = false,
+    val hasTracking: Boolean = false,
+    val isNsfw: Boolean = false,
+    val lastRead: Long? = null,
+    val status: MangaStatus = MangaStatus.UNKNOWN
 )
 
 data class CategoryItem(
@@ -38,6 +66,10 @@ sealed class LibraryEvent {
     data object ClearSelection : LibraryEvent()
     data class ToggleFavorite(val mangaId: Long) : LibraryEvent()
     data class FilterHasNotes(val enabled: Boolean) : LibraryEvent()
+    data class SetSortMode(val mode: LibrarySortMode) : LibraryEvent()
+    data class SetFilterMode(val mode: LibraryFilterMode) : LibraryEvent()
+    data class SetFilterSource(val sourceId: Long?) : LibraryEvent()
+    data class ToggleNsfw(val show: Boolean) : LibraryEvent()
 }
 
 sealed class LibraryEffect {

@@ -1,8 +1,10 @@
 package app.otakureader.feature.library
 
 import android.content.Context
+import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.LibraryPreferences
 import app.otakureader.domain.model.Manga
+import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.usecase.GetLibraryMangaUseCase
 import app.otakureader.domain.usecase.ToggleFavoriteMangaUseCase
 import app.cash.turbine.test
@@ -33,11 +35,12 @@ class LibraryViewModelTest {
     private lateinit var getLibraryManga: GetLibraryMangaUseCase
     private lateinit var toggleFavoriteManga: ToggleFavoriteMangaUseCase
     private lateinit var libraryPreferences: LibraryPreferences
+    private lateinit var generalPreferences: GeneralPreferences
 
     private val sampleMangas = listOf(
-        Manga(id = 1L, sourceId = 1L, url = "/m/1", title = "Naruto", favorite = true, unreadCount = 3),
-        Manga(id = 2L, sourceId = 1L, url = "/m/2", title = "Bleach", favorite = true, unreadCount = 0),
-        Manga(id = 3L, sourceId = 1L, url = "/m/3", title = "One Piece", favorite = true, unreadCount = 7)
+        Manga(id = 1L, sourceId = 10L, url = "/m/1", title = "Naruto", favorite = true, unreadCount = 3, lastRead = 1000L, status = MangaStatus.ONGOING),
+        Manga(id = 2L, sourceId = 20L, url = "/m/2", title = "Bleach", favorite = true, unreadCount = 0, lastRead = 2000L, status = MangaStatus.COMPLETED),
+        Manga(id = 3L, sourceId = 10L, url = "/m/3", title = "One Piece", favorite = true, unreadCount = 7, lastRead = null, status = MangaStatus.ONGOING)
     )
 
     @Before
@@ -49,6 +52,12 @@ class LibraryViewModelTest {
         libraryPreferences = mockk {
             every { gridSize } returns flowOf(3)
             every { showBadges } returns flowOf(true)
+            every { librarySortMode } returns flowOf(0)
+            every { libraryFilterMode } returns flowOf(0)
+            every { libraryFilterSourceId } returns flowOf(null)
+        }
+        generalPreferences = mockk {
+            every { showNsfwContent } returns flowOf(true)
         }
     }
 
@@ -58,7 +67,7 @@ class LibraryViewModelTest {
     }
 
     private fun createViewModel(): LibraryViewModel {
-        return LibraryViewModel(context, getLibraryManga, toggleFavoriteManga, libraryPreferences)
+        return LibraryViewModel(context, getLibraryManga, toggleFavoriteManga, libraryPreferences, generalPreferences)
     }
 
     @Test
@@ -249,5 +258,128 @@ class LibraryViewModelTest {
         assertEquals("Database error", viewModel.state.value.error)
         assertFalse(viewModel.state.value.isLoading)
     }
-}
 
+    // --- Sort mode tests ---
+
+    @Test
+    fun sortMode_ALPHABETICAL_sortsByTitle() = runTest {
+        every { libraryPreferences.librarySortMode } returns flowOf(LibrarySortMode.ALPHABETICAL.ordinal)
+        every { getLibraryManga() } returns flowOf(sampleMangas)
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val titles = viewModel.state.value.mangaList.map { it.title }
+        assertEquals(listOf("Bleach", "Naruto", "One Piece"), titles)
+    }
+
+    @Test
+    fun sortMode_LAST_READ_sortsByLastReadDescending() = runTest {
+        every { libraryPreferences.librarySortMode } returns flowOf(LibrarySortMode.LAST_READ.ordinal)
+        every { getLibraryManga() } returns flowOf(sampleMangas)
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Bleach(lastRead=2000) > Naruto(lastRead=1000) > One Piece(lastRead=null=0)
+        val ids = viewModel.state.value.mangaList.map { it.id }
+        assertEquals(listOf(2L, 1L, 3L), ids)
+    }
+
+    @Test
+    fun sortMode_UNREAD_COUNT_sortsByUnreadDescending() = runTest {
+        every { libraryPreferences.librarySortMode } returns flowOf(LibrarySortMode.UNREAD_COUNT.ordinal)
+        every { getLibraryManga() } returns flowOf(sampleMangas)
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // One Piece(7) > Naruto(3) > Bleach(0)
+        val ids = viewModel.state.value.mangaList.map { it.id }
+        assertEquals(listOf(3L, 1L, 2L), ids)
+    }
+
+    @Test
+    fun sortMode_SOURCE_sortsBySourceId() = runTest {
+        every { libraryPreferences.librarySortMode } returns flowOf(LibrarySortMode.SOURCE.ordinal)
+        every { getLibraryManga() } returns flowOf(sampleMangas)
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // sourceId 10 (Naruto, One Piece) then 20 (Bleach)
+        val sourceIds = viewModel.state.value.mangaList.map { it.sourceId }
+        assertTrue(sourceIds.first() < sourceIds.last())
+    }
+
+    // --- Filter mode tests ---
+
+    @Test
+    fun filterMode_UNREAD_showsOnlyUnreadManga() = runTest {
+        every { libraryPreferences.libraryFilterMode } returns flowOf(LibraryFilterMode.UNREAD.ordinal)
+        every { getLibraryManga() } returns flowOf(sampleMangas)
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Only Naruto(3) and One Piece(7) have unread > 0
+        assertEquals(2, viewModel.state.value.mangaList.size)
+        assertTrue(viewModel.state.value.mangaList.none { it.id == 2L })
+    }
+
+    @Test
+    fun filterMode_COMPLETED_showsOnlyCompletedManga() = runTest {
+        every { libraryPreferences.libraryFilterMode } returns flowOf(LibraryFilterMode.COMPLETED.ordinal)
+        every { getLibraryManga() } returns flowOf(sampleMangas)
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Only Bleach has status COMPLETED
+        assertEquals(1, viewModel.state.value.mangaList.size)
+        assertEquals(2L, viewModel.state.value.mangaList.first().id)
+    }
+
+    @Test
+    fun filterMode_ALL_showsAllManga() = runTest {
+        every { libraryPreferences.libraryFilterMode } returns flowOf(LibraryFilterMode.ALL.ordinal)
+        every { getLibraryManga() } returns flowOf(sampleMangas)
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(3, viewModel.state.value.mangaList.size)
+    }
+
+    // --- NSFW filter test ---
+
+    @Test
+    fun nsfw_filterAppliedWithoutCrash_whenShowNsfwFalse() = runTest {
+        // NOTE: isNsfw is always false in toLibraryItem() until source/extension metadata is
+        // wired, so no items are actually hidden yet. This test verifies the NSFW filter
+        // code path runs without errors and state remains consistent.
+        // TODO: Once isNsfw is populated from source metadata, assert that NSFW items are hidden.
+        every { generalPreferences.showNsfwContent } returns flowOf(false)
+        val nsfwManga = Manga(id = 99L, sourceId = 5L, url = "/m/99", title = "Adult Title", favorite = true)
+        every { getLibraryManga() } returns flowOf(sampleMangas + nsfwManga)
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertFalse(viewModel.state.value.isLoading)
+        assertEquals(4, viewModel.state.value.mangaList.size)
+    }
+
+    @Test
+    fun filterSource_filtersToSpecificSource() = runTest {
+        every { libraryPreferences.libraryFilterSourceId } returns flowOf(10L)
+        every { getLibraryManga() } returns flowOf(sampleMangas)
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Only Naruto and One Piece have sourceId 10
+        assertEquals(2, viewModel.state.value.mangaList.size)
+        assertTrue(viewModel.state.value.mangaList.all { it.sourceId == 10L })
+    }
+}
