@@ -3,11 +3,13 @@ package app.otakureader.feature.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.otakureader.core.preferences.AppPreferences
+import app.otakureader.core.preferences.BackupPreferences
 import app.otakureader.core.preferences.DownloadPreferences
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.LibraryPreferences
 import app.otakureader.core.preferences.LocalSourcePreferences
 import app.otakureader.core.preferences.ReaderPreferences
+import app.otakureader.data.backup.BackupScheduler
 import app.otakureader.data.tracking.TrackManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
@@ -15,6 +17,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -27,7 +30,9 @@ class SettingsViewModel @Inject constructor(
     private val readerPreferences: ReaderPreferences,
     private val downloadPreferences: DownloadPreferences,
     private val localSourcePreferences: LocalSourcePreferences,
+    private val backupPreferences: BackupPreferences,
     private val backupRepository: app.otakureader.data.backup.repository.BackupRepository,
+    private val backupScheduler: BackupScheduler,
     private val readerSettingsRepository: app.otakureader.feature.reader.repository.ReaderSettingsRepository,
     private val trackManager: TrackManager,
     private val appPreferences: AppPreferences
@@ -95,6 +100,12 @@ class SettingsViewModel @Inject constructor(
                 state.copy(migrationMinChapterCount = minChapters)
             }.combine(generalPreferences.showNsfwContent) { state, showNsfw ->
                 state.copy(showNsfwContent = showNsfw)
+            }.combine(backupPreferences.autoBackupEnabled) { state, enabled ->
+                state.copy(autoBackupEnabled = enabled)
+            }.combine(backupPreferences.autoBackupIntervalHours) { state, hours ->
+                state.copy(autoBackupIntervalHours = hours)
+            }.combine(backupPreferences.autoBackupMaxCount) { state, count ->
+                state.copy(autoBackupMaxCount = count)
             }.collect { newState ->
                 _state.update { current ->
                     newState.copy(
@@ -133,6 +144,11 @@ class SettingsViewModel @Inject constructor(
                 is SettingsEvent.SetLocalSourceDirectory -> localSourcePreferences.setLocalSourceDirectory(event.path)
                 SettingsEvent.OnCreateBackup -> _effect.send(SettingsEffect.ShowBackupPicker)
                 SettingsEvent.OnRestoreBackup -> _effect.send(SettingsEffect.ShowRestorePicker)
+                is SettingsEvent.SetAutoBackupEnabled -> handleSetAutoBackupEnabled(event.enabled)
+                is SettingsEvent.SetAutoBackupInterval -> handleSetAutoBackupInterval(event.hours)
+                is SettingsEvent.SetAutoBackupMaxCount -> backupPreferences.setAutoBackupMaxCount(event.count)
+                SettingsEvent.RefreshLocalBackups -> refreshLocalBackups()
+                is SettingsEvent.RestoreLocalBackup -> restoreLocalBackup(event.fileName)
                 is SettingsEvent.LoginTracker -> loginTracker(event.trackerId, event.username, event.password)
                 is SettingsEvent.LogoutTracker -> logoutTracker(event.trackerId)
                 is SettingsEvent.SetMigrationSimilarityThreshold ->
@@ -203,6 +219,48 @@ class SettingsViewModel @Inject constructor(
             } finally {
                 _state.update { it.copy(isRestoreInProgress = false) }
             }
+        }
+    }
+
+    private suspend fun handleSetAutoBackupEnabled(enabled: Boolean) {
+        backupPreferences.setAutoBackupEnabled(enabled)
+        if (enabled) {
+            val hours = backupPreferences.autoBackupIntervalHours.first()
+            backupScheduler.schedule(hours)
+        } else {
+            backupScheduler.cancel()
+        }
+    }
+
+    private suspend fun handleSetAutoBackupInterval(hours: Int) {
+        backupPreferences.setAutoBackupIntervalHours(hours)
+        val enabled = backupPreferences.autoBackupEnabled.first()
+        if (enabled) {
+            backupScheduler.schedule(hours)
+        }
+    }
+
+    private suspend fun refreshLocalBackups() {
+        try {
+            val files = backupRepository.listLocalBackups().map { it.name }
+            _state.update { it.copy(localBackupFiles = files) }
+        } catch (e: Exception) {
+            _effect.send(SettingsEffect.ShowSnackbar("Could not list backups: ${e.message}"))
+        }
+    }
+
+    private suspend fun restoreLocalBackup(fileName: String) {
+        _state.update { it.copy(isRestoreInProgress = true, restoringBackupFileName = fileName) }
+        try {
+            val files = backupRepository.listLocalBackups()
+            val file = files.firstOrNull { it.name == fileName }
+                ?: throw IllegalArgumentException("Backup file not found: $fileName")
+            backupRepository.restoreLocalBackup(file)
+            _effect.send(SettingsEffect.ShowSnackbar("Backup restored successfully"))
+        } catch (e: Exception) {
+            _effect.send(SettingsEffect.ShowSnackbar("Restore failed: ${e.message}"))
+        } finally {
+            _state.update { it.copy(isRestoreInProgress = false, restoringBackupFileName = null) }
         }
     }
 }

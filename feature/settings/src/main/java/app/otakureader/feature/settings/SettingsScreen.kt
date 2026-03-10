@@ -85,6 +85,7 @@ fun SettingsScreen(
 
     // Collect effects
     LaunchedEffect(Unit) {
+        viewModel.onEvent(SettingsEvent.RefreshLocalBackups)
         viewModel.effect.collect { effect ->
             when (effect) {
                 is SettingsEffect.ShowSnackbar -> {
@@ -617,6 +618,119 @@ private fun DataStorageSection(state: SettingsState, onEvent: (SettingsEvent) ->
                     }
                 }
             )
+
+            // ── Automatic backups ──
+            HorizontalDivider()
+            SectionHeader(title = "Automatic Backups")
+
+            ListItem(
+                headlineContent = { Text("Enable automatic backups") },
+                supportingContent = { Text("Periodically save a backup to device storage") },
+                trailingContent = {
+                    Switch(
+                        checked = state.autoBackupEnabled,
+                        onCheckedChange = { onEvent(SettingsEvent.SetAutoBackupEnabled(it)) }
+                    )
+                }
+            )
+
+            if (state.autoBackupEnabled) {
+                ListItem(
+                    headlineContent = { Text("Backup frequency") },
+                    supportingContent = {
+                        Column(modifier = Modifier.selectableGroup()) {
+                            val options = listOf(
+                                "Every 6 hours" to 6,
+                                "Every 12 hours" to 12,
+                                "Daily" to 24,
+                                "Every 2 days" to 48,
+                                "Weekly" to 168
+                            )
+                            options.forEach { (label, hours) ->
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .selectable(
+                                            selected = state.autoBackupIntervalHours == hours,
+                                            onClick = { onEvent(SettingsEvent.SetAutoBackupInterval(hours)) },
+                                            role = Role.RadioButton
+                                        )
+                                        .padding(vertical = 4.dp)
+                                ) {
+                                    RadioButton(
+                                        selected = state.autoBackupIntervalHours == hours,
+                                        onClick = null
+                                    )
+                                    Text(
+                                        text = label,
+                                        modifier = Modifier.padding(start = 8.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                )
+
+                ListItem(
+                    headlineContent = { Text("Backups to keep") },
+                    supportingContent = {
+                        Column(modifier = Modifier.selectableGroup()) {
+                            listOf(3, 5, 10).forEach { count ->
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .selectable(
+                                            selected = state.autoBackupMaxCount == count,
+                                            onClick = { onEvent(SettingsEvent.SetAutoBackupMaxCount(count)) },
+                                            role = Role.RadioButton
+                                        )
+                                        .padding(vertical = 4.dp)
+                                ) {
+                                    RadioButton(
+                                        selected = state.autoBackupMaxCount == count,
+                                        onClick = null
+                                    )
+                                    Text(
+                                        text = "$count backups",
+                                        modifier = Modifier.padding(start = 8.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                )
+
+                if (state.localBackupFiles.isNotEmpty()) {
+                    SectionHeader(title = "Restore from automatic backup")
+                    state.localBackupFiles.forEach { fileName ->
+                        val isRestoringThisFile = state.restoringBackupFileName == fileName
+                        ListItem(
+                            headlineContent = { Text(fileName) },
+                            trailingContent = {
+                                if (isRestoringThisFile) {
+                                    CircularProgressIndicator()
+                                } else {
+                                    OutlinedButton(
+                                        enabled = !state.isRestoreInProgress,
+                                        onClick = { onEvent(SettingsEvent.RestoreLocalBackup(fileName)) }
+                                    ) {
+                                        Text("Restore")
+                                    }
+                                }
+                            }
+                        )
+                    }
+                } else {
+                    ListItem(
+                        headlineContent = { Text("No automatic backups yet") },
+                        supportingContent = { Text("Backups will appear here once created") }
+                    )
+                }
+            }
+
+            HorizontalDivider()
 
             ListItem(
                 headlineContent = { Text("Migrate manga") },

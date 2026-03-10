@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import app.otakureader.core.preferences.AppPreferences
+import app.otakureader.core.preferences.BackupPreferences
 import app.otakureader.core.preferences.DownloadPreferences
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.LibraryPreferences
@@ -94,4 +95,9 @@ object PreferencesModule {
     @Singleton
     fun provideLocalSourcePreferences(dataStore: DataStore<Preferences>): LocalSourcePreferences =
         LocalSourcePreferences(dataStore)
+
+    @Provides
+    @Singleton
+    fun provideBackupPreferences(dataStore: DataStore<Preferences>): BackupPreferences =
+        BackupPreferences(dataStore)
 }

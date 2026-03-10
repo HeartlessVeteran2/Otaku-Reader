@@ -32,6 +32,12 @@ data class SettingsState(
     val localSourceDirectory: String = LocalSourcePreferences.defaultDirectory(), // Local source scan directory
     val isBackupInProgress: Boolean = false,
     val isRestoreInProgress: Boolean = false,
+    val restoringBackupFileName: String? = null,
+    // --- Auto-backup settings ---
+    val autoBackupEnabled: Boolean = false,
+    val autoBackupIntervalHours: Int = 24,
+    val autoBackupMaxCount: Int = 5,
+    val localBackupFiles: List<String> = emptyList(),
     val trackers: List<TrackerInfo> = emptyList(),
     val trackingLoginInProgress: Boolean = false,
     // --- Migration settings ---
@@ -63,6 +69,12 @@ sealed interface SettingsEvent : UiEvent {
     data class SetLocalSourceDirectory(val path: String) : SettingsEvent
     data object OnCreateBackup : SettingsEvent
     data object OnRestoreBackup : SettingsEvent
+    // Auto-backup events
+    data class SetAutoBackupEnabled(val enabled: Boolean) : SettingsEvent
+    data class SetAutoBackupInterval(val hours: Int) : SettingsEvent
+    data class SetAutoBackupMaxCount(val count: Int) : SettingsEvent
+    data object RefreshLocalBackups : SettingsEvent
+    data class RestoreLocalBackup(val fileName: String) : SettingsEvent
     data class LoginTracker(val trackerId: Int, val username: String, val password: String) : SettingsEvent
     data class LogoutTracker(val trackerId: Int) : SettingsEvent
     data class SetMigrationSimilarityThreshold(val threshold: Float) : SettingsEvent
