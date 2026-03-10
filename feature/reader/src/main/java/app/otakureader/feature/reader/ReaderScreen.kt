@@ -212,10 +212,12 @@ fun ReaderScreen(
             brightness = state.brightness,
             colorFilterMode = state.colorFilterMode,
             customTintColor = state.customTintColor,
+            readerBackgroundColor = state.readerBackgroundColor,
             onBrightnessChange = { viewModel.onEvent(ReaderEvent.OnBrightnessChange(it)) },
             onModeChange = { viewModel.onEvent(ReaderEvent.OnModeChange(it)) },
             onColorFilterChange = { viewModel.onEvent(ReaderEvent.SetColorFilterMode(it)) },
             onCustomTintColorChange = { viewModel.onEvent(ReaderEvent.SetCustomTintColor(it)) },
+            onReaderBackgroundColorChange = { viewModel.onEvent(ReaderEvent.SetReaderBackgroundColor(it)) },
             onZoomIn = { viewModel.onEvent(ReaderEvent.ZoomIn) },
             onZoomOut = { viewModel.onEvent(ReaderEvent.ZoomOut) },
             onResetZoom = { viewModel.onEvent(ReaderEvent.ResetZoom) },
@@ -287,11 +289,18 @@ private fun ReaderContent(
     onDoubleTap: (Offset) -> Unit,
     onZoomChange: (Float) -> Unit
 ) {
+    // Use the per-manga background color if set, otherwise default to black
+    val backgroundColor = if (state.readerBackgroundColor != null) {
+        Color(state.readerBackgroundColor.toInt())
+    } else {
+        Color.Black
+    }
+
     // CompositingStrategy.Offscreen ensures blend modes in the Canvas overlay work correctly
     // against the already-rendered page content below them.
     val boxModifier = Modifier
         .fillMaxSize()
-        .background(androidx.compose.ui.graphics.Color.Black)
+        .background(backgroundColor)
         .let { base ->
             if (state.colorFilterMode != ColorFilterMode.NONE) {
                 base.graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)

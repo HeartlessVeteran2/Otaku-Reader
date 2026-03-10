@@ -132,14 +132,7 @@ class MangaRepositoryImpl @Inject constructor(
         autoDownload = autoDownload,
         notes = notes,
         notifyNewChapters = notifyNewChapters,
-        // Per-manga reader settings (#260)
-        readerDirection = readerDirection,
-        readerMode = readerMode,
-        readerColorFilter = readerColorFilter,
-        readerCustomTintColor = readerCustomTintColor,
-        // Page preloading settings (#264)
-        preloadPagesBefore = preloadPagesBefore,
-        preloadPagesAfter = preloadPagesAfter
+        readerBackgroundColor = readerBackgroundColor
     )
 
     private fun Manga.toEntity() = MangaEntity(
@@ -158,13 +151,6 @@ class MangaRepositoryImpl @Inject constructor(
         autoDownload = autoDownload,
         notes = notes,
         notifyNewChapters = notifyNewChapters,
-        // Per-manga reader settings (#260)
-        readerDirection = readerDirection,
-        readerMode = readerMode,
-        readerColorFilter = readerColorFilter,
-        readerCustomTintColor = readerCustomTintColor,
-        // Page preloading settings (#264)
-        preloadPagesBefore = preloadPagesBefore,
-        preloadPagesAfter = preloadPagesAfter
+        readerBackgroundColor = readerBackgroundColor
     )
 }

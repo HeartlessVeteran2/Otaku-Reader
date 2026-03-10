@@ -196,6 +196,11 @@ sealed interface ReaderEvent {
      */
     data class SetCustomTintColor(val color: Long) : ReaderEvent
 
+    /**
+     * Set the per-manga reader background color (ARGB Long), or null to reset to default.
+     */
+    data class SetReaderBackgroundColor(val color: Long?) : ReaderEvent
+
     companion object {
         /** Default zoom increment for zoom in/out operations */
         const val ZOOM_INCREMENT = 0.25f

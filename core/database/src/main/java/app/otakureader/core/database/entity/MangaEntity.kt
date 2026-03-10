@@ -35,14 +35,8 @@ data class MangaEntity(
     val autoDownload: Boolean = false,
     val notes: String? = null,
     val notifyNewChapters: Boolean = true,
-    // Per-manga reader settings (#260)
-    val readerDirection: Int? = null, // Reader direction enum ordinal
-    val readerMode: Int? = null, // 0=single, 1=dual, 2=webtoon, 3=smart panels
-    val readerColorFilter: Int? = null, // ColorFilterMode ordinal
-    val readerCustomTintColor: Long? = null, // ARGB color
-    // Page preloading settings (#264)
-    val preloadPagesBefore: Int? = null,
-    val preloadPagesAfter: Int? = null
+    /** Per-manga reader background color as ARGB Long, or null for default. */
+    val readerBackgroundColor: Long? = null
 )
 
 enum class MangaStatus {

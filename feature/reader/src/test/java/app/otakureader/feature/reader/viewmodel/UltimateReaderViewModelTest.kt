@@ -2,6 +2,8 @@ package app.otakureader.feature.reader.viewmodel
 
 import androidx.lifecycle.SavedStateHandle
 import app.otakureader.data.loader.PageLoader
+import app.otakureader.domain.model.Chapter
+import app.otakureader.domain.model.Manga
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.feature.reader.model.ColorFilterMode
@@ -10,6 +12,7 @@ import app.otakureader.feature.reader.model.ReaderPage
 import app.otakureader.feature.reader.model.ReadingDirection
 import app.otakureader.feature.reader.repository.ReaderSettingsRepository
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
@@ -24,6 +27,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -254,5 +258,61 @@ class UltimateReaderViewModelTest {
         vm.onEvent(ReaderEvent.SetCustomTintColor(newColor))
         testDispatcher.scheduler.advanceUntilIdle()
         assertEquals(newColor, vm.state.value.customTintColor)
+    }
+
+    // ---- Reader background color ----
+
+    @Test
+    fun `SetReaderBackgroundColor updates state`() = runTest {
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertNull(vm.state.value.readerBackgroundColor)
+
+        vm.onEvent(ReaderEvent.SetReaderBackgroundColor(0xFF1A1A1AL))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(0xFF1A1A1AL, vm.state.value.readerBackgroundColor)
+    }
+
+    @Test
+    fun `SetReaderBackgroundColor with null resets to default`() = runTest {
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        vm.onEvent(ReaderEvent.SetReaderBackgroundColor(0xFFF5E6CCL))
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(0xFFF5E6CCL, vm.state.value.readerBackgroundColor)
+
+        vm.onEvent(ReaderEvent.SetReaderBackgroundColor(null))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertNull(vm.state.value.readerBackgroundColor)
+    }
+
+    @Test
+    fun `SetReaderBackgroundColor persists to repository when manga is loaded`() = runTest {
+        // Provide a real chapter and manga so loadChapter() populates currentManga.
+        val chapter = Chapter(
+            id = chapterId, mangaId = mangaId, url = "/ch/1", name = "Chapter 1"
+        )
+        val manga = Manga(
+            id = mangaId, sourceId = 1L, url = "/m/1", title = "Test Manga"
+        )
+        coEvery { chapterRepository.getChapterById(chapterId) } returns chapter
+        coEvery { mangaRepository.getMangaById(mangaId) } returns manga
+        coEvery { mangaRepository.updateManga(any()) } just runs
+        coEvery { chapterRepository.recordHistory(any(), any(), any()) } just runs
+
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        vm.onEvent(ReaderEvent.SetReaderBackgroundColor(0xFF333333L))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(0xFF333333L, vm.state.value.readerBackgroundColor)
+        coVerify {
+            mangaRepository.updateManga(match { it.readerBackgroundColor == 0xFF333333L })
+        }
     }
 }

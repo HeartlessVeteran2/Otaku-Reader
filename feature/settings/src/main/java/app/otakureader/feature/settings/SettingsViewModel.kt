@@ -66,10 +66,12 @@ class SettingsViewModel @Inject constructor(
                     updateCheckInterval = updateInterval
                     // deleteAfterReading feature has been removed
                 )
-            }.combine(generalPreferences.notificationsEnabled) { state, notificationsEnabled ->
-                state.copy(notificationsEnabled = notificationsEnabled)
-            }.combine(generalPreferences.updateCheckInterval) { state, updateInterval ->
-                state.copy(updateCheckInterval = updateInterval)
+            }.combine(generalPreferences.usePureBlackDarkMode) { state, usePureBlack ->
+                state.copy(usePureBlackDarkMode = usePureBlack)
+            }.combine(generalPreferences.colorScheme) { state, colorScheme ->
+                state.copy(colorScheme = colorScheme)
+            }.combine(generalPreferences.customAccentColor) { state, customAccent ->
+                state.copy(customAccentColor = customAccent)
             }.combine(downloadPreferences.deleteAfterReading) { state, deleteAfterReading ->
                 state.copy(deleteAfterReading = deleteAfterReading)
             }.combine(libraryPreferences.gridSize) { state, gridSize ->
@@ -161,6 +163,8 @@ class SettingsViewModel @Inject constructor(
                     _effect.send(SettingsEffect.NavigateToMigrationEntry)
                 is SettingsEvent.SetShowNsfwContent ->
                     generalPreferences.setShowNsfwContent(event.enabled)
+                is SettingsEvent.SetCustomAccentColor ->
+                    generalPreferences.setCustomAccentColor(event.color)
             }
         }
     }

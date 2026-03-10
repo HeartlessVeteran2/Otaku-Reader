@@ -189,7 +189,8 @@ class UltimateReaderViewModel @Inject constructor(
                         pages = pages,
                         currentPage = chapter.lastPageRead.coerceIn(0, (pages.size - 1).coerceAtLeast(0)),
                         isLoading = false,
-                        chapterTitle = chapter.name
+                        chapterTitle = chapter.name,
+                        readerBackgroundColor = manga.readerBackgroundColor
                     )
                 }
 
@@ -295,6 +296,7 @@ class UltimateReaderViewModel @Inject constructor(
             ReaderEvent.BrightnessDown -> updateBrightness(_state.value.brightness - BRIGHTNESS_INCREMENT)
             is ReaderEvent.SetColorFilterMode -> updateColorFilterMode(event.mode)
             is ReaderEvent.SetCustomTintColor -> updateCustomTintColor(event.color)
+            is ReaderEvent.SetReaderBackgroundColor -> updateReaderBackgroundColor(event.color)
             ReaderEvent.AutoScrollSpeedUp -> updateAutoScrollSpeed(_state.value.autoScrollSpeed + AUTO_SCROLL_INCREMENT)
             ReaderEvent.AutoScrollSpeedDown -> updateAutoScrollSpeed(_state.value.autoScrollSpeed - AUTO_SCROLL_INCREMENT)
             ReaderEvent.FirstPage -> changePage(0)
@@ -366,6 +368,20 @@ class UltimateReaderViewModel @Inject constructor(
         _state.update { it.copy(customTintColor = color) }
         viewModelScope.launch {
             settingsRepository.setCustomTintColor(color)
+        }
+    }
+
+    /**
+     * Updates the per-manga reader background color and persists it to the database.
+     * Pass null to reset to the default background.
+     */
+    private fun updateReaderBackgroundColor(color: Long?) {
+        _state.update { it.copy(readerBackgroundColor = color) }
+        viewModelScope.launch {
+            currentManga?.let { manga ->
+                mangaRepository.updateManga(manga.copy(readerBackgroundColor = color))
+                currentManga = manga.copy(readerBackgroundColor = color)
+            }
         }
     }
 

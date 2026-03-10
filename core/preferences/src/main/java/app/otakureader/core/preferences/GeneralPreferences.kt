@@ -47,6 +47,14 @@ class GeneralPreferences(private val dataStore: DataStore<Preferences>) {
     val colorScheme: Flow<Int> = dataStore.data.map { it[Keys.COLOR_SCHEME] ?: 0 }
     suspend fun setColorScheme(value: Int) = dataStore.edit { it[Keys.COLOR_SCHEME] = value }
 
+    /**
+     * Custom accent color stored as an ARGB Long.
+     * Used when colorScheme == COLOR_SCHEME_CUSTOM_ACCENT ("Custom") to generate a personalized color scheme.
+     * Default is Material Blue (0xFF1976D2).
+     */
+    val customAccentColor: Flow<Long> = dataStore.data.map { it[Keys.CUSTOM_ACCENT_COLOR] ?: 0xFF1976D2L }
+    suspend fun setCustomAccentColor(value: Long) = dataStore.edit { it[Keys.CUSTOM_ACCENT_COLOR] = value }
+
     // --- Locale ---
 
     /** BCP-47 language tag for the app locale, or empty string to follow the system default. */
@@ -76,6 +84,7 @@ class GeneralPreferences(private val dataStore: DataStore<Preferences>) {
         val USE_DYNAMIC_COLOR = booleanPreferencesKey("use_dynamic_color")
         val USE_PURE_BLACK_DARK_MODE = booleanPreferencesKey("use_pure_black_dark_mode")
         val COLOR_SCHEME = intPreferencesKey("color_scheme")
+        val CUSTOM_ACCENT_COLOR = longPreferencesKey("custom_accent_color")
         val LOCALE = stringPreferencesKey("locale")
         val NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
         val UPDATE_CHECK_INTERVAL = intPreferencesKey("update_check_interval")

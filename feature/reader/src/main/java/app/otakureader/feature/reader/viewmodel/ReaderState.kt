@@ -81,7 +81,10 @@ data class ReaderState(
     val colorFilterMode: ColorFilterMode = ColorFilterMode.NONE,
 
     /** Custom tint color used when colorFilterMode == CUSTOM_TINT (ARGB color 0xAARRGGBB stored in a Long) */
-    val customTintColor: Long = 0x4000AAFFL
+    val customTintColor: Long = 0x4000AAFFL,
+
+    /** Per-manga reader background color (ARGB Long), or null for default (black). */
+    val readerBackgroundColor: Long? = null
 ) {
     /** Total pages in chapter (derived from pages.size) */
     val totalPages: Int get() = pages.size

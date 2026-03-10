@@ -52,6 +52,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -77,10 +79,12 @@ fun ReaderMenuOverlay(
     brightness: Float,
     colorFilterMode: ColorFilterMode = ColorFilterMode.NONE,
     customTintColor: Long = DEFAULT_CUSTOM_TINT_COLOR,
+    readerBackgroundColor: Long? = null,
     onBrightnessChange: (Float) -> Unit,
     onModeChange: (ReaderMode) -> Unit,
     onColorFilterChange: (ColorFilterMode) -> Unit = {},
     onCustomTintColorChange: (Long) -> Unit = {},
+    onReaderBackgroundColorChange: (Long?) -> Unit = {},
     onZoomIn: () -> Unit,
     onZoomOut: () -> Unit,
     onResetZoom: () -> Unit,
@@ -174,6 +178,15 @@ fun ReaderMenuOverlay(
                     customTintColor = customTintColor,
                     onModeChange = onColorFilterChange,
                     onCustomTintColorChange = onCustomTintColorChange,
+                    modifier = Modifier.padding(16.dp)
+                )
+
+                HorizontalDivider()
+
+                // Per-manga reader background color
+                ReaderBackgroundColorControl(
+                    currentColor = readerBackgroundColor,
+                    onColorChange = onReaderBackgroundColorChange,
                     modifier = Modifier.padding(16.dp)
                 )
                 
@@ -455,7 +468,11 @@ private fun CustomTintPicker(
                             val alpha = ((currentAlpha * 255).toInt().coerceIn(0, 255)).toLong()
                             onColorChange((alpha shl 24) or preset.rgb)
                         }
-                        .semantics { contentDescription = preset.name }
+                        .semantics {
+                            contentDescription = preset.name
+                            role = androidx.compose.ui.semantics.Role.RadioButton
+                            selected = isSelected
+                        }
                 )
             }
         }
@@ -513,3 +530,79 @@ private val TintPresets = listOf(
     TintPreset(0x8D6E63L, "Brown"),
     TintPreset(0x78909CL, "Grey")
 )
+
+/**
+ * Preset background colors for the per-manga reader background.
+ * null means "default" (black).
+ */
+private val ReaderBackgroundPresets: List<Pair<String, Long?>> = listOf(
+    "Default" to null,
+    "Black" to 0xFF000000L,
+    "Dark Grey" to 0xFF1A1A1AL,
+    "Grey" to 0xFF333333L,
+    "Warm Grey" to 0xFF3E3832L,
+    "Dark Brown" to 0xFF2B1D0EL,
+    "Sepia" to 0xFFF5E6CCL,
+    "White" to 0xFFFFFFFFL,
+    "Dark Blue" to 0xFF0D1B2AL
+)
+
+/**
+ * Control for selecting a per-manga reader background color.
+ * Shows a row of color swatches with the currently selected one highlighted.
+ * Each swatch exposes its preset name for screen readers via [contentDescription]
+ * and announces its selection state via [selected] with a [Role.RadioButton] role.
+ */
+@Composable
+fun ReaderBackgroundColorControl(
+    currentColor: Long?,
+    onColorChange: (Long?) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = "Reader Background",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(ReaderBackgroundPresets.size) { index ->
+                val (name, colorValue) = ReaderBackgroundPresets[index]
+                val isSelected = currentColor == colorValue
+                val displayColor = if (colorValue != null) Color(colorValue.toInt()) else Color.Black
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(displayColor)
+                        .then(
+                            if (isSelected) {
+                                Modifier.border(
+                                    width = 2.dp,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    shape = CircleShape
+                                )
+                            } else {
+                                Modifier.border(
+                                    width = 1.dp,
+                                    color = Color.Gray.copy(alpha = 0.5f),
+                                    shape = CircleShape
+                                )
+                            }
+                        )
+                        .clickable { onColorChange(colorValue) }
+                        .semantics {
+                            contentDescription = name
+                            role = androidx.compose.ui.semantics.Role.RadioButton
+                            selected = isSelected
+                        }
+                )
+            }
+        }
+    }
+}

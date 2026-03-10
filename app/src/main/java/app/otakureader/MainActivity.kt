@@ -44,6 +44,8 @@ class MainActivity : ComponentActivity() {
                 .collectAsStateWithLifecycle(initialValue = 0)
             val usePureBlackDarkMode by generalPreferences.usePureBlackDarkMode
                 .collectAsStateWithLifecycle(initialValue = false)
+            val customAccentColor by generalPreferences.customAccentColor
+                .collectAsStateWithLifecycle(initialValue = 0xFF1976D2L)
 
             val darkTheme = when (themeMode) {
                 1 -> false              // light
@@ -54,7 +56,8 @@ class MainActivity : ComponentActivity() {
             OtakuReaderTheme(
                 darkTheme = darkTheme,
                 colorScheme = colorScheme,
-                usePureBlack = usePureBlackDarkMode
+                usePureBlack = usePureBlackDarkMode,
+                customAccentColor = customAccentColor
             ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),

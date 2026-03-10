@@ -6,14 +6,21 @@ import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -44,13 +51,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.otakureader.core.ui.theme.COLOR_SCHEME_CUSTOM_ACCENT
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -222,7 +236,8 @@ private fun AppearanceSection(state: SettingsState, onEvent: (SettingsEvent) -> 
                             "Teal & Turquoise" to 7,
                             "Tidal Wave" to 8,
                             "Yotsuba" to 9,
-                            "Yin & Yang" to 10
+                            "Yin & Yang" to 10,
+                            "Custom Accent" to COLOR_SCHEME_CUSTOM_ACCENT
                         )
                         schemes.forEach { (label, value) ->
                             Row(
@@ -249,6 +264,14 @@ private fun AppearanceSection(state: SettingsState, onEvent: (SettingsEvent) -> 
                     }
                 }
             )
+
+            // Custom accent color picker (shown when "Custom Accent" is selected)
+            if (state.colorScheme == COLOR_SCHEME_CUSTOM_ACCENT) {
+                AccentColorPicker(
+                    selectedColor = state.customAccentColor,
+                    onColorSelected = { onEvent(SettingsEvent.SetCustomAccentColor(it)) }
+                )
+            }
 
             // Language
             val context = LocalContext.current
@@ -947,5 +970,81 @@ private fun MigrationSection(state: SettingsState, onEvent: (SettingsEvent) -> U
                 )
             }
         }
+    )
+}
+
+/**
+ * Preset accent colors for the custom accent color picker.
+ * Each pair is (display name, ARGB Long).
+ */
+private val AccentColorPresets: List<Pair<String, Long>> = listOf(
+    "Red" to 0xFFE53935L,
+    "Pink" to 0xFFD81B60L,
+    "Purple" to 0xFF8E24AAL,
+    "Deep Purple" to 0xFF5E35B1L,
+    "Indigo" to 0xFF3949ABL,
+    "Blue" to 0xFF1E88E5L,
+    "Light Blue" to 0xFF039BE5L,
+    "Cyan" to 0xFF00ACC1L,
+    "Teal" to 0xFF00897BL,
+    "Green" to 0xFF43A047L,
+    "Light Green" to 0xFF7CB342L,
+    "Lime" to 0xFFC0CA33L,
+    "Yellow" to 0xFFFDD835L,
+    "Amber" to 0xFFFFB300L,
+    "Orange" to 0xFFFB8C00L,
+    "Deep Orange" to 0xFFF4511EL,
+    "Brown" to 0xFF6D4C41L,
+    "Blue Grey" to 0xFF546E7AL
+)
+
+/**
+ * A grid of color swatches for selecting a custom accent color.
+ * Uses FlowRow instead of LazyVerticalGrid to avoid infinite-height measurement
+ * inside the parent scrollable Column.
+ */
+@Composable
+private fun AccentColorPicker(
+    selectedColor: Long,
+    onColorSelected: (Long) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    ListItem(
+        headlineContent = { Text("Accent Color") },
+        supportingContent = {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+            ) {
+                AccentColorPresets.forEach { (name, colorValue) ->
+                    val isSelected = selectedColor == colorValue
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(Color(colorValue.toInt()))
+                            .then(
+                                if (isSelected) {
+                                    Modifier.border(
+                                        width = 3.dp,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        shape = CircleShape
+                                    )
+                                } else Modifier
+                            )
+                            .clickable { onColorSelected(colorValue) }
+                            .semantics {
+                                contentDescription = name
+                                role = Role.RadioButton
+                                selected = isSelected
+                            }
+                    )
+                }
+            }
+        },
+        modifier = modifier
     )
 }

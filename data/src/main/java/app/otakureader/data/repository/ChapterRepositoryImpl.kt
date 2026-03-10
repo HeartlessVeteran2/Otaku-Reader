@@ -151,7 +151,8 @@ class ChapterRepositoryImpl @Inject constructor(
         status = MangaStatus.fromOrdinal(status),
         favorite = favorite,
         initialized = initialized,
-        autoDownload = autoDownload
+        autoDownload = autoDownload,
+        readerBackgroundColor = readerBackgroundColor
     )
 
     private fun Chapter.toEntity() = ChapterEntity(
