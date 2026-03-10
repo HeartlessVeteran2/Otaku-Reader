@@ -1,10 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="tracking_title">Tracking</string>
+    <string name="tracking_back">Back</string>
     <string name="tracking_login">Login</string>
     <string name="tracking_logout">Logout</string>
+    <string name="tracking_logged_in">Logged in</string>
+    <string name="tracking_not_logged_in">Not logged in</string>
+    <string name="tracking_login_title">Login to %s</string>
+    <string name="tracking_login_success">Logged in to %s</string>
+    <string name="tracking_login_failed">Failed to log in to %s</string>
+    <string name="tracking_login_error">Login error: %s</string>
+    <string name="tracking_username">Username</string>
+    <string name="tracking_password">Password</string>
+    <string name="tracking_cancel">Cancel</string>
     <string name="tracking_search">Search manga</string>
+    <string name="tracking_search_placeholder">Enter manga title…</string>
+    <string name="tracking_search_error">Search failed: %s</string>
     <string name="tracking_unlink">Unlink</string>
+    <string name="tracking_unlink_success">Unlinked from %s</string>
+    <string name="tracking_unlink_error">Failed to unlink: %s</string>
+    <string name="tracking_link_success">Linked to %s</string>
+    <string name="tracking_link_error">Failed to link: %s</string>
+    <string name="tracking_update_error">Update failed: %s</string>
+    <string name="tracking_oauth_browser_error">No browser found to open OAuth login</string>
+    <string name="tracking_chapter_progress">Ch. %d</string>
     <string name="tracking_status_reading">Reading</string>
     <string name="tracking_status_completed">Completed</string>
     <string name="tracking_status_on_hold">On Hold</string>

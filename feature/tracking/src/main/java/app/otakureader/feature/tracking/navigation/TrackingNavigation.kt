@@ -1,41 +1,36 @@
 package app.otakureader.feature.tracking.navigation
 
+import androidx.compose.runtime.LaunchedEffect
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavOptions
-import androidx.navigation.NavType
 import androidx.navigation.compose.composable
-import androidx.navigation.navArgument
+import androidx.navigation.toRoute
+import app.otakureader.core.navigation.TrackingRoute
 import app.otakureader.feature.tracking.TrackingScreen
-
-const val TRACKING_ROUTE = "tracking"
-const val MANGA_ID_ARG = "mangaId"
-const val MANGA_TITLE_ARG = "mangaTitle"
 
 fun NavController.navigateToTracking(
     mangaId: Long,
     mangaTitle: String,
     navOptions: NavOptions? = null
 ) {
-    navigate("$TRACKING_ROUTE/$mangaId/$mangaTitle", navOptions)
+    navigate(TrackingRoute(mangaId, mangaTitle), navOptions)
 }
 
 fun NavGraphBuilder.trackingScreen(
     onNavigateBack: () -> Unit
 ) {
-    composable(
-        route = "$TRACKING_ROUTE/{$MANGA_ID_ARG}/{$MANGA_TITLE_ARG}",
-        arguments = listOf(
-            navArgument(MANGA_ID_ARG) { type = NavType.LongType },
-            navArgument(MANGA_TITLE_ARG) { type = NavType.StringType }
-        )
-    ) { backStackEntry ->
-        val mangaId = backStackEntry.arguments?.getLong(MANGA_ID_ARG) ?: 0L
-        val mangaTitle = backStackEntry.arguments?.getString(MANGA_TITLE_ARG) ?: ""
+    composable<TrackingRoute> { backStackEntry ->
+        val route = backStackEntry.toRoute<TrackingRoute>()
+
+        if (route.mangaId == 0L) {
+            LaunchedEffect(Unit) { onNavigateBack() }
+            return@composable
+        }
 
         TrackingScreen(
-            mangaId = mangaId,
-            mangaTitle = mangaTitle,
+            mangaId = route.mangaId,
+            mangaTitle = route.mangaTitle,
             onNavigateBack = onNavigateBack
         )
     }

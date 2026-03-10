@@ -1,5 +1,8 @@
 package app.otakureader.feature.tracking
 
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,15 +21,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Login
 import androidx.compose.material.icons.filled.Logout
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -37,6 +35,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -50,14 +50,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.otakureader.domain.model.TrackEntry
-import app.otakureader.domain.model.TrackStatus
-import coil3.compose.AsyncImage
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,22 +69,78 @@ fun TrackingScreen(
     viewModel: TrackingViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
 
     LaunchedEffect(mangaId) {
         viewModel.onEvent(TrackingEvent.LoadTrackers(mangaId, mangaTitle))
     }
 
+    // Collect one-time effects
+    LaunchedEffect(Unit) {
+        viewModel.effect.collect { effect ->
+            when (effect) {
+                is TrackingEffect.ShowMessage -> snackbarHostState.showSnackbar(effect.message)
+                is TrackingEffect.ShowError -> snackbarHostState.showSnackbar(effect.message)
+                is TrackingEffect.OpenOAuth -> {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(effect.url))
+                    runCatching { context.startActivity(intent) }
+                        .onFailure {
+                            snackbarHostState.showSnackbar(
+                                context.getString(R.string.tracking_oauth_browser_error)
+                            )
+                        }
+                }
+            }
+        }
+    }
+
+    // Show credential login dialog when requested
+    val loginDialogTrackerId = state.loginDialogTrackerId
+    if (loginDialogTrackerId != null) {
+        val trackerName = state.trackers.find { it.id == loginDialogTrackerId }?.name ?: ""
+        CredentialLoginDialog(
+            trackerName = trackerName,
+            onConfirm = { username, password ->
+                viewModel.onEvent(TrackingEvent.Login(loginDialogTrackerId, username, password))
+            },
+            onDismiss = { viewModel.onEvent(TrackingEvent.DismissLoginDialog) }
+        )
+    }
+
+    // Show search dialog for the selected tracker
+    val selectedTrackerId = state.selectedTracker
+    if (selectedTrackerId != null) {
+        SearchMangaDialog(
+            query = state.searchQuery,
+            results = state.searchResults,
+            isSearching = state.isSearching,
+            onQueryChange = { viewModel.onEvent(TrackingEvent.OnSearchQueryChange(it)) },
+            onSearch = {
+                viewModel.onEvent(TrackingEvent.Search(selectedTrackerId, state.searchQuery))
+            },
+            onSelect = { entry ->
+                viewModel.onEvent(TrackingEvent.LinkManga(selectedTrackerId, entry.remoteId))
+            },
+            onDismiss = { viewModel.onEvent(TrackingEvent.ClearSearch) }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Tracking") },
+                title = { Text(stringResource(R.string.tracking_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.tracking_back)
+                        )
                     }
                 }
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -114,11 +171,9 @@ fun TrackingScreen(
                     items(state.trackers) { tracker ->
                         TrackerCard(
                             tracker = tracker,
-                            onLogin = { viewModel.onEvent(TrackingEvent.Login(tracker.id, "", "")) },
+                            onLogin = { viewModel.onEvent(TrackingEvent.InitiateLogin(tracker.id)) },
                             onLogout = { viewModel.onEvent(TrackingEvent.Logout(tracker.id)) },
-                            onSearch = {
-                                // Show search dialog
-                            },
+                            onSearch = { viewModel.onEvent(TrackingEvent.OpenSearchDialog(tracker.id)) },
                             onUnlink = { viewModel.onEvent(TrackingEvent.UnlinkManga(tracker.id)) }
                         )
                     }
@@ -148,14 +203,20 @@ private fun TrackerCard(
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                AsyncImage(
-                    model = tracker.iconUrl,
-                    contentDescription = tracker.name,
-                    contentScale = ContentScale.Crop,
+                // Local brand color badge instead of remote icon URL
+                Box(
                     modifier = Modifier
                         .size(48.dp)
                         .clip(CircleShape)
-                )
+                        .background(Color(tracker.brandColor)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = tracker.name.first().toString(),
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
 
                 Spacer(modifier = Modifier.width(16.dp))
 
@@ -165,7 +226,10 @@ private fun TrackerCard(
                         style = MaterialTheme.typography.titleMedium
                     )
                     Text(
-                        text = if (tracker.isLoggedIn) "Logged in" else "Not logged in",
+                        text = if (tracker.isLoggedIn)
+                            stringResource(R.string.tracking_logged_in)
+                        else
+                            stringResource(R.string.tracking_not_logged_in),
                         style = MaterialTheme.typography.bodyMedium,
                         color = if (tracker.isLoggedIn)
                             MaterialTheme.colorScheme.primary
@@ -178,7 +242,7 @@ private fun TrackerCard(
                     IconButton(onClick = onLogout) {
                         Icon(
                             imageVector = Icons.Default.Logout,
-                            contentDescription = "Logout",
+                            contentDescription = stringResource(R.string.tracking_logout),
                             tint = MaterialTheme.colorScheme.error
                         )
                     }
@@ -186,7 +250,7 @@ private fun TrackerCard(
                     IconButton(onClick = onLogin) {
                         Icon(
                             imageVector = Icons.Default.Login,
-                            contentDescription = "Login",
+                            contentDescription = stringResource(R.string.tracking_login),
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
@@ -197,20 +261,18 @@ private fun TrackerCard(
                 HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
 
                 if (tracker.entry != null) {
-                    // Show linked manga info
                     LinkedMangaInfo(
                         entry = tracker.entry,
                         onUnlink = onUnlink
                     )
                 } else {
-                    // Show search button
                     OutlinedButton(
                         onClick = onSearch,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Icon(Icons.Default.Search, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Search manga")
+                        Text(stringResource(R.string.tracking_search))
                     }
                 }
             }
@@ -251,7 +313,7 @@ private fun LinkedMangaInfo(
             Spacer(modifier = Modifier.width(8.dp))
 
             Text(
-                text = "Ch. ${entry.lastChapterRead.toInt()}",
+                text = stringResource(R.string.tracking_chapter_progress, entry.lastChapterRead.toInt()),
                 style = MaterialTheme.typography.bodyMedium
             )
 
@@ -271,9 +333,56 @@ private fun LinkedMangaInfo(
             onClick = onUnlink,
             modifier = Modifier.align(Alignment.End)
         ) {
-            Text("Unlink", color = MaterialTheme.colorScheme.error)
+            Text(stringResource(R.string.tracking_unlink), color = MaterialTheme.colorScheme.error)
         }
     }
+}
+
+@Composable
+private fun CredentialLoginDialog(
+    trackerName: String,
+    onConfirm: (username: String, password: String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var username by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.tracking_login_title, trackerName)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = username,
+                    onValueChange = { username = it },
+                    label = { Text(stringResource(R.string.tracking_username)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text(stringResource(R.string.tracking_password)) },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(username, password) },
+                enabled = username.isNotBlank() && password.isNotBlank()
+            ) {
+                Text(stringResource(R.string.tracking_login))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.tracking_cancel))
+            }
+        }
+    )
 }
 
 @Composable
@@ -288,16 +397,19 @@ fun SearchMangaDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Search manga") },
+        title = { Text(stringResource(R.string.tracking_search)) },
         text = {
             Column {
                 OutlinedTextField(
                     value = query,
                     onValueChange = onQueryChange,
-                    placeholder = { Text("Enter manga title...") },
+                    placeholder = { Text(stringResource(R.string.tracking_search_placeholder)) },
                     trailingIcon = {
                         IconButton(onClick = onSearch) {
-                            Icon(Icons.Default.Search, contentDescription = "Search")
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = stringResource(R.string.tracking_search)
+                            )
                         }
                     },
                     modifier = Modifier.fillMaxWidth()
@@ -330,7 +442,7 @@ fun SearchMangaDialog(
         confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.tracking_cancel))
             }
         }
     )
