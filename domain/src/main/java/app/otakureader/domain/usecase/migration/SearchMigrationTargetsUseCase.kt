@@ -131,15 +131,18 @@ class SearchMigrationTargetsUseCase @Inject constructor(
             return 1.0f
         }
 
-        // Calculate Levenshtein on normalized titles
-        val normalizedScore = calculateSimilarity(normalized1, normalized2)
-
         // Calculate Levenshtein on original titles (with basic normalization)
         val originalScore = calculateSimilarity(
             title1.lowercase().trim(),
             title2.lowercase().trim()
         )
 
+        // Calculate Levenshtein on normalized titles only when both are non-blank
+        val normalizedScore = if (normalized1.isBlank() || normalized2.isBlank()) {
+            0f
+        } else {
+            calculateSimilarity(normalized1, normalized2)
+        }
         // Use the better score
         return maxOf(normalizedScore, originalScore)
     }
