@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import app.otakureader.data.loader.PageLoader
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.MangaRepository
+import app.otakureader.feature.reader.model.ColorFilterMode
 import app.otakureader.feature.reader.model.ReaderMode
 import app.otakureader.feature.reader.model.ReaderPage
 import app.otakureader.feature.reader.model.ReadingDirection
@@ -57,6 +58,8 @@ class UltimateReaderViewModelTest {
         every { settingsRepository.volumeKeysInverted } returns flowOf(false)
         every { settingsRepository.fullscreen } returns flowOf(true)
         every { settingsRepository.incognitoMode } returns flowOf(false)
+        every { settingsRepository.colorFilterMode } returns flowOf(ColorFilterMode.NONE)
+        every { settingsRepository.customTintColor } returns flowOf(0x4000AAFFL)
 
         // Return null for chapter/manga so loadChapter() exits early without side-effects.
         coEvery { chapterRepository.getChapterById(chapterId) } returns null
@@ -187,5 +190,69 @@ class UltimateReaderViewModelTest {
 
         vm.onEvent(ReaderEvent.SetGalleryColumns(10))
         assertEquals(4, vm.state.value.galleryColumns)
+    }
+
+    // ---- Color filter ----
+
+    @Test
+    fun `colorFilterMode defaults to NONE`() = runTest {
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(ColorFilterMode.NONE, vm.state.value.colorFilterMode)
+    }
+
+    @Test
+    fun `SetColorFilterMode updates colorFilterMode state`() = runTest {
+        coEvery { settingsRepository.setColorFilterMode(any()) } just runs
+
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        vm.onEvent(ReaderEvent.SetColorFilterMode(ColorFilterMode.SEPIA))
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(ColorFilterMode.SEPIA, vm.state.value.colorFilterMode)
+
+        vm.onEvent(ReaderEvent.SetColorFilterMode(ColorFilterMode.GRAYSCALE))
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(ColorFilterMode.GRAYSCALE, vm.state.value.colorFilterMode)
+
+        vm.onEvent(ReaderEvent.SetColorFilterMode(ColorFilterMode.INVERT))
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(ColorFilterMode.INVERT, vm.state.value.colorFilterMode)
+
+        vm.onEvent(ReaderEvent.SetColorFilterMode(ColorFilterMode.CUSTOM_TINT))
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(ColorFilterMode.CUSTOM_TINT, vm.state.value.colorFilterMode)
+    }
+
+    @Test
+    fun `SetColorFilterMode back to NONE clears filter`() = runTest {
+        coEvery { settingsRepository.setColorFilterMode(any()) } just runs
+
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        vm.onEvent(ReaderEvent.SetColorFilterMode(ColorFilterMode.SEPIA))
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(ColorFilterMode.SEPIA, vm.state.value.colorFilterMode)
+
+        vm.onEvent(ReaderEvent.SetColorFilterMode(ColorFilterMode.NONE))
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(ColorFilterMode.NONE, vm.state.value.colorFilterMode)
+    }
+
+    @Test
+    fun `SetCustomTintColor updates customTintColor state`() = runTest {
+        coEvery { settingsRepository.setColorFilterMode(any()) } just runs
+        coEvery { settingsRepository.setCustomTintColor(any()) } just runs
+
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val newColor = 0x80FF6B6BL
+        vm.onEvent(ReaderEvent.SetCustomTintColor(newColor))
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(newColor, vm.state.value.customTintColor)
     }
 }
