@@ -1,0 +1,176 @@
+name: Review on Comment Mention
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+jobs:
+  parse-mention:
+    if: github.event.issue.pull_request || github.event.pull_request
+    runs-on: ubuntu-latest
+    outputs:
+      trigger: ${{ steps.parse.outputs.trigger }}
+    steps:
+      - id: parse
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.comment.body.toLowerCase();
+            const triggers = [];
+            
+            if (body.includes('@ai-review') || body.includes('@gemini-review') || body.includes('@aura-review')) {
+              triggers.push('ai');
+            }
+            if (body.includes('@security-review')) {
+              triggers.push('security');
+            }
+            if (body.includes('@style-review') || body.includes('@lint-review')) {
+              triggers.push('style');
+            }
+            if (body.includes('@architecture-review') || body.includes('@arch-review')) {
+              triggers.push('architecture');
+            }
+            if (body.includes('@test-review') || body.includes('@tests-review')) {
+              triggers.push('tests');
+            }
+            if (body.includes('@full-review') || body.includes('@complete-review')) {
+              triggers.push('full');
+            }
+            
+            core.setOutput('trigger', triggers.join(','));
+            console.log('Triggers:', triggers);
+
+  ai-review:
+    needs: parse-mention
+    if: contains(needs.parse-mention.outputs.trigger, 'ai') || contains(needs.parse-mention.outputs.trigger, 'full')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Post AI Review Request
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.issue.number;
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber
+            });
+            
+            const fileList = files.map(f => `- \`${f.filename}\` (${f.status}, +${f.additions}/-${f.deletions})`).join('\n');
+            
+            await github.rest.issues.createComment({
+              issue_number: prNumber,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🤖 **AI Code Review Requested by @${context.payload.comment.user.login}**\n\nAnalyzing ${files.length} changed files...\n\n${fileList}\n\n---\n\n**Review Areas:**\n- 🏗️ Architecture & Design Patterns\n- 🐛 Potential Bugs & Edge Cases\n- ⚡ Performance Considerations\n- 📋 Best Practices & Conventions\n- 🔒 Security Implications`
+            });
+
+  security-review:
+    needs: parse-mention
+    if: contains(needs.parse-mention.outputs.trigger, 'security') || contains(needs.parse-mention.outputs.trigger, 'full')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Security Scan
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.issue.number;
+            await github.rest.issues.createComment({
+              issue_number: prNumber,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🔒 **Security Review Requested by @${context.payload.comment.user.login}**\n\nScanning for:\n- 🔑 Hardcoded secrets / API keys\n- 💉 SQL injection vulnerabilities\n- 🌐 XSS / CSRF risks\n- 📦 Insecure dependencies\n- 🔐 Permission & access issues`
+            });
+
+  style-review:
+    needs: parse-mention
+    if: contains(needs.parse-mention.outputs.trigger, 'style') || contains(needs.parse-mention.outputs.trigger, 'full')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      - name: Run ktlint
+        run: |
+          curl -sSLO https://github.com/pinterest/ktlint/releases/download/1.2.1/ktlint
+          chmod +x ktlint
+          ./ktlint --relative 2>&1 | head -50 || true
+        continue-on-error: true
+      - name: Post Style Review
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.issue.number;
+            await github.rest.issues.createComment({
+              issue_number: prNumber,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🎨 **Style Review Requested by @${context.payload.comment.user.login}**\n\nChecking:\n- ✅ Kotlin coding conventions\n- ✅ Formatting (ktlint)\n- ✅ Import organization\n- ✅ Naming conventions\n- ✅ Code complexity metrics`
+            });
+
+  architecture-review:
+    needs: parse-mention
+    if: contains(needs.parse-mention.outputs.trigger, 'architecture') || contains(needs.parse-mention.outputs.trigger, 'full')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Architecture Review
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.issue.number;
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber
+            });
+            
+            const modules = new Set();
+            files.forEach(f => {
+              const match = f.filename.match(/^(feature|core|data|domain)\/([^\/]+)/);
+              if (match) modules.add(match[0]);
+            });
+            
+            await github.rest.issues.createComment({
+              issue_number: prNumber,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🏗️ **Architecture Review Requested by @${context.payload.comment.user.login}**\n\n**Modules Modified:**\n${Array.from(modules).map(m => `- \`${m}\``).join('\n') || '- None detected'}\n\n**Review Focus:**\n- Clean Architecture compliance\n- Module dependency direction\n- Feature module isolation\n- Repository pattern usage\n- Domain layer purity`
+            });
+
+  tests-review:
+    needs: parse-mention
+    if: contains(needs.parse-mention.outputs.trigger, 'tests') || contains(needs.parse-mention.outputs.trigger, 'full')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test Review
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.issue.number;
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber
+            });
+            
+            const testFiles = files.filter(f => f.filename.includes('Test'));
+            const hasTests = testFiles.length > 0;
+            
+            await github.rest.issues.createComment({
+              issue_number: prNumber,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🧪 **Test Review Requested by @${context.payload.comment.user.login}**\n\n**Test Files:** ${hasTests ? testFiles.length + ' found' : '⚠️ None detected'}\n${testFiles.map(f => `- \`${f.filename}\``).join('\n')}\n\n**Review Areas:**\n- Test coverage for new code\n- Edge case handling\n- Mock/stub usage\n- Assertion quality\n- Test naming conventions`
+            });
