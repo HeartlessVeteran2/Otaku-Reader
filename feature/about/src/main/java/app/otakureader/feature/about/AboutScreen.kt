@@ -51,9 +51,9 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun AboutScreen(
     onNavigateBack: () -> Unit,
-    onNavigateToChangelog: () -> Unit = {},
     onNavigateToLicenses: () -> Unit = {},
     onNavigateToPrivacyPolicy: () -> Unit = {},
+    onNavigateToChangelog: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
