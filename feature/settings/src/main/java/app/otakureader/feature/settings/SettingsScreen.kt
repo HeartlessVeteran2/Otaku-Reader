@@ -50,6 +50,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -998,8 +999,8 @@ private fun AiSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
 
     // API Key input (only shown when AI is enabled)
     if (state.aiEnabled) {
-        var apiKeyInput by remember { mutableStateOf("") }
-        var apiKeyVisible by remember { mutableStateOf(false) }
+        var apiKeyInput by rememberSaveable { mutableStateOf("") }
+        var apiKeyVisible by rememberSaveable { mutableStateOf(false) }
 
         ListItem(
             headlineContent = { Text("Gemini API Key") },
@@ -1020,29 +1021,28 @@ private fun AiSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
                         visualTransformation = if (apiKeyVisible) VisualTransformation.None
                         else PasswordVisualTransformation(),
                         trailingIcon = {
-                            Row {
-                                IconButton(onClick = { apiKeyVisible = !apiKeyVisible }) {
-                                    Icon(
-                                        imageVector = if (apiKeyVisible) Icons.Filled.VisibilityOff
-                                        else Icons.Filled.Visibility,
-                                        contentDescription = if (apiKeyVisible) "Hide key" else "Show key"
-                                    )
-                                }
-                                Button(
-                                    onClick = {
-                                        if (apiKeyInput.isNotBlank()) {
-                                            onEvent(SettingsEvent.SetAiApiKey(apiKeyInput))
-                                            apiKeyInput = ""
-                                        }
-                                    },
-                                    enabled = apiKeyInput.isNotBlank()
-                                ) {
-                                    Text("Save")
-                                }
+                            IconButton(onClick = { apiKeyVisible = !apiKeyVisible }) {
+                                Icon(
+                                    imageVector = if (apiKeyVisible) Icons.Filled.VisibilityOff
+                                    else Icons.Filled.Visibility,
+                                    contentDescription = if (apiKeyVisible) "Hide key" else "Show key"
+                                )
                             }
                         },
                         modifier = Modifier.fillMaxWidth()
                     )
+                    Button(
+                        onClick = {
+                            onEvent(SettingsEvent.SetAiApiKey(apiKeyInput))
+                            apiKeyInput = ""
+                        },
+                        enabled = apiKeyInput.isNotBlank(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)
+                    ) {
+                        Text("Save API Key")
+                    }
                 }
             }
         )
@@ -1079,18 +1079,16 @@ private fun AiSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
         SectionHeader(title = "Feature Toggles")
 
         // Individual feature toggles
-        data class FeatureToggle(val label: String, val description: String, val enabled: Boolean, val event: (Boolean) -> SettingsEvent)
-
         val features = listOf(
-            FeatureToggle("Reading Insights", "AI-powered reading statistics", state.aiReadingInsights) { SettingsEvent.SetAiReadingInsights(it) },
-            FeatureToggle("Smart Search", "Natural language search queries", state.aiSmartSearch) { SettingsEvent.SetAiSmartSearch(it) },
-            FeatureToggle("Recommendations", "Personalised manga suggestions", state.aiRecommendations) { SettingsEvent.SetAiRecommendations(it) },
-            FeatureToggle("Panel-Aware Reader", "Gemini Vision panel detection", state.aiPanelReader) { SettingsEvent.SetAiPanelReader(it) },
-            FeatureToggle("SFX Translation", "Translate sound effects in pages", state.aiSfxTranslation) { SettingsEvent.SetAiSfxTranslation(it) },
-            FeatureToggle("Summary Translation", "Auto-translate chapter summaries", state.aiSummaryTranslation) { SettingsEvent.SetAiSummaryTranslation(it) },
-            FeatureToggle("Source Intelligence", "Score and rank sources automatically", state.aiSourceIntelligence) { SettingsEvent.SetAiSourceIntelligence(it) },
-            FeatureToggle("Smart Notifications", "Context-aware update summaries", state.aiSmartNotifications) { SettingsEvent.SetAiSmartNotifications(it) },
-            FeatureToggle("Auto-Categorization", "Categorise new manga automatically", state.aiAutoCategorization) { SettingsEvent.SetAiAutoCategorization(it) }
+            AiFeatureToggle("Reading Insights", "AI-powered reading statistics", state.aiReadingInsights) { SettingsEvent.SetAiReadingInsights(it) },
+            AiFeatureToggle("Smart Search", "Natural language search queries", state.aiSmartSearch) { SettingsEvent.SetAiSmartSearch(it) },
+            AiFeatureToggle("Recommendations", "Personalised manga suggestions", state.aiRecommendations) { SettingsEvent.SetAiRecommendations(it) },
+            AiFeatureToggle("Panel-Aware Reader", "Gemini Vision panel detection", state.aiPanelReader) { SettingsEvent.SetAiPanelReader(it) },
+            AiFeatureToggle("SFX Translation", "Translate sound effects in pages", state.aiSfxTranslation) { SettingsEvent.SetAiSfxTranslation(it) },
+            AiFeatureToggle("Summary Translation", "Auto-translate chapter summaries", state.aiSummaryTranslation) { SettingsEvent.SetAiSummaryTranslation(it) },
+            AiFeatureToggle("Source Intelligence", "Score and rank sources automatically", state.aiSourceIntelligence) { SettingsEvent.SetAiSourceIntelligence(it) },
+            AiFeatureToggle("Smart Notifications", "Context-aware update summaries", state.aiSmartNotifications) { SettingsEvent.SetAiSmartNotifications(it) },
+            AiFeatureToggle("Auto-Categorization", "Categorise new manga automatically", state.aiAutoCategorization) { SettingsEvent.SetAiAutoCategorization(it) }
         )
 
         features.forEach { feature ->
@@ -1100,7 +1098,7 @@ private fun AiSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
                 trailingContent = {
                     Switch(
                         checked = feature.enabled,
-                        onCheckedChange = { onEvent(feature.event(it)) }
+                        onCheckedChange = { onEvent(feature.makeEvent(it)) }
                     )
                 }
             )
@@ -1132,6 +1130,16 @@ private fun AiSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
         )
     }
 }
+
+/**
+ * Holds display metadata and the toggle state for a single AI feature switch.
+ */
+private data class AiFeatureToggle(
+    val label: String,
+    val description: String,
+    val enabled: Boolean,
+    val makeEvent: (Boolean) -> SettingsEvent
+)
 
 /**
  * Preset accent colors for the custom accent color picker.

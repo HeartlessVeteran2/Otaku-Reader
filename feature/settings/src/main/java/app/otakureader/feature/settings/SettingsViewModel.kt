@@ -194,58 +194,44 @@ class SettingsViewModel @Inject constructor(
 
     private fun observeAiPreferences() {
         viewModelScope.launch {
-            combine(
-                aiPreferences.aiEnabled,
-                aiPreferences.aiTier,
-                aiPreferences.aiReadingInsights,
-                aiPreferences.aiSmartSearch,
-                aiPreferences.aiRecommendations
-            ) { aiEnabled, aiTier, readingInsights, smartSearch, recommendations ->
-                _state.update {
-                    it.copy(
-                        aiEnabled = aiEnabled,
-                        aiTier = aiTier,
-                        aiApiKeySet = aiPreferences.getGeminiApiKey().isNotBlank(),
-                        aiReadingInsights = readingInsights,
-                        aiSmartSearch = smartSearch,
-                        aiRecommendations = recommendations
+            aiPreferences.aiEnabled
+                .combine(aiPreferences.aiTier) { enabled, tier ->
+                    _state.value.copy(
+                        aiEnabled = enabled,
+                        aiTier = tier,
+                        aiApiKeySet = aiPreferences.getGeminiApiKey().isNotBlank()
                     )
+                }.combine(aiPreferences.aiReadingInsights) { state, v -> state.copy(aiReadingInsights = v) }
+                .combine(aiPreferences.aiSmartSearch) { state, v -> state.copy(aiSmartSearch = v) }
+                .combine(aiPreferences.aiRecommendations) { state, v -> state.copy(aiRecommendations = v) }
+                .combine(aiPreferences.aiPanelReader) { state, v -> state.copy(aiPanelReader = v) }
+                .combine(aiPreferences.aiSfxTranslation) { state, v -> state.copy(aiSfxTranslation = v) }
+                .combine(aiPreferences.aiSummaryTranslation) { state, v -> state.copy(aiSummaryTranslation = v) }
+                .combine(aiPreferences.aiSourceIntelligence) { state, v -> state.copy(aiSourceIntelligence = v) }
+                .combine(aiPreferences.aiSmartNotifications) { state, v -> state.copy(aiSmartNotifications = v) }
+                .combine(aiPreferences.aiAutoCategorization) { state, v -> state.copy(aiAutoCategorization = v) }
+                .combine(aiPreferences.aiTokensUsedThisMonth) { state, v -> state.copy(aiTokensUsedThisMonth = v) }
+                .combine(aiPreferences.aiTokenTrackingPeriod) { state, v -> state.copy(aiTokenTrackingPeriod = v) }
+                .collect { newAiState ->
+                    _state.update { current ->
+                        current.copy(
+                            aiEnabled = newAiState.aiEnabled,
+                            aiTier = newAiState.aiTier,
+                            aiApiKeySet = newAiState.aiApiKeySet,
+                            aiReadingInsights = newAiState.aiReadingInsights,
+                            aiSmartSearch = newAiState.aiSmartSearch,
+                            aiRecommendations = newAiState.aiRecommendations,
+                            aiPanelReader = newAiState.aiPanelReader,
+                            aiSfxTranslation = newAiState.aiSfxTranslation,
+                            aiSummaryTranslation = newAiState.aiSummaryTranslation,
+                            aiSourceIntelligence = newAiState.aiSourceIntelligence,
+                            aiSmartNotifications = newAiState.aiSmartNotifications,
+                            aiAutoCategorization = newAiState.aiAutoCategorization,
+                            aiTokensUsedThisMonth = newAiState.aiTokensUsedThisMonth,
+                            aiTokenTrackingPeriod = newAiState.aiTokenTrackingPeriod
+                        )
+                    }
                 }
-            }.collect {}
-        }
-        viewModelScope.launch {
-            combine(
-                aiPreferences.aiPanelReader,
-                aiPreferences.aiSfxTranslation,
-                aiPreferences.aiSummaryTranslation,
-                aiPreferences.aiSourceIntelligence,
-                aiPreferences.aiSmartNotifications
-            ) { panelReader, sfxTranslation, summaryTranslation, sourceIntelligence, smartNotifications ->
-                _state.update {
-                    it.copy(
-                        aiPanelReader = panelReader,
-                        aiSfxTranslation = sfxTranslation,
-                        aiSummaryTranslation = summaryTranslation,
-                        aiSourceIntelligence = sourceIntelligence,
-                        aiSmartNotifications = smartNotifications
-                    )
-                }
-            }.collect {}
-        }
-        viewModelScope.launch {
-            combine(
-                aiPreferences.aiAutoCategorization,
-                aiPreferences.aiTokensUsedThisMonth,
-                aiPreferences.aiTokenTrackingPeriod
-            ) { autoCategorization, tokensUsed, trackingPeriod ->
-                _state.update {
-                    it.copy(
-                        aiAutoCategorization = autoCategorization,
-                        aiTokensUsedThisMonth = tokensUsed,
-                        aiTokenTrackingPeriod = trackingPeriod
-                    )
-                }
-            }.collect {}
         }
     }
 
