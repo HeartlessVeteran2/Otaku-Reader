@@ -9,7 +9,6 @@ android {
 
 dependencies {
     implementation(projects.core.common)
-    implementation(projects.core.navigation)
     implementation(projects.core.preferences)
     implementation(libs.kotlinx.serialization.json)
 }
