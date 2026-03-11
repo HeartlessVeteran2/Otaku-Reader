@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="share_manga">Teilen über</string>
+    <string name="notes_section_title">Notizen</string>
+    <string name="notes_edit_content_description">Notiz bearbeiten</string>
+    <string name="notes_empty_hint">Tippe auf das Stiftsymbol, um eine persönliche Notiz hinzuzufügen.</string>
+    <string name="notes_editor_dialog_title">Notiz bearbeiten</string>
+    <string name="notes_editor_placeholder">Schreibe deine Notiz hier…\nUnterstützt **fett**, *kursiv* und [Links](url).</string>
+    <string name="notes_editor_save">Speichern</string>
+    <string name="notes_editor_cancel">Abbrechen</string>
+    <string name="notes_saved">Notiz gespeichert</string>
+    <string name="notes_save_failed">Fehler beim Speichern der Notiz: %1$s</string>
+
+    <!-- Details screen -->
+    <string name="details_title_fallback">Manga-Details</string>
+    <string name="details_back">Zurück</string>
+    <string name="details_refresh">Aktualisieren</string>
+    <string name="details_share">Teilen</string>
+    <string name="details_continue_reading">Weiterlesen</string>
+    <string name="details_start_reading">Lesen beginnen</string>
+    <string name="details_unknown_error">Unbekannter Fehler</string>
+    <string name="details_author">Autor: %1$s</string>
+    <string name="details_artist">Künstler: %1$s</string>
+    <string name="details_status">Status: %1$s</string>
+    <string name="details_remove_from_library">Aus der Bibliothek entfernen</string>
+    <string name="details_add_to_library">Zur Bibliothek hinzufügen</string>
+    <string name="details_show_less">Weniger anzeigen</string>
+    <string name="details_show_more">Mehr anzeigen</string>
+
+    <!-- Delete after read -->
+    <string name="details_delete_after_read">Downloads nach dem Lesen löschen</string>
+    <string name="details_delete_follow_global_on">Global folgen (Ein)</string>
+    <string name="details_delete_follow_global_off">Global folgen (Aus)</string>
+    <string name="details_delete_on">Ein für diesen Manga</string>
+    <string name="details_delete_off">Aus für diesen Manga</string>
+
+    <!-- Notifications -->
+    <string name="details_notify_title">Über neue Kapitel benachrichtigen</string>
+    <string name="details_notify_enabled">Du wirst benachrichtigt, wenn neue Kapitel gefunden werden</string>
+    <string name="details_notify_disabled">Benachrichtigungen sind für diesen Manga stummgeschaltet</string>
+
+    <!-- Reader settings -->
+    <string name="details_reader_settings">Leser-Einstellungen</string>
+    <string name="details_reader_custom_applied">Benutzerdefinierte Einstellungen angewendet</string>
+    <string name="details_reader_default">Standardeinstellungen werden verwendet</string>
+    <string name="details_collapse">Einklappen</string>
+    <string name="details_expand">Ausklappen</string>
+    <string name="details_reading_direction">Leserichtung</string>
+    <string name="details_direction_ltr">Links nach rechts</string>
+    <string name="details_direction_rtl">Rechts nach links</string>
+    <string name="details_reader_mode">Lesemodus</string>
+    <string name="details_mode_single">Einzelseite</string>
+    <string name="details_mode_dual">Doppelseite</string>
+    <string name="details_mode_webtoon">Webtoon</string>
+    <string name="details_mode_smart">Intelligente Panels</string>
+    <string name="details_color_filter">Farbfilter</string>
+    <string name="details_filter_none">Keiner</string>
+    <string name="details_filter_sepia">Sepia</string>
+    <string name="details_filter_greyscale">Graustufen</string>
+    <string name="details_filter_invert">Invertieren</string>
+    <string name="details_filter_custom_tint">Benutzerdefinierte Tönung</string>
+    <string name="details_custom_tint_color">Benutzerdefinierte Tönungsfarbe</string>
+    <string name="details_color_red">Rot</string>
+    <string name="details_color_orange">Orange</string>
+    <string name="details_color_yellow">Gelb</string>
+    <string name="details_color_green">Grün</string>
+    <string name="details_color_blue">Blau</string>
+    <string name="details_color_purple">Lila</string>
+    <string name="details_color_pink">Rosa</string>
+    <string name="details_reset">Zurücksetzen</string>
+    <string name="details_background_color">Hintergrundfarbe</string>
+    <string name="details_override_background">Leser-Hintergrund überschreiben</string>
+    <string name="details_bg_black">Schwarz</string>
+    <string name="details_bg_dark_gray">Dunkelgrau</string>
+    <string name="details_bg_gray">Grau</string>
+    <string name="details_bg_white">Weiß</string>
+    <string name="details_bg_cream">Creme</string>
+    <string name="details_page_preloading">Seitenvorladung</string>
+    <string name="details_pages_before">Seiten vor der aktuellen</string>
+    <string name="details_pages_after">Seiten nach der aktuellen</string>
+    <string name="details_reset_defaults">Auf Standardwerte zurücksetzen</string>
+    <plurals name="details_chapter_count">
+        <item quantity="one">%1$d Kapitel</item>
+        <item quantity="other">%1$d Kapitel</item>
+    </plurals>
+    <string name="details_sort_ascending">↑ Aufsteigend</string>
+    <string name="details_sort_descending">↓ Absteigend</string>
+    <string name="details_no_manga">Keine Manga-Details verfügbar</string>
+</resources>

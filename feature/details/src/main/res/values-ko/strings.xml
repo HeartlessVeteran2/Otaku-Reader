@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="share_manga">공유</string>
+    <string name="notes_section_title">메모</string>
+    <string name="notes_edit_content_description">메모 편집</string>
+    <string name="notes_empty_hint">연필 아이콘을 탭하여 개인 메모를 추가하세요.</string>
+    <string name="notes_editor_dialog_title">메모 편집</string>
+    <string name="notes_editor_placeholder">여기에 메모를 작성하세요…\n**굵게**, *기울임*, [링크](url)를 지원합니다.</string>
+    <string name="notes_editor_save">저장</string>
+    <string name="notes_editor_cancel">취소</string>
+    <string name="notes_saved">메모가 저장되었습니다</string>
+    <string name="notes_save_failed">메모 저장 실패: %1$s</string>
+
+    <!-- Details screen -->
+    <string name="details_title_fallback">만화 상세정보</string>
+    <string name="details_back">뒤로</string>
+    <string name="details_refresh">새로고침</string>
+    <string name="details_share">공유</string>
+    <string name="details_continue_reading">이어서 읽기</string>
+    <string name="details_start_reading">읽기 시작</string>
+    <string name="details_unknown_error">알 수 없는 오류</string>
+    <string name="details_author">저자: %1$s</string>
+    <string name="details_artist">작화: %1$s</string>
+    <string name="details_status">상태: %1$s</string>
+    <string name="details_remove_from_library">라이브러리에서 제거</string>
+    <string name="details_add_to_library">라이브러리에 추가</string>
+    <string name="details_show_less">간략히 보기</string>
+    <string name="details_show_more">더 보기</string>
+
+    <!-- Delete after read -->
+    <string name="details_delete_after_read">읽은 후 다운로드 삭제</string>
+    <string name="details_delete_follow_global_on">전역 설정 따르기 (켜짐)</string>
+    <string name="details_delete_follow_global_off">전역 설정 따르기 (꺼짐)</string>
+    <string name="details_delete_on">이 만화에서 켜짐</string>
+    <string name="details_delete_off">이 만화에서 꺼짐</string>
+
+    <!-- Notifications -->
+    <string name="details_notify_title">새 챕터 알림</string>
+    <string name="details_notify_enabled">새 챕터가 발견되면 알림을 받습니다</string>
+    <string name="details_notify_disabled">이 만화의 알림이 음소거되었습니다</string>
+
+    <!-- Reader settings -->
+    <string name="details_reader_settings">리더 설정</string>
+    <string name="details_reader_custom_applied">사용자 정의 설정 적용됨</string>
+    <string name="details_reader_default">기본 설정 사용 중</string>
+    <string name="details_collapse">접기</string>
+    <string name="details_expand">펼치기</string>
+    <string name="details_reading_direction">읽기 방향</string>
+    <string name="details_direction_ltr">왼쪽에서 오른쪽</string>
+    <string name="details_direction_rtl">오른쪽에서 왼쪽</string>
+    <string name="details_reader_mode">리더 모드</string>
+    <string name="details_mode_single">단일 페이지</string>
+    <string name="details_mode_dual">이중 페이지</string>
+    <string name="details_mode_webtoon">웹툰</string>
+    <string name="details_mode_smart">스마트 패널</string>
+    <string name="details_color_filter">색상 필터</string>
+    <string name="details_filter_none">없음</string>
+    <string name="details_filter_sepia">세피아</string>
+    <string name="details_filter_greyscale">그레이스케일</string>
+    <string name="details_filter_invert">반전</string>
+    <string name="details_filter_custom_tint">사용자 정의 색조</string>
+    <string name="details_custom_tint_color">사용자 정의 색조 색상</string>
+    <string name="details_color_red">빨강</string>
+    <string name="details_color_orange">주황</string>
+    <string name="details_color_yellow">노랑</string>
+    <string name="details_color_green">초록</string>
+    <string name="details_color_blue">파랑</string>
+    <string name="details_color_purple">보라</string>
+    <string name="details_color_pink">분홍</string>
+    <string name="details_reset">초기화</string>
+    <string name="details_background_color">배경색</string>
+    <string name="details_override_background">리더 배경 덮어쓰기</string>
+    <string name="details_bg_black">검정</string>
+    <string name="details_bg_dark_gray">진한 회색</string>
+    <string name="details_bg_gray">회색</string>
+    <string name="details_bg_white">흰색</string>
+    <string name="details_bg_cream">크림</string>
+    <string name="details_page_preloading">페이지 미리 로드</string>
+    <string name="details_pages_before">현재 페이지 이전</string>
+    <string name="details_pages_after">현재 페이지 이후</string>
+    <string name="details_reset_defaults">기본값으로 초기화</string>
+    <plurals name="details_chapter_count">
+        <item quantity="one">%1$d 챕터</item>
+        <item quantity="other">%1$d 챕터</item>
+    </plurals>
+    <string name="details_sort_ascending">↑ 오름차순</string>
+    <string name="details_sort_descending">↓ 내림차순</string>
+    <string name="details_no_manga">만화 상세정보가 없습니다</string>
+</resources>

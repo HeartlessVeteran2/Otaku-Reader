@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="share_manga">共有</string>
+    <string name="notes_section_title">メモ</string>
+    <string name="notes_edit_content_description">メモを編集</string>
+    <string name="notes_empty_hint">鉛筆アイコンをタップして個人メモを追加します。</string>
+    <string name="notes_editor_dialog_title">メモを編集</string>
+    <string name="notes_editor_placeholder">ここにメモを書いてください…\n**太字**、*斜体*、[リンク](url)に対応しています。</string>
+    <string name="notes_editor_save">保存</string>
+    <string name="notes_editor_cancel">キャンセル</string>
+    <string name="notes_saved">メモを保存しました</string>
+    <string name="notes_save_failed">メモの保存に失敗しました: %1$s</string>
+
+    <!-- Details screen -->
+    <string name="details_title_fallback">マンガの詳細</string>
+    <string name="details_back">戻る</string>
+    <string name="details_refresh">更新</string>
+    <string name="details_share">共有</string>
+    <string name="details_continue_reading">続きを読む</string>
+    <string name="details_start_reading">読み始める</string>
+    <string name="details_unknown_error">不明なエラー</string>
+    <string name="details_author">著者: %1$s</string>
+    <string name="details_artist">作画: %1$s</string>
+    <string name="details_status">ステータス: %1$s</string>
+    <string name="details_remove_from_library">ライブラリから削除</string>
+    <string name="details_add_to_library">ライブラリに追加</string>
+    <string name="details_show_less">折りたたむ</string>
+    <string name="details_show_more">もっと見る</string>
+
+    <!-- Delete after read -->
+    <string name="details_delete_after_read">読了後にダウンロードを削除</string>
+    <string name="details_delete_follow_global_on">グローバル設定に従う（オン）</string>
+    <string name="details_delete_follow_global_off">グローバル設定に従う（オフ）</string>
+    <string name="details_delete_on">この作品ではオン</string>
+    <string name="details_delete_off">この作品ではオフ</string>
+
+    <!-- Notifications -->
+    <string name="details_notify_title">新しい章の通知</string>
+    <string name="details_notify_enabled">新しい章が見つかると通知されます</string>
+    <string name="details_notify_disabled">この作品の通知はミュートされています</string>
+
+    <!-- Reader settings -->
+    <string name="details_reader_settings">リーダー設定</string>
+    <string name="details_reader_custom_applied">カスタム設定が適用されました</string>
+    <string name="details_reader_default">デフォルト設定を使用中</string>
+    <string name="details_collapse">折りたたむ</string>
+    <string name="details_expand">展開</string>
+    <string name="details_reading_direction">読む方向</string>
+    <string name="details_direction_ltr">左から右</string>
+    <string name="details_direction_rtl">右から左</string>
+    <string name="details_reader_mode">リーダーモード</string>
+    <string name="details_mode_single">単ページ</string>
+    <string name="details_mode_dual">見開き</string>
+    <string name="details_mode_webtoon">Webtoon</string>
+    <string name="details_mode_smart">スマートパネル</string>
+    <string name="details_color_filter">カラーフィルター</string>
+    <string name="details_filter_none">なし</string>
+    <string name="details_filter_sepia">セピア</string>
+    <string name="details_filter_greyscale">グレースケール</string>
+    <string name="details_filter_invert">反転</string>
+    <string name="details_filter_custom_tint">カスタムティント</string>
+    <string name="details_custom_tint_color">カスタムティントの色</string>
+    <string name="details_color_red">赤</string>
+    <string name="details_color_orange">オレンジ</string>
+    <string name="details_color_yellow">黄</string>
+    <string name="details_color_green">緑</string>
+    <string name="details_color_blue">青</string>
+    <string name="details_color_purple">紫</string>
+    <string name="details_color_pink">ピンク</string>
+    <string name="details_reset">リセット</string>
+    <string name="details_background_color">背景色</string>
+    <string name="details_override_background">リーダーの背景を上書き</string>
+    <string name="details_bg_black">黒</string>
+    <string name="details_bg_dark_gray">ダークグレー</string>
+    <string name="details_bg_gray">グレー</string>
+    <string name="details_bg_white">白</string>
+    <string name="details_bg_cream">クリーム</string>
+    <string name="details_page_preloading">ページのプリロード</string>
+    <string name="details_pages_before">現在のページの前</string>
+    <string name="details_pages_after">現在のページの後</string>
+    <string name="details_reset_defaults">デフォルトに戻す</string>
+    <plurals name="details_chapter_count">
+        <item quantity="one">%1$d 章</item>
+        <item quantity="other">%1$d 章</item>
+    </plurals>
+    <string name="details_sort_ascending">↑ 昇順</string>
+    <string name="details_sort_descending">↓ 降順</string>
+    <string name="details_no_manga">マンガの詳細はありません</string>
+</resources>
