@@ -2,6 +2,7 @@ package app.otakureader.feature.about
 
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -9,16 +10,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Help
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Gavel
-import androidx.compose.material.icons.filled.GitHub
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocalLibrary
@@ -36,6 +38,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
@@ -48,6 +51,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun AboutScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToChangelog: () -> Unit = {},
     onNavigateToLicenses: () -> Unit = {},
     onNavigateToPrivacyPolicy: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -89,12 +93,14 @@ fun AboutScreen(
                 title = "How to Add Sources",
                 subtitle = "Learn how to install extensions and add manga sources",
                 onClick = {
-                    context.startActivity(
-                        Intent(
-                            Intent.ACTION_VIEW,
-                            Uri.parse("https://github.com/Heartless-Veteran/Otaku-Reader/wiki/Adding-Sources")
-                        )
+                    val intent = Intent(
+                        Intent.ACTION_VIEW,
+                        Uri.parse("https://github.com/Heartless-Veteran/Otaku-Reader/wiki/Adding-Sources")
                     )
+                    runCatching { context.startActivity(intent) }
+                        .onFailure {
+                            Toast.makeText(context, "Unable to open browser", Toast.LENGTH_SHORT).show()
+                        }
                 }
             )
 
@@ -103,12 +109,14 @@ fun AboutScreen(
                 title = "Frequently Asked Questions",
                 subtitle = "Common questions and troubleshooting tips",
                 onClick = {
-                    context.startActivity(
-                        Intent(
-                            Intent.ACTION_VIEW,
-                            Uri.parse("https://github.com/Heartless-Veteran/Otaku-Reader/wiki/FAQ")
-                        )
+                    val intent = Intent(
+                        Intent.ACTION_VIEW,
+                        Uri.parse("https://github.com/Heartless-Veteran/Otaku-Reader/wiki/FAQ")
                     )
+                    runCatching { context.startActivity(intent) }
+                        .onFailure {
+                            Toast.makeText(context, "Unable to open browser", Toast.LENGTH_SHORT).show()
+                        }
                 }
             )
 
@@ -117,12 +125,14 @@ fun AboutScreen(
                 title = "Getting Started Guide",
                 subtitle = "Learn the basics of using Otaku Reader",
                 onClick = {
-                    context.startActivity(
-                        Intent(
-                            Intent.ACTION_VIEW,
-                            Uri.parse("https://github.com/Heartless-Veteran/Otaku-Reader/wiki/Getting-Started")
-                        )
+                    val intent = Intent(
+                        Intent.ACTION_VIEW,
+                        Uri.parse("https://github.com/Heartless-Veteran/Otaku-Reader/wiki/Getting-Started")
                     )
+                    runCatching { context.startActivity(intent) }
+                        .onFailure {
+                            Toast.makeText(context, "Unable to open browser", Toast.LENGTH_SHORT).show()
+                        }
                 }
             )
 
@@ -135,7 +145,7 @@ fun AboutScreen(
                 icon = Icons.Default.History,
                 title = "Changelog",
                 subtitle = "See what's new in this version",
-                onClick = onNavigateToLicenses
+                onClick = onNavigateToChangelog
             )
 
             AboutListItem(
@@ -158,16 +168,18 @@ fun AboutScreen(
             AboutSectionTitle("Connect")
 
             AboutListItem(
-                icon = Icons.Default.GitHub,
+                icon = Icons.Default.Code,
                 title = "GitHub Repository",
                 subtitle = "View source code and report issues",
                 onClick = {
-                    context.startActivity(
-                        Intent(
-                            Intent.ACTION_VIEW,
-                            Uri.parse("https://github.com/Heartless-Veteran/Otaku-Reader")
-                        )
+                    val intent = Intent(
+                        Intent.ACTION_VIEW,
+                        Uri.parse("https://github.com/Heartless-Veteran/Otaku-Reader")
                     )
+                    runCatching { context.startActivity(intent) }
+                        .onFailure {
+                            Toast.makeText(context, "Unable to open browser", Toast.LENGTH_SHORT).show()
+                        }
                 }
             )
 
@@ -176,12 +188,14 @@ fun AboutScreen(
                 title = "Documentation",
                 subtitle = "Full documentation and guides",
                 onClick = {
-                    context.startActivity(
-                        Intent(
-                            Intent.ACTION_VIEW,
-                            Uri.parse("https://github.com/Heartless-Veteran/Otaku-Reader/wiki")
-                        )
+                    val intent = Intent(
+                        Intent.ACTION_VIEW,
+                        Uri.parse("https://github.com/Heartless-Veteran/Otaku-Reader/wiki")
                     )
+                    runCatching { context.startActivity(intent) }
+                        .onFailure {
+                            Toast.makeText(context, "Unable to open browser", Toast.LENGTH_SHORT).show()
+                        }
                 }
             )
 
@@ -192,6 +206,12 @@ fun AboutScreen(
 
 @Composable
 private fun AppInfoHeader() {
+    val context = LocalContext.current
+    val versionName = remember(context) {
+        runCatching {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        }.getOrNull().orEmpty()
+    }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -199,7 +219,7 @@ private fun AppInfoHeader() {
         horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
     ) {
         Icon(
-            imageVector = Icons.Default.MenuBook,
+            imageVector = Icons.AutoMirrored.Filled.MenuBook,
             contentDescription = null,
             modifier = Modifier
                 .padding(bottom = 16.dp)
@@ -214,7 +234,7 @@ private fun AppInfoHeader() {
         )
 
         Text(
-            text = "Version ${BuildConfig.VERSION_NAME}",
+            text = "Version $versionName",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,

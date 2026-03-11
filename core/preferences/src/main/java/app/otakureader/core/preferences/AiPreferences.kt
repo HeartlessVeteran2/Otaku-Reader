@@ -29,7 +29,15 @@ class AiPreferences(private val dataStore: DataStore<Preferences>) {
     val aiTier: Flow<Int> = dataStore.data.map { it[Keys.AI_TIER] ?: 0 }
     suspend fun setAiTier(value: Int) = dataStore.edit { it[Keys.AI_TIER] = value }
 
-    /** Gemini API key (masked in UI, stored locally). */
+    /**
+     * Gemini API key stored locally in plaintext DataStore.
+     *
+     * **Security note**: This key is stored in plaintext on-device. It is not transmitted anywhere
+     * by the app itself, but it is accessible to any app with root access or a device backup.
+     * For higher-security use cases, consider migrating to `EncryptedSharedPreferences` backed by
+     * the Android Keystore. This plaintext approach is intentional for simplicity; users should
+     * treat this key as low-sensitivity or rotate it if the device is compromised.
+     */
     val geminiApiKey: Flow<String> = dataStore.data.map { it[Keys.GEMINI_API_KEY] ?: "" }
     suspend fun setGeminiApiKey(value: String) = dataStore.edit { it[Keys.GEMINI_API_KEY] = value }
 
