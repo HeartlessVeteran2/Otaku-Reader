@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="library_filter_has_notes">有备注</string>
+    <string name="library_selected_count">已选择 %1$d 项</string>
+    <string name="library_title">书库</string>
+    <string name="library_more">更多</string>
+    <string name="library_downloads">下载</string>
+    <string name="library_settings">设置</string>
+    <string name="library_empty_title">书库是空的</string>
+    <string name="library_empty_message">浏览漫画并添加到你的收藏</string>
+    <string name="library_badge_overflow">99+</string>
+</resources>

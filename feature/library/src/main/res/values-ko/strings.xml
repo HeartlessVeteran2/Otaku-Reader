@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="library_filter_has_notes">메모 있음</string>
+    <string name="library_selected_count">%1$d개 선택됨</string>
+    <string name="library_title">라이브러리</string>
+    <string name="library_more">더보기</string>
+    <string name="library_downloads">다운로드</string>
+    <string name="library_settings">설정</string>
+    <string name="library_empty_title">라이브러리가 비어 있습니다</string>
+    <string name="library_empty_message">만화를 검색하여 컬렉션에 추가하세요</string>
+    <string name="library_badge_overflow">99+</string>
+</resources>

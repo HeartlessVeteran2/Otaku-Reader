@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="library_filter_has_notes">يحتوي على ملاحظات</string>
+    <string name="library_selected_count">%1$d محدد</string>
+    <string name="library_title">المكتبة</string>
+    <string name="library_more">المزيد</string>
+    <string name="library_downloads">التنزيلات</string>
+    <string name="library_settings">الإعدادات</string>
+    <string name="library_empty_title">مكتبتك فارغة</string>
+    <string name="library_empty_message">تصفّح المانجا لإضافتها إلى مجموعتك</string>
+    <string name="library_badge_overflow">99+</string>
+</resources>

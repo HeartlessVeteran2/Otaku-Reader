@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="library_filter_has_notes">Hat Notizen</string>
+    <string name="library_selected_count">%1$d ausgewählt</string>
+    <string name="library_title">Bibliothek</string>
+    <string name="library_more">Mehr</string>
+    <string name="library_downloads">Downloads</string>
+    <string name="library_settings">Einstellungen</string>
+    <string name="library_empty_title">Deine Bibliothek ist leer</string>
+    <string name="library_empty_message">Durchsuche Manga, um sie deiner Sammlung hinzuzufügen</string>
+    <string name="library_badge_overflow">99+</string>
+</resources>

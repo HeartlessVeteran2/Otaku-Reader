@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="library_filter_has_notes">Есть заметки</string>
+    <string name="library_selected_count">%1$d выбрано</string>
+    <string name="library_title">Библиотека</string>
+    <string name="library_more">Ещё</string>
+    <string name="library_downloads">Загрузки</string>
+    <string name="library_settings">Настройки</string>
+    <string name="library_empty_title">Ваша библиотека пуста</string>
+    <string name="library_empty_message">Найдите мангу, чтобы добавить в свою коллекцию</string>
+    <string name="library_badge_overflow">99+</string>
+</resources>
