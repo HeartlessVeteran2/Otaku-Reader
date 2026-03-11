@@ -1,4 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="library_filter_has_notes">Has notes</string>
+    <string name="library_selected_count">%1$d selected</string>
+    <string name="library_title">Library</string>
+    <string name="library_more">More</string>
+    <string name="library_downloads">Downloads</string>
+    <string name="library_settings">Settings</string>
+    <string name="library_empty_title">Your library is empty</string>
+    <string name="library_empty_message">Browse for manga to add to your collection</string>
+    <string name="library_badge_overflow">99+</string>
 </resources>

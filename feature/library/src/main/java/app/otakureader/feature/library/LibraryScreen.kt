@@ -102,28 +102,28 @@ fun LibraryScreen(
             TopAppBar(
                 title = {
                     if (state.selectedManga.isNotEmpty()) {
-                        Text("${state.selectedManga.size} selected")
+                        Text(stringResource(R.string.library_selected_count, state.selectedManga.size))
                     } else {
-                        Text("Library")
+                        Text(stringResource(R.string.library_title))
                     }
                 },
                 actions = {
                     IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "More")
+                        Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.library_more))
                     }
                     DropdownMenu(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false }
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Downloads") },
+                            text = { Text(stringResource(R.string.library_downloads)) },
                             onClick = {
                                 showMenu = false
                                 onNavigateToDownloads()
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("Settings") },
+                            text = { Text(stringResource(R.string.library_settings)) },
                             onClick = {
                                 showMenu = false
                                 onNavigateToSettings()
@@ -303,7 +303,7 @@ private fun UnreadBadge(
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = if (count > 99) "99+" else count.toString(),
+            text = if (count > 99) stringResource(R.string.library_badge_overflow) else count.toString(),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onPrimary
         )
@@ -326,12 +326,12 @@ private fun EmptyLibraryMessage(
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "Your library is empty",
+            text = stringResource(R.string.library_empty_title),
             style = MaterialTheme.typography.headlineSmall
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Browse for manga to add to your collection",
+            text = stringResource(R.string.library_empty_message),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
