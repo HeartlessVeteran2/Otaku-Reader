@@ -95,6 +95,10 @@ class SettingsViewModel @Inject constructor(
                 state.copy(keepScreenOn = keepScreenOn)
             }.combine(readerSettingsRepository.incognitoMode) { state, incognitoMode ->
                 state.copy(incognitoMode = incognitoMode)
+            }.combine(readerSettingsRepository.preloadPagesBefore) { state, preloadBefore ->
+                state.copy(preloadPagesBefore = preloadBefore)
+            }.combine(readerSettingsRepository.preloadPagesAfter) { state, preloadAfter ->
+                state.copy(preloadPagesAfter = preloadAfter)
             }.combine(downloadPreferences.autoDownloadEnabled) { state, autoDownloadEnabled ->
                 state.copy(autoDownloadEnabled = autoDownloadEnabled)
             }.combine(downloadPreferences.downloadOnlyOnWifi) { state, downloadOnlyOnWifi ->
@@ -170,6 +174,8 @@ class SettingsViewModel @Inject constructor(
                 is SettingsEvent.SetReaderMode -> readerPreferences.setReaderMode(event.mode)
                 is SettingsEvent.SetKeepScreenOn -> readerPreferences.setKeepScreenOn(event.enabled)
                 is SettingsEvent.SetIncognitoMode -> readerSettingsRepository.setIncognitoMode(event.enabled)
+                is SettingsEvent.SetPreloadPagesBefore -> readerSettingsRepository.setPreloadPagesBefore(event.count)
+                is SettingsEvent.SetPreloadPagesAfter -> readerSettingsRepository.setPreloadPagesAfter(event.count)
                 is SettingsEvent.SetDeleteAfterReading -> downloadPreferences.setDeleteAfterReading(event.enabled)
                 is SettingsEvent.SetAutoDownloadEnabled -> downloadPreferences.setAutoDownloadEnabled(event.enabled)
                 is SettingsEvent.SetDownloadOnlyOnWifi -> downloadPreferences.setDownloadOnlyOnWifi(event.enabled)

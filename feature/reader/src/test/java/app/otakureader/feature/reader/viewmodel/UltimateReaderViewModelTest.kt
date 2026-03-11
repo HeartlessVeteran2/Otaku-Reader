@@ -64,6 +64,8 @@ class UltimateReaderViewModelTest {
         every { settingsRepository.incognitoMode } returns flowOf(false)
         every { settingsRepository.colorFilterMode } returns flowOf(ColorFilterMode.NONE)
         every { settingsRepository.customTintColor } returns flowOf(0x4000AAFFL)
+        every { settingsRepository.preloadPagesBefore } returns flowOf(ReaderSettingsRepository.DEFAULT_PRELOAD_PAGES)
+        every { settingsRepository.preloadPagesAfter } returns flowOf(ReaderSettingsRepository.DEFAULT_PRELOAD_PAGES)
 
         // Return null for chapter/manga so loadChapter() exits early without side-effects.
         coEvery { chapterRepository.getChapterById(chapterId) } returns null
@@ -314,5 +316,47 @@ class UltimateReaderViewModelTest {
         coVerify {
             mangaRepository.updateManga(match { it.readerBackgroundColor == 0xFF333333L })
         }
+    }
+
+    // ---- Preload settings (#264) ----
+
+    @Test
+    fun `preloadPages uses global defaults from ReaderSettingsRepository`() = runTest {
+        // Set custom global preload settings
+        every { settingsRepository.preloadPagesBefore } returns flowOf(5)
+        every { settingsRepository.preloadPagesAfter } returns flowOf(7)
+
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Set pages and navigate to trigger preloading
+        vm.setPages(List(20) { ReaderPage(index = it) })
+        vm.jumpToPage(10)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(10, vm.state.value.currentPage)
+        // Verify preload settings flows were collected during loadSettings()
+        io.mockk.verify { settingsRepository.preloadPagesBefore }
+        io.mockk.verify { settingsRepository.preloadPagesAfter }
+    }
+
+    @Test
+    fun `preloadPages falls back to defaults when settings read fails`() = runTest {
+        // Simulate settings read failure by returning a throwing flow
+        every { settingsRepository.preloadPagesBefore } returns kotlinx.coroutines.flow.flow { throw RuntimeException("Read failed") }
+        every { settingsRepository.preloadPagesAfter } returns kotlinx.coroutines.flow.flow { throw RuntimeException("Read failed") }
+
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        vm.setPages(List(20) { ReaderPage(index = it) })
+        vm.jumpToPage(5)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Navigation should still succeed even when preload settings fail to load
+        assertEquals(5, vm.state.value.currentPage)
+        // Verify the flows were attempted to be read
+        io.mockk.verify { settingsRepository.preloadPagesBefore }
+        io.mockk.verify { settingsRepository.preloadPagesAfter }
     }
 }

@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Ultimate ViewModel for the Reader feature.
@@ -56,6 +57,10 @@ class UltimateReaderViewModel @Inject constructor(
     private var currentManga: Manga? = null
     private var currentChapter: Chapter? = null
     private var hasTriggeredDeletion = false
+
+    /** Cached global preload settings, loaded once during init to avoid repeated DataStore reads. */
+    private var cachedPreloadBefore: Int = ReaderSettingsRepository.DEFAULT_PRELOAD_PAGES
+    private var cachedPreloadAfter: Int = ReaderSettingsRepository.DEFAULT_PRELOAD_PAGES
 
     private var autoSaveJob: Job? = null
     private var preloadJob: Job? = null
@@ -115,6 +120,22 @@ class UltimateReaderViewModel @Inject constructor(
             val incognitoMode = settingsRepository.incognitoMode.first()
             val colorFilterMode = settingsRepository.colorFilterMode.first()
             val customTintColor = settingsRepository.customTintColor.first()
+
+            // Cache preload settings so preloadPages() doesn't read DataStore per page change (#264)
+            cachedPreloadBefore = try {
+                settingsRepository.preloadPagesBefore.first()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                ReaderSettingsRepository.DEFAULT_PRELOAD_PAGES
+            }
+            cachedPreloadAfter = try {
+                settingsRepository.preloadPagesAfter.first()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                ReaderSettingsRepository.DEFAULT_PRELOAD_PAGES
+            }
 
             // Apply per-manga overrides if they exist (#260)
             val effectiveMode = manga?.readerMode?.let { ReaderMode.entries.getOrNull(it) } ?: mode
@@ -504,7 +525,8 @@ class UltimateReaderViewModel @Inject constructor(
 
     /**
      * Preload pages ahead and behind current page for smooth scrolling.
-     * Uses per-manga preload settings if available (#264), otherwise falls back to default.
+     * Uses per-manga preload settings if available (#264), otherwise falls back to
+     * cached global defaults loaded once during [loadSettings].
      */
     private fun preloadPages(currentPage: Int) {
         preloadJob?.cancel()
@@ -512,9 +534,9 @@ class UltimateReaderViewModel @Inject constructor(
             val pages = _state.value.pages
             val manga = currentManga
 
-            // Use per-manga preload settings if available, otherwise use defaults (#264)
-            val preloadBefore = manga?.preloadPagesBefore ?: PRELOAD_BUFFER
-            val preloadAfter = manga?.preloadPagesAfter ?: PRELOAD_BUFFER
+            // Use per-manga overrides if available, otherwise use cached global defaults (#264)
+            val preloadBefore = manga?.preloadPagesBefore ?: cachedPreloadBefore
+            val preloadAfter = manga?.preloadPagesAfter ?: cachedPreloadAfter
 
             val preloadRange = (currentPage - preloadBefore)..(currentPage + preloadAfter)
 
@@ -627,7 +649,6 @@ class UltimateReaderViewModel @Inject constructor(
     companion object {
         private const val MIN_ZOOM = 0.5f
         private const val MAX_ZOOM = 5f
-        private const val PRELOAD_BUFFER = 3
         private const val PROGRESS_SAVE_DELAY = 3000L // 3 seconds
         const val ZOOM_INCREMENT = 0.25f
         const val BRIGHTNESS_INCREMENT = 0.1f

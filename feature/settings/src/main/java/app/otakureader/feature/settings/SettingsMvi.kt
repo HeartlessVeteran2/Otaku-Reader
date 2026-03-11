@@ -22,6 +22,8 @@ data class SettingsState(
     val readerMode: Int = 0,           // 0=single page, 1=webtoon, 2=dual page, 3=smart panels
     val keepScreenOn: Boolean = true,
     val incognitoMode: Boolean = false, // Incognito mode - reading history not saved
+    val preloadPagesBefore: Int = 3,   // Pages to preload before current (0–10)
+    val preloadPagesAfter: Int = 3,    // Pages to preload after current (0–10)
     val deleteAfterReading: Boolean = false,
     val saveAsCbz: Boolean = false,    // Save downloaded chapters as CBZ archives
     val libraryGridSize: Int = 3,      // number of columns (2–5)
@@ -75,6 +77,8 @@ sealed interface SettingsEvent : UiEvent {
     data class SetReaderMode(val mode: Int) : SettingsEvent
     data class SetKeepScreenOn(val enabled: Boolean) : SettingsEvent
     data class SetIncognitoMode(val enabled: Boolean) : SettingsEvent
+    data class SetPreloadPagesBefore(val count: Int) : SettingsEvent
+    data class SetPreloadPagesAfter(val count: Int) : SettingsEvent
     data class SetDeleteAfterReading(val enabled: Boolean) : SettingsEvent
     data class SetLibraryGridSize(val size: Int) : SettingsEvent
     data class SetShowBadges(val enabled: Boolean) : SettingsEvent

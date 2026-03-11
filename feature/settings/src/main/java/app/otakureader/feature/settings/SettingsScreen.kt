@@ -504,6 +504,51 @@ private fun ReaderSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit
                     )
                 }
             )
+
+            // Page preloading
+            var preloadBeforeSlider by remember(state.preloadPagesBefore) {
+                mutableFloatStateOf(state.preloadPagesBefore.toFloat())
+            }
+            ListItem(
+                headlineContent = { Text("Preload Pages Before: ${preloadBeforeSlider.roundToInt()}") },
+                supportingContent = {
+                    Column {
+                        Text("Number of pages to preload before the current page")
+                        Slider(
+                            value = preloadBeforeSlider,
+                            onValueChange = { preloadBeforeSlider = it },
+                            onValueChangeFinished = {
+                                onEvent(SettingsEvent.SetPreloadPagesBefore(preloadBeforeSlider.roundToInt()))
+                            },
+                            valueRange = 0f..10f,
+                            steps = 9,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            )
+
+            var preloadAfterSlider by remember(state.preloadPagesAfter) {
+                mutableFloatStateOf(state.preloadPagesAfter.toFloat())
+            }
+            ListItem(
+                headlineContent = { Text("Preload Pages After: ${preloadAfterSlider.roundToInt()}") },
+                supportingContent = {
+                    Column {
+                        Text("Number of pages to preload after the current page")
+                        Slider(
+                            value = preloadAfterSlider,
+                            onValueChange = { preloadAfterSlider = it },
+                            onValueChangeFinished = {
+                                onEvent(SettingsEvent.SetPreloadPagesAfter(preloadAfterSlider.roundToInt()))
+                            },
+                            valueRange = 0f..10f,
+                            steps = 9,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            )
 }
 
 @Composable

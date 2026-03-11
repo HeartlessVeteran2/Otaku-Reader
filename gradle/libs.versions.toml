@@ -133,6 +133,9 @@ coil-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", versio
 paging-runtime = { group = "androidx.paging", name = "paging-runtime", version.ref = "paging" }
 paging-compose = { group = "androidx.paging", name = "paging-compose", version.ref = "paging" }
 
+# Browser (Custom Tabs)
+browser = { group = "androidx.browser", name = "browser", version = "1.8.0" }
+
 # WorkManager
 workmanager-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workmanager" }
 
