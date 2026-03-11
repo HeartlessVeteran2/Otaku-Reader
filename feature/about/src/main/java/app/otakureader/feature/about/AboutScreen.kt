@@ -41,6 +41,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.otakureader.feature.about.R
@@ -204,7 +205,7 @@ private fun AppInfoHeader() {
     ) {
         Icon(
             imageVector = Icons.Default.MenuBook,
-            contentDescription = null,
+            contentDescription = stringResource(R.string.about_app_icon),
             modifier = Modifier
                 .padding(bottom = 16.dp)
                 .size(80.dp),
@@ -290,11 +291,11 @@ private fun AboutListItem(
         trailingContent = {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                contentDescription = null,
+                contentDescription = stringResource(R.string.about_opens_in_browser),
                 modifier = Modifier.size(20.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
             )
         },
-        modifier = Modifier.clickable(onClick = onClick)
+        modifier = Modifier.clickable(role = Role.Button, onClick = onClick)
     )
 }
