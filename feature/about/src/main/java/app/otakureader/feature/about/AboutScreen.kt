@@ -214,7 +214,7 @@ private fun AppInfoHeader() {
         )
 
         Text(
-            text = "Version 1.0.0",
+            text = "Version ${BuildConfig.VERSION_NAME}",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
