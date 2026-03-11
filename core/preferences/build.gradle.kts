@@ -11,5 +11,5 @@ dependencies {
     implementation(projects.core.common)
     api(libs.datastore.preferences)
     implementation(libs.kotlinx.coroutines.android)
-    implementation(libs.security.crypto)
+    implementation(libs.androidx.security.crypto)
 }

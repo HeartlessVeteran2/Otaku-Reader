@@ -24,6 +24,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -61,9 +63,11 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.otakureader.core.preferences.AiTier
 import app.otakureader.core.ui.theme.COLOR_SCHEME_CUSTOM_ACCENT
 import java.util.Locale
 import kotlin.math.roundToInt
@@ -154,6 +158,8 @@ fun SettingsScreen(
             DataStorageSection(state = state, onEvent = viewModel::onEvent)
             HorizontalDivider()
             MigrationSection(state = state, onEvent = viewModel::onEvent)
+            HorizontalDivider()
+            AiSection(state = state, onEvent = viewModel::onEvent)
         }
     }
 }
@@ -972,6 +978,167 @@ private fun MigrationSection(state: SettingsState, onEvent: (SettingsEvent) -> U
         }
     )
 }
+
+@Composable
+private fun AiSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
+    // ── AI ────────────────────────────────────────────────────────────
+    SectionHeader(title = "AI Features")
+
+    // Master toggle
+    ListItem(
+        headlineContent = { Text("Enable AI Features") },
+        supportingContent = { Text("Powered by Gemini. Requires an API key.") },
+        trailingContent = {
+            Switch(
+                checked = state.aiEnabled,
+                onCheckedChange = { onEvent(SettingsEvent.SetAiEnabled(it)) }
+            )
+        }
+    )
+
+    // API Key input (only shown when AI is enabled)
+    if (state.aiEnabled) {
+        var apiKeyInput by remember { mutableStateOf("") }
+        var apiKeyVisible by remember { mutableStateOf(false) }
+
+        ListItem(
+            headlineContent = { Text("Gemini API Key") },
+            supportingContent = {
+                Column {
+                    if (state.aiApiKeySet) {
+                        Text(
+                            text = "API key is set. Enter a new key to replace it.",
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                    }
+                    OutlinedTextField(
+                        value = apiKeyInput,
+                        onValueChange = { apiKeyInput = it },
+                        label = { Text("API Key") },
+                        singleLine = true,
+                        visualTransformation = if (apiKeyVisible) VisualTransformation.None
+                        else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            IconButton(onClick = { apiKeyVisible = !apiKeyVisible }) {
+                                Icon(
+                                    imageVector = if (apiKeyVisible) Icons.Filled.VisibilityOff
+                                    else Icons.Filled.Visibility,
+                                    contentDescription = if (apiKeyVisible) "Hide key" else "Show key"
+                                )
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Button(
+                        onClick = {
+                            onEvent(SettingsEvent.SetAiApiKey(apiKeyInput))
+                            apiKeyInput = ""
+                        },
+                        enabled = apiKeyInput.isNotBlank(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)
+                    ) {
+                        Text("Save API Key")
+                    }
+                }
+            }
+        )
+
+        // Tier selection
+        ListItem(
+            headlineContent = { Text("Service Tier") },
+            supportingContent = {
+                Row(modifier = Modifier.selectableGroup()) {
+                    listOf(
+                        "Free" to AiTier.FREE,
+                        "Standard" to AiTier.STANDARD,
+                        "Pro" to AiTier.PRO
+                    ).forEach { (label, tier) ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .selectable(
+                                    selected = state.aiTier == tier,
+                                    onClick = { onEvent(SettingsEvent.SetAiTier(tier)) },
+                                    role = Role.RadioButton
+                                )
+                                .padding(end = 8.dp)
+                        ) {
+                            RadioButton(selected = state.aiTier == tier, onClick = null)
+                            Text(text = label, modifier = Modifier.padding(start = 4.dp))
+                        }
+                    }
+                }
+            }
+        )
+
+        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+        SectionHeader(title = "Feature Toggles")
+
+        // Individual feature toggles
+        val features = listOf(
+            AiFeatureToggle("Reading Insights", "AI-powered reading statistics", state.aiReadingInsights) { SettingsEvent.SetAiReadingInsights(it) },
+            AiFeatureToggle("Smart Search", "Natural language search queries", state.aiSmartSearch) { SettingsEvent.SetAiSmartSearch(it) },
+            AiFeatureToggle("Recommendations", "Personalised manga suggestions", state.aiRecommendations) { SettingsEvent.SetAiRecommendations(it) },
+            AiFeatureToggle("Panel-Aware Reader", "Gemini Vision panel detection", state.aiPanelReader) { SettingsEvent.SetAiPanelReader(it) },
+            AiFeatureToggle("SFX Translation", "Translate sound effects in pages", state.aiSfxTranslation) { SettingsEvent.SetAiSfxTranslation(it) },
+            AiFeatureToggle("Summary Translation", "Auto-translate chapter summaries", state.aiSummaryTranslation) { SettingsEvent.SetAiSummaryTranslation(it) },
+            AiFeatureToggle("Source Intelligence", "Score and rank sources automatically", state.aiSourceIntelligence) { SettingsEvent.SetAiSourceIntelligence(it) },
+            AiFeatureToggle("Smart Notifications", "Context-aware update summaries", state.aiSmartNotifications) { SettingsEvent.SetAiSmartNotifications(it) },
+            AiFeatureToggle("Auto-Categorization", "Categorise new manga automatically", state.aiAutoCategorization) { SettingsEvent.SetAiAutoCategorization(it) }
+        )
+
+        features.forEach { feature ->
+            ListItem(
+                headlineContent = { Text(feature.label) },
+                supportingContent = { Text(feature.description) },
+                trailingContent = {
+                    Switch(
+                        checked = feature.enabled,
+                        onCheckedChange = { onEvent(feature.makeEvent(it)) }
+                    )
+                }
+            )
+        }
+
+        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+        SectionHeader(title = "Usage")
+
+        // Token usage
+        val usageLabel = if (state.aiTokenTrackingPeriod.isNotBlank()) {
+            "${state.aiTokensUsedThisMonth} tokens used (${state.aiTokenTrackingPeriod})"
+        } else {
+            "${state.aiTokensUsedThisMonth} tokens used this month"
+        }
+        ListItem(
+            headlineContent = { Text("Monthly Token Usage") },
+            supportingContent = { Text(usageLabel) }
+        )
+
+        // Clear AI cache
+        ListItem(
+            headlineContent = { Text("Clear AI Cache") },
+            supportingContent = { Text("Remove cached AI responses to free up space") },
+            trailingContent = {
+                OutlinedButton(onClick = { onEvent(SettingsEvent.ClearAiCache) }) {
+                    Text("Clear")
+                }
+            }
+        )
+    }
+}
+
+/**
+ * Holds display metadata and the toggle state for a single AI feature switch.
+ */
+private data class AiFeatureToggle(
+    val label: String,
+    val description: String,
+    val enabled: Boolean,
+    val makeEvent: (Boolean) -> SettingsEvent
+)
 
 /**
  * Preset accent colors for the custom accent color picker.
