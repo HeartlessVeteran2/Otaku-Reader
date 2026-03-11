@@ -1,6 +1,7 @@
 package app.otakureader.domain.usecase.source
 
 import app.otakureader.domain.repository.SourceRepository
+import app.otakureader.sourceapi.FilterList
 import app.otakureader.sourceapi.MangaPage
 
 /**
@@ -9,7 +10,12 @@ import app.otakureader.sourceapi.MangaPage
 class SearchMangaUseCase(
     private val sourceRepository: SourceRepository
 ) {
-    suspend operator fun invoke(sourceId: String, query: String, page: Int = 1): Result<MangaPage> {
-        return sourceRepository.searchManga(sourceId, query, page)
+    suspend operator fun invoke(
+        sourceId: String,
+        query: String,
+        page: Int = 1,
+        filters: FilterList = FilterList()
+    ): Result<MangaPage> {
+        return sourceRepository.searchManga(sourceId, query, page, filters)
     }
 }

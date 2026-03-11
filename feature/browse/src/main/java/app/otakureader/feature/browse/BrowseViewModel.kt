@@ -5,8 +5,10 @@ import androidx.lifecycle.viewModelScope
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.domain.usecase.source.GetLatestUpdatesUseCase
 import app.otakureader.domain.usecase.source.GetPopularMangaUseCase
+import app.otakureader.domain.usecase.source.GetSourceFiltersUseCase
 import app.otakureader.domain.usecase.source.GetSourcesUseCase
 import app.otakureader.domain.usecase.source.SearchMangaUseCase
+import app.otakureader.sourceapi.FilterList
 import app.otakureader.sourceapi.MangaSource
 import app.otakureader.sourceapi.SourceManga
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -26,6 +28,7 @@ class BrowseViewModel @Inject constructor(
     private val getPopularMangaUseCase: GetPopularMangaUseCase,
     private val getLatestUpdatesUseCase: GetLatestUpdatesUseCase,
     private val searchMangaUseCase: SearchMangaUseCase,
+    private val getSourceFiltersUseCase: GetSourceFiltersUseCase,
     private val generalPreferences: GeneralPreferences
 ) : ViewModel() {
 
@@ -63,8 +66,15 @@ class BrowseViewModel @Inject constructor(
     fun onEvent(event: BrowseEvent) {
         when (event) {
             is BrowseEvent.SelectSource -> {
-                _state.update { it.copy(currentSourceId = event.sourceId) }
+                _state.update {
+                    it.copy(
+                        currentSourceId = event.sourceId,
+                        availableFilters = FilterList(),
+                        activeFilters = FilterList()
+                    )
+                }
                 loadPopularManga(event.sourceId)
+                loadSourceFilters(event.sourceId)
             }
             is BrowseEvent.OnMangaClick -> {
                 val sourceId = _state.value.currentSourceId ?: return
@@ -86,6 +96,47 @@ class BrowseViewModel @Inject constructor(
                 val sourceId = _state.value.currentSourceId ?: return
                 loadLatestUpdates(sourceId)
             }
+            is BrowseEvent.ToggleFilterSheet -> {
+                _state.update { it.copy(showFilterSheet = !it.showFilterSheet) }
+            }
+            is BrowseEvent.UpdateFilter -> {
+                updateFilter(event.index, event.filter)
+            }
+            is BrowseEvent.ResetFilters -> {
+                resetFilters()
+            }
+            is BrowseEvent.ApplyFilters -> {
+                _state.update { it.copy(showFilterSheet = false) }
+                performSearch()
+            }
+        }
+    }
+
+    private fun loadSourceFilters(sourceId: String) {
+        viewModelScope.launch {
+            val filters = getSourceFiltersUseCase(sourceId)
+            _state.update {
+                it.copy(
+                    availableFilters = filters,
+                    activeFilters = filters
+                )
+            }
+        }
+    }
+
+    private fun updateFilter(index: Int, filter: app.otakureader.sourceapi.Filter<*>) {
+        val currentFilters = _state.value.activeFilters.filters.toMutableList()
+        if (index in currentFilters.indices) {
+            currentFilters[index] = filter
+            _state.update { it.copy(activeFilters = FilterList(currentFilters)) }
+        }
+    }
+
+    private fun resetFilters() {
+        val sourceId = _state.value.currentSourceId ?: return
+        viewModelScope.launch {
+            val filters = getSourceFiltersUseCase(sourceId)
+            _state.update { it.copy(activeFilters = filters) }
         }
     }
 
@@ -154,13 +205,15 @@ class BrowseViewModel @Inject constructor(
     private fun performSearch() {
         val query = _state.value.searchQuery
         val sourceId = _state.value.currentSourceId ?: return
+        val filters = _state.value.activeFilters
 
-        if (query.isBlank()) return
+        // Allow filter-only search only when at least one filter is non-default
+        if (query.isBlank() && !filters.hasActiveFilters()) return
 
         viewModelScope.launch {
             _state.update { it.copy(isSearching = true, error = null) }
 
-            searchMangaUseCase(sourceId, query, 1)
+            searchMangaUseCase(sourceId, query, 1, filters)
                 .onSuccess { mangaPage ->
                     _state.update { state ->
                         state.copy(
@@ -190,7 +243,12 @@ class BrowseViewModel @Inject constructor(
         if (currentState.isSearching) {
             // Load next page of search results
             viewModelScope.launch {
-                searchMangaUseCase(sourceId, currentState.searchQuery, currentState.currentPage + 1)
+                searchMangaUseCase(
+                    sourceId,
+                    currentState.searchQuery,
+                    currentState.currentPage + 1,
+                    currentState.activeFilters
+                )
                     .onSuccess { mangaPage ->
                         _state.update { state ->
                             state.copy(

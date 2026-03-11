@@ -3,6 +3,7 @@ package app.otakureader.feature.browse
 import app.otakureader.core.common.mvi.UiEffect
 import app.otakureader.core.common.mvi.UiEvent
 import app.otakureader.core.common.mvi.UiState
+import app.otakureader.sourceapi.FilterList
 import app.otakureader.sourceapi.SourceManga
 
 data class BrowseState(
@@ -15,7 +16,10 @@ data class BrowseState(
     val isSearching: Boolean = false,
     val error: String? = null,
     val hasNextPage: Boolean = false,
-    val currentPage: Int = 1
+    val currentPage: Int = 1,
+    val availableFilters: FilterList = FilterList(),
+    val activeFilters: FilterList = FilterList(),
+    val showFilterSheet: Boolean = false
 ) : UiState
 
 sealed interface BrowseEvent : UiEvent {
@@ -26,6 +30,10 @@ sealed interface BrowseEvent : UiEvent {
     data object LoadNextPage : BrowseEvent
     data object RefreshSources : BrowseEvent
     data object LoadLatest : BrowseEvent
+    data object ToggleFilterSheet : BrowseEvent
+    data class UpdateFilter(val index: Int, val filter: app.otakureader.sourceapi.Filter<*>) : BrowseEvent
+    data object ResetFilters : BrowseEvent
+    data object ApplyFilters : BrowseEvent
 }
 
 sealed interface BrowseEffect : UiEffect {

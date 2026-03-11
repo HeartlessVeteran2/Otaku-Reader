@@ -1,5 +1,6 @@
 package app.otakureader.domain.repository
 
+import app.otakureader.sourceapi.FilterList
 import app.otakureader.sourceapi.MangaPage
 import app.otakureader.sourceapi.MangaSource
 import app.otakureader.sourceapi.SourceChapter
@@ -35,6 +36,21 @@ interface SourceRepository {
      * Search manga in a source
      */
     suspend fun searchManga(sourceId: String, query: String, page: Int): Result<MangaPage>
+
+    /**
+     * Search manga in a source with filters
+     */
+    suspend fun searchManga(
+        sourceId: String,
+        query: String,
+        page: Int,
+        filters: FilterList
+    ): Result<MangaPage>
+
+    /**
+     * Get the available filters for a source
+     */
+    suspend fun getSourceFilters(sourceId: String): FilterList
 
     /**
      * Get manga details from a source

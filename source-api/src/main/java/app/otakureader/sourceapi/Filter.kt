@@ -34,4 +34,54 @@ sealed class Filter<T>(val name: String, var state: T) {
 
 class FilterList(val filters: List<Filter<*>> = emptyList()) {
     constructor(vararg filters: Filter<*>) : this(filters.toList())
+
+    /**
+     * Returns `true` when at least one filter has been changed from its default state.
+     * Recurses into [Filter.Group] children.
+     */
+    fun hasActiveFilters(): Boolean = filters.any { it.isActive() }
+}
+
+/**
+ * Checks whether a single filter has a non-default state.
+ * For groups, recurses into children.
+ */
+fun Filter<*>.isActive(): Boolean = when (this) {
+    is Filter.Select<*> -> state != 0
+    is Filter.Text -> state.isNotBlank()
+    is Filter.CheckBox -> state
+    is Filter.TriState -> state != Filter.TriState.STATE_IGNORE
+    is Filter.Sort -> state != null
+    is Filter.Group<*> -> {
+        @Suppress("UNCHECKED_CAST")
+        val children = (state as? List<*>)?.filterIsInstance<Filter<*>>() ?: emptyList()
+        children.any { it.isActive() }
+    }
+    else -> false
+}
+
+/**
+ * Concrete filter implementations for use by source adapters and the app UI.
+ * Extensions subclass the abstract [Filter] types; these classes provide
+ * instantiable versions the app can create when converting from external
+ * filter representations (e.g., Tachiyomi compat layer).
+ */
+object Filters {
+    class SelectFilter(name: String, values: Array<String>, state: Int = 0) :
+        Filter.Select<String>(name, values, state)
+
+    class TextFilter(name: String, state: String = "") :
+        Filter.Text(name, state)
+
+    class CheckBoxFilter(name: String, state: Boolean = false) :
+        Filter.CheckBox(name, state)
+
+    class TriStateFilter(name: String, state: Int = Filter.TriState.STATE_IGNORE) :
+        Filter.TriState(name, state)
+
+    class GroupFilter(name: String, state: List<Filter<*>>) :
+        Filter.Group<Filter<*>>(name, state)
+
+    class SortFilter(name: String, values: Array<String>, state: Filter.Sort.Selection? = null) :
+        Filter.Sort(name, values, state)
 }

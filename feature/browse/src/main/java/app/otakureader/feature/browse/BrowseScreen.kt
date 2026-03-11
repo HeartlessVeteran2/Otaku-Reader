@@ -5,12 +5,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -19,6 +21,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Badge
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -32,6 +35,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,6 +47,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.otakureader.sourceapi.Filter
+import app.otakureader.sourceapi.isActive
 import app.otakureader.sourceapi.SourceManga
 import coil3.compose.AsyncImage
 
@@ -100,6 +106,19 @@ fun BrowseScreen(
             modifier = Modifier.padding(paddingValues)
         )
     }
+
+    // Show filter sheet
+    if (state.showFilterSheet && state.activeFilters.filters.isNotEmpty()) {
+        SourceFilterSheet(
+            filters = state.activeFilters,
+            onFilterUpdate = { index, filter ->
+                viewModel.onEvent(BrowseEvent.UpdateFilter(index, filter))
+            },
+            onReset = { viewModel.onEvent(BrowseEvent.ResetFilters) },
+            onApply = { viewModel.onEvent(BrowseEvent.ApplyFilters) },
+            onDismiss = { viewModel.onEvent(BrowseEvent.ToggleFilterSheet) }
+        )
+    }
 }
 
 @Composable
@@ -109,21 +128,37 @@ private fun BrowseContent(
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.fillMaxSize()) {
-        // Search bar
-        OutlinedTextField(
-            value = state.searchQuery,
-            onValueChange = { onEvent(BrowseEvent.OnSearchQueryChange(it)) },
+        // Search bar with filter button
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            placeholder = { Text("Search manga...") },
-            trailingIcon = {
-                IconButton(onClick = { onEvent(BrowseEvent.Search) }) {
-                    Icon(Icons.Default.Search, contentDescription = "Search")
-                }
-            },
-            singleLine = true
-        )
+                .padding(start = 16.dp, end = 16.dp, top = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = state.searchQuery,
+                onValueChange = { onEvent(BrowseEvent.OnSearchQueryChange(it)) },
+                modifier = Modifier.weight(1f),
+                placeholder = { Text("Search manga...") },
+                trailingIcon = {
+                    IconButton(onClick = { onEvent(BrowseEvent.Search) }) {
+                        Icon(Icons.Default.Search, contentDescription = "Search")
+                    }
+                },
+                singleLine = true
+            )
+
+            // Filter button - shown when a source has filters
+            if (state.availableFilters.filters.isNotEmpty()) {
+                Spacer(modifier = Modifier.width(8.dp))
+                FilterButton(
+                    activeCount = countActiveFilters(state.activeFilters),
+                    onClick = { onEvent(BrowseEvent.ToggleFilterSheet) }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         if (state.isSearching) {
             // Show search results
@@ -170,6 +205,26 @@ private fun BrowseContent(
     }
 }
 
+@Composable
+private fun FilterButton(
+    activeCount: Int,
+    onClick: () -> Unit
+) {
+    TextButton(onClick = onClick) {
+        Text("Filters")
+        if (activeCount > 0) {
+            Spacer(modifier = Modifier.width(4.dp))
+            Badge { Text("$activeCount") }
+        }
+    }
+}
+
+/**
+ * Count the number of filters that have been changed from their default state.
+ */
+private fun countActiveFilters(filters: app.otakureader.sourceapi.FilterList): Int {
+    return filters.filters.count { filter -> filter.isActive() }
+}
 @Composable
 private fun SourcesContent(
     sources: List<String>,
