@@ -77,3 +77,7 @@ data class TrackingRoute(val mangaId: Long, val mangaTitle: String) : OtakuReade
 /** Onboarding screen for first-time users. */
 @Serializable
 object OnboardingRoute : OtakuReaderDestination
+
+/** About screen with help, FAQ, and app information. */
+@Serializable
+object AboutRoute : OtakuReaderDestination
