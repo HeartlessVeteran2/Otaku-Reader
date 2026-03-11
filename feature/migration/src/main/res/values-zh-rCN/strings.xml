@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Migration screen -->
+    <string name="migration_title">批量迁移</string>
+    <string name="migration_back">返回</string>
+    <string name="migration_select_target_source">选择目标源</string>
+    <string name="migration_mode_title">迁移模式</string>
+    <string name="migration_mode_move">移动</string>
+    <string name="migration_mode_copy">复制</string>
+    <string name="migration_progress">迁移进度 (%1$d/%2$d)</string>
+    <string name="migration_retry_failed">重试失败项</string>
+    <string name="migration_migrating">迁移中…</string>
+    <string name="migration_start">开始迁移</string>
+
+    <!-- Error dialog -->
+    <string name="migration_error_title">错误</string>
+    <string name="migration_ok">确定</string>
+
+    <!-- Confirmation dialog -->
+    <string name="migration_select_target">选择迁移目标</string>
+    <string name="migration_migrating_label">迁移中:</string>
+    <string name="migration_choose_target">选择目标（找到 %1$d 个匹配）:</string>
+    <string name="migration_choose_target_plural">选择目标（找到 %1$d 个匹配）:</string>
+    <string name="migration_skip">跳过</string>
+
+    <!-- Candidate card -->
+    <plurals name="migration_chapter_count">
+        <item quantity="one">%1$d 章</item>
+        <item quantity="other">%1$d 章</item>
+    </plurals>
+    <string name="migration_match_score">匹配度: %1$d%%</string>
+
+    <!-- Summary dialog -->
+    <string name="migration_complete_title">迁移完成</string>
+    <string name="migration_processed">已处理 %1$d 部漫画</string>
+    <string name="migration_completed_count">已完成: %1$d</string>
+    <string name="migration_failed_count">失败: %1$d</string>
+    <string name="migration_skipped_count">已跳过: %1$d</string>
+    <string name="migration_done">完成</string>
+
+    <!-- Status messages -->
+    <string name="migration_status_pending">等待中</string>
+    <string name="migration_status_searching">正在搜索匹配…</string>
+    <string name="migration_status_awaiting">等待确认</string>
+    <string name="migration_status_migrating">正在迁移数据…</string>
+    <string name="migration_status_completed">已完成</string>
+    <plurals name="migration_status_completed_chapters">
+        <item quantity="one">已完成 · 匹配 %1$d 章</item>
+        <item quantity="other">已完成 · 匹配 %1$d 章</item>
+    </plurals>
+    <string name="migration_status_failed">失败: %1$s</string>
+    <string name="migration_status_unknown_error">未知错误</string>
+    <string name="migration_status_skipped">已跳过</string>
+    <string name="migration_target_arrow">→ %1$s</string>
+</resources>

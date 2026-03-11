@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Migration screen -->
+    <string name="migration_title">대량 마이그레이션</string>
+    <string name="migration_back">뒤로</string>
+    <string name="migration_select_target_source">대상 소스 선택</string>
+    <string name="migration_mode_title">마이그레이션 모드</string>
+    <string name="migration_mode_move">이동</string>
+    <string name="migration_mode_copy">복사</string>
+    <string name="migration_progress">마이그레이션 진행 (%1$d/%2$d)</string>
+    <string name="migration_retry_failed">실패 재시도</string>
+    <string name="migration_migrating">마이그레이션 중…</string>
+    <string name="migration_start">마이그레이션 시작</string>
+
+    <!-- Error dialog -->
+    <string name="migration_error_title">오류</string>
+    <string name="migration_ok">확인</string>
+
+    <!-- Confirmation dialog -->
+    <string name="migration_select_target">마이그레이션 대상 선택</string>
+    <string name="migration_migrating_label">마이그레이션 중:</string>
+    <string name="migration_choose_target">대상 선택 (%1$d개 일치 항목 발견):</string>
+    <string name="migration_choose_target_plural">대상 선택 (%1$d개 일치 항목 발견):</string>
+    <string name="migration_skip">건너뛰기</string>
+
+    <!-- Candidate card -->
+    <plurals name="migration_chapter_count">
+        <item quantity="one">%1$d화</item>
+        <item quantity="other">%1$d화</item>
+    </plurals>
+    <string name="migration_match_score">일치도: %1$d%%</string>
+
+    <!-- Summary dialog -->
+    <string name="migration_complete_title">마이그레이션 완료</string>
+    <string name="migration_processed">%1$d개의 만화 처리 완료</string>
+    <string name="migration_completed_count">완료: %1$d</string>
+    <string name="migration_failed_count">실패: %1$d</string>
+    <string name="migration_skipped_count">건너뜀: %1$d</string>
+    <string name="migration_done">완료</string>
+
+    <!-- Status messages -->
+    <string name="migration_status_pending">대기 중</string>
+    <string name="migration_status_searching">일치 항목 검색 중…</string>
+    <string name="migration_status_awaiting">확인 대기 중</string>
+    <string name="migration_status_migrating">데이터 마이그레이션 중…</string>
+    <string name="migration_status_completed">완료됨</string>
+    <plurals name="migration_status_completed_chapters">
+        <item quantity="one">완료 · %1$d화 일치</item>
+        <item quantity="other">완료 · %1$d화 일치</item>
+    </plurals>
+    <string name="migration_status_failed">실패: %1$s</string>
+    <string name="migration_status_unknown_error">알 수 없는 오류</string>
+    <string name="migration_status_skipped">건너뜀</string>
+    <string name="migration_target_arrow">→ %1$s</string>
+</resources>

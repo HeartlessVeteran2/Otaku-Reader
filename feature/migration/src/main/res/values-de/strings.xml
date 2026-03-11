@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Migration screen -->
+    <string name="migration_title">Massenmigration</string>
+    <string name="migration_back">Zurück</string>
+    <string name="migration_select_target_source">Zielquelle auswählen</string>
+    <string name="migration_mode_title">Migrationsmodus</string>
+    <string name="migration_mode_move">Verschieben</string>
+    <string name="migration_mode_copy">Kopieren</string>
+    <string name="migration_progress">Migrationsfortschritt (%1$d/%2$d)</string>
+    <string name="migration_retry_failed">Fehlgeschlagene wiederholen</string>
+    <string name="migration_migrating">Migriere…</string>
+    <string name="migration_start">Migration starten</string>
+
+    <!-- Error dialog -->
+    <string name="migration_error_title">Fehler</string>
+    <string name="migration_ok">OK</string>
+
+    <!-- Confirmation dialog -->
+    <string name="migration_select_target">Migrationsziel auswählen</string>
+    <string name="migration_migrating_label">Migriere:</string>
+    <string name="migration_choose_target">Ziel wählen (%1$d Übereinstimmung gefunden):</string>
+    <string name="migration_choose_target_plural">Ziel wählen (%1$d Übereinstimmungen gefunden):</string>
+    <string name="migration_skip">Überspringen</string>
+
+    <!-- Candidate card -->
+    <plurals name="migration_chapter_count">
+        <item quantity="one">%1$d Kapitel</item>
+        <item quantity="other">%1$d Kapitel</item>
+    </plurals>
+    <string name="migration_match_score">Übereinstimmung: %1$d%%</string>
+
+    <!-- Summary dialog -->
+    <string name="migration_complete_title">Migration abgeschlossen</string>
+    <string name="migration_processed">%1$d Manga verarbeitet</string>
+    <string name="migration_completed_count">Abgeschlossen: %1$d</string>
+    <string name="migration_failed_count">Fehlgeschlagen: %1$d</string>
+    <string name="migration_skipped_count">Übersprungen: %1$d</string>
+    <string name="migration_done">Fertig</string>
+
+    <!-- Status messages -->
+    <string name="migration_status_pending">Ausstehend</string>
+    <string name="migration_status_searching">Suche nach Übereinstimmungen…</string>
+    <string name="migration_status_awaiting">Warte auf Bestätigung</string>
+    <string name="migration_status_migrating">Daten werden migriert…</string>
+    <string name="migration_status_completed">Abgeschlossen</string>
+    <plurals name="migration_status_completed_chapters">
+        <item quantity="one">Abgeschlossen · %1$d Kapitel zugeordnet</item>
+        <item quantity="other">Abgeschlossen · %1$d Kapitel zugeordnet</item>
+    </plurals>
+    <string name="migration_status_failed">Fehlgeschlagen: %1$s</string>
+    <string name="migration_status_unknown_error">Unbekannter Fehler</string>
+    <string name="migration_status_skipped">Übersprungen</string>
+    <string name="migration_target_arrow">→ %1$s</string>
+</resources>

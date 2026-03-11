@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Migration screen -->
+    <string name="migration_title">ترحيل جماعي</string>
+    <string name="migration_back">رجوع</string>
+    <string name="migration_select_target_source">اختيار المصدر الهدف</string>
+    <string name="migration_mode_title">وضع الترحيل</string>
+    <string name="migration_mode_move">نقل</string>
+    <string name="migration_mode_copy">نسخ</string>
+    <string name="migration_progress">تقدّم الترحيل (%1$d/%2$d)</string>
+    <string name="migration_retry_failed">إعادة محاولة الفاشلة</string>
+    <string name="migration_migrating">جارٍ الترحيل…</string>
+    <string name="migration_start">بدء الترحيل</string>
+
+    <!-- Error dialog -->
+    <string name="migration_error_title">خطأ</string>
+    <string name="migration_ok">حسنًا</string>
+
+    <!-- Confirmation dialog -->
+    <string name="migration_select_target">اختيار هدف الترحيل</string>
+    <string name="migration_migrating_label">جارٍ الترحيل:</string>
+    <string name="migration_choose_target">اختر هدفًا (تم العثور على %1$d تطابق):</string>
+    <string name="migration_choose_target_plural">اختر هدفًا (تم العثور على %1$d تطابقات):</string>
+    <string name="migration_skip">تخطّي</string>
+
+    <!-- Candidate card -->
+    <plurals name="migration_chapter_count">
+        <item quantity="one">%1$d فصل</item>
+        <item quantity="other">%1$d فصول</item>
+    </plurals>
+    <string name="migration_match_score">التطابق: %1$d%%</string>
+
+    <!-- Summary dialog -->
+    <string name="migration_complete_title">اكتمل الترحيل</string>
+    <string name="migration_processed">تمت معالجة %1$d مانجا</string>
+    <string name="migration_completed_count">مكتمل: %1$d</string>
+    <string name="migration_failed_count">فشل: %1$d</string>
+    <string name="migration_skipped_count">تم التخطّي: %1$d</string>
+    <string name="migration_done">تم</string>
+
+    <!-- Status messages -->
+    <string name="migration_status_pending">قيد الانتظار</string>
+    <string name="migration_status_searching">جارٍ البحث عن تطابقات…</string>
+    <string name="migration_status_awaiting">في انتظار التأكيد</string>
+    <string name="migration_status_migrating">جارٍ ترحيل البيانات…</string>
+    <string name="migration_status_completed">مكتمل</string>
+    <plurals name="migration_status_completed_chapters">
+        <item quantity="one">مكتمل · %1$d فصل متطابق</item>
+        <item quantity="other">مكتمل · %1$d فصول متطابقة</item>
+    </plurals>
+    <string name="migration_status_failed">فشل: %1$s</string>
+    <string name="migration_status_unknown_error">خطأ غير معروف</string>
+    <string name="migration_status_skipped">تم التخطّي</string>
+    <string name="migration_target_arrow">← %1$s</string>
+</resources>

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Migration screen -->
+    <string name="migration_title">Массовая миграция</string>
+    <string name="migration_back">Назад</string>
+    <string name="migration_select_target_source">Выбрать целевой источник</string>
+    <string name="migration_mode_title">Режим миграции</string>
+    <string name="migration_mode_move">Переместить</string>
+    <string name="migration_mode_copy">Копировать</string>
+    <string name="migration_progress">Прогресс миграции (%1$d/%2$d)</string>
+    <string name="migration_retry_failed">Повторить неудачные</string>
+    <string name="migration_migrating">Миграция…</string>
+    <string name="migration_start">Начать миграцию</string>
+
+    <!-- Error dialog -->
+    <string name="migration_error_title">Ошибка</string>
+    <string name="migration_ok">ОК</string>
+
+    <!-- Confirmation dialog -->
+    <string name="migration_select_target">Выбрать цель миграции</string>
+    <string name="migration_migrating_label">Миграция:</string>
+    <string name="migration_choose_target">Выберите цель (%1$d совпадение найдено):</string>
+    <string name="migration_choose_target_plural">Выберите цель (%1$d совпадений найдено):</string>
+    <string name="migration_skip">Пропустить</string>
+
+    <!-- Candidate card -->
+    <plurals name="migration_chapter_count">
+        <item quantity="one">%1$d глава</item>
+        <item quantity="other">%1$d глав</item>
+    </plurals>
+    <string name="migration_match_score">Совпадение: %1$d%%</string>
+
+    <!-- Summary dialog -->
+    <string name="migration_complete_title">Миграция завершена</string>
+    <string name="migration_processed">Обработано %1$d манга</string>
+    <string name="migration_completed_count">Завершено: %1$d</string>
+    <string name="migration_failed_count">Не удалось: %1$d</string>
+    <string name="migration_skipped_count">Пропущено: %1$d</string>
+    <string name="migration_done">Готово</string>
+
+    <!-- Status messages -->
+    <string name="migration_status_pending">Ожидание</string>
+    <string name="migration_status_searching">Поиск совпадений…</string>
+    <string name="migration_status_awaiting">Ожидание подтверждения</string>
+    <string name="migration_status_migrating">Миграция данных…</string>
+    <string name="migration_status_completed">Завершено</string>
+    <plurals name="migration_status_completed_chapters">
+        <item quantity="one">Завершено · %1$d глава совпала</item>
+        <item quantity="other">Завершено · %1$d глав совпало</item>
+    </plurals>
+    <string name="migration_status_failed">Не удалось: %1$s</string>
+    <string name="migration_status_unknown_error">Неизвестная ошибка</string>
+    <string name="migration_status_skipped">Пропущено</string>
+    <string name="migration_target_arrow">→ %1$s</string>
+</resources>

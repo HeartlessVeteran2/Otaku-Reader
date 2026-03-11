@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Migration screen -->
+    <string name="migration_title">一括移行</string>
+    <string name="migration_back">戻る</string>
+    <string name="migration_select_target_source">移行先ソースを選択</string>
+    <string name="migration_mode_title">移行モード</string>
+    <string name="migration_mode_move">移動</string>
+    <string name="migration_mode_copy">コピー</string>
+    <string name="migration_progress">移行の進捗 (%1$d/%2$d)</string>
+    <string name="migration_retry_failed">失敗を再試行</string>
+    <string name="migration_migrating">移行中…</string>
+    <string name="migration_start">移行を開始</string>
+
+    <!-- Error dialog -->
+    <string name="migration_error_title">エラー</string>
+    <string name="migration_ok">OK</string>
+
+    <!-- Confirmation dialog -->
+    <string name="migration_select_target">移行先を選択</string>
+    <string name="migration_migrating_label">移行中:</string>
+    <string name="migration_choose_target">移行先を選択 (%1$d 件の一致):</string>
+    <string name="migration_choose_target_plural">移行先を選択 (%1$d 件の一致):</string>
+    <string name="migration_skip">スキップ</string>
+
+    <!-- Candidate card -->
+    <plurals name="migration_chapter_count">
+        <item quantity="one">%1$d 話</item>
+        <item quantity="other">%1$d 話</item>
+    </plurals>
+    <string name="migration_match_score">一致度: %1$d%%</string>
+
+    <!-- Summary dialog -->
+    <string name="migration_complete_title">移行完了</string>
+    <string name="migration_processed">%1$d 件のマンガを処理しました</string>
+    <string name="migration_completed_count">完了: %1$d</string>
+    <string name="migration_failed_count">失敗: %1$d</string>
+    <string name="migration_skipped_count">スキップ: %1$d</string>
+    <string name="migration_done">完了</string>
+
+    <!-- Status messages -->
+    <string name="migration_status_pending">保留中</string>
+    <string name="migration_status_searching">一致を検索中…</string>
+    <string name="migration_status_awaiting">確認待ち</string>
+    <string name="migration_status_migrating">データを移行中…</string>
+    <string name="migration_status_completed">完了</string>
+    <plurals name="migration_status_completed_chapters">
+        <item quantity="one">完了 · %1$d 話が一致</item>
+        <item quantity="other">完了 · %1$d 話が一致</item>
+    </plurals>
+    <string name="migration_status_failed">失敗: %1$s</string>
+    <string name="migration_status_unknown_error">不明なエラー</string>
+    <string name="migration_status_skipped">スキップ済み</string>
+    <string name="migration_target_arrow">→ %1$s</string>
+</resources>
