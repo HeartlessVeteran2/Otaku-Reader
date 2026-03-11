@@ -95,6 +95,7 @@ class DetailsViewModel @Inject constructor(
             is DetailsContract.Event.SetReaderMode -> setReaderMode(event.mode)
             is DetailsContract.Event.SetReaderColorFilter -> setReaderColorFilter(event.filter)
             is DetailsContract.Event.SetReaderCustomTintColor -> setReaderCustomTintColor(event.color)
+            is DetailsContract.Event.SetReaderBackgroundColor -> setReaderBackgroundColor(event.color)
 
             // Page preloading settings (#264)
             is DetailsContract.Event.SetPreloadPagesBefore -> setPreloadPagesBefore(event.count)
@@ -631,6 +632,17 @@ class DetailsViewModel @Inject constructor(
                 _effect.emit(DetailsContract.Effect.ShowSnackbar("Custom tint color updated"))
             } catch (e: Exception) {
                 _effect.emit(DetailsContract.Effect.ShowError("Failed to update tint color"))
+            }
+        }
+    }
+
+    private fun setReaderBackgroundColor(color: Long?) {
+        viewModelScope.launch {
+            try {
+                mangaRepository.updateReaderBackgroundColor(mangaId, color)
+                _effect.emit(DetailsContract.Effect.ShowSnackbar("Background color updated"))
+            } catch (e: Exception) {
+                _effect.emit(DetailsContract.Effect.ShowError("Failed to update background color"))
             }
         }
     }

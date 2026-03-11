@@ -128,6 +128,7 @@ object DetailsContract {
         data class SetReaderMode(val mode: Int?) : Event
         data class SetReaderColorFilter(val filter: Int?) : Event
         data class SetReaderCustomTintColor(val color: Long?) : Event
+        data class SetReaderBackgroundColor(val color: Long?) : Event
 
         // Page preloading settings (#264)
         data class SetPreloadPagesBefore(val count: Int?) : Event

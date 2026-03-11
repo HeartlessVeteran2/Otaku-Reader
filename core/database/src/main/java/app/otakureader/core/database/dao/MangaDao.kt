@@ -70,6 +70,9 @@ interface MangaDao {
     @Query("UPDATE manga SET readerCustomTintColor = :color WHERE id = :id")
     suspend fun updateReaderCustomTintColor(id: Long, color: Long?)
 
+    @Query("UPDATE manga SET readerBackgroundColor = :color WHERE id = :id")
+    suspend fun updateReaderBackgroundColor(id: Long, color: Long?)
+
     // Page preloading settings (#264)
     @Query("UPDATE manga SET preloadPagesBefore = :count WHERE id = :id")
     suspend fun updatePreloadPagesBefore(id: Long, count: Int?)

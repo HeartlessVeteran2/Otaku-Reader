@@ -1,8 +1,11 @@
 package app.otakureader.feature.details
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
@@ -30,9 +34,12 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilledIconToggleButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -56,6 +63,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
@@ -563,6 +572,7 @@ private fun NotificationOption(
 /**
  * Reader settings section for per-manga configuration (#260, #264)
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ReaderSettingsSection(
     manga: app.otakureader.domain.model.Manga,
@@ -575,9 +585,11 @@ private fun ReaderSettingsSection(
         ListItem(
             headlineContent = { Text("Reader Settings") },
             supportingContent = {
-                val hasOverrides = manga.readerDirection != null || 
-                                   manga.readerMode != null || 
+                val hasOverrides = manga.readerDirection != null ||
+                                   manga.readerMode != null ||
                                    manga.readerColorFilter != null ||
+                                   manga.readerCustomTintColor != null ||
+                                   manga.readerBackgroundColor != null ||
                                    manga.preloadPagesBefore != null ||
                                    manga.preloadPagesAfter != null
                 Text(
@@ -614,6 +626,68 @@ private fun ReaderSettingsSection(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Reader Mode
+                Text(
+                    text = "Reader Mode",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    ReaderModeOption("Single Page", 0, manga.readerMode, onEvent)
+                    ReaderModeOption("Dual Page", 1, manga.readerMode, onEvent)
+                    ReaderModeOption("Webtoon", 2, manga.readerMode, onEvent)
+                    ReaderModeOption("Smart Panels", 3, manga.readerMode, onEvent)
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Color Filter
+                Text(
+                    text = "Color Filter",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    ColorFilterOption("None", 0, manga.readerColorFilter, onEvent)
+                    ColorFilterOption("Sepia", 1, manga.readerColorFilter, onEvent)
+                    ColorFilterOption("Greyscale", 2, manga.readerColorFilter, onEvent)
+                    ColorFilterOption("Invert", 3, manga.readerColorFilter, onEvent)
+                    ColorFilterOption("Custom Tint", 4, manga.readerColorFilter, onEvent)
+                }
+
+                // Custom Tint Color Picker (shown when Custom Tint is selected)
+                if (manga.readerColorFilter == 4) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    CustomTintColorPicker(
+                        currentColor = manga.readerCustomTintColor,
+                        onColorChange = { onEvent(DetailsContract.Event.SetReaderCustomTintColor(it)) }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Background Color
+                Text(
+                    text = "Background Color",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                BackgroundColorPicker(
+                    currentColor = manga.readerBackgroundColor,
+                    onColorChange = { onEvent(DetailsContract.Event.SetReaderBackgroundColor(it)) }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 // Preload Pages
                 Text(
                     text = "Page Preloading",
@@ -640,6 +714,7 @@ private fun ReaderSettingsSection(
                         onEvent(DetailsContract.Event.SetReaderMode(null))
                         onEvent(DetailsContract.Event.SetReaderColorFilter(null))
                         onEvent(DetailsContract.Event.SetReaderCustomTintColor(null))
+                        onEvent(DetailsContract.Event.SetReaderBackgroundColor(null))
                         onEvent(DetailsContract.Event.SetPreloadPagesBefore(null))
                         onEvent(DetailsContract.Event.SetPreloadPagesAfter(null))
                     },
@@ -716,6 +791,154 @@ private fun PreloadOption(
             }
         }
     }
+}
+
+@Composable
+private fun ReaderModeOption(
+    label: String,
+    value: Int,
+    currentValue: Int?,
+    onEvent: (DetailsContract.Event) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    FilterChip(
+        selected = currentValue == value,
+        onClick = { onEvent(DetailsContract.Event.SetReaderMode(value)) },
+        label = { Text(label) },
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun ColorFilterOption(
+    label: String,
+    value: Int,
+    currentValue: Int?,
+    onEvent: (DetailsContract.Event) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    FilterChip(
+        selected = currentValue == value,
+        onClick = { onEvent(DetailsContract.Event.SetReaderColorFilter(value)) },
+        label = { Text(label) },
+        modifier = modifier
+    )
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CustomTintColorPicker(
+    currentColor: Long?,
+    onColorChange: (Long?) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = "Custom Tint Color",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            val presetColors = listOf(
+                0xFFFF6B6B to "Red",
+                0xFFFFA500 to "Orange",
+                0xFFFFD93D to "Yellow",
+                0xFF6BCB77 to "Green",
+                0xFF4D96FF to "Blue",
+                0xFF9D84B7 to "Purple",
+                0xFFFFB6C1 to "Pink"
+            )
+            presetColors.forEach { (color, name) ->
+                ColorChip(
+                    color = color,
+                    label = name,
+                    selected = currentColor == color,
+                    onClick = { onColorChange(color) }
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        TextButton(
+            onClick = { onColorChange(null) },
+            modifier = Modifier.align(Alignment.End)
+        ) {
+            Text("Reset")
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun BackgroundColorPicker(
+    currentColor: Long?,
+    onColorChange: (Long?) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = "Override reader background",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            val presetColors = listOf(
+                0xFF000000 to "Black",
+                0xFF1A1A1A to "Dark Gray",
+                0xFF808080 to "Gray",
+                0xFFFFFFFF to "White",
+                0xFFFFF8DC to "Cream"
+            )
+            presetColors.forEach { (color, name) ->
+                ColorChip(
+                    color = color,
+                    label = name,
+                    selected = currentColor == color,
+                    onClick = { onColorChange(color) }
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        TextButton(
+            onClick = { onColorChange(null) },
+            modifier = Modifier.align(Alignment.End)
+        ) {
+            Text("Reset")
+        }
+    }
+}
+
+@Composable
+private fun ColorChip(
+    color: Long,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = { Text(label) },
+        leadingIcon = {
+            Box(
+                modifier = Modifier
+                    .size(16.dp)
+                    .background(
+                        color = Color(color),
+                        shape = CircleShape
+                    )
+            )
+        },
+        modifier = modifier
+    )
 }
 
 @Composable
