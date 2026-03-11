@@ -14,7 +14,7 @@ dependencies {
     implementation(libs.paging.compose)
     implementation(libs.lifecycle.viewmodel.ktx)
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.browser)
+    // implementation(libs.browser) // TODO: Add browser library to version catalog
 
     testImplementation(libs.junit)
     testImplementation(libs.mockk)

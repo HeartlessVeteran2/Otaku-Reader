@@ -106,6 +106,10 @@ class MangaRepositoryImpl @Inject constructor(
         mangaDao.updateReaderCustomTintColor(id, color)
     }
 
+    override suspend fun updateReaderBackgroundColor(id: Long, color: Long?) {
+        mangaDao.updateReaderBackgroundColor(id, color)
+    }
+
     // Page preloading settings (#264)
     override suspend fun updatePreloadPagesBefore(id: Long, count: Int?) {
         mangaDao.updatePreloadPagesBefore(id, count)

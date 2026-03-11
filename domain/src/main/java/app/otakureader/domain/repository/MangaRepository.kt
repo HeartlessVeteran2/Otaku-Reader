@@ -24,6 +24,7 @@ interface MangaRepository {
     suspend fun updateReaderMode(id: Long, mode: Int?)
     suspend fun updateReaderColorFilter(id: Long, filter: Int?)
     suspend fun updateReaderCustomTintColor(id: Long, color: Long?)
+    suspend fun updateReaderBackgroundColor(id: Long, color: Long?)
 
     // Page preloading settings (#264)
     suspend fun updatePreloadPagesBefore(id: Long, count: Int?)
