@@ -10,6 +10,7 @@ import app.otakureader.core.preferences.AiPreferences
 import app.otakureader.core.preferences.AppPreferences
 import app.otakureader.core.preferences.BackupPreferences
 import app.otakureader.core.preferences.DownloadPreferences
+import app.otakureader.core.preferences.EncryptedApiKeyStore
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.LibraryPreferences
 import app.otakureader.core.preferences.LocalSourcePreferences
@@ -110,6 +111,13 @@ object PreferencesModule {
 
     @Provides
     @Singleton
-    fun provideAiPreferences(dataStore: DataStore<Preferences>): AiPreferences =
-        AiPreferences(dataStore)
+    fun provideEncryptedApiKeyStore(@ApplicationContext context: Context): EncryptedApiKeyStore =
+        EncryptedApiKeyStore(context)
+
+    @Provides
+    @Singleton
+    fun provideAiPreferences(
+        dataStore: DataStore<Preferences>,
+        encryptedApiKeyStore: EncryptedApiKeyStore
+    ): AiPreferences = AiPreferences(dataStore, encryptedApiKeyStore)
 }
