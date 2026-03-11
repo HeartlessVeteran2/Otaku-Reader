@@ -36,7 +36,7 @@ class AiPreferences(private val dataStore: DataStore<Preferences>) {
     // --- Individual Feature Toggles ---
 
     /** Enable AI-powered reading insights and statistics. */
-    val aiReadingInsights: Flow<Boolean> = dataStore.data.map { it[Keys.AI_READING_INSIGHTS] ?: true }
+    val aiReadingInsights: Flow<Boolean> = dataStore.data.map { it[Keys.AI_READING_INSIGHTS] ?: false }
     suspend fun setAiReadingInsights(value: Boolean) = dataStore.edit { it[Keys.AI_READING_INSIGHTS] = value }
 
     /** Enable smart search with natural language queries. */
