@@ -1,0 +1,6 @@
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="MissingTranslation">
+    <string name="continue_reading_widget_description">Quickly resume reading your manga</string>
+    <string name="recent_updates_widget_description">See the latest chapter updates</string>
+    
+</resources>

@@ -72,6 +72,32 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
+        <!-- Continue Reading Widget -->
+        <receiver
+            android:name=".widget.ContinueReadingWidgetReceiver"
+            android:exported="false"
+            android:label="Continue Reading">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/continue_reading_widget_info" />
+        </receiver>
+
+        <!-- Recent Updates Widget -->
+        <receiver
+            android:name=".widget.RecentUpdatesWidgetReceiver"
+            android:exported="false"
+            android:label="Recent Updates">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/recent_updates_widget_info" />
+        </receiver>
+
     </application>
 
 </manifest>
