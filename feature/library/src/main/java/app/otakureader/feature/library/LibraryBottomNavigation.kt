@@ -15,6 +15,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 
 @Composable
 fun LibraryBottomNavigation(
@@ -33,7 +34,7 @@ fun LibraryBottomNavigation(
     ) {
         NavigationBarItem(
             icon = { Icon(Icons.Default.CollectionsBookmark, contentDescription = null) },
-            label = { Text("Library") },
+            label = { Text(stringResource(R.string.library_nav_library)) },
             selected = selectedRoute == "library",
             onClick = onNavigateToLibrary
         )
@@ -44,7 +45,7 @@ fun LibraryBottomNavigation(
                         if (newUpdatesCount > 0) {
                             Badge {
                                 Text(
-                                    text = if (newUpdatesCount > 99) "99+" else newUpdatesCount.toString()
+                                    text = if (newUpdatesCount > 99) stringResource(R.string.library_badge_overflow) else newUpdatesCount.toString()
                                 )
                             }
                         }
@@ -53,31 +54,31 @@ fun LibraryBottomNavigation(
                     Icon(Icons.Default.NewReleases, contentDescription = null)
                 }
             },
-            label = { Text("Updates") },
+            label = { Text(stringResource(R.string.library_nav_updates)) },
             selected = selectedRoute == "updates",
             onClick = onNavigateToUpdates
         )
         NavigationBarItem(
             icon = { Icon(Icons.Default.Explore, contentDescription = null) },
-            label = { Text("Browse") },
+            label = { Text(stringResource(R.string.library_nav_browse)) },
             selected = selectedRoute == "browse",
             onClick = onNavigateToBrowse
         )
         NavigationBarItem(
             icon = { Icon(Icons.Default.History, contentDescription = null) },
-            label = { Text("History") },
+            label = { Text(stringResource(R.string.library_nav_history)) },
             selected = selectedRoute == "history",
             onClick = onNavigateToHistory
         )
         NavigationBarItem(
             icon = { Icon(Icons.Default.QueryStats, contentDescription = null) },
-            label = { Text("Stats") },
+            label = { Text(stringResource(R.string.library_nav_stats)) },
             selected = selectedRoute == "statistics",
             onClick = onNavigateToStatistics
         )
         NavigationBarItem(
             icon = { Icon(Icons.Default.Settings, contentDescription = null) },
-            label = { Text("Settings") },
+            label = { Text(stringResource(R.string.library_nav_settings)) },
             selected = selectedRoute == "settings",
             onClick = onNavigateToSettings
         )
