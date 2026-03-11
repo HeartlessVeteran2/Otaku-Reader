@@ -7,21 +7,18 @@ import app.otakureader.core.preferences.DeleteAfterReadMode
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MangaStatus
+import app.otakureader.domain.model.ReaderDefaults
 
 /**
  * Contract for MVI pattern in Details Screen
  */
 object DetailsContract {
 
-    /** Maximum pages to preload before/after the current page.
-     *  Intentionally duplicated from UltimateReaderViewModel.MAX_PRELOAD_PAGES — feature modules
-     *  cannot cross-depend, so keeping both values equal is a manual constraint. */
-    const val MAX_PRELOAD_PAGES = 10
+    /** Maximum pages to preload before/after the current page. */
+    const val MAX_PRELOAD_PAGES = ReaderDefaults.MAX_PRELOAD_PAGES
 
-    /** Default pages to preload when no per-manga override is set.
-     *  Intentionally duplicated from UltimateReaderViewModel.PRELOAD_BUFFER — feature modules
-     *  cannot cross-depend, so keeping both values equal is a manual constraint. */
-    const val DEFAULT_PRELOAD_PAGES = 3
+    /** Default pages to preload when no per-manga override is set. */
+    const val DEFAULT_PRELOAD_PAGES = ReaderDefaults.DEFAULT_PRELOAD_PAGES
 
 
     /**

@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import app.otakureader.data.loader.PageLoader
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
+import app.otakureader.domain.model.ReaderDefaults
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.feature.reader.model.ColorFilterMode
@@ -633,8 +634,8 @@ class UltimateReaderViewModel @Inject constructor(
     companion object {
         private const val MIN_ZOOM = 0.5f
         private const val MAX_ZOOM = 5f
-        private const val PRELOAD_BUFFER = 3
-        const val MAX_PRELOAD_PAGES = 10
+        private const val PRELOAD_BUFFER = ReaderDefaults.DEFAULT_PRELOAD_PAGES
+        const val MAX_PRELOAD_PAGES = ReaderDefaults.MAX_PRELOAD_PAGES
         private const val PROGRESS_SAVE_DELAY = 3000L // 3 seconds
         const val ZOOM_INCREMENT = 0.25f
         const val BRIGHTNESS_INCREMENT = 0.1f

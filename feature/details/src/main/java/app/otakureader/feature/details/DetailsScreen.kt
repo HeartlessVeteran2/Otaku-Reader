@@ -773,6 +773,8 @@ private fun PreloadOption(
     maxValue: Int = DetailsContract.MAX_PRELOAD_PAGES,
     modifier: Modifier = Modifier
 ) {
+    // When no override is set, treat the default value as the effective value for +/-.
+    val effective = value ?: defaultValue
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -784,8 +786,8 @@ private fun PreloadOption(
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(
-                onClick = { if (value == 0) onChange(null) else onChange(value!! - 1) },
-                enabled = value != null
+                onClick = { onChange((effective - 1).coerceAtLeast(0)) },
+                enabled = effective > 0
             ) {
                 Text("-")
             }
@@ -794,8 +796,8 @@ private fun PreloadOption(
                 modifier = Modifier.padding(horizontal = 8.dp)
             )
             TextButton(
-                onClick = { onChange(if (value == null) 0 else (value + 1)) },
-                enabled = value == null || value < maxValue
+                onClick = { onChange(effective + 1) },
+                enabled = effective < maxValue
             ) {
                 Text("+")
             }
