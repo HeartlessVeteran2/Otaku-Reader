@@ -41,10 +41,14 @@ class EncryptedApiKeyStore(context: Context) {
      * Uses [commit] (synchronous) to ensure the value is safely written before returning.
      */
     suspend fun setGeminiApiKey(value: String) {
-        withContext(Dispatchers.IO) {
-            sharedPreferences.edit().putString(KEY_GEMINI_API, value).commit()
+        val commitSucceeded = withContext(Dispatchers.IO) {
+            sharedPreferences.edit()
+                .putString(KEY_GEMINI_API, value)
+                .commit()
         }
-        _geminiApiKey.value = value
+        if (commitSucceeded) {
+            _geminiApiKey.value = value
+        }
     }
 
     private companion object {
