@@ -73,3 +73,11 @@ object MigrationEntryRoute : OtakuReaderDestination
 /** Tracking screen for a specific manga. */
 @Serializable
 data class TrackingRoute(val mangaId: Long, val mangaTitle: String) : OtakuReaderDestination
+
+/** Onboarding screen for first-time users. */
+@Serializable
+object OnboardingRoute : OtakuReaderDestination
+
+/** About screen with help, FAQ, and app information. */
+@Serializable
+object AboutRoute : OtakuReaderDestination
