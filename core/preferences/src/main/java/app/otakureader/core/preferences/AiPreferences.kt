@@ -64,48 +64,186 @@ class AiPreferences(
      * In-memory/no-op SharedPreferences used when encrypted preferences cannot be
      * initialized. This prevents sensitive data like API keys from ever being
      * written to disk in plaintext while keeping existing call sites working.
+     *
+     * Values are retained only in memory for the lifetime of the process and are
+     * never persisted to disk.
      */
     private object NoOpSharedPreferences : SharedPreferences {
 
-        private object NoOpEditor : SharedPreferences.Editor {
-            override fun putString(key: String?, value: String?): SharedPreferences.Editor = this
-            override fun putStringSet(key: String?, values: MutableSet<String>?): SharedPreferences.Editor = this
-            override fun putInt(key: String?, value: Int): SharedPreferences.Editor = this
-            override fun putLong(key: String?, value: Long): SharedPreferences.Editor = this
-            override fun putFloat(key: String?, value: Float): SharedPreferences.Editor = this
-            override fun putBoolean(key: String?, value: Boolean): SharedPreferences.Editor = this
-            override fun remove(key: String?): SharedPreferences.Editor = this
-            override fun clear(): SharedPreferences.Editor = this
-            override fun commit(): Boolean = false
+        private val backingMap: MutableMap<String, Any?> = mutableMapOf()
+        private val listeners: MutableSet<SharedPreferences.OnSharedPreferenceChangeListener> = mutableSetOf()
+
+        private inner class InMemoryEditor : SharedPreferences.Editor {
+
+            private val pendingChanges: MutableMap<String, Any?> = mutableMapOf()
+            private val keysToRemove: MutableSet<String> = mutableSetOf()
+            private var clearRequested: Boolean = false
+
+            override fun putString(key: String?, value: String?): SharedPreferences.Editor = applyChange(key, value)
+
+            override fun putStringSet(
+                key: String?,
+                values: MutableSet<String>?
+            ): SharedPreferences.Editor = applyChange(key, values?.toMutableSet())
+
+            override fun putInt(key: String?, value: Int): SharedPreferences.Editor = applyChange(key, value)
+
+            override fun putLong(key: String?, value: Long): SharedPreferences.Editor = applyChange(key, value)
+
+            override fun putFloat(key: String?, value: Float): SharedPreferences.Editor = applyChange(key, value)
+
+            override fun putBoolean(key: String?, value: Boolean): SharedPreferences.Editor = applyChange(key, value)
+
+            override fun remove(key: String?): SharedPreferences.Editor = apply {
+                if (key != null) {
+                    pendingChanges.remove(key)
+                    keysToRemove.add(key)
+                }
+            }
+
+            override fun clear(): SharedPreferences.Editor = apply {
+                clearRequested = true
+                pendingChanges.clear()
+                keysToRemove.clear()
+            }
+
+            override fun commit(): Boolean {
+                applyChanges()
+                return true
+            }
+
             override fun apply() {
-                // no-op
+                applyChanges()
+            }
+
+            private fun applyChange(key: String?, value: Any?): SharedPreferences.Editor = apply {
+                if (key != null) {
+                    keysToRemove.remove(key)
+                    pendingChanges[key] = value
+                }
+            }
+
+            private fun applyChanges() {
+                val changedKeys = mutableSetOf<String>()
+                synchronized(NoOpSharedPreferences) {
+                    if (clearRequested) {
+                        if (backingMap.isNotEmpty()) {
+                            changedKeys.addAll(backingMap.keys)
+                        }
+                        backingMap.clear()
+                        clearRequested = false
+                    }
+
+                    for (key in keysToRemove) {
+                        if (backingMap.containsKey(key)) {
+                            backingMap.remove(key)
+                            changedKeys.add(key)
+                        }
+                    }
+                    keysToRemove.clear()
+
+                    for ((key, value) in pendingChanges) {
+                        val oldValue = backingMap[key]
+                        if (oldValue != value) {
+                            backingMap[key] = value
+                            changedKeys.add(key)
+                        }
+                    }
+                    pendingChanges.clear()
+                }
+
+                if (changedKeys.isNotEmpty()) {
+                    synchronized(NoOpSharedPreferences) {
+                        val snapshotListeners = listeners.toList()
+                        val snapshot = this@NoOpSharedPreferences
+                        for (key in changedKeys) {
+                            for (listener in snapshotListeners) {
+                                listener.onSharedPreferenceChanged(snapshot, key)
+                            }
+                        }
+                    }
+                }
             }
         }
 
-        override fun getAll(): MutableMap<String, *> = mutableMapOf<String, Any?>()
-
-        override fun getString(key: String?, defValue: String?): String? = defValue
-
-        override fun getStringSet(key: String?, defValues: MutableSet<String>?): MutableSet<String>? = defValues
-
-        override fun getInt(key: String?, defValue: Int): Int = defValue
-
-        override fun getLong(key: String?, defValue: Long): Long = defValue
-
-        override fun getFloat(key: String?, defValue: Float): Float = defValue
-
-        override fun getBoolean(key: String?, defValue: Boolean): Boolean = defValue
-
-        override fun contains(key: String?): Boolean = false
-
-        override fun edit(): SharedPreferences.Editor = NoOpEditor
-
-        override fun registerOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener?) {
-            // no-op
+        override fun getAll(): MutableMap<String, *> = synchronized(this) {
+            HashMap(backingMap)
         }
 
-        override fun unregisterOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener?) {
-            // no-op
+        override fun getString(key: String?, defValue: String?): String? = synchronized(this) {
+            if (key == null) return@synchronized defValue
+            backingMap[key] as? String ?: defValue
+        }
+
+        @Suppress("UNCHECKED_CAST")
+        override fun getStringSet(
+            key: String?,
+            defValues: MutableSet<String>?
+        ): MutableSet<String>? = synchronized(this) {
+            if (key == null) return@synchronized defValues
+            val value = backingMap[key] as? MutableSet<String>
+            value?.toMutableSet() ?: defValues
+        }
+
+        override fun getInt(key: String?, defValue: Int): Int = synchronized(this) {
+            if (key == null) return@synchronized defValue
+            val value = backingMap[key]
+            when (value) {
+                is Int -> value
+                else -> defValue
+            }
+        }
+
+        override fun getLong(key: String?, defValue: Long): Long = synchronized(this) {
+            if (key == null) return@synchronized defValue
+            val value = backingMap[key]
+            when (value) {
+                is Long -> value
+                is Int -> value.toLong()
+                else -> defValue
+            }
+        }
+
+        override fun getFloat(key: String?, defValue: Float): Float = synchronized(this) {
+            if (key == null) return@synchronized defValue
+            val value = backingMap[key]
+            when (value) {
+                is Float -> value
+                else -> defValue
+            }
+        }
+
+        override fun getBoolean(key: String?, defValue: Boolean): Boolean = synchronized(this) {
+            if (key == null) return@synchronized defValue
+            val value = backingMap[key]
+            when (value) {
+                is Boolean -> value
+                else -> defValue
+            }
+        }
+
+        override fun contains(key: String?): Boolean = synchronized(this) {
+            key != null && backingMap.containsKey(key)
+        }
+
+        override fun edit(): SharedPreferences.Editor = InMemoryEditor()
+
+        override fun registerOnSharedPreferenceChangeListener(
+            listener: SharedPreferences.OnSharedPreferenceChangeListener?
+        ) {
+            if (listener == null) return
+            synchronized(this) {
+                listeners.add(listener)
+            }
+        }
+
+        override fun unregisterOnSharedPreferenceChangeListener(
+            listener: SharedPreferences.OnSharedPreferenceChangeListener?
+        ) {
+            if (listener == null) return
+            synchronized(this) {
+                listeners.remove(listener)
+            }
         }
     }
     /** Master switch for all AI features. When false, no AI features work regardless of other settings. */
