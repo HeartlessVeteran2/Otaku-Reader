@@ -110,6 +110,8 @@ object PreferencesModule {
 
     @Provides
     @Singleton
-    fun provideAiPreferences(dataStore: DataStore<Preferences>): AiPreferences =
-        AiPreferences(dataStore)
+    fun provideAiPreferences(
+        dataStore: DataStore<Preferences>,
+        @ApplicationContext context: Context
+    ): AiPreferences = AiPreferences(dataStore, context)
 }
