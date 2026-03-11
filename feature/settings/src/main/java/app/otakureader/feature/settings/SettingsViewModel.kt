@@ -79,6 +79,8 @@ class SettingsViewModel @Inject constructor(
                 )
             }.combine(generalPreferences.usePureBlackDarkMode) { state, usePureBlack ->
                 state.copy(usePureBlackDarkMode = usePureBlack)
+            }.combine(generalPreferences.useHighContrast) { state, highContrast ->
+                state.copy(useHighContrast = highContrast)
             }.combine(generalPreferences.colorScheme) { state, colorScheme ->
                 state.copy(colorScheme = colorScheme)
             }.combine(generalPreferences.customAccentColor) { state, customAccent ->
@@ -165,6 +167,7 @@ class SettingsViewModel @Inject constructor(
                 is SettingsEvent.SetThemeMode -> generalPreferences.setThemeMode(event.mode)
                 is SettingsEvent.SetDynamicColor -> generalPreferences.setUseDynamicColor(event.enabled)
                 is SettingsEvent.SetPureBlackDarkMode -> generalPreferences.setUsePureBlackDarkMode(event.enabled)
+                is SettingsEvent.SetHighContrast -> generalPreferences.setUseHighContrast(event.enabled)
                 is SettingsEvent.SetColorScheme -> generalPreferences.setColorScheme(event.scheme)
                 is SettingsEvent.SetLocale -> generalPreferences.setLocale(event.locale)
                 is SettingsEvent.SetNotificationsEnabled -> generalPreferences.setNotificationsEnabled(event.enabled)

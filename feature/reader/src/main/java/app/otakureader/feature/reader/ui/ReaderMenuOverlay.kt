@@ -457,6 +457,7 @@ private fun CustomTintPicker(
         ) {
             items(TintPresets) { preset ->
                 val isSelected = (currentRgb == preset.rgb)
+                val presetName = stringResource(preset.nameResId)
                 Box(
                     modifier = Modifier
                         .size(36.dp)
@@ -471,7 +472,7 @@ private fun CustomTintPicker(
                             onColorChange((alpha shl 24) or preset.rgb)
                         }
                         .semantics {
-                            contentDescription = stringResource(preset.nameResId)
+                            contentDescription = presetName
                             role = androidx.compose.ui.semantics.Role.RadioButton
                             selected = isSelected
                         }
@@ -579,6 +580,7 @@ fun ReaderBackgroundColorControl(
                 val (nameResId, colorValue) = ReaderBackgroundPresets[index]
                 val isSelected = currentColor == colorValue
                 val displayColor = if (colorValue != null) Color(colorValue.toInt()) else Color.Black
+                val colorName = stringResource(nameResId)
                 Box(
                     modifier = Modifier
                         .size(36.dp)
@@ -601,7 +603,7 @@ fun ReaderBackgroundColorControl(
                         )
                         .clickable { onColorChange(colorValue) }
                         .semantics {
-                            contentDescription = stringResource(nameResId)
+                            contentDescription = colorName
                             role = androidx.compose.ui.semantics.Role.RadioButton
                             selected = isSelected
                         }

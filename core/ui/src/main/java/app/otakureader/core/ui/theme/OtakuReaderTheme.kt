@@ -22,11 +22,13 @@ const val COLOR_SCHEME_CUSTOM_ACCENT = 11
 /**
  * Otaku Reader app theme.
  * Supports dynamic color (Material You) on Android 12+, custom color schemes,
- * Pure Black (AMOLED) dark mode, custom accent color, and manual dark/light mode.
+ * Pure Black (AMOLED) dark mode, high-contrast mode, custom accent color,
+ * and manual dark/light mode.
  *
  * @param darkTheme Whether to use dark theme. Defaults to system setting.
  * @param colorScheme Color scheme selection (0=System Default, 1=Dynamic, 2-10=Custom schemes, [COLOR_SCHEME_CUSTOM_ACCENT]=Custom accent)
  * @param usePureBlack Whether to use Pure Black (#000000) background in dark mode (AMOLED)
+ * @param useHighContrast Whether to boost contrast for improved accessibility
  * @param customAccentColor ARGB Long used when [colorScheme] == [COLOR_SCHEME_CUSTOM_ACCENT]
  */
 @Composable
@@ -34,6 +36,7 @@ fun OtakuReaderTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     colorScheme: Int = 0,
     usePureBlack: Boolean = false,
+    useHighContrast: Boolean = false,
     customAccentColor: Long = 0xFF1976D2L,
     content: @Composable () -> Unit
 ) {
@@ -71,7 +74,7 @@ fun OtakuReaderTheme(
     }
 
     // Apply Pure Black background if enabled and in dark mode
-    val finalColorScheme = if (usePureBlack && darkTheme) {
+    val pureBlackScheme = if (usePureBlack && darkTheme) {
         baseColorScheme.copy(
             background = PureBlack,
             surface = PureBlack,
@@ -84,6 +87,29 @@ fun OtakuReaderTheme(
         )
     } else {
         baseColorScheme
+    }
+
+    // Apply high-contrast adjustments for improved accessibility
+    val finalColorScheme = if (useHighContrast) {
+        if (darkTheme) {
+            pureBlackScheme.copy(
+                onBackground = Color.White,
+                onSurface = Color.White,
+                onSurfaceVariant = Color(0xFFE0E0E0),
+                outline = Color(0xFFBDBDBD),
+                outlineVariant = Color(0xFF9E9E9E),
+            )
+        } else {
+            pureBlackScheme.copy(
+                onBackground = Color.Black,
+                onSurface = Color.Black,
+                onSurfaceVariant = Color(0xFF212121),
+                outline = Color(0xFF424242),
+                outlineVariant = Color(0xFF616161),
+            )
+        }
+    } else {
+        pureBlackScheme
     }
 
     MaterialTheme(

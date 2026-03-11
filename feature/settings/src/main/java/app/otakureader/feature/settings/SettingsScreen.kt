@@ -226,6 +226,20 @@ private fun AppearanceSection(state: SettingsState, onEvent: (SettingsEvent) -> 
                 }
             )
 
+            // High contrast mode
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_high_contrast)) },
+                supportingContent = { Text(stringResource(R.string.settings_high_contrast_description)) },
+                trailingContent = {
+                    Switch(
+                        checked = state.useHighContrast,
+                        onCheckedChange = {
+                            onEvent(SettingsEvent.SetHighContrast(it))
+                        }
+                    )
+                }
+            )
+
             // Color scheme picker
             ListItem(
                 headlineContent = { Text("Color Scheme") },
