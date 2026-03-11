@@ -99,8 +99,6 @@ class SettingsViewModel @Inject constructor(
                 state.copy(preloadPagesBefore = preloadBefore)
             }.combine(readerSettingsRepository.preloadPagesAfter) { state, preloadAfter ->
                 state.copy(preloadPagesAfter = preloadAfter)
-            }.combine(readerSettingsRepository.memoryCacheSizeMb) { state, cacheSize ->
-                state.copy(memoryCacheSizeMb = cacheSize)
             }.combine(downloadPreferences.autoDownloadEnabled) { state, autoDownloadEnabled ->
                 state.copy(autoDownloadEnabled = autoDownloadEnabled)
             }.combine(downloadPreferences.downloadOnlyOnWifi) { state, downloadOnlyOnWifi ->
@@ -178,7 +176,6 @@ class SettingsViewModel @Inject constructor(
                 is SettingsEvent.SetIncognitoMode -> readerSettingsRepository.setIncognitoMode(event.enabled)
                 is SettingsEvent.SetPreloadPagesBefore -> readerSettingsRepository.setPreloadPagesBefore(event.count)
                 is SettingsEvent.SetPreloadPagesAfter -> readerSettingsRepository.setPreloadPagesAfter(event.count)
-                is SettingsEvent.SetMemoryCacheSizeMb -> readerSettingsRepository.setMemoryCacheSizeMb(event.sizeMb)
                 is SettingsEvent.SetDeleteAfterReading -> downloadPreferences.setDeleteAfterReading(event.enabled)
                 is SettingsEvent.SetAutoDownloadEnabled -> downloadPreferences.setAutoDownloadEnabled(event.enabled)
                 is SettingsEvent.SetDownloadOnlyOnWifi -> downloadPreferences.setDownloadOnlyOnWifi(event.enabled)

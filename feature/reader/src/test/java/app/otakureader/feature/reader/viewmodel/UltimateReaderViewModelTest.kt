@@ -334,9 +334,10 @@ class UltimateReaderViewModelTest {
         vm.jumpToPage(10)
         testDispatcher.scheduler.advanceUntilIdle()
 
-        // The ViewModel should have navigated to page 10 successfully,
-        // which triggers preloadPages() internally using our custom settings
         assertEquals(10, vm.state.value.currentPage)
+        // Verify preload settings flows were collected during loadSettings()
+        io.mockk.verify { settingsRepository.preloadPagesBefore }
+        io.mockk.verify { settingsRepository.preloadPagesAfter }
     }
 
     @Test
@@ -352,7 +353,10 @@ class UltimateReaderViewModelTest {
         vm.jumpToPage(5)
         testDispatcher.scheduler.advanceUntilIdle()
 
-        // Navigation should still succeed with fallback defaults
+        // Navigation should still succeed even when preload settings fail to load
         assertEquals(5, vm.state.value.currentPage)
+        // Verify the flows were attempted to be read
+        io.mockk.verify { settingsRepository.preloadPagesBefore }
+        io.mockk.verify { settingsRepository.preloadPagesAfter }
     }
 }

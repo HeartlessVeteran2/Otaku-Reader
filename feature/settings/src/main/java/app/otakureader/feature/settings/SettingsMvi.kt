@@ -24,7 +24,6 @@ data class SettingsState(
     val incognitoMode: Boolean = false, // Incognito mode - reading history not saved
     val preloadPagesBefore: Int = 3,   // Pages to preload before current (0–10)
     val preloadPagesAfter: Int = 3,    // Pages to preload after current (0–10)
-    val memoryCacheSizeMb: Int = 128,  // Memory cache size for page images in MB (32–512)
     val deleteAfterReading: Boolean = false,
     val saveAsCbz: Boolean = false,    // Save downloaded chapters as CBZ archives
     val libraryGridSize: Int = 3,      // number of columns (2–5)
@@ -80,7 +79,6 @@ sealed interface SettingsEvent : UiEvent {
     data class SetIncognitoMode(val enabled: Boolean) : SettingsEvent
     data class SetPreloadPagesBefore(val count: Int) : SettingsEvent
     data class SetPreloadPagesAfter(val count: Int) : SettingsEvent
-    data class SetMemoryCacheSizeMb(val sizeMb: Int) : SettingsEvent
     data class SetDeleteAfterReading(val enabled: Boolean) : SettingsEvent
     data class SetLibraryGridSize(val size: Int) : SettingsEvent
     data class SetShowBadges(val enabled: Boolean) : SettingsEvent

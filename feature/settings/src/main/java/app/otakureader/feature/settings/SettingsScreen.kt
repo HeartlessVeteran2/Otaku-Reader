@@ -549,29 +549,6 @@ private fun ReaderSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit
                     }
                 }
             )
-
-            // Memory cache size
-            var cacheSizeSlider by remember(state.memoryCacheSizeMb) {
-                mutableFloatStateOf(state.memoryCacheSizeMb.toFloat())
-            }
-            ListItem(
-                headlineContent = { Text("Image Cache Size: ${cacheSizeSlider.roundToInt()} MB") },
-                supportingContent = {
-                    Column {
-                        Text("Memory allocated for caching page images")
-                        Slider(
-                            value = cacheSizeSlider,
-                            onValueChange = { cacheSizeSlider = it },
-                            onValueChangeFinished = {
-                                onEvent(SettingsEvent.SetMemoryCacheSizeMb(cacheSizeSlider.roundToInt()))
-                            },
-                            valueRange = 32f..512f,
-                            steps = 14,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                }
-            )
 }
 
 @Composable
