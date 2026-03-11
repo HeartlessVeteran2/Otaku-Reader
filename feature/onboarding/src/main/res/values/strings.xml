@@ -19,4 +19,7 @@
     <string name="onboarding_btn_skip">Skip</string>
     <string name="onboarding_btn_get_started">Get Started</string>
     <string name="onboarding_btn_install_extensions">Install Extensions</string>
+
+    <!-- Accessibility -->
+    <string name="onboarding_page_icon">Onboarding illustration</string>
 </resources>
