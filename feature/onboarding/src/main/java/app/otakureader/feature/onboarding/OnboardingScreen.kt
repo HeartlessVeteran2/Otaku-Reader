@@ -45,6 +45,7 @@ import kotlinx.coroutines.launch
  * Data class representing an onboarding page.
  */
 private data class OnboardingPage(
+data class OnboardingPage(
     val title: String,
     val description: String,
     val icon: ImageVector,
@@ -87,6 +88,28 @@ fun OnboardingScreen(
         OnboardingPage(
             title = stringResource(R.string.onboarding_title_extensions),
             description = stringResource(R.string.onboarding_desc_extensions),
+            title = "Welcome to Otaku Reader",
+            description = "Your personal manga library. Track your reading, discover new series, and enjoy your favorite manga offline.",
+            icon = Icons.Default.MenuBook
+        ),
+        OnboardingPage(
+            title = "Browse & Discover",
+            description = "Explore thousands of manga from various sources. Search by title, genre, or popularity to find your next read.",
+            icon = Icons.Default.Search
+        ),
+        OnboardingPage(
+            title = "Download & Read Offline",
+            description = "Download chapters to read anywhere, even without internet. Your library stays with you.",
+            icon = Icons.Default.Download
+        ),
+        OnboardingPage(
+            title = "Organize Your Library",
+            description = "Create categories, track reading progress, and get notified when new chapters are available.",
+            icon = Icons.Default.Collections
+        ),
+        OnboardingPage(
+            title = "Install Extensions",
+            description = "Otaku Reader uses extensions to access manga sources. Install your first extension to get started!",
             icon = Icons.Default.Settings,
             showExtensionInstall = true
         )
@@ -234,6 +257,7 @@ private fun OnboardingBottomBar(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(R.string.onboarding_btn_install_extensions))
+                Text("Install Extensions")
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -249,6 +273,10 @@ private fun OnboardingBottomBar(
                     contentDescription = null,
                     modifier = Modifier.size(20.dp)
                 )
+                onClick = onNext,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Skip for Now")
             }
         } else {
             Button(
@@ -261,6 +289,7 @@ private fun OnboardingBottomBar(
                     R.string.onboarding_btn_next
                 }
                 Text(stringResource(buttonTextRes))
+                Text(if (currentPage == totalPages - 1) "Get Started" else "Next")
                 if (currentPage < totalPages - 1) {
                     Spacer(modifier = Modifier.width(8.dp))
                     Icon(
@@ -286,6 +315,7 @@ private fun OnboardingBottomBar(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(stringResource(R.string.onboarding_btn_skip))
+                    Text("Skip")
                 }
             }
         }

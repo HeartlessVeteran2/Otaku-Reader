@@ -120,4 +120,6 @@ object PreferencesModule {
         dataStore: DataStore<Preferences>,
         encryptedApiKeyStore: EncryptedApiKeyStore
     ): AiPreferences = AiPreferences(dataStore, encryptedApiKeyStore)
+    fun provideAiPreferences(dataStore: DataStore<Preferences>): AiPreferences =
+        AiPreferences(dataStore)
 }
