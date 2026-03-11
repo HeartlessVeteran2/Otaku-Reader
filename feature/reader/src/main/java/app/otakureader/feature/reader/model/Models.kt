@@ -1,6 +1,7 @@
 package app.otakureader.feature.reader.model
 
 import androidx.compose.ui.graphics.ImageBitmap
+import app.otakureader.feature.reader.R
 
 /**
  * Represents a single page in the manga reader
@@ -160,12 +161,12 @@ enum class ColorFilterMode {
     CUSTOM_TINT;
 
     companion object {
-        fun displayName(mode: ColorFilterMode): String = when (mode) {
-            NONE -> "None"
-            SEPIA -> "Sepia"
-            GRAYSCALE -> "Greyscale"
-            INVERT -> "Invert"
-            CUSTOM_TINT -> "Custom Tint"
+        fun displayNameResId(mode: ColorFilterMode): Int = when (mode) {
+            NONE -> R.string.reader_color_filter_none
+            SEPIA -> R.string.reader_color_filter_sepia
+            GRAYSCALE -> R.string.reader_color_filter_greyscale
+            INVERT -> R.string.reader_color_filter_invert
+            CUSTOM_TINT -> R.string.reader_color_filter_custom_tint
         }
     }
 }

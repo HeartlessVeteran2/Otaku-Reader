@@ -34,10 +34,12 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.otakureader.core.ui.component.EmptyScreen
 import app.otakureader.core.ui.component.LoadingScreen
+import app.otakureader.feature.reader.R
 import app.otakureader.feature.reader.model.ColorFilterMode
 import app.otakureader.feature.reader.model.ReaderMode
 import app.otakureader.feature.reader.modes.DualPageReader
@@ -99,7 +101,7 @@ fun ReaderScreen(
                 }
                 is ReaderEffect.NavigateToChapter -> {
                     // Handle chapter navigation
-                    snackbarHostState.showSnackbar("Navigating to chapter...")
+                    snackbarHostState.showSnackbar(context.getString(R.string.reader_navigating_to_chapter))
                 }
             }
         }

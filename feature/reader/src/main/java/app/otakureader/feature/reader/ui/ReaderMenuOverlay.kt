@@ -55,8 +55,10 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import app.otakureader.feature.reader.R
 import app.otakureader.feature.reader.model.ColorFilterMode
 import app.otakureader.feature.reader.model.ReaderMode
 
@@ -114,7 +116,7 @@ fun ReaderMenuOverlay(
                                 style = MaterialTheme.typography.titleMedium
                             )
                             Text(
-                                text = "Page $currentPage of $totalPages",
+                                text = stringResource(R.string.reader_page_indicator, currentPage, totalPages),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -124,16 +126,16 @@ fun ReaderMenuOverlay(
                         IconButton(onClick = onNavigateBack) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back"
+                                contentDescription = stringResource(R.string.reader_back)
                             )
                         }
                     },
                     actions = {
                         IconButton(onClick = onToggleFullscreen) {
-                            Icon(Icons.Default.Fullscreen, contentDescription = "Fullscreen")
+                            Icon(Icons.Default.Fullscreen, contentDescription = stringResource(R.string.reader_fullscreen))
                         }
                         IconButton(onClick = onToggleGallery) {
-                            Icon(Icons.Default.GridView, contentDescription = "Gallery")
+                            Icon(Icons.Default.GridView, contentDescription = stringResource(R.string.reader_gallery))
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -194,7 +196,7 @@ fun ReaderMenuOverlay(
                 
                 // Hint text
                 Text(
-                    text = "Tap center to hide menu",
+                    text = stringResource(R.string.reader_tap_to_hide),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                     textAlign = TextAlign.Center,
@@ -215,7 +217,7 @@ fun ReaderModeSelector(
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
-            text = "Reading Mode",
+            text = stringResource(R.string.reader_mode_title),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 12.dp)
@@ -244,10 +246,10 @@ private fun ModeButton(
     modifier: Modifier = Modifier
 ) {
     val (icon, label) = when (mode) {
-        ReaderMode.SINGLE_PAGE -> Icons.Default.MenuBook to "Single"
-        ReaderMode.DUAL_PAGE -> Icons.AutoMirrored.Filled.NavigateNext to "Dual"
-        ReaderMode.WEBTOON -> Icons.Default.FitScreen to "Webtoon"
-        ReaderMode.SMART_PANELS -> Icons.Default.Settings to "Smart"
+        ReaderMode.SINGLE_PAGE -> Icons.Default.MenuBook to stringResource(R.string.reader_mode_single)
+        ReaderMode.DUAL_PAGE -> Icons.AutoMirrored.Filled.NavigateNext to stringResource(R.string.reader_mode_dual)
+        ReaderMode.WEBTOON -> Icons.Default.FitScreen to stringResource(R.string.reader_mode_webtoon)
+        ReaderMode.SMART_PANELS -> Icons.Default.Settings to stringResource(R.string.reader_mode_smart)
     }
     
     val backgroundColor = if (isSelected) {
@@ -298,14 +300,14 @@ fun ZoomControls(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "Zoom",
+            text = stringResource(R.string.reader_zoom),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.width(60.dp)
         )
         
         IconButton(onClick = onZoomOut) {
-            Icon(Icons.Default.ZoomOut, contentDescription = "Zoom out")
+            Icon(Icons.Default.ZoomOut, contentDescription = stringResource(R.string.reader_zoom_out))
         }
         
         Box(
@@ -317,7 +319,7 @@ fun ZoomControls(
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
             Text(
-                text = "${(zoomLevel * 100).toInt()}%",
+                text = stringResource(R.string.reader_zoom_percentage, (zoomLevel * 100).toInt()),
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
@@ -325,7 +327,7 @@ fun ZoomControls(
         }
         
         IconButton(onClick = onZoomIn) {
-            Icon(Icons.Default.ZoomIn, contentDescription = "Zoom in")
+            Icon(Icons.Default.ZoomIn, contentDescription = stringResource(R.string.reader_zoom_in))
         }
     }
 }
@@ -351,7 +353,7 @@ fun BrightnessControl(
         
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "Brightness",
+                text = stringResource(R.string.reader_brightness),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -367,7 +369,7 @@ fun BrightnessControl(
         Spacer(modifier = Modifier.width(12.dp))
         
         Text(
-            text = "${(brightness * 100).toInt()}%",
+            text = stringResource(R.string.reader_brightness_percentage, (brightness * 100).toInt()),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.width(48.dp)
@@ -391,7 +393,7 @@ fun ColorFilterControl(
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
-            text = "Color Filter",
+            text = stringResource(R.string.reader_color_filter),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -407,7 +409,7 @@ fun ColorFilterControl(
                     onClick = { onModeChange(mode) },
                     label = {
                         Text(
-                            text = ColorFilterMode.displayName(mode),
+                            text = stringResource(ColorFilterMode.displayNameResId(mode)),
                             style = MaterialTheme.typography.labelSmall
                         )
                     }
@@ -442,7 +444,7 @@ private fun CustomTintPicker(
 
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
-            text = "Tint Color",
+            text = stringResource(R.string.reader_tint_color),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -469,7 +471,7 @@ private fun CustomTintPicker(
                             onColorChange((alpha shl 24) or preset.rgb)
                         }
                         .semantics {
-                            contentDescription = preset.name
+                            contentDescription = stringResource(preset.nameResId)
                             role = androidx.compose.ui.semantics.Role.RadioButton
                             selected = isSelected
                         }
@@ -485,7 +487,7 @@ private fun CustomTintPicker(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(
-                text = "Opacity",
+                text = stringResource(R.string.reader_opacity),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.width(60.dp)
@@ -502,7 +504,7 @@ private fun CustomTintPicker(
             )
 
             Text(
-                text = "${(currentAlpha * 100).toInt()}%",
+                text = stringResource(R.string.reader_opacity_percentage, (currentAlpha * 100).toInt()),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.width(40.dp)
@@ -517,34 +519,36 @@ private fun CustomTintPicker(
  * 
  * TODO: Consider making these themable or user-configurable in future versions.
  */
-private data class TintPreset(val rgb: Long, val name: String)
+private data class TintPreset(val rgb: Long, val nameResId: Int)
 
-/** Hardcoded preset colors. These provide sensible defaults for common reading preferences. */
+/** Preset tint colors. These provide sensible defaults for common reading preferences. */
 private val TintPresets = listOf(
-    TintPreset(0x00AAFFL, "Blue"),
-    TintPreset(0xFF6B6BL, "Red"),
-    TintPreset(0xFFA726L, "Orange"),
-    TintPreset(0xFFEE58L, "Yellow"),
-    TintPreset(0x66BB6AL, "Green"),
-    TintPreset(0xAB47BCL, "Purple"),
-    TintPreset(0x8D6E63L, "Brown"),
-    TintPreset(0x78909CL, "Grey")
+    TintPreset(0x00AAFFL, R.string.reader_tint_blue),
+    TintPreset(0xFF6B6BL, R.string.reader_tint_red),
+    TintPreset(0xFFA726L, R.string.reader_tint_orange),
+    TintPreset(0xFFEE58L, R.string.reader_tint_yellow),
+    TintPreset(0x66BB6AL, R.string.reader_tint_green),
+    TintPreset(0xAB47BCL, R.string.reader_tint_purple),
+    TintPreset(0x8D6E63L, R.string.reader_tint_brown),
+    TintPreset(0x78909CL, R.string.reader_tint_grey)
 )
 
 /**
  * Preset background colors for the per-manga reader background.
  * null means "default" (black).
  */
-private val ReaderBackgroundPresets: List<Pair<String, Long?>> = listOf(
-    "Default" to null,
-    "Black" to 0xFF000000L,
-    "Dark Grey" to 0xFF1A1A1AL,
-    "Grey" to 0xFF333333L,
-    "Warm Grey" to 0xFF3E3832L,
-    "Dark Brown" to 0xFF2B1D0EL,
-    "Sepia" to 0xFFF5E6CCL,
-    "White" to 0xFFFFFFFFL,
-    "Dark Blue" to 0xFF0D1B2AL
+private data class BackgroundPreset(val nameResId: Int, val color: Long?)
+
+private val ReaderBackgroundPresets = listOf(
+    BackgroundPreset(R.string.reader_bg_default, null),
+    BackgroundPreset(R.string.reader_bg_black, 0xFF000000L),
+    BackgroundPreset(R.string.reader_bg_dark_grey, 0xFF1A1A1AL),
+    BackgroundPreset(R.string.reader_bg_grey, 0xFF333333L),
+    BackgroundPreset(R.string.reader_bg_warm_grey, 0xFF3E3832L),
+    BackgroundPreset(R.string.reader_bg_dark_brown, 0xFF2B1D0EL),
+    BackgroundPreset(R.string.reader_bg_sepia, 0xFFF5E6CCL),
+    BackgroundPreset(R.string.reader_bg_white, 0xFFFFFFFFL),
+    BackgroundPreset(R.string.reader_bg_dark_blue, 0xFF0D1B2AL)
 )
 
 /**
@@ -561,7 +565,7 @@ fun ReaderBackgroundColorControl(
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
-            text = "Reader Background",
+            text = stringResource(R.string.reader_background),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -572,7 +576,7 @@ fun ReaderBackgroundColorControl(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(ReaderBackgroundPresets.size) { index ->
-                val (name, colorValue) = ReaderBackgroundPresets[index]
+                val (nameResId, colorValue) = ReaderBackgroundPresets[index]
                 val isSelected = currentColor == colorValue
                 val displayColor = if (colorValue != null) Color(colorValue.toInt()) else Color.Black
                 Box(
@@ -597,7 +601,7 @@ fun ReaderBackgroundColorControl(
                         )
                         .clickable { onColorChange(colorValue) }
                         .semantics {
-                            contentDescription = name
+                            contentDescription = stringResource(nameResId)
                             role = androidx.compose.ui.semantics.Role.RadioButton
                             selected = isSelected
                         }
