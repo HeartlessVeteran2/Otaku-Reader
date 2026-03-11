@@ -36,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -43,6 +44,7 @@ import kotlinx.coroutines.launch
 /**
  * Data class representing an onboarding page.
  */
+private data class OnboardingPage(
 data class OnboardingPage(
     val title: String,
     val description: String,
@@ -64,6 +66,28 @@ fun OnboardingScreen(
 ) {
     val pages = listOf(
         OnboardingPage(
+            title = stringResource(R.string.onboarding_title_welcome),
+            description = stringResource(R.string.onboarding_desc_welcome),
+            icon = Icons.Default.MenuBook
+        ),
+        OnboardingPage(
+            title = stringResource(R.string.onboarding_title_browse),
+            description = stringResource(R.string.onboarding_desc_browse),
+            icon = Icons.Default.Search
+        ),
+        OnboardingPage(
+            title = stringResource(R.string.onboarding_title_download),
+            description = stringResource(R.string.onboarding_desc_download),
+            icon = Icons.Default.Download
+        ),
+        OnboardingPage(
+            title = stringResource(R.string.onboarding_title_organize),
+            description = stringResource(R.string.onboarding_desc_organize),
+            icon = Icons.Default.Collections
+        ),
+        OnboardingPage(
+            title = stringResource(R.string.onboarding_title_extensions),
+            description = stringResource(R.string.onboarding_desc_extensions),
             title = "Welcome to Otaku Reader",
             description = "Your personal manga library. Track your reading, discover new series, and enjoy your favorite manga offline.",
             icon = Icons.Default.MenuBook
@@ -110,6 +134,7 @@ fun OnboardingScreen(
                     }
                 },
                 onSkip = onSkip,
+                onComplete = onComplete,
                 showExtensionInstall = pages[pagerState.currentPage].showExtensionInstall,
                 onNavigateToExtensions = onNavigateToExtensions
             )
@@ -182,6 +207,7 @@ private fun OnboardingBottomBar(
     totalPages: Int,
     onNext: () -> Unit,
     onSkip: () -> Unit,
+    onComplete: () -> Unit,
     showExtensionInstall: Boolean,
     onNavigateToExtensions: () -> Unit,
     modifier: Modifier = Modifier
@@ -230,12 +256,23 @@ private fun OnboardingBottomBar(
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
+                Text(stringResource(R.string.onboarding_btn_install_extensions))
                 Text("Install Extensions")
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
             OutlinedButton(
+                onClick = onComplete,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(stringResource(R.string.onboarding_btn_get_started))
+                Spacer(modifier = Modifier.width(8.dp))
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
                 onClick = onNext,
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -246,6 +283,12 @@ private fun OnboardingBottomBar(
                 onClick = onNext,
                 modifier = Modifier.fillMaxWidth()
             ) {
+                val buttonTextRes = if (currentPage == totalPages - 1) {
+                    R.string.onboarding_btn_get_started
+                } else {
+                    R.string.onboarding_btn_next
+                }
+                Text(stringResource(buttonTextRes))
                 Text(if (currentPage == totalPages - 1) "Get Started" else "Next")
                 if (currentPage < totalPages - 1) {
                     Spacer(modifier = Modifier.width(8.dp))
@@ -271,6 +314,7 @@ private fun OnboardingBottomBar(
                     onClick = onSkip,
                     modifier = Modifier.fillMaxWidth()
                 ) {
+                    Text(stringResource(R.string.onboarding_btn_skip))
                     Text("Skip")
                 }
             }
