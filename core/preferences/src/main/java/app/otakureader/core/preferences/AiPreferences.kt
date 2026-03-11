@@ -8,6 +8,8 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 
 /**
@@ -18,7 +20,6 @@ class AiPreferences(
     private val dataStore: DataStore<Preferences>,
     private val encryptedApiKeyStore: EncryptedApiKeyStore
 ) {
-class AiPreferences(private val dataStore: DataStore<Preferences>) {
 
     /** Master switch for all AI features. When false, no AI features work regardless of other settings. */
     val aiEnabled: Flow<Boolean> = dataStore.data.map { it[Keys.AI_ENABLED] ?: false }
@@ -33,12 +34,16 @@ class AiPreferences(private val dataStore: DataStore<Preferences>) {
     val aiTier: Flow<Int> = dataStore.data.map { it[Keys.AI_TIER] ?: 0 }
     suspend fun setAiTier(value: Int) = dataStore.edit { it[Keys.AI_TIER] = value }
 
-    /** Gemini API key, encrypted at rest via Android Keystore-backed EncryptedSharedPreferences. */
-    val geminiApiKey: Flow<String> = encryptedApiKeyStore.geminiApiKey
+    /**
+     * Gemini API key, encrypted at rest via Android Keystore-backed EncryptedSharedPreferences.
+     * Initialises [EncryptedApiKeyStore] lazily on the coroutine dispatcher that collects this
+     * flow, avoiding Keystore/disk work on the main thread.
+     */
+    val geminiApiKey: Flow<String> = flow {
+        encryptedApiKeyStore.init()
+        emitAll(encryptedApiKeyStore.geminiApiKey)
+    }
     suspend fun setGeminiApiKey(value: String) = encryptedApiKeyStore.setGeminiApiKey(value)
-    /** Gemini API key (masked in UI, stored locally). */
-    val geminiApiKey: Flow<String> = dataStore.data.map { it[Keys.GEMINI_API_KEY] ?: "" }
-    suspend fun setGeminiApiKey(value: String) = dataStore.edit { it[Keys.GEMINI_API_KEY] = value }
 
     // --- Individual Feature Toggles ---
 
@@ -95,7 +100,6 @@ class AiPreferences(private val dataStore: DataStore<Preferences>) {
     private object Keys {
         val AI_ENABLED = booleanPreferencesKey("ai_enabled")
         val AI_TIER = intPreferencesKey("ai_tier")
-        val GEMINI_API_KEY = stringPreferencesKey("gemini_api_key")
 
         val AI_READING_INSIGHTS = booleanPreferencesKey("ai_reading_insights")
         val AI_SMART_SEARCH = booleanPreferencesKey("ai_smart_search")
