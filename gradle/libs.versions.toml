@@ -49,6 +49,9 @@ paging = "3.4.1"
 # WorkManager
 workmanager = "2.11.1"
 
+# Glance (widgets)
+glance = "1.1.1"
+
 # Discord
 kizzy-rpc = "1.0.0"
 
@@ -138,6 +141,9 @@ browser = { group = "androidx.browser", name = "browser", version = "1.8.0" }
 
 # WorkManager
 workmanager-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workmanager" }
+
+# Glance (widgets)
+glance = { group = "androidx.glance", name = "glance-appwidget", version.ref = "glance" }
 
 # Discord Rich Presence (Kizzy)
 kizzy-rpc = { group = "com.github.dead8309", name = "Kizzy", version.ref = "kizzy-rpc" }
