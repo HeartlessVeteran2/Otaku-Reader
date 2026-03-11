@@ -36,10 +36,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.otakureader.domain.model.ChapterWithHistory
+import app.otakureader.feature.history.R
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -77,34 +79,34 @@ fun HistoryScreen(
             TopAppBar(
                 title = {
                     if (state.selectedItems.isNotEmpty()) {
-                        Text("${state.selectedItems.size} selected")
+                        Text(stringResource(R.string.history_selected_count, state.selectedItems.size))
                     } else {
-                        Text("History")
+                        Text(stringResource(R.string.history_title))
                     }
                 },
                 navigationIcon = {
                     if (state.selectedItems.isNotEmpty()) {
                         IconButton(onClick = { viewModel.onEvent(HistoryEvent.ClearSelection) }) {
-                            Icon(Icons.Default.Close, contentDescription = "Clear selection")
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.history_clear_selection))
                         }
                     } else {
                         IconButton(onClick = onNavigateBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.history_back))
                         }
                     }
                 },
                 actions = {
                     if (state.selectedItems.isNotEmpty()) {
                         IconButton(onClick = { viewModel.onEvent(HistoryEvent.RemoveSelectedFromHistory) }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete selected")
+                            Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.history_delete_selected))
                         }
                     } else {
                         if (state.history.isNotEmpty()) {
                             IconButton(onClick = { viewModel.onEvent(HistoryEvent.SelectAll) }) {
-                                Icon(Icons.Default.SelectAll, contentDescription = "Select all")
+                                Icon(Icons.Default.SelectAll, contentDescription = stringResource(R.string.history_select_all))
                             }
                             TextButton(onClick = { viewModel.onEvent(HistoryEvent.ClearHistory) }) {
-                                Text("Clear all")
+                                Text(stringResource(R.string.history_clear_all))
                             }
                         }
                     }
@@ -117,12 +119,12 @@ fun HistoryScreen(
             OutlinedTextField(
                 value = state.searchQuery,
                 onValueChange = { viewModel.onEvent(HistoryEvent.OnSearchQueryChange(it)) },
-                placeholder = { Text("Search history…") },
+                placeholder = { Text(stringResource(R.string.history_search_placeholder)) },
                 singleLine = true,
                 trailingIcon = {
                     if (state.searchQuery.isNotEmpty()) {
                         IconButton(onClick = { viewModel.onEvent(HistoryEvent.OnSearchQueryChange("")) }) {
-                            Icon(Icons.Default.Close, contentDescription = "Clear search")
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.history_clear_search))
                         }
                     }
                 },
@@ -143,7 +145,7 @@ fun HistoryScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = state.error ?: "Unknown error",
+                        text = state.error ?: stringResource(R.string.history_unknown_error),
                         color = MaterialTheme.colorScheme.error
                     )
                 }
@@ -152,8 +154,8 @@ fun HistoryScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (state.searchQuery.isBlank()) "Your reading history will appear here."
-                        else "No results for \"${state.searchQuery}\"."
+                        text = if (state.searchQuery.isBlank()) stringResource(R.string.history_empty)
+                        else stringResource(R.string.history_no_results, state.searchQuery)
                     )
                 }
                 else -> LazyColumn {
@@ -221,7 +223,7 @@ private fun HistoryItem(
         }
         if (!isSelected) {
             IconButton(onClick = onRemoveClick) {
-                Icon(Icons.Default.Delete, contentDescription = "Remove from history")
+                Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.history_remove))
             }
         }
     }
