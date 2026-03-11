@@ -4,7 +4,7 @@ import android.content.Intent
 import android.net.Uri
 
 /**
- * Data class representing a parsed deep link or share intent.
+ * Sealed class representing a parsed deep link or share intent result.
  */
 sealed class DeepLinkResult {
     data class MangaUrl(
@@ -43,14 +43,15 @@ object DeepLinkHandler {
      */
     private fun parseViewIntent(intent: Intent): DeepLinkResult {
         val data: Uri = intent.data ?: return DeepLinkResult.Invalid
+        val host = data.host?.lowercase() ?: return DeepLinkResult.Invalid
         
-        // Handle MangaDex URLs
-        if (data.host?.contains("mangadex.org") == true) {
+        // Handle MangaDex URLs - use exact host matching for security
+        if (host == "mangadex.org" || host.endsWith(".mangadex.org")) {
             return parseMangaDexUrl(data)
         }
         
         // Handle generic manga URLs
-        return parseGenericMangaUrl(data)
+        return parseGenericMangaUrl(data, host)
     }
     
     /**
@@ -93,11 +94,12 @@ object DeepLinkHandler {
     /**
      * Parse generic manga URLs from various sources
      */
-    private fun parseGenericMangaUrl(uri: Uri): DeepLinkResult {
-        val host = uri.host ?: return DeepLinkResult.Invalid
-        
+    private fun parseGenericMangaUrl(uri: Uri, host: String): DeepLinkResult {
         return when {
-            host.contains("mangakakalot") || host.contains("manganato") -> {
+            // Use exact host matching or strict suffix checks for security
+            host == "mangakakalot.com" || host.endsWith(".mangakakalot.com") ||
+            host == "manganato.com" || host.endsWith(".manganato.com") ||
+            host == "manganelo.com" || host.endsWith(".manganelo.com") -> {
                 DeepLinkResult.MangaUrl(
                     sourceId = "mangakakalot",
                     mangaUrl = uri.toString(),
@@ -105,7 +107,7 @@ object DeepLinkHandler {
                 )
             }
             
-            host.contains("webtoons") -> {
+            host == "webtoons.com" || host.endsWith(".webtoons.com") -> {
                 DeepLinkResult.MangaUrl(
                     sourceId = "webtoons",
                     mangaUrl = uri.toString(),
@@ -121,11 +123,15 @@ object DeepLinkHandler {
      * Check if the given URL is a supported manga URL
      */
     fun isSupportedUrl(url: String): Boolean {
+        val uri = Uri.parse(url)
+        val host = uri.host?.lowercase() ?: return false
+        
         return when {
-            url.contains("mangadex.org") -> true
-            url.contains("mangakakalot") -> true
-            url.contains("manganato") -> true
-            url.contains("webtoons") -> true
+            host == "mangadex.org" || host.endsWith(".mangadex.org") -> true
+            host == "mangakakalot.com" || host.endsWith(".mangakakalot.com") -> true
+            host == "manganato.com" || host.endsWith(".manganato.com") -> true
+            host == "manganelo.com" || host.endsWith(".manganelo.com") -> true
+            host == "webtoons.com" || host.endsWith(".webtoons.com") -> true
             else -> false
         }
     }

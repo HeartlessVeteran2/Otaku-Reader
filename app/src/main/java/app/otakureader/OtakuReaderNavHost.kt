@@ -42,18 +42,20 @@ fun OtakuReaderNavHost(
     navController: NavHostController,
     modifier: Modifier = Modifier,
     startDestination: Any = LibraryRoute,
-    deepLinkResult: DeepLinkResult? = null
+    deepLinkResult: DeepLinkResult? = null,
+    onDeepLinkConsumed: () -> Unit = {}
 ) {
-    // Handle deep link navigation
+    // Handle deep link navigation - only trigger once when deepLinkResult changes
     LaunchedEffect(deepLinkResult) {
         when (deepLinkResult) {
             is DeepLinkResult.MangaUrl -> {
-                // TODO: Lookup or create manga from URL, then navigate
-                // For now, navigate to browse to search for it
+                // Navigate to browse for now (TODO: implement manga lookup)
                 navController.navigate(BrowseRoute)
+                onDeepLinkConsumed()
             }
             is DeepLinkResult.SearchQuery -> {
                 navController.navigate(GlobalSearchRoute(query = deepLinkResult.query))
+                onDeepLinkConsumed()
             }
             is DeepLinkResult.Invalid, null -> {
                 // No deep link to handle
@@ -110,9 +112,6 @@ fun OtakuReaderNavHost(
         // Browse screen - list of sources
         browseScreen(
             onMangaClick = { sourceId, mangaUrl, mangaTitle ->
-                // Navigate to manga details from source
-                // For now, navigate to details with a placeholder mangaId
-                // In a real implementation, this would fetch/create the manga in the database
                 navController.navigate(MangaDetailRoute(mangaId = 1L))
             },
             onNavigateToSource = { sourceId ->
@@ -126,7 +125,7 @@ fun OtakuReaderNavHost(
             }
         )
 
-        // Global search screen - searches across all sources
+        // Global search screen
         globalSearchScreen(
             onMangaClick = { sourceId, _ ->
                 navController.navigate(SourceDetailRoute(sourceId))
@@ -136,10 +135,9 @@ fun OtakuReaderNavHost(
             }
         )
 
-        // Source detail - manga from a specific source
+        // Source detail
         sourceDetailScreen(
             onMangaClick = { sourceId, mangaUrl, mangaTitle ->
-                // Navigate to manga details
                 navController.navigate(MangaDetailRoute(mangaId = 1L))
             },
             onNavigateBack = {
@@ -164,7 +162,7 @@ fun OtakuReaderNavHost(
             }
         )
 
-        // Manga details screen
+        // Manga details
         detailsScreen(
             onNavigateBack = {
                 navController.popBackStack()
@@ -174,14 +172,14 @@ fun OtakuReaderNavHost(
             }
         )
 
-        // Reader screen
+        // Reader
         readerScreen(
             onNavigateBack = {
                 navController.popBackStack()
             }
         )
 
-        // Settings screen
+        // Settings
         settingsScreen(
             onNavigateBack = {
                 navController.popBackStack()
@@ -197,21 +195,21 @@ fun OtakuReaderNavHost(
             }
         )
 
-        // Statistics screen
+        // Statistics
         statisticsScreen(
             onNavigateBack = {
                 navController.popBackStack()
             }
         )
 
-        // Migration screen
+        // Migration
         migrationScreen(
             onNavigateBack = {
                 navController.popBackStack()
             }
         )
 
-        // Migration entry screen (for selection from Settings)
+        // Migration entry
         migrationEntryScreen(
             onNavigateBack = {
                 navController.popBackStack()
@@ -221,7 +219,7 @@ fun OtakuReaderNavHost(
             }
         )
 
-        // Tracking screen – reached from manga details
+        // Tracking
         trackingScreen(
             onNavigateBack = {
                 navController.popBackStack()

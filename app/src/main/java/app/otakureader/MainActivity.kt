@@ -15,6 +15,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.Lifecycle
@@ -35,14 +37,17 @@ import javax.inject.Inject
 class MainActivity : ComponentActivity() {
 
     @Inject lateinit var generalPreferences: GeneralPreferences
+    
+    // Store deep link result in a way that survives config changes
+    private var pendingDeepLinkResult by mutableStateOf<DeepLinkResult?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         applyLocaleFromPreferences()
         
-        // Handle deep link or share intent
-        val deepLinkResult = DeepLinkHandler.parseIntent(intent)
+        // Handle deep link or share intent from initial launch
+        pendingDeepLinkResult = DeepLinkHandler.parseIntent(intent)
         
         setContent {
             val themeMode by generalPreferences.themeMode
@@ -73,7 +78,10 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    OtakuReaderApp(deepLinkResult = deepLinkResult)
+                    OtakuReaderApp(
+                        deepLinkResult = pendingDeepLinkResult,
+                        onDeepLinkConsumed = { pendingDeepLinkResult = null }
+                    )
                 }
             }
         }
@@ -82,8 +90,10 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
         // Handle new intents when activity is already running
-        val deepLinkResult = DeepLinkHandler.parseIntent(intent)
-        // TODO: Navigate to appropriate screen based on deep link result
+        val result = DeepLinkHandler.parseIntent(intent)
+        if (result !is DeepLinkResult.Invalid) {
+            pendingDeepLinkResult = result
+        }
     }
 
     private fun applyLocaleFromPreferences() {
@@ -112,13 +122,17 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun OtakuReaderApp(deepLinkResult: DeepLinkResult? = null) {
+fun OtakuReaderApp(
+    deepLinkResult: DeepLinkResult? = null,
+    onDeepLinkConsumed: () -> Unit = {}
+) {
     val navController = rememberNavController()
 
     Scaffold { padding ->
         OtakuReaderNavHost(
             navController = navController,
             deepLinkResult = deepLinkResult,
+            onDeepLinkConsumed = onDeepLinkConsumed,
             modifier = Modifier.padding(padding)
         )
     }
