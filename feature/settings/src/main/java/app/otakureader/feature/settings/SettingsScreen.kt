@@ -999,8 +999,8 @@ private fun AiSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
 
     // API Key input (only shown when AI is enabled)
     if (state.aiEnabled) {
-        var apiKeyInput by rememberSaveable { mutableStateOf("") }
-        var apiKeyVisible by rememberSaveable { mutableStateOf(false) }
+        var apiKeyInput by remember { mutableStateOf("") }
+        var apiKeyVisible by remember { mutableStateOf(false) }
 
         ListItem(
             headlineContent = { Text("Gemini API Key") },
