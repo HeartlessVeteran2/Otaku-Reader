@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Extension filter/sort controls -->
+    <string name="extensions_nsfw_label">NSFW</string>
+    <string name="extensions_sort_name">Nom</string>
+    <string name="extensions_sort_recently_added">Ajoutés récemment</string>
+    <string name="extensions_sort_language">Langue</string>
+
+    <!-- Browse screen -->
+    <string name="browse_title">Parcourir</string>
+    <string name="browse_search">Rechercher</string>
+    <string name="browse_install_extension">Installer l\'extension</string>
+    <string name="browse_search_placeholder">Rechercher un manga…</string>
+    <string name="browse_filters">Filtres</string>
+    <string name="browse_select_source">Sélectionnez une source pour parcourir les mangas</string>
+    <string name="browse_load_more">Charger plus</string>
+    <string name="browse_no_results">Aucun résultat trouvé</string>
+    <string name="browse_no_sources_title">Aucune source installée</string>
+    <string name="browse_no_sources_message">Appuyez sur + pour installer une extension Tachiyomi</string>
+
+    <!-- Update All button -->
+    <string name="extensions_update_all">Tout mettre à jour</string>
+    <string name="extensions_updating_all">Mise à jour en cours\u2026</string>
+    <plurals name="extensions_updates_available">
+        <item quantity="one">%d mise à jour disponible</item>
+        <item quantity="other">%d mises à jour disponibles</item>
+    </plurals>
+</resources>

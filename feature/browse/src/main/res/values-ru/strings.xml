@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Extension filter/sort controls -->
+    <string name="extensions_nsfw_label">NSFW</string>
+    <string name="extensions_sort_name">Название</string>
+    <string name="extensions_sort_recently_added">Недавно добавленные</string>
+    <string name="extensions_sort_language">Язык</string>
+
+    <!-- Browse screen -->
+    <string name="browse_title">Обзор</string>
+    <string name="browse_search">Поиск</string>
+    <string name="browse_install_extension">Установить расширение</string>
+    <string name="browse_search_placeholder">Поиск манги…</string>
+    <string name="browse_filters">Фильтры</string>
+    <string name="browse_select_source">Выберите источник для просмотра манги</string>
+    <string name="browse_load_more">Загрузить ещё</string>
+    <string name="browse_no_results">Ничего не найдено</string>
+    <string name="browse_no_sources_title">Нет установленных источников</string>
+    <string name="browse_no_sources_message">Нажмите + чтобы установить расширение Tachiyomi</string>
+
+    <!-- Update All button -->
+    <string name="extensions_update_all">Обновить все</string>
+    <string name="extensions_updating_all">Обновление всех\u2026</string>
+    <plurals name="extensions_updates_available">
+        <item quantity="one">%d обновление доступно</item>
+        <item quantity="other">%d обновлений доступно</item>
+    </plurals>
+</resources>

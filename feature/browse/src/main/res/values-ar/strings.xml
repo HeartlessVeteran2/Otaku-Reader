@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Extension filter/sort controls -->
+    <string name="extensions_nsfw_label">NSFW</string>
+    <string name="extensions_sort_name">الاسم</string>
+    <string name="extensions_sort_recently_added">المضافة حديثًا</string>
+    <string name="extensions_sort_language">اللغة</string>
+
+    <!-- Browse screen -->
+    <string name="browse_title">تصفّح</string>
+    <string name="browse_search">بحث</string>
+    <string name="browse_install_extension">تثبيت الإضافة</string>
+    <string name="browse_search_placeholder">البحث عن مانجا…</string>
+    <string name="browse_filters">عوامل التصفية</string>
+    <string name="browse_select_source">اختر مصدرًا لتصفّح المانجا</string>
+    <string name="browse_load_more">تحميل المزيد</string>
+    <string name="browse_no_results">لم يتم العثور على نتائج</string>
+    <string name="browse_no_sources_title">لا توجد مصادر مثبّتة</string>
+    <string name="browse_no_sources_message">اضغط على + لتثبيت إضافة Tachiyomi</string>
+
+    <!-- Update All button -->
+    <string name="extensions_update_all">تحديث الكل</string>
+    <string name="extensions_updating_all">جارٍ تحديث الكل\u2026</string>
+    <plurals name="extensions_updates_available">
+        <item quantity="one">%d تحديث متاح</item>
+        <item quantity="other">%d تحديثات متاحة</item>
+    </plurals>
+</resources>

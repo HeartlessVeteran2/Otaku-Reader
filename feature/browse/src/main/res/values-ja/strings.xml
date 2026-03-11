@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Extension filter/sort controls -->
+    <string name="extensions_nsfw_label">NSFW</string>
+    <string name="extensions_sort_name">名前</string>
+    <string name="extensions_sort_recently_added">最近追加</string>
+    <string name="extensions_sort_language">言語</string>
+
+    <!-- Browse screen -->
+    <string name="browse_title">ブラウズ</string>
+    <string name="browse_search">検索</string>
+    <string name="browse_install_extension">拡張機能をインストール</string>
+    <string name="browse_search_placeholder">マンガを検索…</string>
+    <string name="browse_filters">フィルター</string>
+    <string name="browse_select_source">ソースを選択してマンガを閲覧</string>
+    <string name="browse_load_more">もっと読み込む</string>
+    <string name="browse_no_results">結果が見つかりません</string>
+    <string name="browse_no_sources_title">ソースがインストールされていません</string>
+    <string name="browse_no_sources_message">+ をタップしてTachiyomi拡張機能をインストール</string>
+
+    <!-- Update All button -->
+    <string name="extensions_update_all">すべて更新</string>
+    <string name="extensions_updating_all">すべて更新中\u2026</string>
+    <plurals name="extensions_updates_available">
+        <item quantity="one">%d 件の更新があります</item>
+        <item quantity="other">%d 件の更新があります</item>
+    </plurals>
+</resources>
