@@ -209,7 +209,17 @@ private fun AppInfoHeader() {
     val context = LocalContext.current
     val versionName = remember(context) {
         runCatching {
-            context.packageManager.getPackageInfo(context.packageName, 0).versionName
+            val packageManager = context.packageManager
+            val packageInfo = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                packageManager.getPackageInfo(
+                    context.packageName,
+                    android.content.pm.PackageManager.PackageInfoFlags.of(0L)
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                packageManager.getPackageInfo(context.packageName, 0)
+            }
+            packageInfo.versionName
         }.getOrNull().orEmpty()
     }
     Column(
