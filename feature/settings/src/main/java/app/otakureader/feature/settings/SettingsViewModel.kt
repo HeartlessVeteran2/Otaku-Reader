@@ -3,6 +3,8 @@ package app.otakureader.feature.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.otakureader.core.preferences.AppPreferences
+import app.otakureader.core.preferences.AiPreferences
+import app.otakureader.core.preferences.AiTier
 import app.otakureader.core.preferences.BackupPreferences
 import app.otakureader.core.preferences.DownloadPreferences
 import app.otakureader.core.preferences.GeneralPreferences
@@ -35,7 +37,8 @@ class SettingsViewModel @Inject constructor(
     private val backupScheduler: BackupScheduler,
     private val readerSettingsRepository: app.otakureader.feature.reader.repository.ReaderSettingsRepository,
     private val trackManager: TrackManager,
-    private val appPreferences: AppPreferences
+    private val appPreferences: AppPreferences,
+    private val aiPreferences: AiPreferences
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SettingsState())
@@ -46,6 +49,7 @@ class SettingsViewModel @Inject constructor(
 
     init {
         observePreferences()
+        observeAiPreferences()
         refreshTrackers()
     }
 
@@ -165,7 +169,83 @@ class SettingsViewModel @Inject constructor(
                     generalPreferences.setShowNsfwContent(event.enabled)
                 is SettingsEvent.SetCustomAccentColor ->
                     generalPreferences.setCustomAccentColor(event.color)
+                is SettingsEvent.SetAiEnabled -> aiPreferences.setAiEnabled(event.enabled)
+                is SettingsEvent.SetAiTier -> aiPreferences.setAiTier(event.tier)
+                is SettingsEvent.SetAiApiKey -> {
+                    aiPreferences.setGeminiApiKey(event.key)
+                    _state.update { it.copy(aiApiKeySet = event.key.isNotBlank()) }
+                }
+                is SettingsEvent.SetAiReadingInsights -> aiPreferences.setAiReadingInsights(event.enabled)
+                is SettingsEvent.SetAiSmartSearch -> aiPreferences.setAiSmartSearch(event.enabled)
+                is SettingsEvent.SetAiRecommendations -> aiPreferences.setAiRecommendations(event.enabled)
+                is SettingsEvent.SetAiPanelReader -> aiPreferences.setAiPanelReader(event.enabled)
+                is SettingsEvent.SetAiSfxTranslation -> aiPreferences.setAiSfxTranslation(event.enabled)
+                is SettingsEvent.SetAiSummaryTranslation -> aiPreferences.setAiSummaryTranslation(event.enabled)
+                is SettingsEvent.SetAiSourceIntelligence -> aiPreferences.setAiSourceIntelligence(event.enabled)
+                is SettingsEvent.SetAiSmartNotifications -> aiPreferences.setAiSmartNotifications(event.enabled)
+                is SettingsEvent.SetAiAutoCategorization -> aiPreferences.setAiAutoCategorization(event.enabled)
+                SettingsEvent.ClearAiCache -> {
+                    aiPreferences.setAiCacheLastCleared(System.currentTimeMillis())
+                    _effect.send(SettingsEffect.ShowSnackbar("AI cache cleared"))
+                }
             }
+        }
+    }
+
+    private fun observeAiPreferences() {
+        viewModelScope.launch {
+            combine(
+                aiPreferences.aiEnabled,
+                aiPreferences.aiTier,
+                aiPreferences.aiReadingInsights,
+                aiPreferences.aiSmartSearch,
+                aiPreferences.aiRecommendations
+            ) { aiEnabled, aiTier, readingInsights, smartSearch, recommendations ->
+                _state.update {
+                    it.copy(
+                        aiEnabled = aiEnabled,
+                        aiTier = aiTier,
+                        aiApiKeySet = aiPreferences.getGeminiApiKey().isNotBlank(),
+                        aiReadingInsights = readingInsights,
+                        aiSmartSearch = smartSearch,
+                        aiRecommendations = recommendations
+                    )
+                }
+            }.collect {}
+        }
+        viewModelScope.launch {
+            combine(
+                aiPreferences.aiPanelReader,
+                aiPreferences.aiSfxTranslation,
+                aiPreferences.aiSummaryTranslation,
+                aiPreferences.aiSourceIntelligence,
+                aiPreferences.aiSmartNotifications
+            ) { panelReader, sfxTranslation, summaryTranslation, sourceIntelligence, smartNotifications ->
+                _state.update {
+                    it.copy(
+                        aiPanelReader = panelReader,
+                        aiSfxTranslation = sfxTranslation,
+                        aiSummaryTranslation = summaryTranslation,
+                        aiSourceIntelligence = sourceIntelligence,
+                        aiSmartNotifications = smartNotifications
+                    )
+                }
+            }.collect {}
+        }
+        viewModelScope.launch {
+            combine(
+                aiPreferences.aiAutoCategorization,
+                aiPreferences.aiTokensUsedThisMonth,
+                aiPreferences.aiTokenTrackingPeriod
+            ) { autoCategorization, tokensUsed, trackingPeriod ->
+                _state.update {
+                    it.copy(
+                        aiAutoCategorization = autoCategorization,
+                        aiTokensUsedThisMonth = tokensUsed,
+                        aiTokenTrackingPeriod = trackingPeriod
+                    )
+                }
+            }.collect {}
         }
     }
 

@@ -1,5 +1,7 @@
 package app.otakureader.core.preferences
 
+import android.content.Context
+import android.content.SharedPreferences
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -7,14 +9,49 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 /**
+ * AI service tier selection.
+ * Higher tiers provide more requests per month at increased cost.
+ */
+enum class AiTier(val value: Int) {
+    FREE(0),
+    STANDARD(1),
+    PRO(2);
+
+    companion object {
+        fun from(value: Int): AiTier = entries.firstOrNull { it.value == value } ?: FREE
+    }
+}
+
+/**
  * Preference store for AI-related settings.
  * All AI features are opt-in and can be completely disabled.
+ *
+ * Sensitive credentials (Gemini API key) are stored in [EncryptedSharedPreferences]
+ * backed by the Android Keystore, not in the plain-text DataStore.
  */
-class AiPreferences(private val dataStore: DataStore<Preferences>) {
+class AiPreferences(
+    private val dataStore: DataStore<Preferences>,
+    context: Context
+) {
+
+    private val encryptedPrefs: SharedPreferences by lazy {
+        val masterKey = MasterKey.Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+        EncryptedSharedPreferences.create(
+            context,
+            "ai_secure_prefs",
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    }
 
     /** Master switch for all AI features. When false, no AI features work regardless of other settings. */
     val aiEnabled: Flow<Boolean> = dataStore.data.map { it[Keys.AI_ENABLED] ?: false }
@@ -29,9 +66,12 @@ class AiPreferences(private val dataStore: DataStore<Preferences>) {
     val aiTier: Flow<AiTier> = dataStore.data.map { AiTier.from(it[Keys.AI_TIER] ?: 0) }
     suspend fun setAiTier(value: AiTier) = dataStore.edit { it[Keys.AI_TIER] = value.value }
 
-    /** Gemini API key (masked in UI, stored locally). */
-    val geminiApiKey: Flow<String> = dataStore.data.map { it[Keys.GEMINI_API_KEY] ?: "" }
-    suspend fun setGeminiApiKey(value: String) = dataStore.edit { it[Keys.GEMINI_API_KEY] = value }
+    /**
+     * Gemini API key — stored in [EncryptedSharedPreferences] backed by the Android Keystore
+     * so it is never written to disk in plaintext.
+     */
+    fun getGeminiApiKey(): String = encryptedPrefs.getString(GEMINI_API_KEY_PREF, "") ?: ""
+    fun setGeminiApiKey(value: String) = encryptedPrefs.edit().putString(GEMINI_API_KEY_PREF, value).apply()
 
     // --- Individual Feature Toggles ---
 
@@ -88,7 +128,6 @@ class AiPreferences(private val dataStore: DataStore<Preferences>) {
     private object Keys {
         val AI_ENABLED = booleanPreferencesKey("ai_enabled")
         val AI_TIER = intPreferencesKey("ai_tier")
-        val GEMINI_API_KEY = stringPreferencesKey("gemini_api_key")
 
         val AI_READING_INSIGHTS = booleanPreferencesKey("ai_reading_insights")
         val AI_SMART_SEARCH = booleanPreferencesKey("ai_smart_search")
@@ -103,5 +142,9 @@ class AiPreferences(private val dataStore: DataStore<Preferences>) {
         val AI_TOKENS_USED_THIS_MONTH = longPreferencesKey("ai_tokens_used_this_month")
         val AI_TOKEN_TRACKING_PERIOD = stringPreferencesKey("ai_token_tracking_period")
         val AI_CACHE_LAST_CLEARED = longPreferencesKey("ai_cache_last_cleared")
+    }
+
+    private companion object {
+        const val GEMINI_API_KEY_PREF = "gemini_api_key"
     }
 }
