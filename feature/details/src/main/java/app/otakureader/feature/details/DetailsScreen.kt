@@ -67,6 +67,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.SpanStyle
@@ -133,18 +134,18 @@ fun DetailsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(state.manga?.title ?: "Manga Details") },
+                title = { Text(state.manga?.title ?: stringResource(R.string.details_title_fallback)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.details_back))
                     }
                 },
                 actions = {
                     IconButton(onClick = { viewModel.onEvent(DetailsContract.Event.Refresh) }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                        Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.details_refresh))
                     }
                     IconButton(onClick = { viewModel.onEvent(DetailsContract.Event.ShareManga) }) {
-                        Icon(Icons.Default.Share, contentDescription = "Share")
+                        Icon(Icons.Default.Share, contentDescription = stringResource(R.string.details_share))
                     }
                 }
             )
@@ -163,7 +164,7 @@ fun DetailsScreen(
                     icon = { Icon(Icons.Default.PlayArrow, contentDescription = null) },
                     text = {
                         Text(
-                            if (state.hasUnreadChapters) "Continue Reading" else "Start Reading"
+                            if (state.hasUnreadChapters) stringResource(R.string.details_continue_reading) else stringResource(R.string.details_start_reading)
                         )
                     }
                 )
@@ -173,7 +174,7 @@ fun DetailsScreen(
         when {
             state.isLoading -> LoadingScreen(modifier = Modifier.padding(paddingValues))
             state.error != null -> ErrorScreen(
-                message = state.error ?: "Unknown error",
+                message = state.error ?: stringResource(R.string.details_unknown_error),
                 onRetry = { viewModel.onEvent(DetailsContract.Event.Refresh) },
                 modifier = Modifier.padding(paddingValues)
             )
@@ -308,7 +309,7 @@ private fun MangaHeader(
 
             manga.author?.let { author ->
                 Text(
-                    text = "Author: $author",
+                    text = stringResource(R.string.details_author, author),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -316,14 +317,14 @@ private fun MangaHeader(
 
             manga.artist?.let { artist ->
                 Text(
-                    text = "Artist: $artist",
+                    text = stringResource(R.string.details_artist, artist),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
             Text(
-                text = "Status: ${manga.status.displayText()}",
+                text = stringResource(R.string.details_status, manga.status.displayText()),
                 style = MaterialTheme.typography.bodyMedium,
                 color = manga.status.colorValue()
             )
@@ -336,7 +337,7 @@ private fun MangaHeader(
             ) {
                 Icon(
                     imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                    contentDescription = if (isFavorite) "Remove from library" else "Add to library"
+                    contentDescription = if (isFavorite) stringResource(R.string.details_remove_from_library) else stringResource(R.string.details_add_to_library)
                 )
             }
         }
@@ -486,7 +487,7 @@ private fun MangaDescription(
 
         if (description.length > 100) {
             TextButton(onClick = onToggle) {
-                Text(if (expanded) "Show less" else "Show more")
+                Text(if (expanded) stringResource(R.string.details_show_less) else stringResource(R.string.details_show_more))
             }
         }
     }
@@ -501,13 +502,13 @@ private fun DeleteAfterReadOption(
 ) {
     Column(modifier = modifier) {
         ListItem(
-            headlineContent = { Text("Delete downloads after reading") },
+            headlineContent = { Text(stringResource(R.string.details_delete_after_read)) },
             supportingContent = {
                 Column(modifier = Modifier.selectableGroup()) {
                     val options = listOf(
-                        "Follow global (${if (globalEnabled) "On" else "Off"})" to DeleteAfterReadMode.INHERIT,
-                        "On for this manga" to DeleteAfterReadMode.ENABLED,
-                        "Off for this manga" to DeleteAfterReadMode.DISABLED
+                        (if (globalEnabled) stringResource(R.string.details_delete_follow_global_on) else stringResource(R.string.details_delete_follow_global_off)) to DeleteAfterReadMode.INHERIT,
+                        stringResource(R.string.details_delete_on) to DeleteAfterReadMode.ENABLED,
+                        stringResource(R.string.details_delete_off) to DeleteAfterReadMode.DISABLED
                     )
                     options.forEach { (label, value) ->
                         Row(
@@ -544,11 +545,11 @@ private fun NotificationOption(
     modifier: Modifier = Modifier
 ) {
     ListItem(
-        headlineContent = { Text("Notify for new chapters") },
+        headlineContent = { Text(stringResource(R.string.details_notify_title)) },
         supportingContent = {
             Text(
-                if (notifyEnabled) "You will be notified when new chapters are found"
-                else "Notifications are muted for this manga"
+                if (notifyEnabled) stringResource(R.string.details_notify_enabled)
+                else stringResource(R.string.details_notify_disabled)
             )
         },
         leadingContent = {
@@ -583,7 +584,7 @@ private fun ReaderSettingsSection(
 
     Column(modifier = modifier) {
         ListItem(
-            headlineContent = { Text("Reader Settings") },
+            headlineContent = { Text(stringResource(R.string.details_reader_settings)) },
             supportingContent = {
                 val hasOverrides = manga.readerDirection != null ||
                                    manga.readerMode != null ||
@@ -593,15 +594,15 @@ private fun ReaderSettingsSection(
                                    manga.preloadPagesBefore != null ||
                                    manga.preloadPagesAfter != null
                 Text(
-                    if (hasOverrides) "Custom settings applied"
-                    else "Using default settings"
+                    if (hasOverrides) stringResource(R.string.details_reader_custom_applied)
+                    else stringResource(R.string.details_reader_default)
                 )
             },
             trailingContent = {
                 IconButton(onClick = { expanded = !expanded }) {
                     Icon(
                         imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                        contentDescription = if (expanded) "Collapse" else "Expand"
+                        contentDescription = if (expanded) stringResource(R.string.details_collapse) else stringResource(R.string.details_expand)
                     )
                 }
             }
@@ -615,20 +616,20 @@ private fun ReaderSettingsSection(
             ) {
                 // Reading Direction
                 Text(
-                    text = "Reading Direction",
+                    text = stringResource(R.string.details_reading_direction),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Row(modifier = Modifier.selectableGroup()) {
-                    DirectionOption("Left to Right", 0, manga.readerDirection, onEvent)
-                    DirectionOption("Right to Left", 1, manga.readerDirection, onEvent)
+                    DirectionOption(stringResource(R.string.details_direction_ltr), 0, manga.readerDirection, onEvent)
+                    DirectionOption(stringResource(R.string.details_direction_rtl), 1, manga.readerDirection, onEvent)
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Reader Mode
                 Text(
-                    text = "Reader Mode",
+                    text = stringResource(R.string.details_reader_mode),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -637,17 +638,17 @@ private fun ReaderSettingsSection(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    ReaderModeOption("Single Page", 0, manga.readerMode, onEvent)
-                    ReaderModeOption("Dual Page", 1, manga.readerMode, onEvent)
-                    ReaderModeOption("Webtoon", 2, manga.readerMode, onEvent)
-                    ReaderModeOption("Smart Panels", 3, manga.readerMode, onEvent)
+                    ReaderModeOption(stringResource(R.string.details_mode_single), 0, manga.readerMode, onEvent)
+                    ReaderModeOption(stringResource(R.string.details_mode_dual), 1, manga.readerMode, onEvent)
+                    ReaderModeOption(stringResource(R.string.details_mode_webtoon), 2, manga.readerMode, onEvent)
+                    ReaderModeOption(stringResource(R.string.details_mode_smart), 3, manga.readerMode, onEvent)
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Color Filter
                 Text(
-                    text = "Color Filter",
+                    text = stringResource(R.string.details_color_filter),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -656,11 +657,11 @@ private fun ReaderSettingsSection(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    ColorFilterOption("None", 0, manga.readerColorFilter, onEvent)
-                    ColorFilterOption("Sepia", 1, manga.readerColorFilter, onEvent)
-                    ColorFilterOption("Greyscale", 2, manga.readerColorFilter, onEvent)
-                    ColorFilterOption("Invert", 3, manga.readerColorFilter, onEvent)
-                    ColorFilterOption("Custom Tint", 4, manga.readerColorFilter, onEvent)
+                    ColorFilterOption(stringResource(R.string.details_filter_none), 0, manga.readerColorFilter, onEvent)
+                    ColorFilterOption(stringResource(R.string.details_filter_sepia), 1, manga.readerColorFilter, onEvent)
+                    ColorFilterOption(stringResource(R.string.details_filter_greyscale), 2, manga.readerColorFilter, onEvent)
+                    ColorFilterOption(stringResource(R.string.details_filter_invert), 3, manga.readerColorFilter, onEvent)
+                    ColorFilterOption(stringResource(R.string.details_filter_custom_tint), 4, manga.readerColorFilter, onEvent)
                 }
 
                 // Custom Tint Color Picker (shown when Custom Tint is selected)
@@ -676,7 +677,7 @@ private fun ReaderSettingsSection(
 
                 // Background Color
                 Text(
-                    text = "Background Color",
+                    text = stringResource(R.string.details_background_color),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -690,17 +691,17 @@ private fun ReaderSettingsSection(
 
                 // Preload Pages
                 Text(
-                    text = "Page Preloading",
+                    text = stringResource(R.string.details_page_preloading),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 PreloadOption(
-                    label = "Pages before current",
+                    label = stringResource(R.string.details_pages_before),
                     value = manga.preloadPagesBefore,
                     onChange = { onEvent(DetailsContract.Event.SetPreloadPagesBefore(it)) }
                 )
                 PreloadOption(
-                    label = "Pages after current",
+                    label = stringResource(R.string.details_pages_after),
                     value = manga.preloadPagesAfter,
                     onChange = { onEvent(DetailsContract.Event.SetPreloadPagesAfter(it)) }
                 )
@@ -720,7 +721,7 @@ private fun ReaderSettingsSection(
                     },
                     modifier = Modifier.align(Alignment.End)
                 ) {
-                    Text("Reset to defaults")
+                    Text(stringResource(R.string.details_reset_defaults))
                 }
             }
         }
@@ -834,7 +835,7 @@ private fun CustomTintColorPicker(
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
-            text = "Custom Tint Color",
+            text = stringResource(R.string.details_custom_tint_color),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -844,13 +845,13 @@ private fun CustomTintColorPicker(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             val presetColors = listOf(
-                0xFFFF6B6B to "Red",
-                0xFFFFA500 to "Orange",
-                0xFFFFD93D to "Yellow",
-                0xFF6BCB77 to "Green",
-                0xFF4D96FF to "Blue",
-                0xFF9D84B7 to "Purple",
-                0xFFFFB6C1 to "Pink"
+                0xFFFF6B6B to stringResource(R.string.details_color_red),
+                0xFFFFA500 to stringResource(R.string.details_color_orange),
+                0xFFFFD93D to stringResource(R.string.details_color_yellow),
+                0xFF6BCB77 to stringResource(R.string.details_color_green),
+                0xFF4D96FF to stringResource(R.string.details_color_blue),
+                0xFF9D84B7 to stringResource(R.string.details_color_purple),
+                0xFFFFB6C1 to stringResource(R.string.details_color_pink)
             )
             presetColors.forEach { (color, name) ->
                 ColorChip(
@@ -866,7 +867,7 @@ private fun CustomTintColorPicker(
             onClick = { onColorChange(null) },
             modifier = Modifier.align(Alignment.End)
         ) {
-            Text("Reset")
+            Text(stringResource(R.string.details_reset))
         }
     }
 }
@@ -880,7 +881,7 @@ private fun BackgroundColorPicker(
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
-            text = "Override reader background",
+            text = stringResource(R.string.details_override_background),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -890,11 +891,11 @@ private fun BackgroundColorPicker(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             val presetColors = listOf(
-                0xFF000000 to "Black",
-                0xFF1A1A1A to "Dark Gray",
-                0xFF808080 to "Gray",
-                0xFFFFFFFF to "White",
-                0xFFFFF8DC to "Cream"
+                0xFF000000 to stringResource(R.string.details_bg_black),
+                0xFF1A1A1A to stringResource(R.string.details_bg_dark_gray),
+                0xFF808080 to stringResource(R.string.details_bg_gray),
+                0xFFFFFFFF to stringResource(R.string.details_bg_white),
+                0xFFFFF8DC to stringResource(R.string.details_bg_cream)
             )
             presetColors.forEach { (color, name) ->
                 ColorChip(
@@ -910,7 +911,7 @@ private fun BackgroundColorPicker(
             onClick = { onColorChange(null) },
             modifier = Modifier.align(Alignment.End)
         ) {
-            Text("Reset")
+            Text(stringResource(R.string.details_reset))
         }
     }
 }
@@ -954,15 +955,15 @@ private fun ChapterListHeader(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = "$chapterCount Chapters",
+            text = pluralStringResource(R.plurals.details_chapter_count, chapterCount, chapterCount),
             style = MaterialTheme.typography.titleMedium
         )
 
         TextButton(onClick = onToggleSort) {
             Text(
                 when (sortOrder) {
-                    DetailsContract.ChapterSortOrder.ASCENDING -> "↑ Ascending"
-                    DetailsContract.ChapterSortOrder.DESCENDING -> "↓ Descending"
+                    DetailsContract.ChapterSortOrder.ASCENDING -> stringResource(R.string.details_sort_ascending)
+                    DetailsContract.ChapterSortOrder.DESCENDING -> stringResource(R.string.details_sort_descending)
                 }
             )
         }
@@ -975,6 +976,6 @@ private fun EmptyScreen(modifier: Modifier = Modifier) {
         modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        Text("No manga details available")
+        Text(stringResource(R.string.details_no_manga))
     }
 }

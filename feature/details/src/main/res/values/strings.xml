@@ -10,4 +10,80 @@
     <string name="notes_editor_cancel">Cancel</string>
     <string name="notes_saved">Note saved</string>
     <string name="notes_save_failed">Failed to save note: %1$s</string>
+
+    <!-- Details screen -->
+    <string name="details_title_fallback">Manga Details</string>
+    <string name="details_back">Back</string>
+    <string name="details_refresh">Refresh</string>
+    <string name="details_share">Share</string>
+    <string name="details_continue_reading">Continue Reading</string>
+    <string name="details_start_reading">Start Reading</string>
+    <string name="details_unknown_error">Unknown error</string>
+    <string name="details_author">Author: %1$s</string>
+    <string name="details_artist">Artist: %1$s</string>
+    <string name="details_status">Status: %1$s</string>
+    <string name="details_remove_from_library">Remove from library</string>
+    <string name="details_add_to_library">Add to library</string>
+    <string name="details_show_less">Show less</string>
+    <string name="details_show_more">Show more</string>
+
+    <!-- Delete after read -->
+    <string name="details_delete_after_read">Delete downloads after reading</string>
+    <string name="details_delete_follow_global_on">Follow global (On)</string>
+    <string name="details_delete_follow_global_off">Follow global (Off)</string>
+    <string name="details_delete_on">On for this manga</string>
+    <string name="details_delete_off">Off for this manga</string>
+
+    <!-- Notifications -->
+    <string name="details_notify_title">Notify for new chapters</string>
+    <string name="details_notify_enabled">You will be notified when new chapters are found</string>
+    <string name="details_notify_disabled">Notifications are muted for this manga</string>
+
+    <!-- Reader settings -->
+    <string name="details_reader_settings">Reader Settings</string>
+    <string name="details_reader_custom_applied">Custom settings applied</string>
+    <string name="details_reader_default">Using default settings</string>
+    <string name="details_collapse">Collapse</string>
+    <string name="details_expand">Expand</string>
+    <string name="details_reading_direction">Reading Direction</string>
+    <string name="details_direction_ltr">Left to Right</string>
+    <string name="details_direction_rtl">Right to Left</string>
+    <string name="details_reader_mode">Reader Mode</string>
+    <string name="details_mode_single">Single Page</string>
+    <string name="details_mode_dual">Dual Page</string>
+    <string name="details_mode_webtoon">Webtoon</string>
+    <string name="details_mode_smart">Smart Panels</string>
+    <string name="details_color_filter">Color Filter</string>
+    <string name="details_filter_none">None</string>
+    <string name="details_filter_sepia">Sepia</string>
+    <string name="details_filter_greyscale">Greyscale</string>
+    <string name="details_filter_invert">Invert</string>
+    <string name="details_filter_custom_tint">Custom Tint</string>
+    <string name="details_custom_tint_color">Custom Tint Color</string>
+    <string name="details_color_red">Red</string>
+    <string name="details_color_orange">Orange</string>
+    <string name="details_color_yellow">Yellow</string>
+    <string name="details_color_green">Green</string>
+    <string name="details_color_blue">Blue</string>
+    <string name="details_color_purple">Purple</string>
+    <string name="details_color_pink">Pink</string>
+    <string name="details_reset">Reset</string>
+    <string name="details_background_color">Background Color</string>
+    <string name="details_override_background">Override reader background</string>
+    <string name="details_bg_black">Black</string>
+    <string name="details_bg_dark_gray">Dark Gray</string>
+    <string name="details_bg_gray">Gray</string>
+    <string name="details_bg_white">White</string>
+    <string name="details_bg_cream">Cream</string>
+    <string name="details_page_preloading">Page Preloading</string>
+    <string name="details_pages_before">Pages before current</string>
+    <string name="details_pages_after">Pages after current</string>
+    <string name="details_reset_defaults">Reset to defaults</string>
+    <plurals name="details_chapter_count">
+        <item quantity="one">%1$d Chapter</item>
+        <item quantity="other">%1$d Chapters</item>
+    </plurals>
+    <string name="details_sort_ascending">↑ Ascending</string>
+    <string name="details_sort_descending">↓ Descending</string>
+    <string name="details_no_manga">No manga details available</string>
 </resources>
