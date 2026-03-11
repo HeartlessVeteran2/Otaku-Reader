@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Page titles -->
+    <string name="onboarding_title_welcome">欢迎使用 Otaku Reader</string>
+    <string name="onboarding_title_browse">浏览 &amp; 发现</string>
+    <string name="onboarding_title_download">下载 &amp; 离线阅读</string>
+    <string name="onboarding_title_organize">整理你的书库</string>
+    <string name="onboarding_title_extensions">安装扩展</string>
+
+    <!-- Page descriptions -->
+    <string name="onboarding_desc_welcome">你的个人漫画书库。追踪阅读进度、发现新系列，离线享受你喜爱的漫画。</string>
+    <string name="onboarding_desc_browse">从各种来源探索数千部漫画。按标题、类型或热度搜索，找到你的下一部作品。</string>
+    <string name="onboarding_desc_download">下载章节以便随时随地阅读，即使没有网络。你的书库始终伴你左右。</string>
+    <string name="onboarding_desc_organize">创建分类、追踪阅读进度，并在新章节发布时收到通知。</string>
+    <string name="onboarding_desc_extensions">Otaku Reader 使用扩展来访问漫画源。安装你的第一个扩展即可开始！</string>
+
+    <!-- Buttons -->
+    <string name="onboarding_btn_next">下一步</string>
+    <string name="onboarding_btn_skip">跳过</string>
+    <string name="onboarding_btn_get_started">开始使用</string>
+    <string name="onboarding_btn_install_extensions">安装扩展</string>
+</resources>

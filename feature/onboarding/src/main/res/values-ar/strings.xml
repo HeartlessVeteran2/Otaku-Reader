@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Page titles -->
+    <string name="onboarding_title_welcome">مرحبًا بك في Otaku Reader</string>
+    <string name="onboarding_title_browse">تصفّح &amp; اكتشف</string>
+    <string name="onboarding_title_download">حمّل &amp; اقرأ بدون إنترنت</string>
+    <string name="onboarding_title_organize">نظّم مكتبتك</string>
+    <string name="onboarding_title_extensions">تثبيت الإضافات</string>
+
+    <!-- Page descriptions -->
+    <string name="onboarding_desc_welcome">مكتبتك الشخصية للمانجا. تتبّع قراءتك، واكتشف سلاسل جديدة، واستمتع بمانجاك المفضلة بدون إنترنت.</string>
+    <string name="onboarding_desc_browse">استكشف آلاف المانجا من مصادر متنوعة. ابحث بالعنوان أو النوع أو الشعبية للعثور على قراءتك القادمة.</string>
+    <string name="onboarding_desc_download">حمّل الفصول لقراءتها في أي مكان، حتى بدون إنترنت. مكتبتك دائمًا معك.</string>
+    <string name="onboarding_desc_organize">أنشئ تصنيفات، وتتبّع تقدّم القراءة، واحصل على إشعارات عند توفر فصول جديدة.</string>
+    <string name="onboarding_desc_extensions">يستخدم Otaku Reader الإضافات للوصول إلى مصادر المانجا. ثبّت إضافتك الأولى للبدء!</string>
+
+    <!-- Buttons -->
+    <string name="onboarding_btn_next">التالي</string>
+    <string name="onboarding_btn_skip">تخطّي</string>
+    <string name="onboarding_btn_get_started">ابدأ الآن</string>
+    <string name="onboarding_btn_install_extensions">تثبيت الإضافات</string>
+</resources>

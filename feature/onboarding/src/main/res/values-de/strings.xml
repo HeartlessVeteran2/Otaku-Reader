@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Page titles -->
+    <string name="onboarding_title_welcome">Willkommen bei Otaku Reader</string>
+    <string name="onboarding_title_browse">Durchsuchen &amp; Entdecken</string>
+    <string name="onboarding_title_download">Herunterladen &amp; Offline Lesen</string>
+    <string name="onboarding_title_organize">Organisiere Deine Bibliothek</string>
+    <string name="onboarding_title_extensions">Erweiterungen Installieren</string>
+
+    <!-- Page descriptions -->
+    <string name="onboarding_desc_welcome">Deine persönliche Manga-Bibliothek. Verfolge deinen Lesefortschritt, entdecke neue Serien und genieße deinen Lieblings-Manga offline.</string>
+    <string name="onboarding_desc_browse">Erkunde tausende Manga aus verschiedenen Quellen. Suche nach Titel, Genre oder Beliebtheit, um deine nächste Lektüre zu finden.</string>
+    <string name="onboarding_desc_download">Lade Kapitel herunter, um überall zu lesen, auch ohne Internet. Deine Bibliothek ist immer dabei.</string>
+    <string name="onboarding_desc_organize">Erstelle Kategorien, verfolge den Lesefortschritt und werde benachrichtigt, wenn neue Kapitel verfügbar sind.</string>
+    <string name="onboarding_desc_extensions">Otaku Reader verwendet Erweiterungen, um auf Manga-Quellen zuzugreifen. Installiere deine erste Erweiterung, um loszulegen!</string>
+
+    <!-- Buttons -->
+    <string name="onboarding_btn_next">Weiter</string>
+    <string name="onboarding_btn_skip">Überspringen</string>
+    <string name="onboarding_btn_get_started">Loslegen</string>
+    <string name="onboarding_btn_install_extensions">Erweiterungen Installieren</string>
+</resources>

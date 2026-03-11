@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Page titles -->
+    <string name="onboarding_title_welcome">Otaku Readerへようこそ</string>
+    <string name="onboarding_title_browse">閲覧 &amp; 発見</string>
+    <string name="onboarding_title_download">ダウンロード &amp; オフラインで読む</string>
+    <string name="onboarding_title_organize">ライブラリを整理</string>
+    <string name="onboarding_title_extensions">拡張機能をインストール</string>
+
+    <!-- Page descriptions -->
+    <string name="onboarding_desc_welcome">あなただけの漫画ライブラリ。読書を記録し、新しいシリーズを発見し、お気に入りの漫画をオフラインで楽しみましょう。</string>
+    <string name="onboarding_desc_browse">さまざまなソースから数千の漫画を探索できます。タイトル、ジャンル、人気度で検索して、次に読む作品を見つけましょう。</string>
+    <string name="onboarding_desc_download">チャプターをダウンロードして、インターネットがなくてもどこでも読めます。ライブラリはいつもあなたと一緒です。</string>
+    <string name="onboarding_desc_organize">カテゴリを作成し、読書の進捗を追跡し、新しいチャプターが利用可能になったら通知を受け取りましょう。</string>
+    <string name="onboarding_desc_extensions">Otaku Readerは拡張機能を使って漫画ソースにアクセスします。最初の拡張機能をインストールして始めましょう！</string>
+
+    <!-- Buttons -->
+    <string name="onboarding_btn_next">次へ</string>
+    <string name="onboarding_btn_skip">スキップ</string>
+    <string name="onboarding_btn_get_started">始める</string>
+    <string name="onboarding_btn_install_extensions">拡張機能をインストール</string>
+</resources>

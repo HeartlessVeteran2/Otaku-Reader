@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Page titles -->
+    <string name="onboarding_title_welcome">Добро пожаловать в Otaku Reader</string>
+    <string name="onboarding_title_browse">Просмотр &amp; Открытия</string>
+    <string name="onboarding_title_download">Скачать &amp; Читать Офлайн</string>
+    <string name="onboarding_title_organize">Организуйте Свою Библиотеку</string>
+    <string name="onboarding_title_extensions">Установить Расширения</string>
+
+    <!-- Page descriptions -->
+    <string name="onboarding_desc_welcome">Ваша личная библиотека манги. Отслеживайте чтение, открывайте новые серии и наслаждайтесь любимой мангой офлайн.</string>
+    <string name="onboarding_desc_browse">Исследуйте тысячи манги из различных источников. Ищите по названию, жанру или популярности, чтобы найти следующее чтение.</string>
+    <string name="onboarding_desc_download">Скачивайте главы, чтобы читать где угодно, даже без интернета. Ваша библиотека всегда с вами.</string>
+    <string name="onboarding_desc_organize">Создавайте категории, отслеживайте прогресс чтения и получайте уведомления о появлении новых глав.</string>
+    <string name="onboarding_desc_extensions">Otaku Reader использует расширения для доступа к источникам манги. Установите первое расширение, чтобы начать!</string>
+
+    <!-- Buttons -->
+    <string name="onboarding_btn_next">Далее</string>
+    <string name="onboarding_btn_skip">Пропустить</string>
+    <string name="onboarding_btn_get_started">Начать</string>
+    <string name="onboarding_btn_install_extensions">Установить Расширения</string>
+</resources>
