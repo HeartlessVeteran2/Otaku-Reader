@@ -611,6 +611,37 @@ private fun ReaderSettingsSection(
                 Row(modifier = Modifier.selectableGroup()) {
                     DirectionOption("Left to Right", 0, manga.readerDirection, onEvent)
                     DirectionOption("Right to Left", 1, manga.readerDirection, onEvent)
+                    DirectionOption("Vertical", 2, manga.readerDirection, onEvent)
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Reader Mode (ordinals: 0=Single Page, 1=Dual Page, 2=Webtoon, 3=Smart Panels)
+                Text(
+                    text = "Reader Mode",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Column(modifier = Modifier.selectableGroup()) {
+                    ModeOption("Single Page", 0, manga.readerMode, onEvent)
+                    ModeOption("Dual Page", 1, manga.readerMode, onEvent)
+                    ModeOption("Webtoon", 2, manga.readerMode, onEvent)
+                    ModeOption("Smart Panels", 3, manga.readerMode, onEvent)
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Color Filter (ordinals: 0=None, 1=Sepia, 2=Grayscale, 3=Invert)
+                Text(
+                    text = "Color Filter",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Column(modifier = Modifier.selectableGroup()) {
+                    ColorFilterOption("None", 0, manga.readerColorFilter, onEvent)
+                    ColorFilterOption("Sepia", 1, manga.readerColorFilter, onEvent)
+                    ColorFilterOption("Grayscale", 2, manga.readerColorFilter, onEvent)
+                    ColorFilterOption("Invert", 3, manga.readerColorFilter, onEvent)
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -636,14 +667,7 @@ private fun ReaderSettingsSection(
 
                 // Reset button
                 TextButton(
-                    onClick = {
-                        onEvent(DetailsContract.Event.SetReaderDirection(null))
-                        onEvent(DetailsContract.Event.SetReaderMode(null))
-                        onEvent(DetailsContract.Event.SetReaderColorFilter(null))
-                        onEvent(DetailsContract.Event.SetReaderCustomTintColor(null))
-                        onEvent(DetailsContract.Event.SetPreloadPagesBefore(null))
-                        onEvent(DetailsContract.Event.SetPreloadPagesAfter(null))
-                    },
+                    onClick = { onEvent(DetailsContract.Event.ResetReaderSettings) },
                     modifier = Modifier.align(Alignment.End)
                 ) {
                     Text("Reset to defaults")
@@ -667,6 +691,64 @@ private fun DirectionOption(
             .selectable(
                 selected = currentValue == value,
                 onClick = { onEvent(DetailsContract.Event.SetReaderDirection(value)) },
+                role = Role.RadioButton
+            )
+            .padding(vertical = 4.dp, horizontal = 8.dp)
+    ) {
+        RadioButton(
+            selected = currentValue == value,
+            onClick = null
+        )
+        Text(
+            text = label,
+            modifier = Modifier.padding(start = 8.dp)
+        )
+    }
+}
+
+@Composable
+private fun ModeOption(
+    label: String,
+    value: Int,
+    currentValue: Int?,
+    onEvent: (DetailsContract.Event) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .selectable(
+                selected = currentValue == value,
+                onClick = { onEvent(DetailsContract.Event.SetReaderMode(value)) },
+                role = Role.RadioButton
+            )
+            .padding(vertical = 4.dp, horizontal = 8.dp)
+    ) {
+        RadioButton(
+            selected = currentValue == value,
+            onClick = null
+        )
+        Text(
+            text = label,
+            modifier = Modifier.padding(start = 8.dp)
+        )
+    }
+}
+
+@Composable
+private fun ColorFilterOption(
+    label: String,
+    value: Int,
+    currentValue: Int?,
+    onEvent: (DetailsContract.Event) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .selectable(
+                selected = currentValue == value,
+                onClick = { onEvent(DetailsContract.Event.SetReaderColorFilter(value)) },
                 role = Role.RadioButton
             )
             .padding(vertical = 4.dp, horizontal = 8.dp)

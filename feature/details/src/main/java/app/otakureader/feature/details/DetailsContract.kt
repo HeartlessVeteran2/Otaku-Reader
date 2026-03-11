@@ -132,6 +132,9 @@ object DetailsContract {
         // Page preloading settings (#264)
         data class SetPreloadPagesBefore(val count: Int?) : Event
         data class SetPreloadPagesAfter(val count: Int?) : Event
+
+        // Reset all per-manga reader overrides to defaults
+        data object ResetReaderSettings : Event
     }
 
     /**

@@ -77,6 +77,16 @@ interface MangaDao {
     @Query("UPDATE manga SET preloadPagesAfter = :count WHERE id = :id")
     suspend fun updatePreloadPagesAfter(id: Long, count: Int?)
 
+    @Query("""UPDATE manga SET
+        readerDirection = NULL,
+        readerMode = NULL,
+        readerColorFilter = NULL,
+        readerCustomTintColor = NULL,
+        preloadPagesBefore = NULL,
+        preloadPagesAfter = NULL
+        WHERE id = :id""")
+    suspend fun resetReaderOverrides(id: Long)
+
     @Query("SELECT EXISTS(SELECT 1 FROM manga WHERE id = :id AND favorite = 1)")
     fun isFavorite(id: Long): Flow<Boolean>
     

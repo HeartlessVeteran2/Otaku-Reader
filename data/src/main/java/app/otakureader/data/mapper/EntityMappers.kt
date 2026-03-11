@@ -23,7 +23,13 @@ fun MangaEntity.toManga(): Manga = Manga(
     autoDownload = autoDownload,
     notes = notes,
     notifyNewChapters = notifyNewChapters,
-    readerBackgroundColor = readerBackgroundColor
+    readerBackgroundColor = readerBackgroundColor,
+    readerDirection = readerDirection,
+    readerMode = readerMode,
+    readerColorFilter = readerColorFilter,
+    readerCustomTintColor = readerCustomTintColor,
+    preloadPagesBefore = preloadPagesBefore,
+    preloadPagesAfter = preloadPagesAfter
 )
 
 /** Maps domain [Manga] to [MangaEntity]. */
@@ -43,7 +49,13 @@ fun Manga.toEntity(): MangaEntity = MangaEntity(
     autoDownload = autoDownload,
     notes = notes,
     notifyNewChapters = notifyNewChapters,
-    readerBackgroundColor = readerBackgroundColor
+    readerBackgroundColor = readerBackgroundColor,
+    readerDirection = readerDirection,
+    readerMode = readerMode,
+    readerColorFilter = readerColorFilter,
+    readerCustomTintColor = readerCustomTintColor,
+    preloadPagesBefore = preloadPagesBefore,
+    preloadPagesAfter = preloadPagesAfter
 )
 
 /** Maps [ChapterEntity] to domain [Chapter]. */

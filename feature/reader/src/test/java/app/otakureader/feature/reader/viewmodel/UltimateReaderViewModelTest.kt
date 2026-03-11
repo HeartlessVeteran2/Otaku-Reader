@@ -315,4 +315,163 @@ class UltimateReaderViewModelTest {
             mangaRepository.updateManga(match { it.readerBackgroundColor == 0xFF333333L })
         }
     }
+
+    // ---- Per-manga overrides ----
+
+    private fun mangaWith(
+        readerMode: Int? = null,
+        readerDirection: Int? = null,
+        readerColorFilter: Int? = null,
+        readerCustomTintColor: Long? = null,
+        preloadPagesBefore: Int? = null,
+        preloadPagesAfter: Int? = null
+    ) = Manga(
+        id = mangaId, sourceId = 1L, url = "/m/1", title = "Test",
+        readerMode = readerMode,
+        readerDirection = readerDirection,
+        readerColorFilter = readerColorFilter,
+        readerCustomTintColor = readerCustomTintColor,
+        preloadPagesBefore = preloadPagesBefore,
+        preloadPagesAfter = preloadPagesAfter
+    )
+
+    @Test
+    fun `per-manga readerMode override is applied over global setting`() = runTest {
+        every { settingsRepository.readerMode } returns flowOf(ReaderMode.SINGLE_PAGE)
+        // Manga has WEBTOON (ordinal 2)
+        coEvery { mangaRepository.getMangaById(mangaId) } returns mangaWith(readerMode = 2)
+
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(ReaderMode.WEBTOON, vm.state.value.mode)
+    }
+
+    @Test
+    fun `per-manga readerMode invalid ordinal falls back to global setting`() = runTest {
+        every { settingsRepository.readerMode } returns flowOf(ReaderMode.DUAL_PAGE)
+        // ordinal 99 doesn't exist → should fall back
+        coEvery { mangaRepository.getMangaById(mangaId) } returns mangaWith(readerMode = 99)
+
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(ReaderMode.DUAL_PAGE, vm.state.value.mode)
+    }
+
+    @Test
+    fun `per-manga readerDirection LTR override is applied`() = runTest {
+        every { settingsRepository.readingDirection } returns flowOf(ReadingDirection.RTL)
+        coEvery { mangaRepository.getMangaById(mangaId) } returns mangaWith(readerDirection = 0)
+
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(ReadingDirection.LTR, vm.state.value.readingDirection)
+    }
+
+    @Test
+    fun `per-manga readerDirection VERTICAL override is applied`() = runTest {
+        every { settingsRepository.readingDirection } returns flowOf(ReadingDirection.LTR)
+        coEvery { mangaRepository.getMangaById(mangaId) } returns mangaWith(readerDirection = 2)
+
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(ReadingDirection.VERTICAL, vm.state.value.readingDirection)
+    }
+
+    @Test
+    fun `per-manga readerDirection invalid ordinal falls back to global setting`() = runTest {
+        every { settingsRepository.readingDirection } returns flowOf(ReadingDirection.RTL)
+        coEvery { mangaRepository.getMangaById(mangaId) } returns mangaWith(readerDirection = 99)
+
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(ReadingDirection.RTL, vm.state.value.readingDirection)
+    }
+
+    @Test
+    fun `per-manga colorFilter override is applied`() = runTest {
+        every { settingsRepository.colorFilterMode } returns flowOf(ColorFilterMode.NONE)
+        coEvery { mangaRepository.getMangaById(mangaId) } returns mangaWith(readerColorFilter = 1) // SEPIA
+
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(ColorFilterMode.SEPIA, vm.state.value.colorFilterMode)
+    }
+
+    @Test
+    fun `per-manga colorFilter invalid ordinal falls back to global setting`() = runTest {
+        every { settingsRepository.colorFilterMode } returns flowOf(ColorFilterMode.GRAYSCALE)
+        coEvery { mangaRepository.getMangaById(mangaId) } returns mangaWith(readerColorFilter = 99)
+
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(ColorFilterMode.GRAYSCALE, vm.state.value.colorFilterMode)
+    }
+
+    @Test
+    fun `per-manga customTintColor override is applied`() = runTest {
+        every { settingsRepository.customTintColor } returns flowOf(0x4000AAFFL)
+        coEvery { mangaRepository.getMangaById(mangaId) } returns mangaWith(readerCustomTintColor = 0x80FF6B6BL)
+
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(0x80FF6B6BL, vm.state.value.customTintColor)
+    }
+
+    @Test
+    fun `per-manga preload values are clamped when negative`() = runTest {
+        val chapter = Chapter(id = chapterId, mangaId = mangaId, url = "/ch/1", name = "Ch 1")
+        val manga = mangaWith(preloadPagesBefore = -5, preloadPagesAfter = -3)
+        coEvery { chapterRepository.getChapterById(chapterId) } returns chapter
+        coEvery { mangaRepository.getMangaById(mangaId) } returns manga
+        coEvery { chapterRepository.recordHistory(any(), any(), any()) } just runs
+
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Set pages after load so loadChapter() doesn't clear them
+        vm.setPages(List(10) { ReaderPage(index = it) })
+
+        // Verify we can jump to a page without error (clamped values prevent out-of-range pages)
+        vm.jumpToPage(5)
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(5, vm.state.value.currentPage)
+        // Verify that negative per-manga preload values are clamped up to 0
+        assertEquals(0, vm.state.value.preloadPagesBefore)
+        assertEquals(0, vm.state.value.preloadPagesAfter)
+    }
+
+    @Test
+    fun `per-manga preload values are clamped when above MAX_PRELOAD`() = runTest {
+        val chapter = Chapter(id = chapterId, mangaId = mangaId, url = "/ch/1", name = "Ch 1")
+        val manga = mangaWith(preloadPagesBefore = 999, preloadPagesAfter = 500)
+        coEvery { chapterRepository.getChapterById(chapterId) } returns chapter
+        coEvery { mangaRepository.getMangaById(mangaId) } returns manga
+        coEvery { chapterRepository.recordHistory(any(), any(), any()) } just runs
+
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        vm.setPages(List(10) { ReaderPage(index = it) })
+
+        vm.jumpToPage(5)
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(5, vm.state.value.currentPage)
+        // Verify that oversized per-manga preload values are clamped down to the ViewModel's maximum.
+        assertEquals(
+            UltimateReaderViewModel.MAX_PRELOAD_PAGES,
+            vm.state.value.preloadPagesBefore
+        )
+        assertEquals(
+            UltimateReaderViewModel.MAX_PRELOAD_PAGES,
+            vm.state.value.preloadPagesAfter
+        )
+    }
 }

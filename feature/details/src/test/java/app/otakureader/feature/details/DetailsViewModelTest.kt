@@ -514,4 +514,184 @@ class DetailsViewModelTest {
         val sorted = viewModel.state.value.sortedChapters
         assertTrue(sorted[0].chapterNumber >= sorted[1].chapterNumber)
     }
+
+    // ---- Per-manga reader settings ----
+
+    @Test
+    fun onEvent_SetReaderDirection_callsRepositoryAndEmitsSnackbar() = runTest {
+        setUpDefaultMocks()
+        coEvery { mangaRepository.updateReaderDirection(mangaId, 1) } returns Unit
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.SetReaderDirection(1))
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            coVerify { mangaRepository.updateReaderDirection(mangaId, 1) }
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.ShowSnackbar)
+        }
+    }
+
+    @Test
+    fun onEvent_SetReaderDirection_onError_emitsErrorEffect() = runTest {
+        setUpDefaultMocks()
+        coEvery { mangaRepository.updateReaderDirection(any(), any()) } throws RuntimeException("DB error")
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.SetReaderDirection(0))
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.ShowError)
+        }
+    }
+
+    @Test
+    fun onEvent_SetReaderMode_callsRepositoryAndEmitsSnackbar() = runTest {
+        setUpDefaultMocks()
+        coEvery { mangaRepository.updateReaderMode(mangaId, 2) } returns Unit
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.SetReaderMode(2))
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            coVerify { mangaRepository.updateReaderMode(mangaId, 2) }
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.ShowSnackbar)
+        }
+    }
+
+    @Test
+    fun onEvent_SetReaderColorFilter_callsRepositoryAndEmitsSnackbar() = runTest {
+        setUpDefaultMocks()
+        coEvery { mangaRepository.updateReaderColorFilter(mangaId, 1) } returns Unit
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.SetReaderColorFilter(1))
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            coVerify { mangaRepository.updateReaderColorFilter(mangaId, 1) }
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.ShowSnackbar)
+        }
+    }
+
+    @Test
+    fun onEvent_SetPreloadPagesBefore_callsRepositoryAndEmitsSnackbar() = runTest {
+        setUpDefaultMocks()
+        coEvery { mangaRepository.updatePreloadPagesBefore(mangaId, 5) } returns Unit
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.SetPreloadPagesBefore(5))
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            coVerify { mangaRepository.updatePreloadPagesBefore(mangaId, 5) }
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.ShowSnackbar)
+        }
+    }
+
+    @Test
+    fun onEvent_SetPreloadPagesBefore_onError_emitsErrorEffect() = runTest {
+        setUpDefaultMocks()
+        coEvery { mangaRepository.updatePreloadPagesBefore(any(), any()) } throws RuntimeException("DB error")
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.SetPreloadPagesBefore(5))
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.ShowError)
+        }
+    }
+
+    @Test
+    fun onEvent_SetPreloadPagesAfter_callsRepositoryAndEmitsSnackbar() = runTest {
+        setUpDefaultMocks()
+        coEvery { mangaRepository.updatePreloadPagesAfter(mangaId, 3) } returns Unit
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.SetPreloadPagesAfter(3))
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            coVerify { mangaRepository.updatePreloadPagesAfter(mangaId, 3) }
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.ShowSnackbar)
+        }
+    }
+
+    @Test
+    fun onEvent_SetPreloadPagesAfter_onError_emitsErrorEffect() = runTest {
+        setUpDefaultMocks()
+        coEvery { mangaRepository.updatePreloadPagesAfter(any(), any()) } throws RuntimeException("DB error")
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.SetPreloadPagesAfter(3))
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.ShowError)
+        }
+    }
+
+    @Test
+    fun onEvent_ResetReaderSettings_callsRepositoryAndEmitsSingleSnackbar() = runTest {
+        setUpDefaultMocks()
+        coEvery { mangaRepository.resetReaderOverrides(mangaId) } returns Unit
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.ResetReaderSettings)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            coVerify(exactly = 1) { mangaRepository.resetReaderOverrides(mangaId) }
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.ShowSnackbar)
+            // Only one effect should be emitted (not 6)
+            expectNoEvents()
+        }
+    }
+
+    @Test
+    fun onEvent_ResetReaderSettings_onError_emitsErrorEffect() = runTest {
+        setUpDefaultMocks()
+        coEvery { mangaRepository.resetReaderOverrides(any()) } throws RuntimeException("DB error")
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.ResetReaderSettings)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.ShowError)
+        }
+    }
 }

@@ -84,7 +84,13 @@ data class ReaderState(
     val customTintColor: Long = 0x4000AAFFL,
 
     /** Per-manga reader background color (ARGB Long), or null for default (black). */
-    val readerBackgroundColor: Long? = null
+    val readerBackgroundColor: Long? = null,
+
+    /** Effective number of pages to preload before the current page (clamped to [0, UltimateReaderViewModel.MAX_PRELOAD_PAGES]) */
+    val preloadPagesBefore: Int = 3,
+
+    /** Effective number of pages to preload after the current page (clamped to [0, UltimateReaderViewModel.MAX_PRELOAD_PAGES]) */
+    val preloadPagesAfter: Int = 3
 ) {
     /** Total pages in chapter (derived from pages.size) */
     val totalPages: Int get() = pages.size

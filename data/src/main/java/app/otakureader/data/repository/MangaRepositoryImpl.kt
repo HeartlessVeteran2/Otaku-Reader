@@ -115,6 +115,10 @@ class MangaRepositoryImpl @Inject constructor(
         mangaDao.updatePreloadPagesAfter(id, count)
     }
 
+    override suspend fun resetReaderOverrides(id: Long) {
+        mangaDao.resetReaderOverrides(id)
+    }
+
     private fun MangaEntity.toDomain(unreadCount: Int = 0) = Manga(
         id = id,
         sourceId = sourceId,
@@ -124,7 +128,11 @@ class MangaRepositoryImpl @Inject constructor(
         author = author,
         artist = artist,
         description = description,
-        genre = genre?.split("|||")?.filter { it.isNotBlank() } ?: emptyList(),
+        genre = genre
+            ?.split("|||", ",")
+            ?.map { it.trim() }
+            ?.filter { it.isNotEmpty() }
+            ?: emptyList(),
         status = MangaStatus.fromOrdinal(status),
         favorite = favorite,
         initialized = initialized,
@@ -132,7 +140,13 @@ class MangaRepositoryImpl @Inject constructor(
         autoDownload = autoDownload,
         notes = notes,
         notifyNewChapters = notifyNewChapters,
-        readerBackgroundColor = readerBackgroundColor
+        readerBackgroundColor = readerBackgroundColor,
+        readerDirection = readerDirection,
+        readerMode = readerMode,
+        readerColorFilter = readerColorFilter,
+        readerCustomTintColor = readerCustomTintColor,
+        preloadPagesBefore = preloadPagesBefore,
+        preloadPagesAfter = preloadPagesAfter
     )
 
     private fun Manga.toEntity() = MangaEntity(
@@ -144,13 +158,19 @@ class MangaRepositoryImpl @Inject constructor(
         author = author,
         artist = artist,
         description = description,
-        genre = genre.joinToString(","),
+        genre = genre.joinToString("|||"),
         status = status.ordinal,
         favorite = favorite,
         initialized = initialized,
         autoDownload = autoDownload,
         notes = notes,
         notifyNewChapters = notifyNewChapters,
-        readerBackgroundColor = readerBackgroundColor
+        readerBackgroundColor = readerBackgroundColor,
+        readerDirection = readerDirection,
+        readerMode = readerMode,
+        readerColorFilter = readerColorFilter,
+        readerCustomTintColor = readerCustomTintColor,
+        preloadPagesBefore = preloadPagesBefore,
+        preloadPagesAfter = preloadPagesAfter
     )
 }

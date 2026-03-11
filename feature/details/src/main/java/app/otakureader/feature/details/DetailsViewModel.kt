@@ -99,6 +99,8 @@ class DetailsViewModel @Inject constructor(
             // Page preloading settings (#264)
             is DetailsContract.Event.SetPreloadPagesBefore -> setPreloadPagesBefore(event.count)
             is DetailsContract.Event.SetPreloadPagesAfter -> setPreloadPagesAfter(event.count)
+
+            is DetailsContract.Event.ResetReaderSettings -> resetReaderSettings()
         }
     }
 
@@ -654,6 +656,17 @@ class DetailsViewModel @Inject constructor(
                 _effect.emit(DetailsContract.Effect.ShowSnackbar("Preload pages (after) updated"))
             } catch (e: Exception) {
                 _effect.emit(DetailsContract.Effect.ShowError("Failed to update preload setting"))
+            }
+        }
+    }
+
+    private fun resetReaderSettings() {
+        viewModelScope.launch {
+            try {
+                mangaRepository.resetReaderOverrides(mangaId)
+                _effect.emit(DetailsContract.Effect.ShowSnackbar("Reader settings reset to defaults"))
+            } catch (e: Exception) {
+                _effect.emit(DetailsContract.Effect.ShowError("Failed to reset reader settings"))
             }
         }
     }

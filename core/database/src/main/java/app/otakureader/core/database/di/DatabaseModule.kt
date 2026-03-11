@@ -90,6 +90,20 @@ object DatabaseModule {
         }
     }
 
+    /**
+     * Adds per-manga reader override and page preloading columns in database version 9.
+     */
+    private val MIGRATION_8_9 = object : Migration(8, 9) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `manga` ADD COLUMN `readerDirection` INTEGER")
+            db.execSQL("ALTER TABLE `manga` ADD COLUMN `readerMode` INTEGER")
+            db.execSQL("ALTER TABLE `manga` ADD COLUMN `readerColorFilter` INTEGER")
+            db.execSQL("ALTER TABLE `manga` ADD COLUMN `readerCustomTintColor` INTEGER")
+            db.execSQL("ALTER TABLE `manga` ADD COLUMN `preloadPagesBefore` INTEGER")
+            db.execSQL("ALTER TABLE `manga` ADD COLUMN `preloadPagesAfter` INTEGER")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(
@@ -100,7 +114,7 @@ object DatabaseModule {
             OtakuReaderDatabase::class.java,
             OtakuReaderDatabase.DATABASE_NAME
         )
-            .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+            .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
         // Only allow destructive migration in debug builds to avoid silently wiping
         // user data (including notes) in production if a migration is missing.
         if (BuildConfig.DEBUG) {

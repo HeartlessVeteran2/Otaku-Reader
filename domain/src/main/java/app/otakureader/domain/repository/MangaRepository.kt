@@ -28,4 +28,7 @@ interface MangaRepository {
     // Page preloading settings (#264)
     suspend fun updatePreloadPagesBefore(id: Long, count: Int?)
     suspend fun updatePreloadPagesAfter(id: Long, count: Int?)
+
+    // Reset all per-manga reader overrides to defaults
+    suspend fun resetReaderOverrides(id: Long)
 }
