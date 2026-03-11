@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="about_title">정보 &amp; 도움말</string>
+    <string name="about_navigate_back">뒤로 가기</string>
+    <string name="about_help_support_section">도움말 &amp; 지원</string>
+    <string name="about_how_to_add_sources_title">소스 추가 방법</string>
+    <string name="about_how_to_add_sources_subtitle">확장 기능을 설치하고 만화 소스를 추가하는 방법 알아보기</string>
+    <string name="about_faq_title">자주 묻는 질문</string>
+    <string name="about_faq_subtitle">자주 묻는 질문과 문제 해결 팁</string>
+    <string name="about_getting_started_title">시작 가이드</string>
+    <string name="about_getting_started_subtitle">Otaku Reader의 기본 사용법 알아보기</string>
+    <string name="about_app_information_section">앱 정보</string>
+    <string name="about_changelog_title">변경 내역</string>
+    <string name="about_changelog_subtitle">이 버전의 새로운 기능 확인하기</string>
+    <string name="about_open_source_licenses_title">오픈소스 라이선스</string>
+    <string name="about_open_source_licenses_subtitle">서드파티 라이브러리 라이선스 보기</string>
+    <string name="about_privacy_policy_title">개인정보 처리방침</string>
+    <string name="about_privacy_policy_subtitle">데이터 처리 방식 알아보기</string>
+    <string name="about_connect_section">연결</string>
+    <string name="about_github_title">GitHub 저장소</string>
+    <string name="about_github_subtitle">소스 코드 보기 및 문제 보고</string>
+    <string name="about_documentation_title">문서</string>
+    <string name="about_documentation_subtitle">전체 문서 및 가이드</string>
+    <string name="about_app_name">Otaku Reader</string>
+    <string name="about_version_format">버전 %1$s</string>
+    <string name="about_tagline">망토를 입지 않는 영웅</string>
+    <string name="about_card_title">Otaku Reader 소개</string>
+    <string name="about_card_description">Otaku Reader는 커뮤니티를 위해 만들어진 무료 오픈소스 만화 리더입니다. 구독 없음, 광고 없음, 추적 없음. 그냥 읽으세요.</string>
+</resources>

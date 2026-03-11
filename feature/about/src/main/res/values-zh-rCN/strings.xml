@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="about_title">关于与帮助</string>
+    <string name="about_navigate_back">返回</string>
+    <string name="about_help_support_section">帮助与支持</string>
+    <string name="about_how_to_add_sources_title">如何添加源</string>
+    <string name="about_how_to_add_sources_subtitle">了解如何安装扩展并添加漫画源</string>
+    <string name="about_faq_title">常见问题</string>
+    <string name="about_faq_subtitle">常见问题与故障排除提示</string>
+    <string name="about_getting_started_title">入门指南</string>
+    <string name="about_getting_started_subtitle">了解 Otaku Reader 的基本使用方法</string>
+    <string name="about_app_information_section">应用信息</string>
+    <string name="about_changelog_title">更新日志</string>
+    <string name="about_changelog_subtitle">查看此版本的新功能</string>
+    <string name="about_open_source_licenses_title">开源许可证</string>
+    <string name="about_open_source_licenses_subtitle">查看第三方库的许可证</string>
+    <string name="about_privacy_policy_title">隐私政策</string>
+    <string name="about_privacy_policy_subtitle">了解我们如何处理您的数据</string>
+    <string name="about_connect_section">联系我们</string>
+    <string name="about_github_title">GitHub 仓库</string>
+    <string name="about_github_subtitle">查看源代码和报告问题</string>
+    <string name="about_documentation_title">文档</string>
+    <string name="about_documentation_subtitle">完整文档和指南</string>
+    <string name="about_app_name">Otaku Reader</string>
+    <string name="about_version_format">版本 %1$s</string>
+    <string name="about_tagline">一位不穿披风的英雄</string>
+    <string name="about_card_title">关于 Otaku Reader</string>
+    <string name="about_card_description">Otaku Reader 是一款免费的开源漫画阅读器，专为社区而生。无订阅，无广告，无追踪。尽情阅读。</string>
+</resources>

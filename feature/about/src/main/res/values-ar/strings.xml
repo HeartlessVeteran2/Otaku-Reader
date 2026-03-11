@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="about_title">حول التطبيق والمساعدة</string>
+    <string name="about_navigate_back">رجوع</string>
+    <string name="about_help_support_section">المساعدة والدعم</string>
+    <string name="about_how_to_add_sources_title">كيفية إضافة المصادر</string>
+    <string name="about_how_to_add_sources_subtitle">تعلّم كيفية تثبيت الإضافات وإضافة مصادر المانجا</string>
+    <string name="about_faq_title">الأسئلة الشائعة</string>
+    <string name="about_faq_subtitle">الأسئلة المتكررة ونصائح استكشاف الأخطاء وإصلاحها</string>
+    <string name="about_getting_started_title">دليل البدء</string>
+    <string name="about_getting_started_subtitle">تعلّم أساسيات استخدام Otaku Reader</string>
+    <string name="about_app_information_section">معلومات التطبيق</string>
+    <string name="about_changelog_title">سجل التغييرات</string>
+    <string name="about_changelog_subtitle">اطّلع على الجديد في هذا الإصدار</string>
+    <string name="about_open_source_licenses_title">تراخيص المصادر المفتوحة</string>
+    <string name="about_open_source_licenses_subtitle">عرض تراخيص المكتبات الخارجية</string>
+    <string name="about_privacy_policy_title">سياسة الخصوصية</string>
+    <string name="about_privacy_policy_subtitle">تعرّف على كيفية تعاملنا مع بياناتك</string>
+    <string name="about_connect_section">تواصل معنا</string>
+    <string name="about_github_title">مستودع GitHub</string>
+    <string name="about_github_subtitle">عرض الشيفرة المصدرية والإبلاغ عن المشكلات</string>
+    <string name="about_documentation_title">التوثيق</string>
+    <string name="about_documentation_subtitle">التوثيق الكامل والأدلة الإرشادية</string>
+    <string name="about_app_name">Otaku Reader</string>
+    <string name="about_version_format">الإصدار %1$s</string>
+    <string name="about_tagline">بطل لا يرتدي عباءة</string>
+    <string name="about_card_title">حول Otaku Reader</string>
+    <string name="about_card_description">Otaku Reader هو قارئ مانجا مجاني ومفتوح المصدر صُمّم من أجل المجتمع. بدون اشتراكات، بدون إعلانات، بدون تتبّع. فقط اقرأ.</string>
+</resources>

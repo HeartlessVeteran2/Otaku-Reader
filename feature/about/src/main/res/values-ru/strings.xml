@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="about_title">О приложении и Помощь</string>
+    <string name="about_navigate_back">Назад</string>
+    <string name="about_help_support_section">Помощь и Поддержка</string>
+    <string name="about_how_to_add_sources_title">Как добавить источники</string>
+    <string name="about_how_to_add_sources_subtitle">Узнайте, как устанавливать расширения и добавлять источники манги</string>
+    <string name="about_faq_title">Часто задаваемые вопросы</string>
+    <string name="about_faq_subtitle">Распространённые вопросы и советы по устранению неполадок</string>
+    <string name="about_getting_started_title">Руководство для начинающих</string>
+    <string name="about_getting_started_subtitle">Изучите основы использования Otaku Reader</string>
+    <string name="about_app_information_section">Информация о приложении</string>
+    <string name="about_changelog_title">Список изменений</string>
+    <string name="about_changelog_subtitle">Узнайте, что нового в этой версии</string>
+    <string name="about_open_source_licenses_title">Лицензии с открытым исходным кодом</string>
+    <string name="about_open_source_licenses_subtitle">Просмотр лицензий сторонних библиотек</string>
+    <string name="about_privacy_policy_title">Политика конфиденциальности</string>
+    <string name="about_privacy_policy_subtitle">Узнайте, как мы обрабатываем ваши данные</string>
+    <string name="about_connect_section">Связаться</string>
+    <string name="about_github_title">Репозиторий на GitHub</string>
+    <string name="about_github_subtitle">Просмотр исходного кода и сообщение о проблемах</string>
+    <string name="about_documentation_title">Документация</string>
+    <string name="about_documentation_subtitle">Полная документация и руководства</string>
+    <string name="about_app_name">Otaku Reader</string>
+    <string name="about_version_format">Версия %1$s</string>
+    <string name="about_tagline">Герой, который не носит плащ</string>
+    <string name="about_card_title">Об Otaku Reader</string>
+    <string name="about_card_description">Otaku Reader — это бесплатная программа для чтения манги с открытым исходным кодом, созданная для сообщества. Без подписок, без рекламы, без отслеживания. Просто читайте.</string>
+</resources>
