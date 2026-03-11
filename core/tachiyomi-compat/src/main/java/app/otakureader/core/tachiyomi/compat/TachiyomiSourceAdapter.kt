@@ -1,6 +1,8 @@
 package app.otakureader.core.tachiyomi.compat
 
+import app.otakureader.sourceapi.Filter
 import app.otakureader.sourceapi.FilterList
+import app.otakureader.sourceapi.Filters
 import app.otakureader.sourceapi.MangaPage
 import app.otakureader.sourceapi.MangaSource
 import app.otakureader.sourceapi.Page
@@ -121,9 +123,17 @@ class TachiyomiSourceAdapter(
     }
 
     /**
-     * Get the source's filter list
+     * Get the source's filter list in source-api format.
      */
-    fun getFilterList(): eu.kanade.tachiyomi.source.model.FilterList {
+    override fun getFilterList(): FilterList {
+        val tachiyomiFilters = tachiyomiSource.getFilterList()
+        return FilterList(tachiyomiFilters.map { convertTachiyomiFilter(it) })
+    }
+
+    /**
+     * Get the source's raw Tachiyomi filter list.
+     */
+    fun getTachiyomiFilterList(): eu.kanade.tachiyomi.source.model.FilterList {
         return tachiyomiSource.getFilterList()
     }
 
@@ -141,12 +151,95 @@ class TachiyomiSourceAdapter(
     }
 
     /**
-     * Convert Otaku Reader FilterList to Tachiyomi FilterList
+     * Convert an Otaku Reader FilterList to a Tachiyomi FilterList by getting a fresh
+     * Tachiyomi filter list and applying the states from the source-api filters.
      */
     private fun convertFilters(filters: FilterList): eu.kanade.tachiyomi.source.model.FilterList {
-        // For now, return empty Tachiyomi FilterList
-        // In a full implementation, we would convert each filter type
-        return eu.kanade.tachiyomi.source.model.FilterList()
+        if (filters.filters.isEmpty()) {
+            return eu.kanade.tachiyomi.source.model.FilterList()
+        }
+        // Get a fresh Tachiyomi filter list and apply the source-api filter states
+        val tachiyomiFilters = tachiyomiSource.getFilterList()
+        applyStates(filters.filters, tachiyomiFilters.toList())
+        return tachiyomiFilters
+    }
+
+    /**
+     * Walk two parallel filter lists and copy states from source-api filters to Tachiyomi filters.
+     */
+    private fun applyStates(
+        sourceFilters: List<Filter<*>>,
+        tachiyomiFilters: List<eu.kanade.tachiyomi.source.model.Filter<*>>
+    ) {
+        val count = minOf(sourceFilters.size, tachiyomiFilters.size)
+        for (i in 0 until count) {
+            val src = sourceFilters[i]
+            val dst = tachiyomiFilters[i]
+            @Suppress("UNCHECKED_CAST")
+            when {
+                src is Filter.Select<*> && dst is eu.kanade.tachiyomi.source.model.Filter.Select<*> -> {
+                    (dst as eu.kanade.tachiyomi.source.model.Filter<Int>).state = src.state
+                }
+                src is Filter.Text && dst is eu.kanade.tachiyomi.source.model.Filter.Text -> {
+                    (dst as eu.kanade.tachiyomi.source.model.Filter<String>).state = src.state
+                }
+                src is Filter.CheckBox && dst is eu.kanade.tachiyomi.source.model.Filter.CheckBox -> {
+                    (dst as eu.kanade.tachiyomi.source.model.Filter<Boolean>).state = src.state
+                }
+                src is Filter.TriState && dst is eu.kanade.tachiyomi.source.model.Filter.TriState -> {
+                    (dst as eu.kanade.tachiyomi.source.model.Filter<Int>).state = src.state
+                }
+                src is Filter.Sort && dst is eu.kanade.tachiyomi.source.model.Filter.Sort -> {
+                    val sel = src.state
+                    (dst as eu.kanade.tachiyomi.source.model.Filter<eu.kanade.tachiyomi.source.model.Filter.Sort.Selection?>).state =
+                        sel?.let { eu.kanade.tachiyomi.source.model.Filter.Sort.Selection(it.index, it.ascending) }
+                }
+                src is Filter.Group<*> && dst is eu.kanade.tachiyomi.source.model.Filter.Group<*> -> {
+                    @Suppress("UNCHECKED_CAST")
+                    applyStates(
+                        src.state as List<Filter<*>>,
+                        (dst as eu.kanade.tachiyomi.source.model.Filter.Group<eu.kanade.tachiyomi.source.model.Filter<*>>).state
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Convert a single Tachiyomi filter to a source-api filter.
+     */
+    private fun convertTachiyomiFilter(
+        filter: eu.kanade.tachiyomi.source.model.Filter<*>
+    ): Filter<*> {
+        return when (filter) {
+            is eu.kanade.tachiyomi.source.model.Filter.Header ->
+                Filter.Header(filter.name)
+            is eu.kanade.tachiyomi.source.model.Filter.Separator ->
+                Filter.Separator(filter.name)
+            is eu.kanade.tachiyomi.source.model.Filter.Select<*> ->
+                Filters.SelectFilter(
+                    filter.name,
+                    filter.values.map { it.toString() }.toTypedArray(),
+                    filter.state
+                )
+            is eu.kanade.tachiyomi.source.model.Filter.Text ->
+                Filters.TextFilter(filter.name, filter.state)
+            is eu.kanade.tachiyomi.source.model.Filter.CheckBox ->
+                Filters.CheckBoxFilter(filter.name, filter.state)
+            is eu.kanade.tachiyomi.source.model.Filter.TriState ->
+                Filters.TriStateFilter(filter.name, filter.state)
+            is eu.kanade.tachiyomi.source.model.Filter.Sort -> {
+                val sel = filter.state
+                val sourceSelection = sel?.let { Filter.Sort.Selection(it.index, it.ascending) }
+                Filters.SortFilter(filter.name, filter.values, sourceSelection)
+            }
+            is eu.kanade.tachiyomi.source.model.Filter.Group<*> -> {
+                @Suppress("UNCHECKED_CAST")
+                val childFilters = (filter.state as List<eu.kanade.tachiyomi.source.model.Filter<*>>)
+                    .map { convertTachiyomiFilter(it) }
+                Filters.GroupFilter(filter.name, childFilters)
+            }
+        }
     }
 
     /**

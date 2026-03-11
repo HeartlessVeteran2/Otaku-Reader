@@ -47,6 +47,9 @@ interface MangaSource {
 
     /** Search manga by query string and optional filters. */
     suspend fun fetchSearchManga(page: Int, query: String, filters: FilterList): MangaPage
+
+    /** Get the list of filters supported by this source. */
+    fun getFilterList(): FilterList = FilterList()
 }
 
 /** Paginated result from a source query. */

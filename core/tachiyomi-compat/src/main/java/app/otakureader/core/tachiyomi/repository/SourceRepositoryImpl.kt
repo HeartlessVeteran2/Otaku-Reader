@@ -5,6 +5,7 @@ import app.otakureader.core.preferences.LocalSourcePreferences
 import app.otakureader.core.tachiyomi.compat.TachiyomiExtensionLoader
 import app.otakureader.core.tachiyomi.local.LocalSource
 import app.otakureader.domain.repository.SourceRepository
+import app.otakureader.sourceapi.FilterList
 import app.otakureader.sourceapi.MangaPage
 import app.otakureader.sourceapi.MangaSource
 import app.otakureader.sourceapi.SourceChapter
@@ -120,31 +121,52 @@ class SourceRepositoryImpl(
     }
 
     override suspend fun searchManga(sourceId: String, query: String, page: Int): Result<MangaPage> {
+        return searchManga(sourceId, query, page, FilterList())
+    }
+
+    override suspend fun searchManga(
+        sourceId: String,
+        query: String,
+        page: Int,
+        filters: FilterList
+    ): Result<MangaPage> {
         return withContext(Dispatchers.IO) {
             try {
                 val source = getSource(sourceId)
                     ?: return@withContext Result.failure(IllegalArgumentException("Source not found: $sourceId"))
 
-                // Check cache first
-                val cacheKey = query to page
-                searchCache[sourceId]?.get(cacheKey)?.let {
-                    return@withContext Result.success(it)
+                val filtersAreActive = filters.hasActiveFilters()
+
+                // Use cache when no filters are active (all at defaults)
+                if (!filtersAreActive) {
+                    val cacheKey = query to page
+                    searchCache[sourceId]?.get(cacheKey)?.let {
+                        return@withContext Result.success(it)
+                    }
                 }
 
                 val mangaPage = source.fetchSearchManga(
                     page = page,
                     query = query,
-                    filters = app.otakureader.sourceapi.FilterList()
+                    filters = filters
                 )
 
-                // Cache the result
-                searchCache.computeIfAbsent(sourceId) { ConcurrentHashMap() }[cacheKey] = mangaPage
+                // Cache only when no filters are active
+                if (!filtersAreActive) {
+                    val cacheKey = query to page
+                    searchCache.computeIfAbsent(sourceId) { ConcurrentHashMap() }[cacheKey] = mangaPage
+                }
 
                 Result.success(mangaPage)
             } catch (e: Exception) {
                 Result.failure(e)
             }
         }
+    }
+
+    override suspend fun getSourceFilters(sourceId: String): FilterList {
+        val source = getSource(sourceId) ?: return FilterList()
+        return source.getFilterList()
     }
 
     override suspend fun getMangaDetails(sourceId: String, manga: SourceManga): Result<SourceManga> {
