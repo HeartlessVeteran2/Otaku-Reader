@@ -2,7 +2,6 @@ package app.otakureader.widget
 
 import android.content.Context
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.unit.dp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
@@ -20,6 +19,9 @@ import androidx.glance.layout.padding
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
+import androidx.glance.unit.dp
+import androidx.glance.unit.sp
+import app.otakureader.R
 
 /**
  * Glance widget for displaying "Continue Reading" manga.
@@ -29,10 +31,16 @@ class ContinueReadingWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         // TODO: Load actual reading data from repository
         val readingItems = getMockReadingItems()
+        val title = context.getString(R.string.widget_continue_reading_title)
+        val emptyText = context.getString(R.string.widget_no_manga_in_progress)
 
         provideContent {
             GlanceTheme {
-                ContinueReadingContent(items = readingItems)
+                ContinueReadingContent(
+                    title = title,
+                    items = readingItems,
+                    emptyText = emptyText
+                )
             }
         }
     }
@@ -46,14 +54,18 @@ class ContinueReadingWidget : GlanceAppWidget() {
     }
 }
 
-data class ReadingItem(
+private data class ReadingItem(
     val title: String,
     val chapter: String,
     val progress: String
 )
 
 @Composable
-private fun ContinueReadingContent(items: List<ReadingItem>) {
+private fun ContinueReadingContent(
+    title: String,
+    items: List<ReadingItem>,
+    emptyText: String
+) {
     Box(
         modifier = GlanceModifier
             .fillMaxSize()
@@ -65,10 +77,10 @@ private fun ContinueReadingContent(items: List<ReadingItem>) {
             horizontalAlignment = Alignment.Horizontal.Start
         ) {
             Text(
-                text = "Continue Reading",
+                text = title,
                 style = TextStyle(
                     color = ColorProvider(GlanceTheme.colors.onSurface),
-                    fontSize = androidx.glance.unit.TextUnit(18f)
+                    fontSize = 18.sp
                 ),
                 modifier = GlanceModifier.fillMaxWidth()
             )
@@ -82,10 +94,10 @@ private fun ContinueReadingContent(items: List<ReadingItem>) {
 
             if (items.isEmpty()) {
                 Text(
-                    text = "No manga in progress",
+                    text = emptyText,
                     style = TextStyle(
                         color = ColorProvider(GlanceTheme.colors.onSurfaceVariant),
-                        fontSize = androidx.glance.unit.TextUnit(14f)
+                        fontSize = 14.sp
                     )
                 )
             }
@@ -102,7 +114,7 @@ private fun ReadingItemWidget(item: ReadingItem) {
             text = item.title,
             style = TextStyle(
                 color = ColorProvider(GlanceTheme.colors.onSurface),
-                fontSize = androidx.glance.unit.TextUnit(14f)
+                fontSize = 14.sp
             ),
             maxLines = 1
         )
@@ -110,7 +122,7 @@ private fun ReadingItemWidget(item: ReadingItem) {
             text = "${item.chapter} • ${item.progress}",
             style = TextStyle(
                 color = ColorProvider(GlanceTheme.colors.onSurfaceVariant),
-                fontSize = androidx.glance.unit.TextUnit(12f)
+                fontSize = 12.sp
             ),
             maxLines = 1
         )

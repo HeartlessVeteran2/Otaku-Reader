@@ -75,8 +75,8 @@
         <!-- Continue Reading Widget -->
         <receiver
             android:name=".widget.ContinueReadingWidgetReceiver"
-            android:exported="false"
-            android:label="Continue Reading">
+            android:exported="true"
+            android:label="@string/continue_reading_widget_label">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -88,8 +88,8 @@
         <!-- Recent Updates Widget -->
         <receiver
             android:name=".widget.RecentUpdatesWidgetReceiver"
-            android:exported="false"
-            android:label="Recent Updates">
+            android:exported="true"
+            android:label="@string/recent_updates_widget_label">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>

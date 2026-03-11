@@ -1,6 +1,23 @@
 <resources xmlns:tools="http://schemas.android.com/tools"
     tools:ignore="MissingTranslation">
+    <!-- Widget Labels (shown in widget picker) -->
+    <string name="continue_reading_widget_label">Continue Reading</string>
+    <string name="recent_updates_widget_label">Recent Updates</string>
+    
+    <!-- Widget Descriptions -->
     <string name="continue_reading_widget_description">Quickly resume reading your manga</string>
     <string name="recent_updates_widget_description">See the latest chapter updates</string>
+    
+    <!-- Widget UI Strings -->
+    <string name="widget_continue_reading_title">Continue Reading</string>
+    <string name="widget_recent_updates_title">Recent Updates</string>
+    <string name="widget_no_manga_in_progress">No manga in progress</string>
+    <string name="widget_no_recent_updates">No recent updates</string>
+    <!-- Format: Chapter X -->
+    㲋องาว่างญี่ห้องอยู่ล่าสุด %1$s</string>
+    <!-- Format: Chapter X • Y% -->
+    <string name="widget_chapter_progress_format">%1$s • %2$s</string>
+    <!-- Format: Chapter X • time ago -->
+    <string name="widget_chapter_time_format">%1$s • %2$s</string>
     
 </resources>

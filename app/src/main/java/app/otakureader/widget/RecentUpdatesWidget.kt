@@ -2,7 +2,6 @@ package app.otakureader.widget
 
 import android.content.Context
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.unit.dp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
@@ -20,6 +19,9 @@ import androidx.glance.layout.padding
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
+import androidx.glance.unit.dp
+import androidx.glance.unit.sp
+import app.otakureader.R
 
 /**
  * Glance widget for displaying recent manga updates.
@@ -29,10 +31,16 @@ class RecentUpdatesWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         // TODO: Load actual recent updates from repository
         val updates = getMockUpdates()
+        val title = context.getString(R.string.widget_recent_updates_title)
+        val emptyText = context.getString(R.string.widget_no_recent_updates)
 
         provideContent {
             GlanceTheme {
-                RecentUpdatesContent(updates = updates)
+                RecentUpdatesContent(
+                    title = title,
+                    updates = updates,
+                    emptyText = emptyText
+                )
             }
         }
     }
@@ -46,14 +54,18 @@ class RecentUpdatesWidget : GlanceAppWidget() {
     }
 }
 
-data class MangaUpdate(
+private data class MangaUpdate(
     val title: String,
     val chapter: String,
     val timeAgo: String
 )
 
 @Composable
-private fun RecentUpdatesContent(updates: List<MangaUpdate>) {
+private fun RecentUpdatesContent(
+    title: String,
+    updates: List<MangaUpdate>,
+    emptyText: String
+) {
     Box(
         modifier = GlanceModifier
             .fillMaxSize()
@@ -65,10 +77,10 @@ private fun RecentUpdatesContent(updates: List<MangaUpdate>) {
             horizontalAlignment = Alignment.Horizontal.Start
         ) {
             Text(
-                text = "Recent Updates",
+                text = title,
                 style = TextStyle(
                     color = ColorProvider(GlanceTheme.colors.onSurface),
-                    fontSize = androidx.glance.unit.TextUnit(18f)
+                    fontSize = 18.sp
                 ),
                 modifier = GlanceModifier.fillMaxWidth()
             )
@@ -82,10 +94,10 @@ private fun RecentUpdatesContent(updates: List<MangaUpdate>) {
 
             if (updates.isEmpty()) {
                 Text(
-                    text = "No recent updates",
+                    text = emptyText,
                     style = TextStyle(
                         color = ColorProvider(GlanceTheme.colors.onSurfaceVariant),
-                        fontSize = androidx.glance.unit.TextUnit(14f)
+                        fontSize = 14.sp
                     )
                 )
             }
@@ -102,7 +114,7 @@ private fun UpdateItemWidget(update: MangaUpdate) {
             text = update.title,
             style = TextStyle(
                 color = ColorProvider(GlanceTheme.colors.onSurface),
-                fontSize = androidx.glance.unit.TextUnit(14f)
+                fontSize = 14.sp
             ),
             maxLines = 1
         )
@@ -110,7 +122,7 @@ private fun UpdateItemWidget(update: MangaUpdate) {
             text = "${update.chapter} • ${update.timeAgo}",
             style = TextStyle(
                 color = ColorProvider(GlanceTheme.colors.primary),
-                fontSize = androidx.glance.unit.TextUnit(12f)
+                fontSize = 12.sp
             ),
             maxLines = 1
         )

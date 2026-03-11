@@ -75,6 +75,7 @@ dependencies {
     implementation(libs.hilt.navigation.compose)
     implementation(libs.workmanager.ktx)
     implementation(libs.glance)
+    implementation(libs.glance.material3)
     implementation(libs.hilt.work)
     ksp(libs.hilt.compiler)
 
