@@ -94,7 +94,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - uses: actions/setup-java@3a4f6e802bcd6e89c75b60b5297d7f5b9324014 # v4.7.0
+      - uses: actions/setup-java@7a6d8c5292f4c2acac657ed83186f8bd80d9a60a # v4.7.0
         with:
           java-version: '17'
           distribution: 'temurin'
