@@ -86,12 +86,9 @@ class ExtensionsViewModel @Inject constructor(
             searchQuery = query,
             showNsfw = showNsfw,
             sortMode = sortMode,
-            installedExtensions = applyFiltersAndSort(
-                state.installedExtensions, query, showNsfw, sortMode
-            ),
-            availableExtensions = applyFiltersAndSort(
-                state.availableExtensions, query, showNsfw, sortMode
-            )
+            installedExtensions = applyFiltersAndSort(state.installedExtensions, query, showNsfw, sortMode),
+            availableExtensions = applyFiltersAndSort(state.availableExtensions, query, showNsfw, sortMode),
+            extensionsWithUpdates = applyFiltersAndSort(state.extensionsWithUpdates, query, showNsfw, sortMode)
         )
     }.stateIn(
         scope = viewModelScope,
