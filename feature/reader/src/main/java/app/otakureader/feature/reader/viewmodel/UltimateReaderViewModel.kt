@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Ultimate ViewModel for the Reader feature.
@@ -123,14 +124,14 @@ class UltimateReaderViewModel @Inject constructor(
             // Cache preload settings so preloadPages() doesn't read DataStore per page change (#264)
             cachedPreloadBefore = try {
                 settingsRepository.preloadPagesBefore.first()
-            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
                 ReaderSettingsRepository.DEFAULT_PRELOAD_PAGES
             }
             cachedPreloadAfter = try {
                 settingsRepository.preloadPagesAfter.first()
-            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
                 ReaderSettingsRepository.DEFAULT_PRELOAD_PAGES
