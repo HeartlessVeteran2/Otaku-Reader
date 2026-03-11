@@ -186,7 +186,7 @@ class SettingsViewModel @Inject constructor(
                 is SettingsEvent.SetAiAutoCategorization -> aiPreferences.setAiAutoCategorization(event.enabled)
                 SettingsEvent.ClearAiCache -> {
                     aiPreferences.setAiCacheLastCleared(System.currentTimeMillis())
-                    _effect.send(SettingsEffect.ShowSnackbar("AI cache cleared"))
+                    _effect.send(SettingsEffect.ShowSnackbar("AI suggestions will refresh for future requests"))
                 }
             }
         }
