@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -428,7 +429,10 @@ private fun CatalogBrowserScreen(
                         .padding(paddingValues),
                     contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
-                    items(state.entries, key = { it.id.ifBlank { it.title } }) { entry ->
+                    itemsIndexed(
+                        state.entries,
+                        key = { index, entry -> entry.id.ifBlank { "entry_$index" } }
+                    ) { _, entry ->
                         OpdsEntryItem(
                             entry = entry,
                             onClick = { onEvent(OpdsEvent.OnEntryClick(entry)) }
