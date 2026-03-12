@@ -3,6 +3,7 @@ package app.otakureader
 import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import app.otakureader.shortcut.AppShortcutManager
 import com.google.android.material.color.DynamicColors
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
@@ -18,6 +19,9 @@ class OtakuReaderApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
 
+    @Inject
+    lateinit var appShortcutManager: AppShortcutManager
+
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
             .setWorkerFactory(workerFactory)
@@ -27,5 +31,7 @@ class OtakuReaderApplication : Application(), Configuration.Provider {
         super.onCreate()
         // Enable Material You dynamic colors on Android 12+ (API 31+)
         DynamicColors.applyToActivitiesIfAvailable(this)
+        // Initialize launcher shortcuts (Library, Updates, Continue Reading)
+        appShortcutManager.initialize()
     }
 }

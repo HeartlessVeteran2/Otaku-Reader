@@ -57,6 +57,29 @@ fun OtakuReaderNavHost(
                 navController.navigate(GlobalSearchRoute(query = deepLinkResult.query))
                 onDeepLinkConsumed()
             }
+            is DeepLinkResult.NavigateToLibrary -> {
+                // Library is the start destination – clear the back stack so the user
+                // lands on a fresh library screen regardless of current navigation state.
+                navController.navigate(LibraryRoute) {
+                    popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                    launchSingleTop = true
+                }
+                onDeepLinkConsumed()
+            }
+            is DeepLinkResult.NavigateToUpdates -> {
+                navController.navigate(UpdatesRoute) {
+                    launchSingleTop = true
+                }
+                onDeepLinkConsumed()
+            }
+            is DeepLinkResult.ContinueReading -> {
+                navController.navigate(
+                    ReaderRoute(deepLinkResult.mangaId, deepLinkResult.chapterId)
+                ) {
+                    launchSingleTop = true
+                }
+                onDeepLinkConsumed()
+            }
             is DeepLinkResult.Invalid, null -> {
                 // No deep link to handle
             }

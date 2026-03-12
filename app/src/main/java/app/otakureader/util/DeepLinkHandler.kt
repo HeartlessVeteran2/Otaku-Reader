@@ -2,6 +2,7 @@ package app.otakureader.util
 
 import android.content.Intent
 import android.net.Uri
+import app.otakureader.shortcut.AppShortcutManager
 
 /**
  * Sealed class representing a parsed deep link or share intent result.
@@ -17,6 +18,18 @@ sealed class DeepLinkResult {
     
     data class SearchQuery(
         val query: String
+    ) : DeepLinkResult()
+
+    /** Navigate directly to the Library screen. */
+    object NavigateToLibrary : DeepLinkResult()
+
+    /** Navigate directly to the Updates screen. */
+    object NavigateToUpdates : DeepLinkResult()
+
+    /** Continue reading the last-read manga chapter. */
+    data class ContinueReading(
+        val mangaId: Long,
+        val chapterId: Long
     ) : DeepLinkResult()
     
     object Invalid : DeepLinkResult()
@@ -36,6 +49,9 @@ object DeepLinkHandler {
         return when (intent.action) {
             Intent.ACTION_VIEW -> parseViewIntent(intent)
             Intent.ACTION_SEND -> parseSendIntent(intent)
+            AppShortcutManager.ACTION_SHORTCUT_LIBRARY -> DeepLinkResult.NavigateToLibrary
+            AppShortcutManager.ACTION_SHORTCUT_UPDATES -> DeepLinkResult.NavigateToUpdates
+            AppShortcutManager.ACTION_SHORTCUT_CONTINUE_READING -> parseContinueReadingIntent(intent)
             else -> DeepLinkResult.Invalid
         }
     }
@@ -142,6 +158,19 @@ object DeepLinkHandler {
             host == "manganelo.com" || host.endsWith(".manganelo.com") -> true
             host == "webtoons.com" || host.endsWith(".webtoons.com") -> true
             else -> false
+        }
+    }
+
+    /**
+     * Parse a "Continue Reading" shortcut intent to extract manga/chapter IDs.
+     */
+    private fun parseContinueReadingIntent(intent: Intent): DeepLinkResult {
+        val mangaId = intent.getLongExtra(AppShortcutManager.EXTRA_MANGA_ID, -1L)
+        val chapterId = intent.getLongExtra(AppShortcutManager.EXTRA_CHAPTER_ID, -1L)
+        return if (mangaId != -1L && chapterId != -1L) {
+            DeepLinkResult.ContinueReading(mangaId, chapterId)
+        } else {
+            DeepLinkResult.Invalid
         }
     }
 }
