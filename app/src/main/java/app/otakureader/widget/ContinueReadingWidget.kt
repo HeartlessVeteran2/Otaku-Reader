@@ -1,0 +1,138 @@
+package app.otakureader.widget
+
+import android.content.Context
+import androidx.compose.runtime.Composable
+import androidx.glance.GlanceId
+import androidx.glance.GlanceModifier
+import androidx.glance.GlanceTheme
+import androidx.glance.appwidget.GlanceAppWidget
+import androidx.glance.appwidget.provideContent
+import androidx.glance.background
+import androidx.glance.layout.Alignment
+import androidx.glance.layout.Box
+import androidx.glance.layout.Column
+import androidx.glance.layout.Spacer
+import androidx.glance.layout.fillMaxSize
+import androidx.glance.layout.fillMaxWidth
+import androidx.glance.layout.height
+import androidx.glance.layout.padding
+import androidx.glance.text.Text
+import androidx.glance.text.TextStyle
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import app.otakureader.R
+
+/**
+ * Glance widget for displaying "Continue Reading" manga.
+ */
+class ContinueReadingWidget : GlanceAppWidget() {
+
+    override suspend fun provideGlance(context: Context, id: GlanceId) {
+        // TODO: Load actual reading data from repository
+        val readingItems = getMockReadingItems(context)
+        val title = context.getString(R.string.widget_continue_reading_title)
+        val emptyText = context.getString(R.string.widget_no_manga_in_progress)
+
+        provideContent {
+            GlanceTheme {
+                ContinueReadingContent(
+                    title = title,
+                    items = readingItems,
+                    emptyText = emptyText
+                )
+            }
+        }
+    }
+
+    private fun getMockReadingItems(context: Context): List<ReadingItem> {
+        // TODO: Replace with actual reading data from repository
+        return listOf(
+            ReadingItem(
+                title = "One Piece",
+                subtitle = context.getString(R.string.widget_chapter_progress_format, "Chapter 1085", "80%")
+            ),
+            ReadingItem(
+                title = "Jujutsu Kaisen",
+                subtitle = context.getString(R.string.widget_chapter_progress_format, "Chapter 245", "45%")
+            ),
+            ReadingItem(
+                title = "Chainsaw Man",
+                subtitle = context.getString(R.string.widget_chapter_progress_format, "Chapter 145", "30%")
+            )
+        )
+    }
+}
+
+private data class ReadingItem(
+    val title: String,
+    val subtitle: String
+)
+
+@Composable
+private fun ContinueReadingContent(
+    title: String,
+    items: List<ReadingItem>,
+    emptyText: String
+) {
+    Box(
+        modifier = GlanceModifier
+            .fillMaxSize()
+            .background(GlanceTheme.colors.surface)
+            .padding(16.dp)
+    ) {
+        Column(
+            modifier = GlanceModifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.Horizontal.Start
+        ) {
+            Text(
+                text = title,
+                style = TextStyle(
+                    color = GlanceTheme.colors.onSurface,
+                    fontSize = 18.sp
+                ),
+                modifier = GlanceModifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = GlanceModifier.height(12.dp))
+
+            items.take(3).forEach { item ->
+                ReadingItemWidget(item)
+                Spacer(modifier = GlanceModifier.height(8.dp))
+            }
+
+            if (items.isEmpty()) {
+                Text(
+                    text = emptyText,
+                    style = TextStyle(
+                        color = GlanceTheme.colors.onSurfaceVariant,
+                        fontSize = 14.sp
+                    )
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReadingItemWidget(item: ReadingItem) {
+    Column(
+        modifier = GlanceModifier.fillMaxWidth()
+    ) {
+        Text(
+            text = item.title,
+            style = TextStyle(
+                color = GlanceTheme.colors.onSurface,
+                fontSize = 14.sp
+            ),
+            maxLines = 1
+        )
+        Text(
+            text = item.subtitle,
+            style = TextStyle(
+                color = GlanceTheme.colors.onSurfaceVariant,
+                fontSize = 12.sp
+            ),
+            maxLines = 1
+        )
+    }
+}
