@@ -45,7 +45,7 @@ object DeepLinkHandler {
         val data: Uri = intent.data ?: return DeepLinkResult.Invalid
         val host = data.host?.lowercase() ?: return DeepLinkResult.Invalid
         
-        // Handle MangaDex URLs - use exact host matching for security
+        // Handle MangaDex URLs - allow the main domain and its subdomains
         if (host == "mangadex.org" || host.endsWith(".mangadex.org")) {
             return parseMangaDexUrl(data)
         }
