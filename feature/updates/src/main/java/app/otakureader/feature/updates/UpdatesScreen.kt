@@ -28,6 +28,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -63,17 +64,17 @@ fun UpdatesScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("Updates") },
+                title = { Text(stringResource(R.string.updates_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.updates_back))
                     }
                 },
                 actions = {
                     IconButton(onClick = onNavigateToDownloads) {
                         Icon(
                             imageVector = Icons.Default.Download,
-                            contentDescription = "Downloads"
+                            contentDescription = stringResource(R.string.updates_downloads)
                         )
                     }
                 }
@@ -109,7 +110,7 @@ fun UpdatesScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "No updates yet. Library chapters will appear here after an update check.",
+                    text = stringResource(R.string.updates_empty),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 32.dp)

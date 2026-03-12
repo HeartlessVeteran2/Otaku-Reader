@@ -35,6 +35,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -56,21 +57,21 @@ fun DownloadsScreen(
             TopAppBar(
                 title = {
                     if (state.selectedItems.isNotEmpty()) {
-                        Text("${state.selectedItems.size} selected")
+                        Text(stringResource(R.string.downloads_selected_count, state.selectedItems.size))
                     } else {
-                        Text("Downloads")
+                        Text(stringResource(R.string.downloads_title))
                     }
                 },
                 navigationIcon = {
                     if (state.selectedItems.isNotEmpty()) {
                         IconButton(onClick = { viewModel.onEvent(DownloadsEvent.ClearSelection) }) {
-                            Icon(Icons.Default.Close, contentDescription = "Clear selection")
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.downloads_clear_selection))
                         }
                     } else {
                         IconButton(onClick = onNavigateBack) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back"
+                                contentDescription = stringResource(R.string.downloads_back)
                             )
                         }
                     }
@@ -78,21 +79,21 @@ fun DownloadsScreen(
                 actions = {
                     if (state.selectedItems.isNotEmpty()) {
                         IconButton(onClick = { viewModel.onEvent(DownloadsEvent.PauseSelected) }) {
-                            Icon(Icons.Default.Pause, contentDescription = "Pause selected")
+                            Icon(Icons.Default.Pause, contentDescription = stringResource(R.string.downloads_pause_selected))
                         }
                         IconButton(onClick = { viewModel.onEvent(DownloadsEvent.ResumeSelected) }) {
-                            Icon(Icons.Default.PlayArrow, contentDescription = "Resume selected")
+                            Icon(Icons.Default.PlayArrow, contentDescription = stringResource(R.string.downloads_resume_selected))
                         }
                         IconButton(onClick = { viewModel.onEvent(DownloadsEvent.CancelSelected) }) {
-                            Icon(Icons.Default.Close, contentDescription = "Cancel selected")
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.downloads_cancel_selected))
                         }
                     } else {
                         if (state.hasDownloads) {
                             IconButton(onClick = { viewModel.onEvent(DownloadsEvent.SelectAll) }) {
-                                Icon(Icons.Default.SelectAll, contentDescription = "Select all")
+                                Icon(Icons.Default.SelectAll, contentDescription = stringResource(R.string.downloads_select_all))
                             }
                             TextButton(onClick = { viewModel.onEvent(DownloadsEvent.ClearAll) }) {
-                                Text("Clear All")
+                                Text(stringResource(R.string.downloads_clear_all))
                             }
                         }
                     }
@@ -201,7 +202,7 @@ private fun DownloadListItem(
                                 IconButton(onClick = { onPause(item.id) }) {
                                     Icon(
                                         imageVector = Icons.Default.Pause,
-                                        contentDescription = "Pause",
+                                        contentDescription = stringResource(R.string.downloads_pause),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
@@ -211,7 +212,7 @@ private fun DownloadListItem(
                                 IconButton(onClick = { onResume(item.id) }) {
                                     Icon(
                                         imageVector = Icons.Default.PlayArrow,
-                                        contentDescription = "Resume",
+                                        contentDescription = stringResource(R.string.downloads_resume),
                                         tint = MaterialTheme.colorScheme.primary
                                     )
                                 }
@@ -224,7 +225,7 @@ private fun DownloadListItem(
                             IconButton(onClick = { onCancel(item.id) }) {
                                 Icon(
                                     imageVector = Icons.Default.Close,
-                                    contentDescription = "Cancel",
+                                    contentDescription = stringResource(R.string.downloads_cancel),
                                     tint = MaterialTheme.colorScheme.error
                                 )
                             }
@@ -283,30 +284,31 @@ private fun EmptyDownloadsPlaceholder(modifier: Modifier = Modifier) {
     ) {
         Icon(
             imageVector = Icons.Default.DownloadDone,
-            contentDescription = null,
+            contentDescription = stringResource(R.string.downloads_empty_icon),
             modifier = Modifier.size(72.dp),
             tint = MaterialTheme.colorScheme.primary
         )
         Spacer(modifier = Modifier.height(12.dp))
         Text(
-            text = "No downloads yet",
+            text = stringResource(R.string.downloads_empty_title),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = "Start a chapter download to see progress here.",
+            text = stringResource(R.string.downloads_empty_message),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
 
+@Composable
 private fun statusLabel(status: DownloadStatus): String = when (status) {
-    DownloadStatus.QUEUED -> "Queued"
-    DownloadStatus.DOWNLOADING -> "Downloading"
-    DownloadStatus.PAUSED -> "Paused"
-    DownloadStatus.COMPLETED -> "Completed"
-    DownloadStatus.FAILED -> "Failed"
-    DownloadStatus.CANCELED -> "Canceled"
+    DownloadStatus.QUEUED -> stringResource(R.string.downloads_status_queued)
+    DownloadStatus.DOWNLOADING -> stringResource(R.string.downloads_status_downloading)
+    DownloadStatus.PAUSED -> stringResource(R.string.downloads_status_paused)
+    DownloadStatus.COMPLETED -> stringResource(R.string.downloads_status_completed)
+    DownloadStatus.FAILED -> stringResource(R.string.downloads_status_failed)
+    DownloadStatus.CANCELED -> stringResource(R.string.downloads_status_canceled)
 }

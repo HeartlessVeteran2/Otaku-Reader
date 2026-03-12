@@ -44,6 +44,8 @@ class MainActivity : ComponentActivity() {
                 .collectAsStateWithLifecycle(initialValue = 0)
             val usePureBlackDarkMode by generalPreferences.usePureBlackDarkMode
                 .collectAsStateWithLifecycle(initialValue = false)
+            val useHighContrast by generalPreferences.useHighContrast
+                .collectAsStateWithLifecycle(initialValue = false)
             val customAccentColor by generalPreferences.customAccentColor
                 .collectAsStateWithLifecycle(initialValue = 0xFF1976D2L)
 
@@ -57,6 +59,7 @@ class MainActivity : ComponentActivity() {
                 darkTheme = darkTheme,
                 colorScheme = colorScheme,
                 usePureBlack = usePureBlackDarkMode,
+                useHighContrast = useHighContrast,
                 customAccentColor = customAccentColor
             ) {
                 Surface(

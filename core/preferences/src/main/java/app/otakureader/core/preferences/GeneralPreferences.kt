@@ -30,6 +30,10 @@ class GeneralPreferences(private val dataStore: DataStore<Preferences>) {
     val usePureBlackDarkMode: Flow<Boolean> = dataStore.data.map { it[Keys.USE_PURE_BLACK_DARK_MODE] ?: false }
     suspend fun setUsePureBlackDarkMode(value: Boolean) = dataStore.edit { it[Keys.USE_PURE_BLACK_DARK_MODE] = value }
 
+    /** Whether to use high-contrast colors for improved accessibility. */
+    val useHighContrast: Flow<Boolean> = dataStore.data.map { it[Keys.USE_HIGH_CONTRAST] ?: false }
+    suspend fun setUseHighContrast(value: Boolean) = dataStore.edit { it[Keys.USE_HIGH_CONTRAST] = value }
+
     /**
      * Color scheme selection:
      * 0 = System Default (uses dynamic if available on Android 12+)
@@ -83,6 +87,7 @@ class GeneralPreferences(private val dataStore: DataStore<Preferences>) {
         val THEME_MODE = intPreferencesKey("theme_mode")
         val USE_DYNAMIC_COLOR = booleanPreferencesKey("use_dynamic_color")
         val USE_PURE_BLACK_DARK_MODE = booleanPreferencesKey("use_pure_black_dark_mode")
+        val USE_HIGH_CONTRAST = booleanPreferencesKey("use_high_contrast")
         val COLOR_SCHEME = intPreferencesKey("color_scheme")
         val CUSTOM_ACCENT_COLOR = longPreferencesKey("custom_accent_color")
         val LOCALE = stringPreferencesKey("locale")

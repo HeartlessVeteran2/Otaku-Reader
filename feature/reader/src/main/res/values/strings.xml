@@ -61,4 +61,19 @@
 
     <!-- Reader screen -->
     <string name="reader_navigating_to_chapter">Navigating to chapter…</string>
+
+    <!-- Brightness slider -->
+    <string name="reader_brightness_decrease">Decrease brightness</string>
+    <string name="reader_brightness_increase">Increase brightness</string>
+    <string name="reader_brightness_auto">Auto brightness</string>
+
+    <!-- Gallery -->
+    <string name="reader_close_gallery">Close gallery</string>
+    <string name="reader_page_number">Page %1$d</string>
+
+    <!-- Reader page descriptions -->
+    <string name="reader_page_content">Page %1$d</string>
+
+    <!-- Reset zoom -->
+    <string name="reader_reset_zoom">Reset zoom</string>
 </resources>

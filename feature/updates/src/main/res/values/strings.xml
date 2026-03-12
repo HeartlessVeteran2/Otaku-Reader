@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Updates screen -->
+    <string name="updates_title">Updates</string>
+    <string name="updates_back">Back</string>
+    <string name="updates_downloads">Downloads</string>
+    <string name="updates_empty">No updates yet. Library chapters will appear here after an update check.</string>
+
+    <!-- Downloads screen -->
+    <string name="downloads_title">Downloads</string>
+    <string name="downloads_back">Back</string>
+    <string name="downloads_selected_count">%1$d selected</string>
+    <string name="downloads_clear_selection">Clear selection</string>
+    <string name="downloads_pause_selected">Pause selected</string>
+    <string name="downloads_resume_selected">Resume selected</string>
+    <string name="downloads_cancel_selected">Cancel selected</string>
+    <string name="downloads_select_all">Select all</string>
+    <string name="downloads_clear_all">Clear All</string>
+    <string name="downloads_pause">Pause</string>
+    <string name="downloads_resume">Resume</string>
+    <string name="downloads_cancel">Cancel</string>
+    <string name="downloads_empty_title">No downloads yet</string>
+    <string name="downloads_empty_message">Start a chapter download to see progress here.</string>
+    <string name="downloads_empty_icon">No downloads</string>
+    <string name="downloads_status_queued">Queued</string>
+    <string name="downloads_status_downloading">Downloading</string>
+    <string name="downloads_status_paused">Paused</string>
+    <string name="downloads_status_completed">Completed</string>
+    <string name="downloads_status_failed">Failed</string>
+    <string name="downloads_status_canceled">Canceled</string>
+</resources>

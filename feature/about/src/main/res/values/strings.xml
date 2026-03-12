@@ -35,4 +35,8 @@
     <string name="about_tagline">A hero that doesn\'t wear a cape</string>
     <string name="about_card_title">About Otaku Reader</string>
     <string name="about_card_description">Otaku Reader is a free, open-source manga reader built with the community in mind. No subscriptions, no ads, no tracking. Just read.</string>
+
+    <!-- Accessibility -->
+    <string name="about_opens_in_browser">Opens in browser</string>
+    <string name="about_app_icon">App icon</string>
 </resources>

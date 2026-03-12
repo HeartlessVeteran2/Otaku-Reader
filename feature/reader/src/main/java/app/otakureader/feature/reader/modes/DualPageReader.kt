@@ -17,7 +17,9 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import app.otakureader.feature.reader.R
 import app.otakureader.feature.reader.components.ZoomableImage
 import app.otakureader.feature.reader.model.ReaderPage
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -97,7 +99,7 @@ fun DualPageReader(
                     ) {
                         ZoomableImage(
                             imageUrl = leftPage.imageUrl,
-                            contentDescription = "Page ${leftPage.pageNumber}",
+                            contentDescription = stringResource(R.string.reader_page_content, leftPage.pageNumber),
                             contentScale = ContentScale.Fit,
                             onTap = onTap,
                             modifier = Modifier.fillMaxSize()
@@ -122,7 +124,7 @@ fun DualPageReader(
                     ) {
                         ZoomableImage(
                             imageUrl = rightPage.imageUrl,
-                            contentDescription = "Page ${rightPage.pageNumber}",
+                            contentDescription = stringResource(R.string.reader_page_content, rightPage.pageNumber),
                             contentScale = ContentScale.Fit,
                             onTap = onTap,
                             modifier = Modifier.fillMaxSize()

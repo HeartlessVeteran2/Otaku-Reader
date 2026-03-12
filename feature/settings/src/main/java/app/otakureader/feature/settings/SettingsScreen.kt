@@ -125,10 +125,10 @@ fun SettingsScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text(stringResource(R.string.settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.settings_back))
                     }
                 }
             )
@@ -221,6 +221,20 @@ private fun AppearanceSection(state: SettingsState, onEvent: (SettingsEvent) -> 
                         checked = state.usePureBlackDarkMode,
                         onCheckedChange = {
                             onEvent(SettingsEvent.SetPureBlackDarkMode(it))
+                        }
+                    )
+                }
+            )
+
+            // High contrast mode
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_high_contrast)) },
+                supportingContent = { Text(stringResource(R.string.settings_high_contrast_description)) },
+                trailingContent = {
+                    Switch(
+                        checked = state.useHighContrast,
+                        onCheckedChange = {
+                            onEvent(SettingsEvent.SetHighContrast(it))
                         }
                     )
                 }

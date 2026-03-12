@@ -36,8 +36,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import app.otakureader.feature.onboarding.R
 import kotlinx.coroutines.launch
 
 /**
@@ -150,7 +152,7 @@ private fun OnboardingPageContent(
         ) {
             Icon(
                 imageVector = page.icon,
-                contentDescription = null,
+                contentDescription = stringResource(R.string.onboarding_page_icon),
                 modifier = Modifier.size(64.dp),
                 tint = MaterialTheme.colorScheme.onPrimaryContainer
             )

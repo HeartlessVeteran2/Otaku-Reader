@@ -119,15 +119,15 @@ private fun ExtensionsContent(
                 title = { Text("Extensions") },
                 navigationIcon = {
                     IconButton(onClick = onClose) {
-                        Icon(Icons.Default.Close, contentDescription = "Close")
+                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.extensions_close))
                     }
                 },
                 actions = {
                     IconButton(onClick = { onEvent(ExtensionsEvent.Refresh) }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                        Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.extensions_refresh))
                     }
                     IconButton(onClick = { /* TODO: Settings */ }) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.extensions_settings))
                     }
                 }
             )
@@ -363,7 +363,7 @@ private fun ExtensionItem(
                             onCheckedChange = onToggleEnabled
                         )
                         IconButton(onClick = onUninstall) {
-                            Icon(Icons.Default.Delete, contentDescription = "Uninstall")
+                            Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.extensions_uninstall))
                         }
                     }
                 }
@@ -374,13 +374,13 @@ private fun ExtensionItem(
                             onCheckedChange = onToggleEnabled
                         )
                         IconButton(onClick = onUpdate) {
-                            Icon(Icons.Default.Update, contentDescription = "Update", tint = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.Default.Update, contentDescription = stringResource(R.string.extensions_update), tint = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
                 InstallStatus.AVAILABLE -> {
                     IconButton(onClick = onInstall) {
-                        Icon(Icons.Default.Download, contentDescription = "Install", tint = MaterialTheme.colorScheme.primary)
+                        Icon(Icons.Default.Download, contentDescription = stringResource(R.string.extensions_install), tint = MaterialTheme.colorScheme.primary)
                     }
                 }
                 InstallStatus.INSTALLING, InstallStatus.UPDATING -> {
@@ -392,7 +392,7 @@ private fun ExtensionItem(
                 else -> {
                     // Error or other states - show install button
                     IconButton(onClick = onInstall) {
-                        Icon(Icons.Default.Download, contentDescription = "Install")
+                        Icon(Icons.Default.Download, contentDescription = stringResource(R.string.extensions_install))
                     }
                 }
             }
@@ -608,7 +608,7 @@ private fun RepositoryManager(
                     }
                 }
                 IconButton(onClick = { onRemove(repo) }) {
-                    Icon(Icons.Default.Delete, contentDescription = "Remove repository")
+                    Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.extensions_remove_repo))
                 }
             }
         }

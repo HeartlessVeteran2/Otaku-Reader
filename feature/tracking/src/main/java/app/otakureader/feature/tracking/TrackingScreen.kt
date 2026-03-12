@@ -270,7 +270,7 @@ private fun TrackerCard(
                         onClick = onSearch,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Icon(Icons.Default.Search, contentDescription = null)
+                        Icon(Icons.Default.Search, contentDescription = stringResource(R.string.tracking_search))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(stringResource(R.string.tracking_search))
                     }
