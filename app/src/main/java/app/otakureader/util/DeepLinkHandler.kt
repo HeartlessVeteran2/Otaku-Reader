@@ -58,18 +58,21 @@ object DeepLinkHandler {
      * Parse a SEND intent (share from other apps)
      */
     private fun parseSendIntent(intent: Intent): DeepLinkResult {
-        val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT) ?: return DeepLinkResult.Invalid
-        
+        val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)?.trim() ?: return DeepLinkResult.Invalid
+
         // Check if shared text contains a URL
         val urlRegex = "https?://[^\\s]+".toRegex()
         val urlMatch = urlRegex.find(sharedText)
-        
+
         if (urlMatch != null) {
-            val url = Uri.parse(urlMatch.value)
+            // Remove common trailing punctuation from URLs (e.g., ")", ".", ",")
+            val rawUrl = urlMatch.value
+            val cleanUrl = rawUrl.trimEnd('.', ',', ')', ']', '}', '!', '?', ';', ':', '\'', '"')
+            val url = Uri.parse(cleanUrl)
             return parseViewIntent(Intent(Intent.ACTION_VIEW, url))
         }
-        
-        // Treat as search query
+
+        // Treat as search query (already trimmed)
         return DeepLinkResult.SearchQuery(sharedText)
     }
     
