@@ -81,3 +81,7 @@ object OnboardingRoute : OtakuReaderDestination
 /** About screen with help, FAQ, and app information. */
 @Serializable
 object AboutRoute : OtakuReaderDestination
+
+/** OPDS catalog browser screen. */
+@Serializable
+object OpdsRoute : OtakuReaderDestination
