@@ -46,17 +46,39 @@
   </g>
   <line x1="60" y1="395" x2="1140" y2="395" stroke="url(#textGrad)" stroke-width="2" opacity="0.25"/>
 
-  <!-- Logo circle -->
+  <!-- Logo circle with オト monogram -->
   <g transform="translate(150, 200)">
-    <circle r="80" fill="url(#circleGrad)" opacity="0.9"/>
-    <!-- Open book icon -->
-    <g fill="#FFFFFF">
-      <!-- Left page -->
-      <path d="M-28,-32 Q-14,-42 0,-36 L0,38 Q-14,33 -28,38 Z"/>
-      <!-- Right page -->
-      <path d="M28,-32 Q14,-42 0,-36 L0,38 Q14,33 28,38 Z"/>
-      <!-- Spine line -->
-      <rect x="-2" y="-36" width="4" height="74" rx="2"/>
+    <!-- Deep indigo background circle -->
+    <circle r="80" fill="#0f172a"/>
+    <!-- Cherry blossom glow -->
+    <ellipse cx="0" cy="0" rx="60" ry="60" fill="#1e1b4b" opacity="0.6"/>
+
+    <!-- Cherry Blossom Petals -->
+    <g transform="scale(1.2)">
+      <path fill="#ec4899" d="M0,-39 C5,-39 9,-35 11,-28 L0,-15 L-11,-28 C-9,-35 -5,-39 0,-39Z"/>
+      <path fill="#db2777" d="M11,-28 C17,-30 23,-26 25,-20 L13,-9 L0,-15 L11,-28Z"/>
+      <path fill="#ec4899" d="M25,-20 C29,-14 28,-6 23,0 L9,-5 L13,-9 L25,-20Z"/>
+      <path fill="#be185d" d="M23,0 C20,8 12,10 5,8 L3,-5 L9,-5 L23,0Z"/>
+      <path fill="#db2777" d="M5,8 C-2,13 -10,10 -13,5 L-3,-2 L3,-5 L5,8Z"/>
+      <path fill="#ec4899" d="M-13,5 C-20,0 -22,-8 -18,-16 L-5,-10 L-3,-2 L-13,5Z"/>
+      <path fill="#db2777" d="M-18,-16 C-20,-24 -16,-30 -11,-28 L-5,-10 L-18,-16Z"/>
+    </g>
+
+    <!-- Open Book Page (bottom detail) -->
+    <path fill="#fce7f3" opacity="0.8" d="M-7,16 L0,24 L7,16 L5,13 L0,19 L-5,13 L-7,16Z"/>
+
+    <!-- オ (O) - Left Character -->
+    <g stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round" fill="none">
+      <line x1="-13" y1="-30" x2="-13" y2="10"/>
+      <line x1="-22" y1="-30" x2="-4" y2="-30"/>
+      <line x1="-22" y1="-30" x2="-28" y2="-10"/>
+      <line x1="-4" y1="-30" x2="2" y2="-10"/>
+    </g>
+
+    <!-- ト (To) - Right Character -->
+    <g stroke="#fbbf24" stroke-width="3" stroke-linecap="round" fill="none">
+      <line x1="5" y1="-34" x2="5" y2="14"/>
+      <line x1="5" y1="-34" x2="16" y2="-38"/>
     </g>
 
     <!-- Sakura petals near logo -->

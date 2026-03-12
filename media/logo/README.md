@@ -32,6 +32,7 @@ The first official Otaku Reader logo features a bold, interlocking **Katakana "�
 Created adaptive icon components:
 - `ic_launcher_background.xml` — Deep indigo with subtle blossom glow
 - `ic_launcher_foreground.xml` — Vector representation of the logo
+- `ic_launcher_monochrome.xml` — Single-tone silhouette for Android 13+ themed icons
 - Mipmap folders for all densities (mdpi through xxxhdpi)
 - Adaptive icon support for API 26+
 
@@ -48,6 +49,7 @@ This is **Version 1**. As the app grows, the logo may evolve:
 - `v1-oto-monogram.png` — Original design file
 - `app/src/main/res/drawable/ic_launcher_background.xml` — Background vector
 - `app/src/main/res/drawable/ic_launcher_foreground.xml` — Foreground vector
+- `app/src/main/res/drawable/ic_launcher_monochrome.xml` — Monochrome vector for themed icons
 - `app/src/main/res/mipmap-*/ic_launcher.xml` — Launcher icons per density
 
 ---
