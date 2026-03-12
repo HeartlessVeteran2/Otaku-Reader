@@ -1,12 +1,106 @@
-# Otaku Reader
+<div align="center">
+  <img src="./.github/banner.svg" alt="Otaku Reader" width="100%"/>
 
-🌸 The ultimate manga reader. Better than Perfect Viewer.
+  <h1>Otaku Reader</h1>
 
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.3-blue.svg)](https://kotlinlang.org/)
-[![Android](https://img.shields.io/badge/Android-26+-green.svg)](https://developer.android.com/)
-[![License](https://img.shields.io/badge/License-Apache%202.0-orange.svg)](LICENSE)
+  <p>🌸 The ultimate manga reader. Blazing-fast, beautiful, and packed with 2000+ sources.</p>
 
-## 📊 Project Status
+  [![Kotlin](https://img.shields.io/badge/Kotlin-2.3.10-7F52FF?style=flat-square&logo=kotlin&logoColor=white&labelColor=27303D)](https://kotlinlang.org/)
+  [![Android](https://img.shields.io/badge/Android-26+-3DDC84?style=flat-square&logo=android&logoColor=white&labelColor=27303D)](https://developer.android.com/)
+  [![License](https://img.shields.io/badge/License-Apache%202.0-blue?style=flat-square&labelColor=27303D)](LICENSE)
+  [![CI](https://github.com/Heartless-Veteran/Otaku-Reader/actions/workflows/ci.yml/badge.svg)](https://github.com/Heartless-Veteran/Otaku-Reader/actions/workflows/ci.yml)
+
+  <sub><i>Requires Android 8.0 (API 26) or higher.</i></sub>
+</div>
+
+---
+
+## 🚀 Getting Started
+
+```bash
+# Clone
+git clone https://github.com/Heartless-Veteran/otaku-reader.git
+cd otaku-reader
+
+# Build
+./gradlew assembleDebug
+
+# Install
+adb install app/build/outputs/apk/debug/app-debug.apk
+```
+
+---
+
+## ✨ Features
+
+### 📚 Library Management
+- **Grid View** — Customizable columns (2–5) with unread badges on covers
+- **Categories** — Drag-and-drop organization with multi-select batch operations
+- **Sorting & Filtering** — Sort by name/last read/date/unread; filter by downloaded/unread/tracking
+- **NSFW Toggle** — Global and per-source content filter
+
+### 🔍 Browse & Discovery
+- **2000+ Sources** — Access the full Tachiyomi extension ecosystem
+- **Global Search** — Search across all installed sources at once
+- **Extension Catalog** — Browse, install, and update extensions with repository management
+
+### 📖 Ultimate Reader
+- **4 Reading Modes** — `Single Page`, `Dual Page`, `Webtoon`, `Smart Panels`
+- **Color Filters** — `Sepia`, `Grayscale`, `Invert`, `Custom Tint`
+- **Navigation** — 3×3 configurable tap zones, volume-key page turn, pinch zoom
+- **Gallery View** — Thumbnail strip for quick chapter navigation
+- **Incognito Mode** — Private reading without history tracking
+
+### ⬇️ Downloads & Offline
+- **Background Downloads** — Queue with pause/resume support
+- **CBZ Export** — Archive chapters in standard CBZ format
+- **Auto-Download** — Automatically grab new chapters (Wi-Fi only option)
+
+### 📊 Tracking
+- **MyAnimeList** · **AniList** · **Kitsu** · **MangaUpdates** · **Shikimori**
+
+### 🔔 Smart Notifications
+- **New Chapter Alerts** — Rich notifications with manga covers, grouped per series
+- **Tappable** — Tap notification to jump directly into the reader
+
+### ☁️ Data & Sync
+- **Scheduled Backups** — Automatic backups via WorkManager
+- **Manual Backup/Restore** — JSON backup with manga, categories, and preferences
+- **Cloud Sync** — Cross-device library sync *(🚧 in progress)*
+
+---
+
+## 🔌 Extensions
+
+Compatible with the entire **Tachiyomi extension ecosystem** — no extra setup required.
+
+| Repository | Sources |
+|------------|---------|
+| [Keiyoushi](https://github.com/keiyoushi/extensions) | 1000+ |
+| [Komikku](https://github.com/komikku-app/komikku-extensions) | 1000+ |
+
+- Browse extensions by language
+- Install, update, and uninstall from within the app
+- Manage multiple repositories
+- NSFW content filtering per extension
+
+---
+
+## 🗺️ Roadmap
+
+**🚧 In Progress**
+- **Cloud Sync** — Google Drive integration for library sync
+- **OPDS Support** — Komga/Kavita catalog browsing
+
+**🔮 Future**
+- **AI Features** — Smart recommendations and auto-categorization
+- **Widget Improvements** — Enhanced data hookup & customization for home screen widgets
+- **Panel-by-Panel** — Advanced panel navigation mode
+
+---
+
+<details>
+<summary>📊 Project Status</summary>
 
 **Current: Feature-complete Beta** — Core functionality ready for daily use  
 *Last Updated: March 10, 2026*
@@ -28,96 +122,10 @@
 | **Scheduled Backups** | ✅ Complete | Auto-backup with WorkManager |
 | **AI Features** | 📋 Planned | Post-v1.0 feature |
 
-## 🚀 Recently Completed
+</details>
 
-- ✅ **Extension Catalog** — Browse, install, update extensions with NSFW filter
-- ✅ **Tracking UI** — Full tracker integration (MAL, AniList, Kitsu, MangaUpdates, Shikimori)
-- ✅ **New Chapter Notifications** — Rich notifications with manga covers, grouped by manga
-- ✅ **Library Sorting & Filtering** — Sort by name/read/date, filter by downloaded/unread/tracking
-- ✅ **Scheduled Backups** — Automatic local/cloud backups via WorkManager
-- ✅ **Reader Color Filters** — Sepia, grayscale, invert, custom tint
-- ✅ **NSFW Content Filter** — Global and per-source toggle
-- ✅ **Migration Tool** — Move manga between sources with tracker preservation
-
-## 🎯 Vision
-
-A modern, blazing-fast manga reader built from scratch with:
-- **🔌 Extension System** — Access 2000+ sources via Tachiyomi extensions
-- **📖 Ultimate Reader** — Perfect Viewer-level smoothness with modern UX
-- **☁️ Cloud Sync** — Cross-device library sync
-- **🤖 AI Features** — Smart recommendations (future)
-
-## ✨ Features
-
-### Library Management
-- Grid view with customizable columns (2-5)
-- Categories with drag-and-drop organization
-- Advanced sorting: Alphabetical, Last Read, Date Added, Unread Count, Source
-- Advanced filtering: All, Downloaded, Unread, Completed, Tracking
-- Unread badges on covers
-- Multi-select for batch operations
-
-### Browse & Discovery
-- Browse 2000+ sources via extensions
-- Global search across all sources
-- Extension catalog with repository management
-- NSFW content filtering
-
-### Manga Details
-- Full chapter list with read progress
-- One-tap download/read
-- Tracking integration (5 services)
-- Bookmark chapters
-- Migration between sources
-
-### Ultimate Reader
-- **4 Reading Modes**: Single Page, Dual Page, Webtoon, Smart Panels
-- **Color Filters**: Sepia, Grayscale, Invert, Custom tint
-- **Gallery View**: Thumbnail navigation
-- **3x3 Tap Zones**: Fully configurable
-- **Pinch Zoom**: Smooth scaling
-- **Brightness Control**: In-reader overlay
-- **Incognito Mode**: Private reading session
-- **Volume Key Navigation**: Turn pages with hardware keys
-
-### Downloads & Offline
-- Background chapter downloads
-- Download queue with pause/resume
-- CBZ archive export
-- Auto-download new chapters (Wi-Fi only option)
-
-### Tracking
-- **MyAnimeList** — Login and sync progress
-- **AniList** — Full integration
-- **Kitsu** — Track your library
-- **MangaUpdates** — Follow series
-- **Shikimori** — Russian tracker support
-
-### Data & Sync
-- Automatic scheduled backups
-- Manual backup/restore (JSON)
-- Cross-device sync architecture (in progress)
-- Reading history with duration tracking
-
-### Notifications
-- New chapter alerts with manga covers
-- Grouped notifications
-- Per-manga notification settings
-- Tappable to open manga
-
-## 🚧 In Progress
-
-- ⏳ **Cloud Sync** — Google Drive integration for library sync
-- ⏳ **OPDS Support** — Komga/Kavita catalog browsing
-
-## 📋 Future Roadmap
-
-- 🔮 **AI Features** — Recommendations, auto-categorization (post-v1.0)
-- 🔮 **Widgets** — Home screen continue reading
-- 🔮 **SFX Translation** — Sound effect detection/translation
-- 🔮 **Panel-by-Panel** — Advanced panel navigation
-
-## 🏗️ Architecture
+<details>
+<summary>🏗️ Architecture</summary>
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -145,97 +153,82 @@ A modern, blazing-fast manga reader built from scratch with:
 └─────────────────────────────────────────────────────────┘
 ```
 
-## 📦 Modules
+| Module | Purpose |
+|--------|---------|
+| `app` | Main application entry |
+| `source-api` | Extension API contracts |
+| `domain` | Use cases and domain models |
+| `data` | Repository, downloads, backup, sync |
+| `core/common` | Shared utilities |
+| `core/database` | Room database (v8 with migrations) |
+| `core/network` | Retrofit + OkHttp |
+| `core/preferences` | DataStore preferences |
+| `core/ui` | Shared Compose components |
+| `core/navigation` | Navigation routing |
+| `core/extension` | Extension loading & install |
+| `core/tachiyomi-compat` | Tachiyomi compatibility |
+| `core/discord` | Discord Rich Presence |
+| `feature/library` | Library screen |
+| `feature/browse` | Browse & search |
+| `feature/details` | Manga details |
+| `feature/reader` | Ultimate reader |
+| `feature/history` | Reading history |
+| `feature/settings` | Settings & backup |
+| `feature/statistics` | Reading stats |
+| `feature/updates` | Updates & downloads |
+| `feature/tracking` | Tracker integration |
+| `feature/migration` | Source migration |
 
-| Module | Purpose | Status |
-|--------|---------|--------|
-| `app` | Main application entry | ✅ |
-| `source-api` | Extension API contracts | ✅ |
-| `domain` | Use cases and domain models | ✅ |
-| `data` | Repository, downloads, backup, sync | ✅ |
-| `core/common` | Shared utilities | ✅ |
-| `core/database` | Room database (v6) | ✅ |
-| `core/network` | Retrofit + OkHttp | ✅ |
-| `core/preferences` | DataStore preferences | ✅ |
-| `core/ui` | Shared Compose components | ✅ |
-| `core/navigation` | Navigation routing | ✅ |
-| `core/extension` | Extension loading & install | ✅ |
-| `core/tachiyomi-compat` | Tachiyomi compatibility | ✅ |
-| `core/discord` | Discord Rich Presence | ✅ |
-| `feature/library` | Library screen | ✅ |
-| `feature/browse` | Browse & search | ✅ |
-| `feature/details` | Manga details | ✅ |
-| `feature/reader` | Ultimate reader | ✅ |
-| `feature/history` | Reading history | ✅ |
-| `feature/settings` | Settings & backup | ✅ |
-| `feature/statistics` | Reading stats | ✅ |
-| `feature/updates` | Updates & downloads | ✅ |
-| `feature/tracking` | Tracker integration | ✅ |
-| `feature/migration` | Source migration | ✅ |
+</details>
 
-## 🎨 The Reader
+<details>
+<summary>🛠️ Tech Stack</summary>
+
+| Category | Technology |
+|----------|-----------|
+| Language | Kotlin 2.3 |
+| UI | Jetpack Compose + Material 3 |
+| Architecture | Clean Architecture + MVI |
+| DI | Hilt (Dagger) |
+| Database | Room (v8 with migrations) |
+| Preferences | DataStore |
+| Network | Retrofit + OkHttp |
+| Images | Coil 3 |
+| Background Work | WorkManager |
+| Paging | Paging 3 |
+
+</details>
+
+<details>
+<summary>🎨 Reader Details</summary>
 
 ### Reading Modes
-- **Single Page** — Classic manga reading
-- **Dual Page** — Spread view for tablets
-- **Webtoon** — Vertical scrolling
-- **Smart Panels** — Navigate by detected panels
+- **Single Page** — Classic manga reading with tap-to-navigate
+- **Dual Page** — Spread view for tablets and wide screens
+- **Webtoon** — Vertical continuous scrolling for manhwa/manhua
+- **Smart Panels** — Navigate by automatically detected panels
 
-### Navigation
-- **Gallery View** — Thumbnail strip
-- **3x3 Tap Zones** — Fully configurable
-- **Pinch Zoom** — Smooth scaling
-- **Brightness Control** — In-reader overlay
+### Navigation Controls
+- **Gallery View** — Thumbnail strip for at-a-glance chapter navigation
+- **3×3 Tap Zones** — Each zone fully configurable (next, previous, menu, etc.)
+- **Pinch Zoom** — Smooth scaling with double-tap to reset
+- **Volume Keys** — Hardware key page turning
+- **Brightness Control** — In-reader brightness slider overlay
 
-## 🔌 Extensions
-
-Access the entire Tachiyomi ecosystem:
-
-| Repository | Extensions |
-|------------|------------|
-| Keiyoushi | 1000+ |
-| Komikku | 1000+ |
-
-**Features:**
-- Browse extensions by language
-- Install/update/uninstall
-- Repository management
-- NSFW filtering
-- Update all button
-
-## 🛠️ Tech Stack
-
-- **Language**: Kotlin 2.3
-- **UI**: Jetpack Compose + Material 3
-- **Architecture**: Clean Architecture + MVI
-- **DI**: Hilt
-- **Database**: Room (v6 with migrations)
-- **Preferences**: DataStore
-- **Network**: Retrofit + OkHttp
-- **Images**: Coil 3
-- **Background Work**: WorkManager
-- **Paging**: Paging 3
-
-## 🚀 Getting Started
-
-```bash
-# Clone
-git clone https://github.com/Heartless-Veteran/otaku-reader.git
-cd otaku-reader
-
-# Build
-./gradlew assembleDebug
-
-# Install
-adb install app/build/outputs/apk/debug/app-debug.apk
-```
-
-## 📜 License
-
-Apache 2.0 © 2026 Otaku Reader Contributors
+</details>
 
 ---
 
-<p align="center">
-  <sub>Built with ❤️‍🔥 by manga lovers, for manga lovers</sub>
-</p>
+<div align="center">
+
+### Contributing
+
+Contributions, issues, and feature requests are welcome!  
+Feel free to open an [issue](https://github.com/Heartless-Veteran/Otaku-Reader/issues) or submit a pull request.
+
+**License:** [Apache 2.0](LICENSE) © 2026 Otaku Reader Contributors
+
+<sub>Built with ❤️‍🔥 by manga lovers, for manga lovers</sub>
+
+</div>
+
