@@ -35,29 +35,32 @@ class OpdsClient @Inject constructor(
                 )
             }
 
-            val response = okHttpClient.newCall(requestBuilder.build()).execute()
-            if (!response.isSuccessful) {
-                throw OpdsException("HTTP ${response.code}: ${response.message}")
-            }
+            okHttpClient.newCall(requestBuilder.build()).execute().use { response ->
+                if (!response.isSuccessful) {
+                    throw OpdsException("HTTP ${response.code}: ${response.message}")
+                }
 
-            val body = response.body ?: throw OpdsException("Empty response body")
-            body.byteStream().use { stream ->
-                val feed = OpdsParser.parse(stream)
-                // Resolve relative URLs in the feed
-                feed.copy(
-                    entries = feed.entries.map { entry ->
-                        entry.copy(
-                            thumbnailUrl = entry.thumbnailUrl?.let { resolveUrl(resolvedUrl, it) },
-                            links = entry.links.map { link ->
-                                link.copy(href = resolveUrl(resolvedUrl, link.href))
-                            }
-                        )
-                    },
-                    links = feed.links.map { link ->
-                        link.copy(href = resolveUrl(resolvedUrl, link.href))
-                    },
-                    searchUrl = feed.searchUrl?.let { resolveUrl(resolvedUrl, it) }
-                )
+                val body = response.body ?: throw OpdsException("Empty response body")
+                body.byteStream().use { stream ->
+                    val feed = OpdsParser.parse(stream)
+                    // Resolve relative URLs in the feed
+                    feed.copy(
+                        entries = feed.entries.map { entry ->
+                            entry.copy(
+                                thumbnailUrl = entry.thumbnailUrl?.let {
+                                    resolveUrl(resolvedUrl, it)
+                                },
+                                links = entry.links.map { link ->
+                                    link.copy(href = resolveUrl(resolvedUrl, link.href))
+                                }
+                            )
+                        },
+                        links = feed.links.map { link ->
+                            link.copy(href = resolveUrl(resolvedUrl, link.href))
+                        },
+                        searchUrl = feed.searchUrl?.let { resolveUrl(resolvedUrl, it) }
+                    )
+                }
             }
         }
 
@@ -76,12 +79,13 @@ class OpdsClient @Inject constructor(
                 )
             }
 
-            val response = okHttpClient.newCall(requestBuilder.build()).execute()
-            if (!response.isSuccessful) return@withContext null
+            okHttpClient.newCall(requestBuilder.build()).execute().use { response ->
+                if (!response.isSuccessful) return@withContext null
 
-            val body = response.body ?: return@withContext null
-            body.byteStream().use { stream ->
-                OpenSearchParser.parseTemplate(stream)
+                val body = response.body ?: return@withContext null
+                body.byteStream().use { stream ->
+                    OpenSearchParser.parseTemplate(stream)
+                }
             }
         }
 

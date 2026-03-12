@@ -101,6 +101,7 @@ object DatabaseModule {
 
     /**
      * Adds the opds_servers table for OPDS server management in database version 9.
+     * Credentials are stored separately in EncryptedSharedPreferences.
      */
     private val MIGRATION_8_9 = object : Migration(8, 9) {
         override fun migrate(db: SupportSQLiteDatabase) {
@@ -109,9 +110,7 @@ object DatabaseModule {
                 CREATE TABLE IF NOT EXISTS `opds_servers` (
                     `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                     `name` TEXT NOT NULL,
-                    `url` TEXT NOT NULL,
-                    `username` TEXT NOT NULL DEFAULT '',
-                    `password` TEXT NOT NULL DEFAULT ''
+                    `url` TEXT NOT NULL
                 )
                 """.trimIndent()
             )

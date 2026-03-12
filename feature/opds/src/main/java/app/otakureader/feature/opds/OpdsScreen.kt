@@ -1,5 +1,6 @@
 package app.otakureader.feature.opds
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -84,15 +85,20 @@ fun OpdsScreen(
         }
     }
 
+    val onEvent = viewModel::onEvent
+
     if (state.currentServer != null) {
+        // Intercept the system back button to navigate within the catalog
+        // instead of popping the NavHost route.
+        BackHandler { onEvent(OpdsEvent.NavigateBack) }
         CatalogBrowserScreen(
             state = state,
-            onEvent = viewModel::onEvent
+            onEvent = onEvent
         )
     } else {
         ServerListScreen(
             state = state,
-            onEvent = viewModel::onEvent,
+            onEvent = onEvent,
             onNavigateBack = onNavigateBack
         )
     }

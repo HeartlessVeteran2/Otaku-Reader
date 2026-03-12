@@ -1,17 +1,23 @@
 package app.otakureader.domain.model
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 
 /**
  * Represents a saved OPDS server configuration.
+ *
+ * Credentials ([username] / [password]) are kept only in memory for runtime
+ * HTTP requests.  They are **not** serialised (marked [Transient]) and are
+ * stored separately in encrypted storage — never in the Room database or
+ * backup files.
  */
 @Serializable
 data class OpdsServer(
     val id: Long = 0,
     val name: String,
     val url: String,
-    val username: String = "",
-    val password: String = ""
+    @Transient val username: String = "",
+    @Transient val password: String = ""
 )
 
 /**
