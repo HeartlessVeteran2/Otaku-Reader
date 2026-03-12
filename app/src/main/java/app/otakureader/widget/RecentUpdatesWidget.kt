@@ -29,7 +29,7 @@ class RecentUpdatesWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         // TODO: Load actual recent updates from repository
-        val updates = getMockUpdates(context)
+        val updates = emptyList<MangaUpdate>()
         val title = context.getString(R.string.widget_recent_updates_title)
         val emptyText = context.getString(R.string.widget_no_recent_updates)
 
@@ -44,23 +44,6 @@ class RecentUpdatesWidget : GlanceAppWidget() {
         }
     }
 
-    private fun getMockUpdates(context: Context): List<MangaUpdate> {
-        // TODO: Replace with actual recent updates from repository
-        return listOf(
-            MangaUpdate(
-                title = "One Piece",
-                subtitle = context.getString(R.string.widget_chapter_time_format, "Chapter 1086", "2 hours ago")
-            ),
-            MangaUpdate(
-                title = "My Hero Academia",
-                subtitle = context.getString(R.string.widget_chapter_time_format, "Chapter 415", "5 hours ago")
-            ),
-            MangaUpdate(
-                title = "Spy x Family",
-                subtitle = context.getString(R.string.widget_chapter_time_format, "Chapter 87", "1 day ago")
-            )
-        )
-    }
 }
 
 private data class MangaUpdate(

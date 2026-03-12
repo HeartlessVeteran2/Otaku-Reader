@@ -29,7 +29,7 @@ class ContinueReadingWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         // TODO: Load actual reading data from repository
-        val readingItems = getMockReadingItems(context)
+        val readingItems = emptyList<ReadingItem>()
         val title = context.getString(R.string.widget_continue_reading_title)
         val emptyText = context.getString(R.string.widget_no_manga_in_progress)
 
@@ -44,23 +44,6 @@ class ContinueReadingWidget : GlanceAppWidget() {
         }
     }
 
-    private fun getMockReadingItems(context: Context): List<ReadingItem> {
-        // TODO: Replace with actual reading data from repository
-        return listOf(
-            ReadingItem(
-                title = "One Piece",
-                subtitle = context.getString(R.string.widget_chapter_progress_format, "Chapter 1085", "80%")
-            ),
-            ReadingItem(
-                title = "Jujutsu Kaisen",
-                subtitle = context.getString(R.string.widget_chapter_progress_format, "Chapter 245", "45%")
-            ),
-            ReadingItem(
-                title = "Chainsaw Man",
-                subtitle = context.getString(R.string.widget_chapter_progress_format, "Chapter 145", "30%")
-            )
-        )
-    }
 }
 
 private data class ReadingItem(
