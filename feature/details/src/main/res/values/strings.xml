@@ -86,4 +86,12 @@
     <string name="details_sort_ascending">↑ Ascending</string>
     <string name="details_sort_descending">↓ Descending</string>
     <string name="details_no_manga">No manga details available</string>
+
+    <!-- Chapter list accessibility -->
+    <string name="details_clear_selection">Clear selection</string>
+    <string name="details_download_selected">Download selected</string>
+    <string name="details_mark_as_read">Mark as read</string>
+    <string name="details_bookmark_selected">Bookmark selected</string>
+    <string name="details_select_all">Select all</string>
+    <string name="details_sort_chapters">Sort chapters</string>
 </resources>

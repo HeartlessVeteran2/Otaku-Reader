@@ -39,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -88,7 +89,7 @@ fun MigrationEntryScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = { viewModel.onEvent(MigrationEntryEvent.NavigateBack) }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.migration_back))
                     }
                 },
                 actions = {
@@ -130,11 +131,11 @@ fun MigrationEntryScreen(
                 value = state.searchQuery,
                 onValueChange = { viewModel.onEvent(MigrationEntryEvent.OnSearchQueryChange(it)) },
                 placeholder = { Text("Search library…") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = stringResource(R.string.migration_search)) },
                 trailingIcon = {
                     if (state.searchQuery.isNotEmpty()) {
                         IconButton(onClick = { viewModel.onEvent(MigrationEntryEvent.OnSearchQueryChange("")) }) {
-                            Icon(Icons.Default.Close, contentDescription = "Clear search")
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.migration_clear_search))
                         }
                     }
                 },
@@ -213,7 +214,7 @@ private fun MigrationEntryMangaRow(
     ) {
         AsyncImage(
             model = manga.thumbnailUrl,
-            contentDescription = null,
+            contentDescription = manga.title,
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .width(48.dp)

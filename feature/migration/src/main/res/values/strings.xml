@@ -52,4 +52,8 @@
     <string name="migration_status_unknown_error">Unknown error</string>
     <string name="migration_status_skipped">Skipped</string>
     <string name="migration_target_arrow">→ %1$s</string>
+
+    <!-- Accessibility -->
+    <string name="migration_search">Search</string>
+    <string name="migration_clear_search">Clear search</string>
 </resources>

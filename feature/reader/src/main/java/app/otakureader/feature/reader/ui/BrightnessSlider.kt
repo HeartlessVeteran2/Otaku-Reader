@@ -22,7 +22,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import app.otakureader.feature.reader.R
 
 /**
  * Brightness slider overlay that appears on the left side of the screen.
@@ -53,7 +55,7 @@ fun BrightnessSliderOverlay(
             // Brightness icon at top
             Icon(
                 imageVector = Icons.Default.BrightnessHigh,
-                contentDescription = null,
+                contentDescription = stringResource(R.string.reader_brightness_increase),
                 tint = Color.White,
                 modifier = Modifier
                     .align(Alignment.TopCenter)
@@ -71,7 +73,7 @@ fun BrightnessSliderOverlay(
             // Low brightness icon at bottom
             Icon(
                 imageVector = Icons.Default.BrightnessLow,
-                contentDescription = null,
+                contentDescription = stringResource(R.string.reader_brightness_decrease),
                 tint = Color.White.copy(alpha = 0.5f),
                 modifier = Modifier
                     .align(Alignment.BottomCenter)

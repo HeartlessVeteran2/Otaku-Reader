@@ -161,7 +161,7 @@ fun DetailsScreen(
                             viewModel.onEvent(DetailsContract.Event.StartReading)
                         }
                     },
-                    icon = { Icon(Icons.Default.PlayArrow, contentDescription = null) },
+                    icon = { Icon(Icons.Default.PlayArrow, contentDescription = stringResource(R.string.details_continue_reading)) },
                     text = {
                         Text(
                             if (state.hasUnreadChapters) stringResource(R.string.details_continue_reading) else stringResource(R.string.details_start_reading)

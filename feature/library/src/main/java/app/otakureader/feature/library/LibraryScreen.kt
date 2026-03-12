@@ -320,7 +320,7 @@ private fun EmptyLibraryMessage(
     ) {
         Icon(
             imageVector = Icons.Default.Favorite,
-            contentDescription = null,
+            contentDescription = stringResource(R.string.library_empty_icon_description),
             modifier = Modifier.size(64.dp),
             tint = MaterialTheme.colorScheme.primary
         )

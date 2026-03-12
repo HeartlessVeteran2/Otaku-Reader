@@ -9,4 +9,13 @@
     <string name="library_empty_title">Your library is empty</string>
     <string name="library_empty_message">Browse for manga to add to your collection</string>
     <string name="library_badge_overflow">99+</string>
+    <!-- Bottom navigation -->
+    <string name="library_nav_library">Library</string>
+    <string name="library_nav_updates">Updates</string>
+    <string name="library_nav_browse">Browse</string>
+    <string name="library_nav_history">History</string>
+    <string name="library_nav_stats">Stats</string>
+    <string name="library_nav_settings">Settings</string>
+    <!-- Accessibility -->
+    <string name="library_empty_icon_description">Empty library</string>
 </resources>

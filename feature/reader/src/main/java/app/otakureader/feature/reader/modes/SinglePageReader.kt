@@ -13,6 +13,8 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
+import app.otakureader.feature.reader.R
 import app.otakureader.feature.reader.components.ZoomableImage
 import app.otakureader.feature.reader.model.ReaderPage
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -67,7 +69,7 @@ fun SinglePageReader(
             
             ZoomableImage(
                 imageUrl = page.imageUrl,
-                contentDescription = "Page ${page.pageNumber}",
+                contentDescription = stringResource(R.string.reader_page_content, page.pageNumber),
                 contentScale = ContentScale.Fit,
                 onTap = onTap,
                 onDoubleTap = onDoubleTap,

@@ -18,6 +18,26 @@
     <string name="browse_no_sources_title">No sources installed</string>
     <string name="browse_no_sources_message">Tap + to install a Tachiyomi extension</string>
 
+    <!-- Accessibility: SourceMangaScreen -->
+    <string name="browse_back">Back</string>
+    <string name="browse_refresh">Refresh</string>
+
+    <!-- Accessibility: ExtensionsBottomSheet -->
+    <string name="extensions_close">Close</string>
+    <string name="extensions_refresh">Refresh</string>
+    <string name="extensions_settings">Settings</string>
+    <string name="extensions_uninstall">Uninstall</string>
+    <string name="extensions_update">Update</string>
+    <string name="extensions_install">Install</string>
+    <string name="extensions_remove_repo">Remove repository</string>
+
+    <!-- Accessibility: GlobalSearchScreen -->
+    <string name="browse_global_search">Search</string>
+    <string name="browse_global_back">Back</string>
+
+    <!-- Accessibility: ExtensionInstallScreen -->
+    <string name="extensions_install_back">Back</string>
+
     <!-- Update All button -->
     <string name="extensions_update_all">Update All</string>
     <string name="extensions_updating_all">Updating all\u2026</string>

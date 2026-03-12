@@ -57,6 +57,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -173,7 +174,7 @@ private fun ChapterListHeader(
                     IconButton(onClick = onClearSelection) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Clear selection"
+                            contentDescription = stringResource(R.string.details_clear_selection)
                         )
                     }
                     Text(
@@ -188,19 +189,19 @@ private fun ChapterListHeader(
                     IconButton(onClick = onDownloadSelected) {
                         Icon(
                             imageVector = Icons.Default.Download,
-                            contentDescription = "Download selected"
+                            contentDescription = stringResource(R.string.details_download_selected)
                         )
                     }
                     IconButton(onClick = onMarkSelectedAsRead) {
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
-                            contentDescription = "Mark as read"
+                            contentDescription = stringResource(R.string.details_mark_as_read)
                         )
                     }
                     IconButton(onClick = onBookmarkSelected) {
                         Icon(
                             imageVector = Icons.Default.Bookmark,
-                            contentDescription = "Bookmark selected"
+                            contentDescription = stringResource(R.string.details_bookmark_selected)
                         )
                     }
                 }
@@ -216,14 +217,14 @@ private fun ChapterListHeader(
                     IconButton(onClick = onSelectAll) {
                         Icon(
                             imageVector = Icons.Default.SelectAll,
-                            contentDescription = "Select all"
+                            contentDescription = stringResource(R.string.details_select_all)
                         )
                     }
                     IconButton(onClick = onSortOrderChange) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.Sort,
-                                contentDescription = "Sort chapters"
+                                contentDescription = stringResource(R.string.details_sort_chapters)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Icon(

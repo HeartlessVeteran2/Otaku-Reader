@@ -3,4 +3,10 @@
     <string name="settings_language">Language</string>
     <string name="settings_language_system_settings_hint">Change the app language in system settings</string>
     <string name="settings_language_system_default">System default</string>
+
+    <!-- Accessibility -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_back">Back</string>
+    <string name="settings_high_contrast">High Contrast</string>
+    <string name="settings_high_contrast_description">Increase text and icon contrast for improved readability</string>
 </resources>

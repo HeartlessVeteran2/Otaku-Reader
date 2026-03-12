@@ -18,7 +18,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import app.otakureader.feature.reader.R
 import app.otakureader.feature.reader.components.ZoomableImage
 import app.otakureader.feature.reader.model.ReaderPage
 
@@ -88,7 +90,7 @@ fun WebtoonReader(
             ) {
                 ZoomableImage(
                     imageUrl = page.imageUrl,
-                    contentDescription = "Page ${page.pageNumber}",
+                    contentDescription = stringResource(R.string.reader_page_content, page.pageNumber),
                     contentScale = ContentScale.FillWidth,
                     onTap = onTap,
                     modifier = Modifier.fillMaxWidth()

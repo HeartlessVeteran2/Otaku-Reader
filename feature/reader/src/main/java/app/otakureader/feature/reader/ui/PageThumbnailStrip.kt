@@ -30,8 +30,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import app.otakureader.feature.reader.R
 import app.otakureader.feature.reader.model.ReaderPage
 import coil3.compose.AsyncImage
 
@@ -145,7 +147,7 @@ private fun PageThumbnailItem(
         ) {
             AsyncImage(
                 model = page.imageUrl ?: page.thumbnailUrl,
-                contentDescription = "Page $pageNumber",
+                contentDescription = stringResource(R.string.reader_page_number, pageNumber),
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxWidth()
             )
