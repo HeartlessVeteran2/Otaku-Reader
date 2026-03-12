@@ -7,14 +7,12 @@ import android.content.pm.ShortcutManager
 import android.graphics.drawable.Icon
 import app.otakureader.MainActivity
 import app.otakureader.R
-import app.otakureader.core.database.dao.MangaDao
 import app.otakureader.core.database.dao.ReadingHistoryDao
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.distinctUntilChangedBy
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -30,8 +28,7 @@ import javax.inject.Singleton
 @Singleton
 class AppShortcutManager @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val readingHistoryDao: ReadingHistoryDao,
-    private val mangaDao: MangaDao
+    private val readingHistoryDao: ReadingHistoryDao
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -41,16 +38,10 @@ class AppShortcutManager @Inject constructor(
      */
     fun initialize() {
         scope.launch {
-            readingHistoryDao.observeHistoryWithChapters()
-                .map { it.firstOrNull() }
-                .distinctUntilChangedBy { entry ->
-                    entry?.chapter?.id
-                }
+            readingHistoryDao.observeLastReadWithMangaTitle()
+                .distinctUntilChangedBy { it?.chapterId }
                 .collect { lastRead ->
-                    val mangaTitle = lastRead?.let {
-                        mangaDao.getMangaById(it.chapter.mangaId)?.title
-                    }
-                    updateShortcuts(lastRead?.chapter?.mangaId, lastRead?.chapter?.id, mangaTitle)
+                    updateShortcuts(lastRead?.mangaId, lastRead?.chapterId, lastRead?.mangaTitle)
                 }
         }
     }
