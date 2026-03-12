@@ -18,9 +18,8 @@ import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
-import androidx.glance.unit.ColorProvider
-import androidx.glance.unit.dp
-import androidx.glance.unit.sp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.otakureader.R
 
 /**
@@ -30,7 +29,7 @@ class RecentUpdatesWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         // TODO: Load actual recent updates from repository
-        val updates = getMockUpdates()
+        val updates = getMockUpdates(context)
         val title = context.getString(R.string.widget_recent_updates_title)
         val emptyText = context.getString(R.string.widget_no_recent_updates)
 
@@ -45,19 +44,28 @@ class RecentUpdatesWidget : GlanceAppWidget() {
         }
     }
 
-    private fun getMockUpdates(): List<MangaUpdate> {
+    private fun getMockUpdates(context: Context): List<MangaUpdate> {
+        // TODO: Replace with actual recent updates from repository
         return listOf(
-            MangaUpdate("One Piece", "Chapter 1086", "2 hours ago"),
-            MangaUpdate("My Hero Academia", "Chapter 415", "5 hours ago"),
-            MangaUpdate("Spy x Family", "Chapter 87", "1 day ago")
+            MangaUpdate(
+                title = "One Piece",
+                subtitle = context.getString(R.string.widget_chapter_time_format, "Chapter 1086", "2 hours ago")
+            ),
+            MangaUpdate(
+                title = "My Hero Academia",
+                subtitle = context.getString(R.string.widget_chapter_time_format, "Chapter 415", "5 hours ago")
+            ),
+            MangaUpdate(
+                title = "Spy x Family",
+                subtitle = context.getString(R.string.widget_chapter_time_format, "Chapter 87", "1 day ago")
+            )
         )
     }
 }
 
 private data class MangaUpdate(
     val title: String,
-    val chapter: String,
-    val timeAgo: String
+    val subtitle: String
 )
 
 @Composable
@@ -79,7 +87,7 @@ private fun RecentUpdatesContent(
             Text(
                 text = title,
                 style = TextStyle(
-                    color = ColorProvider(GlanceTheme.colors.onSurface),
+                    color = GlanceTheme.colors.onSurface,
                     fontSize = 18.sp
                 ),
                 modifier = GlanceModifier.fillMaxWidth()
@@ -96,7 +104,7 @@ private fun RecentUpdatesContent(
                 Text(
                     text = emptyText,
                     style = TextStyle(
-                        color = ColorProvider(GlanceTheme.colors.onSurfaceVariant),
+                        color = GlanceTheme.colors.onSurfaceVariant,
                         fontSize = 14.sp
                     )
                 )
@@ -113,15 +121,15 @@ private fun UpdateItemWidget(update: MangaUpdate) {
         Text(
             text = update.title,
             style = TextStyle(
-                color = ColorProvider(GlanceTheme.colors.onSurface),
+                color = GlanceTheme.colors.onSurface,
                 fontSize = 14.sp
             ),
             maxLines = 1
         )
         Text(
-            text = "${update.chapter} • ${update.timeAgo}",
+            text = update.subtitle,
             style = TextStyle(
-                color = ColorProvider(GlanceTheme.colors.primary),
+                color = GlanceTheme.colors.primary,
                 fontSize = 12.sp
             ),
             maxLines = 1

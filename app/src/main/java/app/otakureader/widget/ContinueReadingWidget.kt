@@ -18,9 +18,8 @@ import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
-import androidx.glance.unit.ColorProvider
-import androidx.glance.unit.dp
-import androidx.glance.unit.sp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.otakureader.R
 
 /**
@@ -30,7 +29,7 @@ class ContinueReadingWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         // TODO: Load actual reading data from repository
-        val readingItems = getMockReadingItems()
+        val readingItems = getMockReadingItems(context)
         val title = context.getString(R.string.widget_continue_reading_title)
         val emptyText = context.getString(R.string.widget_no_manga_in_progress)
 
@@ -45,19 +44,28 @@ class ContinueReadingWidget : GlanceAppWidget() {
         }
     }
 
-    private fun getMockReadingItems(): List<ReadingItem> {
+    private fun getMockReadingItems(context: Context): List<ReadingItem> {
+        // TODO: Replace with actual reading data from repository
         return listOf(
-            ReadingItem("One Piece", "Chapter 1085", "80%"),
-            ReadingItem("Jujutsu Kaisen", "Chapter 245", "45%"),
-            ReadingItem("Chainsaw Man", "Chapter 145", "30%")
+            ReadingItem(
+                title = "One Piece",
+                subtitle = context.getString(R.string.widget_chapter_progress_format, "Chapter 1085", "80%")
+            ),
+            ReadingItem(
+                title = "Jujutsu Kaisen",
+                subtitle = context.getString(R.string.widget_chapter_progress_format, "Chapter 245", "45%")
+            ),
+            ReadingItem(
+                title = "Chainsaw Man",
+                subtitle = context.getString(R.string.widget_chapter_progress_format, "Chapter 145", "30%")
+            )
         )
     }
 }
 
 private data class ReadingItem(
     val title: String,
-    val chapter: String,
-    val progress: String
+    val subtitle: String
 )
 
 @Composable
@@ -79,7 +87,7 @@ private fun ContinueReadingContent(
             Text(
                 text = title,
                 style = TextStyle(
-                    color = ColorProvider(GlanceTheme.colors.onSurface),
+                    color = GlanceTheme.colors.onSurface,
                     fontSize = 18.sp
                 ),
                 modifier = GlanceModifier.fillMaxWidth()
@@ -96,7 +104,7 @@ private fun ContinueReadingContent(
                 Text(
                     text = emptyText,
                     style = TextStyle(
-                        color = ColorProvider(GlanceTheme.colors.onSurfaceVariant),
+                        color = GlanceTheme.colors.onSurfaceVariant,
                         fontSize = 14.sp
                     )
                 )
@@ -113,15 +121,15 @@ private fun ReadingItemWidget(item: ReadingItem) {
         Text(
             text = item.title,
             style = TextStyle(
-                color = ColorProvider(GlanceTheme.colors.onSurface),
+                color = GlanceTheme.colors.onSurface,
                 fontSize = 14.sp
             ),
             maxLines = 1
         )
         Text(
-            text = "${item.chapter} • ${item.progress}",
+            text = item.subtitle,
             style = TextStyle(
-                color = ColorProvider(GlanceTheme.colors.onSurfaceVariant),
+                color = GlanceTheme.colors.onSurfaceVariant,
                 fontSize = 12.sp
             ),
             maxLines = 1

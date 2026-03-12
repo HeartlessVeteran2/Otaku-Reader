@@ -94,7 +94,8 @@
         <receiver
             android:name=".widget.ContinueReadingWidgetReceiver"
             android:exported="true"
-            android:label="@string/continue_reading_widget_label">
+            android:label="@string/continue_reading_widget_label"
+            android:permission="android.permission.BIND_APPWIDGET">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -107,7 +108,8 @@
         <receiver
             android:name=".widget.RecentUpdatesWidgetReceiver"
             android:exported="true"
-            android:label="@string/recent_updates_widget_label">
+            android:label="@string/recent_updates_widget_label"
+            android:permission="android.permission.BIND_APPWIDGET">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
