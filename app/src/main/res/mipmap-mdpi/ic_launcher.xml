@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Otaku Reader V1 Round Launcher Icon (Legacy fallback) -->
+<!-- Otaku Reader V1 Launcher Icon - MDPI -->
+<!-- Note: For production, generate PNG at 48x48dp from the vector assets -->
+<!-- Currently using vector reference for flexibility -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="@drawable/ic_launcher_background" />
     <item android:drawable="@drawable/ic_launcher_foreground" />
