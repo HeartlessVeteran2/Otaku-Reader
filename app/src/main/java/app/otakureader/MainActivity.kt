@@ -38,7 +38,7 @@ class MainActivity : ComponentActivity() {
 
     @Inject lateinit var generalPreferences: GeneralPreferences
     
-    // Store deep link result in a way that survives config changes
+    // Hold deep link result across recompositions for the current Activity instance
     private var pendingDeepLinkResult by mutableStateOf<DeepLinkResult?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {

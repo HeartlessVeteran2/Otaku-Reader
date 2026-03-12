@@ -45,7 +45,7 @@ object DeepLinkHandler {
         val data: Uri = intent.data ?: return DeepLinkResult.Invalid
         val host = data.host?.lowercase() ?: return DeepLinkResult.Invalid
         
-        // Handle MangaDex URLs - use exact host matching for security
+        // Handle MangaDex URLs - allow the main domain and its subdomains
         if (host == "mangadex.org" || host.endsWith(".mangadex.org")) {
             return parseMangaDexUrl(data)
         }
@@ -58,18 +58,25 @@ object DeepLinkHandler {
      * Parse a SEND intent (share from other apps)
      */
     private fun parseSendIntent(intent: Intent): DeepLinkResult {
-        val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT) ?: return DeepLinkResult.Invalid
-        
-        // Check if shared text contains a URL
+        val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)?.trim() ?: return DeepLinkResult.Invalid
+
+        // Check if shared text contains one or more URLs
         val urlRegex = "https?://[^\\s]+".toRegex()
-        val urlMatch = urlRegex.find(sharedText)
-        
-        if (urlMatch != null) {
-            val url = Uri.parse(urlMatch.value)
-            return parseViewIntent(Intent(Intent.ACTION_VIEW, url))
+        val urlMatches = urlRegex.findAll(sharedText)
+
+        // Try each URL match until one yields a valid deep link result
+        for (urlMatch in urlMatches) {
+            // Remove common trailing punctuation from URLs (e.g., ")", ".", ",")
+            val rawUrl = urlMatch.value
+            val cleanUrl = rawUrl.trimEnd('.', ',', ')', ']', '}', '!', '?', ';', ':', '\'', '"')
+            val url = Uri.parse(cleanUrl)
+            val result = parseViewIntent(Intent(Intent.ACTION_VIEW, url))
+            if (result !is DeepLinkResult.Invalid) {
+                return result
+            }
         }
-        
-        // Treat as search query
+
+        // If no supported URL was found, treat the entire shared text as a search query (already trimmed)
         return DeepLinkResult.SearchQuery(sharedText)
     }
     
