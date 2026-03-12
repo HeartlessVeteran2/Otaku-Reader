@@ -49,8 +49,8 @@ fun OtakuReaderNavHost(
     LaunchedEffect(deepLinkResult) {
         when (deepLinkResult) {
             is DeepLinkResult.MangaUrl -> {
-                // Navigate to browse for now (TODO: implement manga lookup)
-                navController.navigate(BrowseRoute)
+                // Navigate to the specific source detail screen using the parsed sourceId
+                navController.navigate(SourceDetailRoute(deepLinkResult.sourceId))
                 onDeepLinkConsumed()
             }
             is DeepLinkResult.SearchQuery -> {
