@@ -6,10 +6,21 @@ on:
   pull_request_review_comment:
     types: [created]
 
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+  reactions: write
+
+concurrency:
+  group: review-mention-${{ github.event.comment.id }}
+  cancel-in-progress: true
+
 jobs:
   parse-mention:
     if: github.event.issue.pull_request || github.event.pull_request
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       trigger: ${{ steps.parse.outputs.trigger }}
     steps:
@@ -17,9 +28,30 @@ jobs:
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
+            const login = context.payload.comment.user.login;
+
+            // Only allow collaborators with write access or above to trigger reviews
+            let authorized = false;
+            try {
+              const { data: perm } = await github.rest.repos.getCollaboratorPermissionLevel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                username: login
+              });
+              authorized = ['admin', 'maintain', 'write'].includes(perm.permission);
+            } catch (e) {
+              core.info(`Permission check failed for ${login}: ${e.message}`);
+            }
+
+            if (!authorized) {
+              core.info(`User ${login} does not have write access. Ignoring review request.`);
+              core.setOutput('trigger', '');
+              return;
+            }
+
             const body = context.payload.comment.body.toLowerCase();
             const triggers = [];
-            
+
             if (body.includes('@ai-review') || body.includes('@gemini-review') || body.includes('@aura-review')) {
               triggers.push('ai');
             }
@@ -38,18 +70,71 @@ jobs:
             if (body.includes('@full-review') || body.includes('@complete-review')) {
               triggers.push('full');
             }
-            
+            if (body.includes('@review-help') || body.includes('@help-review')) {
+              triggers.push('help');
+            }
+
             core.setOutput('trigger', triggers.join(','));
             console.log('Triggers:', triggers);
+
+            if (triggers.length > 0) {
+              try {
+                if (context.eventName === 'issue_comment') {
+                  await github.rest.reactions.createForIssueComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    comment_id: context.payload.comment.id,
+                    content: 'rocket'
+                  });
+                } else {
+                  await github.rest.reactions.createForPullRequestReviewComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    comment_id: context.payload.comment.id,
+                    content: 'rocket'
+                  });
+                }
+              } catch (e) {
+                core.info(`Could not add reaction: ${e.message}`);
+              }
+            }
+
+  help:
+    needs: parse-mention
+    if: contains(needs.parse-mention.outputs.trigger, 'help')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Post Help Message
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const prNumber = context.issue.number;
+            const helpTable = [
+              '| Trigger | Description |',
+              '|---------|-------------|',
+              '| `@ai-review` | AI-powered code review |',
+              '| `@security-review` | Security vulnerability scan |',
+              '| `@style-review` / `@lint-review` | Code style and formatting |',
+              '| `@architecture-review` / `@arch-review` | Architecture compliance |',
+              '| `@test-review` / `@tests-review` | Test coverage analysis |',
+              '| `@full-review` / `@complete-review` | All reviews combined |',
+              '| `@review-help` | Show this help message |',
+            ].join('\n');
+            await github.rest.issues.createComment({
+              issue_number: prNumber,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `👋 **Review Bot Help** — Available triggers (requires write access):\n\n${helpTable}`
+            });
 
   ai-review:
     needs: parse-mention
     if: contains(needs.parse-mention.outputs.trigger, 'ai') || contains(needs.parse-mention.outputs.trigger, 'full')
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          fetch-depth: 0
       - name: Post AI Review Request
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
@@ -74,6 +159,7 @@ jobs:
     needs: parse-mention
     if: contains(needs.parse-mention.outputs.trigger, 'security') || contains(needs.parse-mention.outputs.trigger, 'full')
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Security Scan
@@ -92,6 +178,7 @@ jobs:
     needs: parse-mention
     if: contains(needs.parse-mention.outputs.trigger, 'style') || contains(needs.parse-mention.outputs.trigger, 'full')
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: actions/setup-java@7a6d8c5292f4c2acac657ed83186f8bd80d9a60a # v4.7.0
@@ -99,27 +186,39 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       - name: Run ktlint
+        id: ktlint
         run: |
           curl -sSLO https://github.com/pinterest/ktlint/releases/download/1.2.1/ktlint
           chmod +x ktlint
-          ./ktlint --relative 2>&1 | head -50 || true
+          # Truncate to first 50 violations to keep the PR comment size reasonable
+          output=$(./ktlint --relative 2>&1 | head -50 || true)
+          echo "output<<EOF" >> $GITHUB_OUTPUT
+          echo "$output" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
         continue-on-error: true
       - name: Post Style Review
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          KTLINT_OUTPUT: ${{ steps.ktlint.outputs.output }}
         with:
           script: |
             const prNumber = context.issue.number;
+            const ktlintOutput = process.env.KTLINT_OUTPUT;
+            const lintSection = ktlintOutput
+              ? `\n\n**ktlint output:**\n\`\`\`\n${ktlintOutput}\n\`\`\``
+              : '';
             await github.rest.issues.createComment({
               issue_number: prNumber,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `🎨 **Style Review Requested by @${context.payload.comment.user.login}**\n\nChecking:\n- ✅ Kotlin coding conventions\n- ✅ Formatting (ktlint)\n- ✅ Import organization\n- ✅ Naming conventions\n- ✅ Code complexity metrics`
+              body: `🎨 **Style Review Requested by @${context.payload.comment.user.login}**\n\nChecking:\n- ✅ Kotlin coding conventions\n- ✅ Formatting (ktlint)\n- ✅ Import organization\n- ✅ Naming conventions\n- ✅ Code complexity metrics${lintSection}`
             });
 
   architecture-review:
     needs: parse-mention
     if: contains(needs.parse-mention.outputs.trigger, 'architecture') || contains(needs.parse-mention.outputs.trigger, 'full')
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -152,6 +251,7 @@ jobs:
     needs: parse-mention
     if: contains(needs.parse-mention.outputs.trigger, 'tests') || contains(needs.parse-mention.outputs.trigger, 'full')
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Test Review
