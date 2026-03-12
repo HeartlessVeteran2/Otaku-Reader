@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Otaku Reader App Icon - Version 1
+    Katakana "オト" (O-to) Monogram on Cherry Blossom
+    
+    Design: Sharp, angular Katakana characters interlocking on sakura base
+    Colors: Deep indigo background, electric pink blossom, gold/navy monogram
+    Style: Japanese streetwear meets modern app icon
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@drawable/ic_launcher_background" />
+    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+</adaptive-icon>
