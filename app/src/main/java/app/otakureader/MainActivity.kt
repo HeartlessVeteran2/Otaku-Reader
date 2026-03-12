@@ -92,7 +92,7 @@ class MainActivity : ComponentActivity() {
         }
     }
     
-    override fun onNewIntent(intent: Intent?) {
+    override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         // Handle new intents when activity is already running
         val result = DeepLinkHandler.parseIntent(intent)

@@ -8,7 +8,9 @@ import android.net.Uri
  */
 sealed class DeepLinkResult {
     data class MangaUrl(
-        val sourceId: String,
+        /** The base URL of the source (e.g. "https://mangadex.org"). Use DeepLinkViewModel
+         *  to resolve this to an installed numeric source ID at runtime. */
+        val baseUrl: String,
         val mangaUrl: String,
         val title: String? = null
     ) : DeepLinkResult()
@@ -89,7 +91,7 @@ object DeepLinkHandler {
         if (pathSegments.size >= 2 && pathSegments[0] == "title") {
             val mangaId = pathSegments[1]
             return DeepLinkResult.MangaUrl(
-                sourceId = "mangadex",
+                baseUrl = "https://mangadex.org",
                 mangaUrl = "https://mangadex.org/title/$mangaId",
                 title = null
             )
@@ -108,7 +110,7 @@ object DeepLinkHandler {
             host == "manganato.com" || host.endsWith(".manganato.com") ||
             host == "manganelo.com" || host.endsWith(".manganelo.com") -> {
                 DeepLinkResult.MangaUrl(
-                    sourceId = "mangakakalot",
+                    baseUrl = "${uri.scheme ?: "https"}://$host",
                     mangaUrl = uri.toString(),
                     title = null
                 )
@@ -116,7 +118,7 @@ object DeepLinkHandler {
             
             host == "webtoons.com" || host.endsWith(".webtoons.com") -> {
                 DeepLinkResult.MangaUrl(
-                    sourceId = "webtoons",
+                    baseUrl = "${uri.scheme ?: "https"}://$host",
                     mangaUrl = uri.toString(),
                     title = null
                 )
