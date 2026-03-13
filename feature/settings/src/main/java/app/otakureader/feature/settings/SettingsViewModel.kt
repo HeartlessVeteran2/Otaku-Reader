@@ -292,28 +292,33 @@ class SettingsViewModel @Inject constructor(
 
     private fun observeReadingGoalPreferences() {
         viewModelScope.launch {
-            readingGoalPreferences.dailyChapterGoal
-                .combine(readingGoalPreferences.weeklyChapterGoal) { daily, weekly ->
-                    _state.value.copy(dailyChapterGoal = daily, weeklyChapterGoal = weekly)
+            combine(
+                readingGoalPreferences.dailyChapterGoal,
+                readingGoalPreferences.weeklyChapterGoal,
+                readingGoalPreferences.remindersEnabled,
+                readingGoalPreferences.reminderHour
+            ) { daily, weekly, enabled, hour ->
+                ReadingGoalState(daily, weekly, enabled, hour)
+            }.collect { goalState ->
+                _state.update { current ->
+                    current.copy(
+                        dailyChapterGoal = goalState.dailyGoal,
+                        weeklyChapterGoal = goalState.weeklyGoal,
+                        readingRemindersEnabled = goalState.remindersEnabled,
+                        readingReminderHour = goalState.reminderHour
+                    )
                 }
-                .combine(readingGoalPreferences.remindersEnabled) { state, enabled ->
-                    state.copy(readingRemindersEnabled = enabled)
-                }
-                .combine(readingGoalPreferences.reminderHour) { state, hour ->
-                    state.copy(readingReminderHour = hour)
-                }
-                .collect { newGoalState ->
-                    _state.update { current ->
-                        current.copy(
-                            dailyChapterGoal = newGoalState.dailyChapterGoal,
-                            weeklyChapterGoal = newGoalState.weeklyChapterGoal,
-                            readingRemindersEnabled = newGoalState.readingRemindersEnabled,
-                            readingReminderHour = newGoalState.readingReminderHour
-                        )
-                    }
-                }
+            }
         }
     }
+
+    /** Intermediate holder to avoid destructuring a 4-element array. */
+    private data class ReadingGoalState(
+        val dailyGoal: Int,
+        val weeklyGoal: Int,
+        val remindersEnabled: Boolean,
+        val reminderHour: Int
+    )
 
     private suspend fun handleSetReadingRemindersEnabled(enabled: Boolean) {
         readingGoalPreferences.setRemindersEnabled(enabled)

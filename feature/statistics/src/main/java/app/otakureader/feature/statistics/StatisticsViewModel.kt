@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
@@ -40,6 +40,7 @@ class StatisticsViewModel @Inject constructor(
         }
     }
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     private fun loadStats() {
         statsJob?.cancel()
         _state.update { it.copy(isLoading = true) }
@@ -47,24 +48,21 @@ class StatisticsViewModel @Inject constructor(
             readingGoalPreferences.dailyChapterGoal,
             readingGoalPreferences.weeklyChapterGoal
         ) { daily, weekly -> Pair(daily, weekly) }
-            .onEach { (dailyGoal, weeklyGoal) ->
-                getReadingStatsUseCase()
-                    .combine(
-                        statisticsRepository.getReadingGoalProgress(dailyGoal, weeklyGoal)
-                    ) { stats, goalProgress -> Pair(stats, goalProgress) }
-                    .catch { error ->
-                        _state.update { it.copy(isLoading = false, error = error.message) }
-                    }
-                    .collect { (stats, goalProgress) ->
-                        _state.update {
-                            it.copy(
-                                isLoading = false,
-                                stats = stats,
-                                readingGoal = goalProgress,
-                                error = null
-                            )
-                        }
-                    }
+            .flatMapLatest { (dailyGoal, weeklyGoal) ->
+                combine(
+                    getReadingStatsUseCase(),
+                    statisticsRepository.getReadingGoalProgress(dailyGoal, weeklyGoal)
+                ) { stats, goalProgress -> Triple(stats, goalProgress, Unit) }
+            }
+            .onEach { (stats, goalProgress, _) ->
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        stats = stats,
+                        readingGoal = goalProgress,
+                        error = null
+                    )
+                }
             }
             .catch { error ->
                 _state.update { it.copy(isLoading = false, error = error.message) }
