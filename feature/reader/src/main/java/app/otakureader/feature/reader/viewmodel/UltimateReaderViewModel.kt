@@ -694,10 +694,26 @@ class UltimateReaderViewModel @Inject constructor(
     /** Load Discord RPC preference once to avoid repeated DataStore reads. */
     private fun cacheDiscordPreference() {
         viewModelScope.launch {
-            try {
-                cachedDiscordRpcEnabled = generalPreferences.discordRpcEnabled.first()
-            } catch (_: Exception) {
-                cachedDiscordRpcEnabled = false
+            generalPreferences.discordRpcEnabled.collectLatest { enabled ->
+                cachedDiscordRpcEnabled = enabled
+
+                if (!enabled) {
+                    discordRpcService.clearReadingPresence(showBrowsing = false)
+                    return@collectLatest
+                }
+
+                val manga = currentManga
+                val chapter = currentChapter
+                val pages = _state.value.pages
+                if (manga != null && chapter != null) {
+                    val page = if (pages.isNotEmpty()) _state.value.currentPage + 1 else null
+                    updateDiscordPresence(
+                        mangaTitle = manga.title,
+                        chapterName = chapter.name,
+                        totalPages = pages.size,
+                        currentPage = page
+                    )
+                }
             }
         }
     }
