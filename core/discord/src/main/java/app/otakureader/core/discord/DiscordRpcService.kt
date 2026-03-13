@@ -12,9 +12,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.json.JSONObject
-import java.io.IOException
-import java.net.HttpURLConnection
-import java.net.URL
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -38,8 +35,13 @@ class DiscordRpcService @Inject constructor(
     private var sessionStartTime: Long = System.currentTimeMillis()
 
     /**
-     * Initialize the Discord RPC connection.
+     * Initialize the Discord RPC service.
      * Should be called when the app starts if Discord RPC is enabled.
+     *
+     * Note: The service currently validates that Discord is installed and stores
+     * activity state locally. Actual presence updates will be sent once a
+     * Discord mobile RPC transport (e.g., Gateway WebSocket or official SDK)
+     * is integrated.
      */
     fun initialize() {
         if (BuildConfig.DISCORD_APPLICATION_ID.isBlank()) return
@@ -47,7 +49,7 @@ class DiscordRpcService @Inject constructor(
             _connectionState.value = ConnectionState.Error("Discord is not installed")
             return
         }
-        _connectionState.value = ConnectionState.Connected
+        _connectionState.value = ConnectionState.Initialized
     }
 
     /**
@@ -130,9 +132,9 @@ class DiscordRpcService @Inject constructor(
     }
 
     /**
-     * Check if the service is connected to Discord.
+     * Check if the service is initialized and ready to track activity.
      */
-    fun isConnected(): Boolean = _connectionState.value == ConnectionState.Connected
+    fun isConnected(): Boolean = _connectionState.value == ConnectionState.Initialized
 
     /**
      * Build the JSON payload for a Discord activity update.
@@ -186,22 +188,17 @@ class DiscordRpcService @Inject constructor(
     }
 
     /**
-     * Send a presence update. This is a no-op placeholder that builds the payload
-     * and updates internal state. The actual Discord IPC transport requires either
-     * a companion desktop bridge or Discord's mobile SDK when it becomes available.
-     *
-     * Currently tracks the activity locally so other parts of the app can query it.
+     * Send a presence update. Currently stores the activity state locally and
+     * validates the payload format. The actual Discord IPC transport will be
+     * connected here once Discord's mobile RPC SDK or a WebSocket-based
+     * Gateway bridge is integrated.
      */
     private fun sendPresenceUpdate(activity: ReadingActivity) {
         if (BuildConfig.DISCORD_APPLICATION_ID.isBlank()) return
-        if (_connectionState.value != ConnectionState.Connected) return
+        if (_connectionState.value != ConnectionState.Initialized) return
 
         // Build the payload (validates format and keeps it ready for future transport)
         buildActivityPayload(activity)
-
-        // The presence data is stored in currentActivity and available via connectionState.
-        // When a transport mechanism is available (e.g., Discord's mobile RPC SDK),
-        // the payload will be sent here.
     }
 
     /**
@@ -259,7 +256,8 @@ enum class ReadingStatus {
  * Connection states for Discord RPC.
  */
 sealed class ConnectionState {
-    data object Connected : ConnectionState()
+    /** Service is initialized and tracking activity (transport pending). */
+    data object Initialized : ConnectionState()
     data object Disconnected : ConnectionState()
     data class Error(val message: String) : ConnectionState()
 }

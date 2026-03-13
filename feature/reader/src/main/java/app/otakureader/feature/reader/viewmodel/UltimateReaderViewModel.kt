@@ -67,6 +67,9 @@ class UltimateReaderViewModel @Inject constructor(
     private var cachedPreloadBefore: Int = ReaderSettingsRepository.DEFAULT_PRELOAD_PAGES
     private var cachedPreloadAfter: Int = ReaderSettingsRepository.DEFAULT_PRELOAD_PAGES
 
+    /** Cached Discord RPC enabled state, loaded once to avoid DataStore reads on every page change. */
+    private var cachedDiscordRpcEnabled: Boolean = false
+
     private var autoSaveJob: Job? = null
     private var preloadJob: Job? = null
 
@@ -78,6 +81,7 @@ class UltimateReaderViewModel @Inject constructor(
     init {
         loadSettings()
         loadChapter()
+        cacheDiscordPreference()
     }
 
     private fun recordHistoryOpen() {
@@ -666,7 +670,7 @@ class UltimateReaderViewModel @Inject constructor(
 
     /**
      * Update Discord Rich Presence if the feature is enabled.
-     * Fails silently if Discord is not available.
+     * Uses the cached preference value to avoid DataStore reads on every call.
      */
     private fun updateDiscordPresence(
         mangaTitle: String,
@@ -674,20 +678,24 @@ class UltimateReaderViewModel @Inject constructor(
         totalPages: Int,
         currentPage: Int? = null
     ) {
+        if (!cachedDiscordRpcEnabled) return
+        discordRpcService.resetSessionTimer()
+        discordRpcService.updateReadingPresence(
+            mangaTitle = mangaTitle,
+            chapterName = chapterName,
+            status = ReadingStatus.READING,
+            page = currentPage,
+            totalPages = totalPages
+        )
+    }
+
+    /** Load Discord RPC preference once to avoid repeated DataStore reads. */
+    private fun cacheDiscordPreference() {
         viewModelScope.launch {
             try {
-                if (generalPreferences.discordRpcEnabled.first()) {
-                    discordRpcService.resetSessionTimer()
-                    discordRpcService.updateReadingPresence(
-                        mangaTitle = mangaTitle,
-                        chapterName = chapterName,
-                        status = ReadingStatus.READING,
-                        page = currentPage,
-                        totalPages = totalPages
-                    )
-                }
+                cachedDiscordRpcEnabled = generalPreferences.discordRpcEnabled.first()
             } catch (_: Exception) {
-                // Fail silently – Discord RPC is best-effort
+                cachedDiscordRpcEnabled = false
             }
         }
     }

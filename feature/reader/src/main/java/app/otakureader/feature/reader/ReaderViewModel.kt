@@ -42,11 +42,15 @@ class ReaderViewModel @Inject constructor(
 
     private val sessionStartMs = System.currentTimeMillis()
 
+    /** Cached Discord RPC enabled state, loaded once to avoid DataStore reads on every page change. */
+    private var cachedDiscordRpcEnabled: Boolean = false
+
     /** Independent scope used for cleanup work that must survive viewModelScope cancellation. */
     private val cleanupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     init {
         loadChapter()
+        cacheDiscordPreference()
     }
 
     private fun loadChapter() {
@@ -147,7 +151,7 @@ class ReaderViewModel @Inject constructor(
 
     /**
      * Update Discord Rich Presence if the feature is enabled.
-     * Fails silently if Discord is not available.
+     * Uses the cached preference value to avoid DataStore reads on every call.
      */
     private fun updateDiscordPresence(
         mangaTitle: String,
@@ -155,19 +159,23 @@ class ReaderViewModel @Inject constructor(
         totalPages: Int? = null,
         currentPage: Int? = null
     ) {
+        if (!cachedDiscordRpcEnabled) return
+        discordRpcService.updateReadingPresence(
+            mangaTitle = mangaTitle,
+            chapterName = chapterName,
+            status = ReadingStatus.READING,
+            page = currentPage,
+            totalPages = totalPages
+        )
+    }
+
+    /** Load Discord RPC preference once to avoid repeated DataStore reads. */
+    private fun cacheDiscordPreference() {
         viewModelScope.launch {
             try {
-                if (generalPreferences.discordRpcEnabled.first()) {
-                    discordRpcService.updateReadingPresence(
-                        mangaTitle = mangaTitle,
-                        chapterName = chapterName,
-                        status = ReadingStatus.READING,
-                        page = currentPage,
-                        totalPages = totalPages
-                    )
-                }
+                cachedDiscordRpcEnabled = generalPreferences.discordRpcEnabled.first()
             } catch (_: Exception) {
-                // Fail silently – Discord RPC is best-effort
+                cachedDiscordRpcEnabled = false
             }
         }
     }
