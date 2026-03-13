@@ -5,8 +5,12 @@ import app.otakureader.core.database.dao.ReadingHistoryDao
 import app.otakureader.domain.model.ReadingGoal
 import app.otakureader.domain.model.ReadingStats
 import app.otakureader.domain.repository.StatisticsRepository
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
@@ -121,23 +125,59 @@ class StatisticsRepositoryImpl @Inject constructor(
         return counts
     }
 
-    override fun getReadingGoalProgress(dailyGoal: Int, weeklyGoal: Int): Flow<ReadingGoal> {
-        val zone = ZoneId.systemDefault()
+    /**
+     * Returns a Flow that emits the start-of-day and start-of-week timestamps (in millis)
+     * for the current date in the given time zone, and updates them whenever the local
+     * day changes (i.e., at midnight).
+     */
+    private fun createDailyWeeklyAnchorFlow(zone: ZoneId): Flow<Pair<Long, Long>> = flow {
+        // Emit initial anchors immediately.
+        emit(computeDailyWeeklyAnchors(zone))
+
+        while (true) {
+            val nowInstant = Instant.now()
+            val nowZoned = nowInstant.atZone(zone)
+            val nextMidnightZoned = nowZoned.toLocalDate()
+                .plusDays(1)
+                .atStartOfDay(zone)
+            val nextMidnightMillis = nextMidnightZoned.toInstant().toEpochMilli()
+            val nowMillis = nowInstant.toEpochMilli()
+            val delayMillis = nextMidnightMillis - nowMillis
+
+            if (delayMillis > 0) {
+                delay(delayMillis)
+            }
+
+            emit(computeDailyWeeklyAnchors(zone))
+        }
+    }.distinctUntilChanged()
+
+    private fun computeDailyWeeklyAnchors(zone: ZoneId): Pair<Long, Long> {
         val today = LocalDate.now(zone)
         val startOfDayMs = today.atStartOfDay(zone).toInstant().toEpochMilli()
-        val startOfWeekMs = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-            .atStartOfDay(zone).toInstant().toEpochMilli()
+        val startOfWeekMs = today
+            .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+            .atStartOfDay(zone)
+            .toInstant()
+            .toEpochMilli()
+        return startOfDayMs to startOfWeekMs
+    }
 
-        return combine(
-            readingHistoryDao.getChaptersReadSince(startOfDayMs),
-            readingHistoryDao.getChaptersReadSince(startOfWeekMs)
-        ) { dailyProgress, weeklyProgress ->
-            ReadingGoal(
-                dailyGoal = dailyGoal,
-                dailyProgress = dailyProgress,
-                weeklyGoal = weeklyGoal,
-                weeklyProgress = weeklyProgress
-            )
+    override fun getReadingGoalProgress(dailyGoal: Int, weeklyGoal: Int): Flow<ReadingGoal> {
+        val zone = ZoneId.systemDefault()
+
+        return createDailyWeeklyAnchorFlow(zone).flatMapLatest { (startOfDayMs, startOfWeekMs) ->
+            combine(
+                readingHistoryDao.getChaptersReadSince(startOfDayMs),
+                readingHistoryDao.getChaptersReadSince(startOfWeekMs)
+            ) { dailyProgress, weeklyProgress ->
+                ReadingGoal(
+                    dailyGoal = dailyGoal,
+                    dailyProgress = dailyProgress,
+                    weeklyGoal = weeklyGoal,
+                    weeklyProgress = weeklyProgress
+                )
+            }
         }
     }
 
