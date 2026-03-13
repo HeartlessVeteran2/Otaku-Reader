@@ -40,7 +40,6 @@ class StatisticsViewModel @Inject constructor(
         }
     }
 
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     private fun loadStats() {
         statsJob?.cancel()
         _state.update { it.copy(isLoading = true) }
