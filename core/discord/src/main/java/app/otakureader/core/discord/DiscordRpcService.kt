@@ -106,6 +106,8 @@ class DiscordRpcService @Inject constructor(
         currentActivity = null
         if (showBrowsing) {
             updateBrowsingPresence()
+        } else {
+            disconnect()
         }
     }
 
