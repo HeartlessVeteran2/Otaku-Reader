@@ -18,9 +18,13 @@ import javax.inject.Singleton
 /**
  * Service for managing Discord Rich Presence integration.
  *
- * Uses a self-contained HTTP-based approach to communicate with
- * Discord's local RPC server when available. Falls back gracefully
- * when Discord is not installed or not running.
+ * This service is currently responsible for validating Discord
+ * availability and tracking Rich Presence activity state locally.
+ * It does not perform any network or IPC communication yet; a
+ * concrete Discord RPC transport (e.g., WebSocket/Gateway or
+ * official mobile SDK) will be integrated separately. When
+ * Discord is not installed or not running, the service falls
+ * back gracefully by remaining in a disconnected or error state.
  */
 @Singleton
 class DiscordRpcService @Inject constructor(
