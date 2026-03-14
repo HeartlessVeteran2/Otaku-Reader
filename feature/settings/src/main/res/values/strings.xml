@@ -90,7 +90,7 @@
     <string name="settings_goals_disabled">Disabled</string>
     <string name="settings_goals_chapters_per_day">%1$d chapter(s)/day</string>
     <string name="settings_weekly_chapter_goal">Weekly Chapter Goal</string>
-    <string name="settings_goals_chapters_per_week">%1$d chapters/week</string>
+    <string name="settings_goals_chapters_per_week">%1$d chapter(s)/week</string>
     <string name="settings_reading_reminders">Reading Reminders</string>
     <string name="settings_reading_reminders_description">Get a daily reminder to read</string>
     <string name="settings_reminder_time">Reminder Time</string>
