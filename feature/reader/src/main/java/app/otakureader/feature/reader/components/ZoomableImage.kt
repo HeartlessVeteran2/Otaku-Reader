@@ -167,6 +167,7 @@ fun ZoomableImage(
                 if (cropBordersEnabled) {
                     builder.transformations(CropBorderTransformation())
                 }
+
                 builder.build()
             }
             val renderFilterQuality = when (imageQuality) {
