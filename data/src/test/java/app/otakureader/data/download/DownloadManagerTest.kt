@@ -3,6 +3,7 @@ package app.otakureader.data.download
 import android.content.Context
 import app.otakureader.core.preferences.DownloadPreferences
 import app.otakureader.domain.model.DownloadStatus
+import app.otakureader.domain.model.DownloadPriority
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -406,4 +407,114 @@ class DownloadManagerTest {
         assertEquals(1, downloads.size)
         assertEquals(DownloadStatus.QUEUED, downloads[0].status)
     }
+
+    // -------------------------------------------------------------------------
+    // Prioritization Tests
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `enqueue respects explicit priority from request`() = runTest(testDispatcher) {
+        // When
+        downloadManager.enqueue(testRequest.copy(chapterId = 1L, priority = -50))
+        advanceUntilIdle()
+
+        // Then
+        val downloads = downloadManager.downloads.first()
+        assertEquals(1, downloads.size)
+        assertEquals(-50, downloads[0].priority)
+    }
+
+    @Test
+    fun `prioritize moves item ahead of normal-priority items`() = runTest(testDispatcher) {
+        // Given - two chapters with default priority
+        val request1 = testRequest.copy(chapterId = 10L, chapterTitle = "Chapter 10", pageUrls = emptyList())
+        val request2 = testRequest.copy(chapterId = 20L, chapterTitle = "Chapter 20", pageUrls = emptyList())
+
+        downloadManager.enqueue(request1)
+        downloadManager.enqueue(request2)
+        advanceUntilIdle()
+
+        // When - prioritize the second chapter
+        downloadManager.prioritize(20L)
+        advanceUntilIdle()
+
+        // Then - chapter 20 should appear first (lower priority value)
+        val downloads = downloadManager.downloads.first()
+        assertEquals(2, downloads.size)
+        assertEquals(20L, downloads[0].chapterId)
+        assertTrue(downloads[0].priority < downloads[1].priority)
+    }
+
+    @Test
+    fun `prioritize on non-existent chapter is a no-op`() = runTest(testDispatcher) {
+        // Given
+        downloadManager.enqueue(testRequest)
+        advanceUntilIdle()
+        val before = downloadManager.downloads.first()
+
+        // When
+        downloadManager.prioritize(999L)
+        advanceUntilIdle()
+
+        // Then - queue unchanged
+        val after = downloadManager.downloads.first()
+        assertEquals(before.size, after.size)
+        assertEquals(before[0].priority, after[0].priority)
+    }
+
+    @Test
+    fun `reorder sets explicit priority on queued item`() = runTest(testDispatcher) {
+        // Given
+        val emptyRequest = testRequest.copy(pageUrls = emptyList())
+        downloadManager.enqueue(emptyRequest)
+        advanceUntilIdle()
+
+        // When
+        downloadManager.reorder(testRequest.chapterId, 42)
+        advanceUntilIdle()
+
+        // Then
+        val downloads = downloadManager.downloads.first()
+        assertEquals(1, downloads.size)
+        assertEquals(42, downloads[0].priority)
+    }
+
+    @Test
+    fun `downloads list is sorted by priority ascending`() = runTest(testDispatcher) {
+        // Given - three chapters with different priorities, all with empty pages to stay QUEUED
+        val low = testRequest.copy(chapterId = 1L, pageUrls = emptyList(), priority = 100)
+        val high = testRequest.copy(chapterId = 2L, pageUrls = emptyList(), priority = -100)
+        val normal = testRequest.copy(chapterId = 3L, pageUrls = emptyList(), priority = 0)
+
+        // Enqueue in low → normal → high priority order
+        downloadManager.enqueue(low)
+        downloadManager.enqueue(normal)
+        downloadManager.enqueue(high)
+        advanceUntilIdle()
+
+        // Then - emitted list should be sorted: high (-100), normal (0), low (100)
+        val downloads = downloadManager.downloads.first()
+        assertEquals(3, downloads.size)
+        assertEquals(2L, downloads[0].chapterId) // priority -100
+        assertEquals(3L, downloads[1].chapterId) // priority 0
+        assertEquals(1L, downloads[2].chapterId) // priority 100
+    }
+
+    @Test
+    fun `equal-priority items maintain FIFO insertion order`() = runTest(testDispatcher) {
+        // Given - three chapters all with default priority and no pages (stay QUEUED)
+        val r1 = testRequest.copy(chapterId = 1L, pageUrls = emptyList())
+        val r2 = testRequest.copy(chapterId = 2L, pageUrls = emptyList())
+        val r3 = testRequest.copy(chapterId = 3L, pageUrls = emptyList())
+
+        downloadManager.enqueue(r1)
+        downloadManager.enqueue(r2)
+        downloadManager.enqueue(r3)
+        advanceUntilIdle()
+
+        // Then - insertion order preserved for equal priorities
+        val downloads = downloadManager.downloads.first()
+        assertEquals(listOf(1L, 2L, 3L), downloads.map { it.chapterId })
+    }
 }
+

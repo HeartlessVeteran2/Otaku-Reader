@@ -18,10 +18,14 @@ sealed interface DownloadsEvent : UiEvent {
     data class Pause(val id: Long) : DownloadsEvent
     data class Resume(val id: Long) : DownloadsEvent
     data class Cancel(val id: Long) : DownloadsEvent
+    /** Move the given item to the front of the download queue. */
+    data class Prioritize(val id: Long) : DownloadsEvent
     data object ClearAll : DownloadsEvent
     data object ClearSelection : DownloadsEvent
     data object SelectAll : DownloadsEvent
     data object PauseSelected : DownloadsEvent
     data object ResumeSelected : DownloadsEvent
     data object CancelSelected : DownloadsEvent
+    /** Move all selected items to the front of the download queue. */
+    data object PrioritizeSelected : DownloadsEvent
 }

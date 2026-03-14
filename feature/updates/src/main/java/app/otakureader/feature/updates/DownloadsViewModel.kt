@@ -45,6 +45,10 @@ class DownloadsViewModel @Inject constructor(
                 downloadRepository.cancelDownload(event.id)
             }
 
+            is DownloadsEvent.Prioritize -> viewModelScope.launch {
+                downloadRepository.prioritizeDownload(event.id)
+            }
+
             DownloadsEvent.ClearAll -> viewModelScope.launch {
                 downloadRepository.clearAll()
             }
@@ -54,6 +58,7 @@ class DownloadsViewModel @Inject constructor(
             DownloadsEvent.PauseSelected -> pauseSelected()
             DownloadsEvent.ResumeSelected -> resumeSelected()
             DownloadsEvent.CancelSelected -> cancelSelected()
+            DownloadsEvent.PrioritizeSelected -> prioritizeSelected()
         }
     }
 
@@ -112,6 +117,14 @@ class DownloadsViewModel @Inject constructor(
             selectedIds.forEach { id ->
                 downloadRepository.cancelDownload(id)
             }
+            clearSelection()
+        }
+    }
+
+    private fun prioritizeSelected() {
+        viewModelScope.launch {
+            val selectedIds = _state.value.selectedItems
+            downloadRepository.prioritizeDownloads(selectedIds)
             clearSelection()
         }
     }
