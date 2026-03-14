@@ -36,6 +36,7 @@ fun SinglePageReader(
     rotation: Float = 0f,
     cropBordersEnabled: Boolean = false,
     imageQuality: ImageQuality = ImageQuality.ORIGINAL,
+    dataSaverEnabled: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val pagerState = rememberPagerState(
@@ -78,6 +79,7 @@ fun SinglePageReader(
                 rotation = rotation,
                 cropBordersEnabled = cropBordersEnabled,
                 imageQuality = imageQuality,
+                dataSaverEnabled = dataSaverEnabled,
                 onTap = onTap,
                 onDoubleTap = onDoubleTap,
                 onZoomChange = onZoomChange,

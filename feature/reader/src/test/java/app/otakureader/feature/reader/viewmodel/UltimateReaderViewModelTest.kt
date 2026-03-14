@@ -82,6 +82,7 @@ class UltimateReaderViewModelTest {
         every { settingsRepository.preloadPagesAfter } returns flowOf(ReaderSettingsRepository.DEFAULT_PRELOAD_PAGES)
         every { settingsRepository.cropBordersEnabled } returns flowOf(false)
         every { settingsRepository.imageQuality } returns flowOf(ImageQuality.ORIGINAL)
+        every { settingsRepository.dataSaverEnabled } returns flowOf(false)
 
         // Return null for chapter/manga so loadChapter() exits early without side-effects.
         coEvery { chapterRepository.getChapterById(chapterId) } returns null

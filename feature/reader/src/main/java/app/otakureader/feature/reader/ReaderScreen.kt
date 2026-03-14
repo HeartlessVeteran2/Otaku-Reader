@@ -350,10 +350,11 @@ private fun ReaderContent(
                     rotation = state.pageRotation.degrees,
                     cropBordersEnabled = state.cropBordersEnabled,
                     imageQuality = state.imageQuality,
+                    dataSaverEnabled = state.dataSaverEnabled,
                     modifier = Modifier.fillMaxSize()
                 )
             }
-            
+
             ReaderMode.DUAL_PAGE -> {
                 DualPageReader(
                     pages = state.pages,
@@ -364,10 +365,11 @@ private fun ReaderContent(
                     rotation = state.pageRotation.degrees,
                     cropBordersEnabled = state.cropBordersEnabled,
                     imageQuality = state.imageQuality,
+                    dataSaverEnabled = state.dataSaverEnabled,
                     modifier = Modifier.fillMaxSize()
                 )
             }
-            
+
             ReaderMode.WEBTOON -> {
                 WebtoonReader(
                     pages = state.pages,
@@ -377,10 +379,11 @@ private fun ReaderContent(
                     rotation = state.pageRotation.degrees,
                     cropBordersEnabled = state.cropBordersEnabled,
                     imageQuality = state.imageQuality,
+                    dataSaverEnabled = state.dataSaverEnabled,
                     modifier = Modifier.fillMaxSize()
                 )
             }
-            
+
             ReaderMode.SMART_PANELS -> {
                 SmartPanelsReader(
                     pages = state.pages,
@@ -392,6 +395,7 @@ private fun ReaderContent(
                     rotation = state.pageRotation.degrees,
                     cropBordersEnabled = state.cropBordersEnabled,
                     imageQuality = state.imageQuality,
+                    dataSaverEnabled = state.dataSaverEnabled,
                     modifier = Modifier.fillMaxSize()
                 )
             }

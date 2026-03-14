@@ -38,7 +38,7 @@ class ReadingBehaviorTracker @Inject constructor() {
             }
 
             // Update behavior profile if we have enough data
-            if (navigationHistory.size >= MIN_SAMPLE_SIZE) {
+            if (navigationHistory.size >= ReadingBehavior.MIN_SAMPLE_SIZE) {
                 updateBehaviorProfile()
             }
         }
@@ -164,8 +164,5 @@ class ReadingBehaviorTracker @Inject constructor() {
     companion object {
         /** Maximum number of navigation events to keep in history. */
         private const val MAX_HISTORY_SIZE = 500
-
-        /** Minimum number of events needed to compute meaningful statistics. */
-        private const val MIN_SAMPLE_SIZE = 50
     }
 }

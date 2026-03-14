@@ -272,6 +272,17 @@ class ReaderSettingsRepository @Inject constructor(
         dataStore.edit { it[Keys.IMAGE_QUALITY] = quality.ordinal }
     }
 
+    // ==================== Data Saver Mode ====================
+
+    /** Whether data saver mode is enabled to reduce image quality and bandwidth usage. */
+    val dataSaverEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.DATA_SAVER_ENABLED] ?: false
+    }
+
+    suspend fun setDataSaverEnabled(enabled: Boolean) {
+        dataStore.edit { it[Keys.DATA_SAVER_ENABLED] = enabled }
+    }
+
     private object Keys {
         val READER_MODE = intPreferencesKey("reader_mode_setting")
         val BRIGHTNESS = floatPreferencesKey("reader_brightness")
@@ -299,6 +310,7 @@ class ReaderSettingsRepository @Inject constructor(
         val PREFETCH_ONLY_ON_WIFI = booleanPreferencesKey("reader_prefetch_only_on_wifi")
         val CROP_BORDERS_ENABLED = booleanPreferencesKey("reader_crop_borders_enabled")
         val IMAGE_QUALITY = intPreferencesKey("reader_image_quality")
+        val DATA_SAVER_ENABLED = booleanPreferencesKey("reader_data_saver_enabled")
     }
     
     companion object {

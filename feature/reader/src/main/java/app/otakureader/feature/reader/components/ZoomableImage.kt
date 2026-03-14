@@ -43,6 +43,9 @@ import kotlinx.coroutines.launch
 import kotlin.math.max
 import kotlin.math.min
 
+/** Maximum decode dimension (px) when Data Saver mode is enabled. */
+private const val DATA_SAVER_MAX_DIMENSION = 800
+
 /**
  * Perfect zoom/pan implementation with butter smooth performance
  * Features: Pinch zoom, pan when zoomed, double tap zoom, fling gestures
@@ -60,6 +63,7 @@ fun ZoomableImage(
     rotation: Float = 0f,
     cropBordersEnabled: Boolean = false,
     imageQuality: ImageQuality = ImageQuality.ORIGINAL,
+    dataSaverEnabled: Boolean = false,
     onDoubleTap: ((Offset) -> Unit)? = null,
     onTap: ((Offset) -> Unit)? = null,
     onZoomChange: ((Float) -> Unit)? = null,
@@ -147,17 +151,21 @@ fun ZoomableImage(
     ) {
         if (imageUrl != null) {
             val context = LocalContext.current
-            val imageModel = remember(imageUrl, cropBordersEnabled, imageQuality, context) {
+            val imageModel = remember(imageUrl, cropBordersEnabled, imageQuality, dataSaverEnabled, context) {
                 val builder = ImageRequest.Builder(context).data(imageUrl)
-                if (cropBordersEnabled) {
-                    builder.transformations(CropBorderTransformation())
-                }
-                // Coil fits the image into the given box (ContentScale.Fit semantics),
-                // so equal width and height effectively cap the longer side at that value.
+                // imageQuality caps by explicit pixel budget; dataSaverEnabled is a fallback cap
+                // when quality is ORIGINAL.
                 if (imageQuality.pixels != null) {
+                    // Coil fits the image into the given box (ContentScale.Fit semantics),
+                    // so equal width and height effectively cap the longer side at that value.
                     builder.size(imageQuality.pixels, imageQuality.pixels)
+                } else if (dataSaverEnabled) {
+                    builder.size(DATA_SAVER_MAX_DIMENSION).scale(coil3.size.Scale.FIT)
                 } else {
                     builder.size(Size.ORIGINAL)
+                }
+                if (cropBordersEnabled) {
+                    builder.transformations(CropBorderTransformation())
                 }
                 builder.build()
             }

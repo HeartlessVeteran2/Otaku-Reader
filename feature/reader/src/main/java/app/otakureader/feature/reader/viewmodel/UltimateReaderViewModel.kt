@@ -173,6 +173,13 @@ class UltimateReaderViewModel @Inject constructor(
             } catch (_: Exception) {
                 ImageQuality.ORIGINAL
             }
+            val dataSaverEnabled = try {
+                settingsRepository.dataSaverEnabled.first()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                false
+            }
             val showReadingTimer = false
             val showBatteryTime = false
 
@@ -251,7 +258,8 @@ class UltimateReaderViewModel @Inject constructor(
                     showReadingTimer = showReadingTimer,
                     showBatteryTime = showBatteryTime,
                     cropBordersEnabled = cropBordersEnabled,
-                    imageQuality = imageQuality
+                    imageQuality = imageQuality,
+                    dataSaverEnabled = dataSaverEnabled
                 )
             }
         }

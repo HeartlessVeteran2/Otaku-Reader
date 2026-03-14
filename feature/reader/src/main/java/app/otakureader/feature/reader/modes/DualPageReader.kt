@@ -40,6 +40,7 @@ fun DualPageReader(
     rotation: Float = 0f,
     cropBordersEnabled: Boolean = false,
     imageQuality: ImageQuality = ImageQuality.ORIGINAL,
+    dataSaverEnabled: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     // Calculate spread indices (every 2 pages form a spread)
@@ -108,6 +109,7 @@ fun DualPageReader(
                             rotation = rotation,
                             cropBordersEnabled = cropBordersEnabled,
                             imageQuality = imageQuality,
+                            dataSaverEnabled = dataSaverEnabled,
                             onTap = onTap,
                             modifier = Modifier.fillMaxSize()
                         )
@@ -136,6 +138,7 @@ fun DualPageReader(
                             rotation = rotation,
                             cropBordersEnabled = cropBordersEnabled,
                             imageQuality = imageQuality,
+                            dataSaverEnabled = dataSaverEnabled,
                             onTap = onTap,
                             modifier = Modifier.fillMaxSize()
                         )

@@ -114,7 +114,10 @@ data class ReaderState(
     val cropBordersEnabled: Boolean = false,
 
     /** Image quality level for page rendering (controls decode size and filter quality). */
-    val imageQuality: ImageQuality = ImageQuality.ORIGINAL
+    val imageQuality: ImageQuality = ImageQuality.ORIGINAL,
+
+    /** Whether data saver mode is enabled to reduce image quality and bandwidth usage */
+    val dataSaverEnabled: Boolean = false
 ) {
     /** Total pages in chapter (derived from pages.size) */
     val totalPages: Int get() = pages.size

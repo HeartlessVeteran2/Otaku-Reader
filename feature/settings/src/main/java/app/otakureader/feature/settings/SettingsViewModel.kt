@@ -113,6 +113,8 @@ class SettingsViewModel @Inject constructor(
                 state.copy(cropBordersEnabled = cropBorders)
             }.combine(readerSettingsRepository.imageQuality) { state, imageQuality ->
                 state.copy(imageQuality = imageQuality.ordinal)
+            }.combine(readerSettingsRepository.dataSaverEnabled) { state, dataSaver ->
+                state.copy(dataSaverEnabled = dataSaver)
             }.combine(downloadPreferences.autoDownloadEnabled) { state, autoDownloadEnabled ->
                 state.copy(autoDownloadEnabled = autoDownloadEnabled)
             }.combine(downloadPreferences.downloadOnlyOnWifi) { state, downloadOnlyOnWifi ->
@@ -205,6 +207,7 @@ class SettingsViewModel @Inject constructor(
                     val quality = ImageQuality.entries.getOrNull(event.quality) ?: ImageQuality.ORIGINAL
                     readerSettingsRepository.setImageQuality(quality)
                 }
+                is SettingsEvent.SetDataSaverEnabled -> readerSettingsRepository.setDataSaverEnabled(event.enabled)
                 is SettingsEvent.SetDeleteAfterReading -> downloadPreferences.setDeleteAfterReading(event.enabled)
                 is SettingsEvent.SetAutoDownloadEnabled -> downloadPreferences.setAutoDownloadEnabled(event.enabled)
                 is SettingsEvent.SetDownloadOnlyOnWifi -> downloadPreferences.setDownloadOnlyOnWifi(event.enabled)
