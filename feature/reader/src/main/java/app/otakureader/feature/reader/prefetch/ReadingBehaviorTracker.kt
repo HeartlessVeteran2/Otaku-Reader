@@ -117,10 +117,13 @@ class ReadingBehaviorTracker @Inject constructor() {
                 // Consider completed if reached within last 3 pages
                 // We don't have total pages here, so we use a heuristic:
                 // if the highest page reached is significantly higher than average
-                val maxPage = events.maxOfOrNull { it.toPage } ?: 0
-                val avgPage = events.map { it.toPage }.average()
+                val maxPage = events.maxOfOrNull { maxOf(it.fromPage, it.toPage) } ?: 0
+                val minPage = events.minOfOrNull { minOf(it.fromPage, it.toPage) } ?: 0
+                val lastVisitedPage = lastEvent.toPage
 
-                if (maxPage >= avgPage + 10) {
+                // Consider completed when the reader finishes near the furthest page reached
+                // and has meaningfully progressed through the chapter.
+                if ((maxPage - minPage) >= 3 && lastVisitedPage >= (maxPage - 3)) {
                     completedChapters++
                 }
             }
