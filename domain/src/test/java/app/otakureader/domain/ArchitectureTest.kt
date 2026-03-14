@@ -55,8 +55,10 @@ class ArchitectureTest {
     }
 
     /**
-     * Verifies that domain models are serializable data classes.
-     * This ensures they can be easily converted to/from JSON and persisted.
+     * Verifies that the domain model package exists in the expected location.
+     *
+     * This enforces that domain models live under `app.otakureader.domain.model`
+     * to keep the domain layer structure consistent and discoverable.
      */
     @Test
     fun `domain models should be in model package`() {
