@@ -27,12 +27,12 @@ import javax.inject.Singleton
 @Singleton
 class SmartPrefetchManager @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val imageLoader: ImageLoader,
-    private val behaviorTracker: ReadingBehaviorTracker
+    private val imageLoader: ImageLoader
 ) {
 
     // Current prefetch job
     private var prefetchJob: Job? = null
+
 
     // Pages that have been prefetched (URL -> timestamp)
     private val prefetchedPages = mutableMapOf<String, Long>()
