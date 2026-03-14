@@ -55,6 +55,9 @@ glance = "1.1.1"
 # Discord
 # Discord RPC is implemented natively in core/discord; no external library needed.
 
+# AI
+generativeai = "0.9.0"
+
 # Testing
 junit = "4.13.2"
 junit5 = "5.11.0"
@@ -145,6 +148,9 @@ workmanager-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.
 # Glance (widgets)
 glance = { group = "androidx.glance", name = "glance-appwidget", version.ref = "glance" }
 glance-material3 = { group = "androidx.glance", name = "glance-material3", version.ref = "glance" }
+
+# AI
+generativeai = { group = "com.google.ai.client.generativeai", name = "generativeai", version.ref = "generativeai" }
 
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }
