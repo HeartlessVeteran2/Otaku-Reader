@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
@@ -27,6 +28,23 @@ class SyncPreferences(private val dataStore: DataStore<Preferences>) {
     val deviceId: Flow<String?> = dataStore.data.map { prefs ->
         prefs[Keys.DEVICE_ID]
     }
+
+    /**
+     * Conflict resolution strategy as integer ordinal.
+     * 0 = PREFER_NEWER (default)
+     * 1 = PREFER_LOCAL
+     * 2 = PREFER_REMOTE
+     * 3 = MERGE
+     */
+    val conflictResolutionStrategyOrdinal: Flow<Int> = dataStore.data.map { prefs ->
+        prefs[Keys.CONFLICT_STRATEGY] ?: 0 // Default to PREFER_NEWER
+    }
+
+    val autoSyncEnabled: Flow<Boolean> = dataStore.data.map { it[Keys.AUTO_SYNC_ENABLED] ?: false }
+
+    val syncIntervalHours: Flow<Int> = dataStore.data.map { it[Keys.SYNC_INTERVAL_HOURS] ?: 24 }
+
+    val syncOnlyOnWifi: Flow<Boolean> = dataStore.data.map { it[Keys.SYNC_ONLY_WIFI] ?: true }
 
     suspend fun setSyncEnabled(enabled: Boolean) {
         dataStore.edit { prefs ->
@@ -54,6 +72,32 @@ class SyncPreferences(private val dataStore: DataStore<Preferences>) {
         }
     }
 
+    suspend fun setConflictResolutionStrategyOrdinal(ordinal: Int) {
+        val clamped = ordinal.coerceAtLeast(0)
+        dataStore.edit { prefs ->
+            prefs[Keys.CONFLICT_STRATEGY] = clamped
+        }
+    }
+
+    suspend fun setAutoSyncEnabled(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.AUTO_SYNC_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setSyncIntervalHours(hours: Int) {
+        val clamped = hours.coerceAtLeast(1)
+        dataStore.edit { prefs ->
+            prefs[Keys.SYNC_INTERVAL_HOURS] = clamped
+        }
+    }
+
+    suspend fun setSyncOnlyOnWifi(onlyWifi: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.SYNC_ONLY_WIFI] = onlyWifi
+        }
+    }
+
     suspend fun getOrCreateDeviceId(): String {
         val existing = deviceId.first()
         if (existing != null) return existing
@@ -77,5 +121,9 @@ class SyncPreferences(private val dataStore: DataStore<Preferences>) {
         val PROVIDER_ID = stringPreferencesKey("sync_provider_id")
         val LAST_SYNC_TIME = longPreferencesKey("sync_last_sync_time")
         val DEVICE_ID = stringPreferencesKey("sync_device_id")
+        val CONFLICT_STRATEGY = intPreferencesKey("sync_conflict_strategy")
+        val AUTO_SYNC_ENABLED = booleanPreferencesKey("sync_auto_enabled")
+        val SYNC_INTERVAL_HOURS = intPreferencesKey("sync_interval_hours")
+        val SYNC_ONLY_WIFI = booleanPreferencesKey("sync_only_wifi")
     }
 }

@@ -12,6 +12,14 @@ data class TrackerInfo(
     val isLoggedIn: Boolean
 )
 
+enum class SyncStatus {
+    DISABLED,
+    IDLE,
+    SYNCING,
+    SUCCESS,
+    ERROR
+}
+
 data class SettingsState(
     val themeMode: Int = 0,            // 0=system, 1=light, 2=dark
     val useDynamicColor: Boolean = true,
@@ -72,7 +80,17 @@ data class SettingsState(
     val dailyChapterGoal: Int = 0,
     val weeklyChapterGoal: Int = 0,
     val readingRemindersEnabled: Boolean = false,
-    val readingReminderHour: Int = 20
+    val readingReminderHour: Int = 20,
+    // --- Cloud Sync ---
+    val syncEnabled: Boolean = false,
+    val syncProviderId: String? = null,
+    val syncProviderName: String? = null,
+    val lastSyncTime: Long? = null,
+    val syncStatus: SyncStatus = SyncStatus.IDLE,
+    val autoSyncEnabled: Boolean = false,
+    val syncIntervalHours: Int = 24,
+    val syncOnlyOnWifi: Boolean = true,
+    val conflictResolutionStrategy: Int = 0 // 0=PREFER_NEWER, 1=PREFER_LOCAL, 2=PREFER_REMOTE, 3=MERGE
 ) : UiState
 
 sealed interface SettingsEvent : UiEvent {
@@ -134,6 +152,13 @@ sealed interface SettingsEvent : UiEvent {
     data class SetWeeklyChapterGoal(val goal: Int) : SettingsEvent
     data class SetReadingRemindersEnabled(val enabled: Boolean) : SettingsEvent
     data class SetReadingReminderHour(val hour: Int) : SettingsEvent
+    // --- Cloud Sync ---
+    data class SetSyncEnabled(val enabled: Boolean, val providerId: String?) : SettingsEvent
+    data object TriggerManualSync : SettingsEvent
+    data class SetAutoSyncEnabled(val enabled: Boolean) : SettingsEvent
+    data class SetSyncIntervalHours(val hours: Int) : SettingsEvent
+    data class SetSyncOnlyOnWifi(val onlyWifi: Boolean) : SettingsEvent
+    data class SetConflictResolutionStrategy(val strategy: Int) : SettingsEvent
 }
 
 sealed interface SettingsEffect : UiEffect {
