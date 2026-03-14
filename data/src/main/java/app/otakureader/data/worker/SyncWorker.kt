@@ -66,7 +66,11 @@ class SyncWorker @AssistedInject constructor(
                                     throw throwable
                                 }
                 notifier.notifyFailure(throwable.message ?: "Unknown error")
-                Result.retry()
+                                if (throwable is IllegalStateException || throwable is NotImplementedError) {
+                                    Result.failure()
+                                } else {
+                                    Result.retry()
+                                }
             }
         )
     }
