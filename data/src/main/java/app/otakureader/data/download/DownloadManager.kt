@@ -208,25 +208,58 @@ class DownloadManager @Inject constructor(
     suspend fun prioritizeAll(chapterIds: Set<Long>) {
         if (chapterIds.isEmpty()) return
         mutex.withLock {
-            val outsideMin = downloadMap.values
-                .filter { it.chapterId !in chapterIds }
-                .minOfOrNull { it.priority } ?: DownloadPriority.NORMAL
-            // Assign slots below outsideMin to the prioritized chapters, preserving their
-            // relative order as they appear in the current sorted queue.
+            // Determine the targets in their current queue order.
             val orderedTargets = downloadMap.values
                 .filter { it.chapterId in chapterIds }
                 .sortedBy { it.priority }
-            orderedTargets.forEachIndexed { index, item ->
-                val newPriority = if (outsideMin > Int.MIN_VALUE + orderedTargets.size) {
-                    outsideMin - orderedTargets.size + index
-                } else {
-                    Int.MIN_VALUE + index
+            if (orderedTargets.isEmpty()) {
+                // Nothing to prioritize; all IDs were absent from the queue.
+                return@withLock
+            }
+
+            val outsideMin = downloadMap.values
+                .filter { it.chapterId !in chapterIds }
+                .minOfOrNull { it.priority } ?: DownloadPriority.NORMAL
+
+            // How many distinct Int slots exist below outsideMin, using Long math to avoid overflow.
+            val availableBelow = outsideMin.toLong() - Int.MIN_VALUE.toLong()
+
+            if (availableBelow >= orderedTargets.size.toLong()) {
+                // Enough room: assign contiguous priorities just below outsideMin.
+                val base = outsideMin.toLong() - orderedTargets.size.toLong()
+                orderedTargets.forEachIndexed { index, item ->
+                    val newPriority = (base + index.toLong()).toInt()
+                    downloadMap[item.chapterId] = item.copy(priority = newPriority)
+                    requests[item.chapterId]?.let {
+                        requests[item.chapterId] = it.copy(priority = newPriority)
+                    }
                 }
-                downloadMap[item.chapterId] = item.copy(priority = newPriority)
-                requests[item.chapterId]?.let {
-                    requests[item.chapterId] = it.copy(priority = newPriority)
+            } else {
+                // Not enough room below outsideMin. Renormalize non-targets to non-negative
+                // priorities, then place all targets in the Int.MIN_VALUE.. range so they
+                // are strictly lower than every non-target.
+                val nonTargets = downloadMap.values
+                    .filter { it.chapterId !in chapterIds }
+                    .sortedBy { it.priority }
+
+                nonTargets.forEachIndexed { index, item ->
+                    // Index is non-negative and well within Int range for realistic queues.
+                    val normalizedPriority = index
+                    downloadMap[item.chapterId] = item.copy(priority = normalizedPriority)
+                    requests[item.chapterId]?.let {
+                        requests[item.chapterId] = it.copy(priority = normalizedPriority)
+                    }
+                }
+
+                orderedTargets.forEachIndexed { index, item ->
+                    val newPriority = Int.MIN_VALUE + index
+                    downloadMap[item.chapterId] = item.copy(priority = newPriority)
+                    requests[item.chapterId]?.let {
+                        requests[item.chapterId] = it.copy(priority = newPriority)
+                    }
                 }
             }
+
             refreshDownloadsList()
         }
     }
