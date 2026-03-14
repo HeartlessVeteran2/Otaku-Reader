@@ -49,7 +49,7 @@ data class PrefetchTelemetry(
      */
     val efficiency: Float
         get() = if (pagesPrefetched > 0) {
-            cacheHits.toFloat() / pagesPrefetched.toFloat()
+            (cacheHits.toFloat() / pagesPrefetched.toFloat()).coerceIn(0f, 1f)
         } else {
             0f
         }
