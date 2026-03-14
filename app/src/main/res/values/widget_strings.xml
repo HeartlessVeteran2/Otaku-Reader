@@ -14,7 +14,7 @@
     <string name="widget_no_manga_in_progress">No manga in progress</string>
     <string name="widget_no_recent_updates">No recent updates</string>
     <!-- Format: Chapter X -->
-    㲋องาว่างญี่ห้องอยู่ล่าสุด %1$s</string>
+    <string name="widget_chapter_format">Chapter %1$s</string>
     <!-- Format: Chapter X • Y% -->
     <string name="widget_chapter_progress_format">%1$s • %2$s</string>
     <!-- Format: Chapter X • time ago -->
