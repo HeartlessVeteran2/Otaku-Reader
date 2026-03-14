@@ -21,7 +21,7 @@ interface ReadingHistoryDao {
         INSERT INTO reading_history (chapter_id, read_at, read_duration_ms)
         VALUES (:chapterId, :readAt, :readDurationMs)
         ON CONFLICT(chapter_id) DO UPDATE SET
-            read_at          = excluded.read_at,
+            read_at          = MAX(reading_history.read_at, excluded.read_at),
             read_duration_ms = reading_history.read_duration_ms + excluded.read_duration_ms
         """
     )
