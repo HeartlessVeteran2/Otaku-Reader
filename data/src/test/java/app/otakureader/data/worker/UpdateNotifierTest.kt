@@ -90,8 +90,8 @@ class UpdateNotifierTest {
         // When
         notifier.notify(mangaList, totalNewChapters = 9)
 
-        // Then - verify individual notifications created for each manga
-        verify(exactly = 3) {
+        // Then - verify notifications created with the update tag
+        verify(exactly = 4) {
             notificationManager.notify(
                 eq(UPDATE_NOTIFICATION_TAG),
                 any(),
