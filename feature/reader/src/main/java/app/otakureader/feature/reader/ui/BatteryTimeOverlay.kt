@@ -109,7 +109,7 @@ fun BatteryTimeOverlay(
             Icon(
                 imageVector = if (isCharging) Icons.Default.BatteryChargingFull
                              else Icons.Default.BatteryFull,
-                contentDescription = "Battery level",
+                contentDescription = null,
                 modifier = Modifier.size(18.dp),
                 tint = when {
                     batteryLevel <= 15f -> Color.Red
