@@ -10,6 +10,7 @@ import app.otakureader.domain.model.Manga
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.feature.reader.model.ColorFilterMode
+import app.otakureader.feature.reader.model.ImageQuality
 import app.otakureader.feature.reader.model.ReaderMode
 import app.otakureader.feature.reader.model.ReaderPage
 import app.otakureader.feature.reader.model.ReadingDirection
@@ -165,6 +166,13 @@ class UltimateReaderViewModel @Inject constructor(
             } catch (_: Exception) {
                 false
             }
+            val imageQuality = try {
+                settingsRepository.imageQuality.first()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                ImageQuality.ORIGINAL
+            }
             val dataSaverEnabled = try {
                 settingsRepository.dataSaverEnabled.first()
             } catch (e: CancellationException) {
@@ -250,6 +258,7 @@ class UltimateReaderViewModel @Inject constructor(
                     showReadingTimer = showReadingTimer,
                     showBatteryTime = showBatteryTime,
                     cropBordersEnabled = cropBordersEnabled,
+                    imageQuality = imageQuality,
                     dataSaverEnabled = dataSaverEnabled
                 )
             }

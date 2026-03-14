@@ -1,6 +1,7 @@
 package app.otakureader.feature.reader.viewmodel
 
 import app.otakureader.feature.reader.model.ColorFilterMode
+import app.otakureader.feature.reader.model.ImageQuality
 import app.otakureader.feature.reader.model.ReaderMode
 import app.otakureader.feature.reader.model.ReadingDirection
 import app.otakureader.feature.reader.model.ReaderPage
@@ -111,6 +112,9 @@ data class ReaderState(
 
     /** Whether automatic border cropping is enabled for page images */
     val cropBordersEnabled: Boolean = false,
+
+    /** Image quality level for page rendering (controls decode size and filter quality). */
+    val imageQuality: ImageQuality = ImageQuality.ORIGINAL,
 
     /** Whether data saver mode is enabled to reduce image quality and bandwidth usage */
     val dataSaverEnabled: Boolean = false

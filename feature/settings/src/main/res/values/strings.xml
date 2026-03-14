@@ -76,6 +76,7 @@
     <string name="settings_preload_after_description">Number of pages to preload after the current page</string>
     <string name="settings_crop_borders">Crop Borders</string>
     <string name="settings_crop_borders_description">Automatically remove white or black margins from page images</string>
+    <string name="settings_image_quality">Image Quality</string>
     <string name="settings_data_saver">Data Saver Mode</string>
     <string name="settings_data_saver_description">Reduce image quality to lower memory usage and improve performance</string>
 

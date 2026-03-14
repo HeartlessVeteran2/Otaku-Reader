@@ -1,5 +1,6 @@
 package app.otakureader.feature.reader.model
 
+import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.ImageBitmap
 import app.otakureader.feature.reader.R
 
@@ -138,6 +139,34 @@ data class TapZoneConfig(
         require(kotlin.math.abs(leftZoneWidth + centerZoneWidth + rightZoneWidth - 1.0f) < 0.001f) {
             "Tap zone widths must sum to 1.0"
         }
+    }
+}
+
+/**
+ * Image quality levels for page rendering.
+ * Controls both the Coil decode size and the rendering filter quality.
+ *
+ * @param pixels Maximum dimension in pixels for Coil decode (null = full resolution).
+ * @param stringRes User-facing label resource for display in Settings.
+ */
+enum class ImageQuality(
+    val pixels: Int? = null,
+    @StringRes val stringRes: Int,
+) {
+    /** Decode at full resolution. Best quality, highest memory usage. */
+    ORIGINAL(stringRes = R.string.image_quality_original),
+
+    /** Downscale to 1080 px on the longer side. Sharp on most displays. */
+    HIGH(pixels = 1080, stringRes = R.string.image_quality_high),
+
+    /** Downscale to 720 px on the longer side. Good balance of quality and memory. */
+    MEDIUM(pixels = 720, stringRes = R.string.image_quality_medium),
+
+    /** Downscale to 480 px on the longer side. Lowest memory; suitable for slow connections. */
+    LOW(pixels = 480, stringRes = R.string.image_quality_low);
+
+    companion object {
+        fun default(): ImageQuality = ORIGINAL
     }
 }
 

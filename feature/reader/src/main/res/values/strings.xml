@@ -83,6 +83,12 @@
     <string name="reader_rotation_degrees">%1$d°</string>
     <string name="reader_reset_rotation">Reset rotation</string>
 
+    <!-- Image quality options -->
+    <string name="image_quality_original">Original (full resolution)</string>
+    <string name="image_quality_high">High (max 1080 px)</string>
+    <string name="image_quality_medium">Medium (max 720 px)</string>
+    <string name="image_quality_low">Low (max 480 px)</string>
+
     <!-- Full-page gallery -->
     <plurals name="reader_page_gallery_title">
         <item quantity="one">Page Gallery (%1$d page)</item>

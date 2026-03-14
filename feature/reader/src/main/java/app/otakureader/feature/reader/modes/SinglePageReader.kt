@@ -16,6 +16,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import app.otakureader.feature.reader.R
 import app.otakureader.feature.reader.components.ZoomableImage
+import app.otakureader.feature.reader.model.ImageQuality
 import app.otakureader.feature.reader.model.ReaderPage
 import kotlinx.coroutines.flow.distinctUntilChanged
 
@@ -34,6 +35,7 @@ fun SinglePageReader(
     onZoomChange: (Float) -> Unit,
     rotation: Float = 0f,
     cropBordersEnabled: Boolean = false,
+    imageQuality: ImageQuality = ImageQuality.ORIGINAL,
     dataSaverEnabled: Boolean = false,
     modifier: Modifier = Modifier
 ) {
@@ -76,6 +78,7 @@ fun SinglePageReader(
                 contentScale = ContentScale.Fit,
                 rotation = rotation,
                 cropBordersEnabled = cropBordersEnabled,
+                imageQuality = imageQuality,
                 dataSaverEnabled = dataSaverEnabled,
                 onTap = onTap,
                 onDoubleTap = onDoubleTap,

@@ -36,10 +36,15 @@ import androidx.compose.ui.unit.IntSize
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.transformations
+import coil3.size.Size
+import app.otakureader.feature.reader.model.ImageQuality
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlin.math.max
 import kotlin.math.min
+
+/** Maximum decode dimension (px) when Data Saver mode is enabled. */
+private const val DATA_SAVER_MAX_DIMENSION = 800
 
 /**
  * Perfect zoom/pan implementation with butter smooth performance
@@ -57,6 +62,7 @@ fun ZoomableImage(
     contentScale: ContentScale = ContentScale.Fit,
     rotation: Float = 0f,
     cropBordersEnabled: Boolean = false,
+    imageQuality: ImageQuality = ImageQuality.ORIGINAL,
     dataSaverEnabled: Boolean = false,
     onDoubleTap: ((Offset) -> Unit)? = null,
     onTap: ((Offset) -> Unit)? = null,
@@ -145,23 +151,29 @@ fun ZoomableImage(
     ) {
         if (imageUrl != null) {
             val context = LocalContext.current
-            val imageModel = remember(imageUrl, cropBordersEnabled, dataSaverEnabled, context) {
-                val builder = ImageRequest.Builder(context)
-                    .data(imageUrl)
-
-                // Apply size restriction when data saver is enabled
-                if (dataSaverEnabled) {
-                    builder
-                        .size(800)
-                        .scale(coil3.size.Scale.FIT) // Enforce max-dimension cap
+            val imageModel = remember(imageUrl, cropBordersEnabled, imageQuality, dataSaverEnabled, context) {
+                val builder = ImageRequest.Builder(context).data(imageUrl)
+                // imageQuality caps by explicit pixel budget; dataSaverEnabled is a fallback cap
+                // when quality is ORIGINAL.
+                if (imageQuality.pixels != null) {
+                    // Coil fits the image into the given box (ContentScale.Fit semantics),
+                    // so equal width and height effectively cap the longer side at that value.
+                    builder.size(imageQuality.pixels, imageQuality.pixels)
+                } else if (dataSaverEnabled) {
+                    builder.size(DATA_SAVER_MAX_DIMENSION).scale(coil3.size.Scale.FIT)
+                } else {
+                    builder.size(Size.ORIGINAL)
                 }
-
-                // Apply crop borders transformation if enabled
                 if (cropBordersEnabled) {
                     builder.transformations(CropBorderTransformation())
                 }
 
                 builder.build()
+            }
+            val renderFilterQuality = when (imageQuality) {
+                ImageQuality.ORIGINAL, ImageQuality.HIGH -> FilterQuality.High
+                ImageQuality.MEDIUM -> FilterQuality.Medium
+                ImageQuality.LOW -> FilterQuality.Low
             }
             AsyncImage(
                 model = imageModel,
@@ -186,7 +198,7 @@ fun ZoomableImage(
                         rotationZ = rotation
                     },
                 contentScale = contentScale,
-                filterQuality = FilterQuality.High
+                filterQuality = renderFilterQuality
             )
         }
     }

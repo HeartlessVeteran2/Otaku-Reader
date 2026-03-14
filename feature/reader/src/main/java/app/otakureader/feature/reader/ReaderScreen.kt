@@ -349,6 +349,7 @@ private fun ReaderContent(
                     onZoomChange = onZoomChange,
                     rotation = state.pageRotation.degrees,
                     cropBordersEnabled = state.cropBordersEnabled,
+                    imageQuality = state.imageQuality,
                     dataSaverEnabled = state.dataSaverEnabled,
                     modifier = Modifier.fillMaxSize()
                 )
@@ -363,6 +364,7 @@ private fun ReaderContent(
                     isRtl = state.readingDirection == app.otakureader.feature.reader.model.ReadingDirection.RTL,
                     rotation = state.pageRotation.degrees,
                     cropBordersEnabled = state.cropBordersEnabled,
+                    imageQuality = state.imageQuality,
                     dataSaverEnabled = state.dataSaverEnabled,
                     modifier = Modifier.fillMaxSize()
                 )
@@ -376,6 +378,7 @@ private fun ReaderContent(
                     onTap = onTap,
                     rotation = state.pageRotation.degrees,
                     cropBordersEnabled = state.cropBordersEnabled,
+                    imageQuality = state.imageQuality,
                     dataSaverEnabled = state.dataSaverEnabled,
                     modifier = Modifier.fillMaxSize()
                 )
@@ -391,6 +394,7 @@ private fun ReaderContent(
                     onTap = onTap,
                     rotation = state.pageRotation.degrees,
                     cropBordersEnabled = state.cropBordersEnabled,
+                    imageQuality = state.imageQuality,
                     dataSaverEnabled = state.dataSaverEnabled,
                     modifier = Modifier.fillMaxSize()
                 )

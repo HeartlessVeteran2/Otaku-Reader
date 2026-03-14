@@ -10,6 +10,7 @@ import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.core.discord.DiscordRpcService
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.feature.reader.model.ColorFilterMode
+import app.otakureader.feature.reader.model.ImageQuality
 import app.otakureader.feature.reader.model.ReaderMode
 import app.otakureader.feature.reader.model.ReaderPage
 import app.otakureader.feature.reader.model.ReadingDirection
@@ -80,6 +81,8 @@ class UltimateReaderViewModelTest {
         every { settingsRepository.preloadPagesBefore } returns flowOf(ReaderSettingsRepository.DEFAULT_PRELOAD_PAGES)
         every { settingsRepository.preloadPagesAfter } returns flowOf(ReaderSettingsRepository.DEFAULT_PRELOAD_PAGES)
         every { settingsRepository.cropBordersEnabled } returns flowOf(false)
+        every { settingsRepository.imageQuality } returns flowOf(ImageQuality.ORIGINAL)
+        every { settingsRepository.dataSaverEnabled } returns flowOf(false)
 
         // Return null for chapter/manga so loadChapter() exits early without side-effects.
         coEvery { chapterRepository.getChapterById(chapterId) } returns null

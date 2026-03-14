@@ -34,6 +34,7 @@ data class SettingsState(
     val preloadPagesBefore: Int = 3,   // Pages to preload before current (0–10)
     val preloadPagesAfter: Int = 3,    // Pages to preload after current (0–10)
     val cropBordersEnabled: Boolean = false, // Automatically crop white/black borders from page images
+    val imageQuality: Int = 0, // ImageQuality ordinal: 0=ORIGINAL, 1=HIGH, 2=MEDIUM, 3=LOW
     val dataSaverEnabled: Boolean = false,   // Data saver mode - reduce image quality for bandwidth savings
     val deleteAfterReading: Boolean = false,
     val saveAsCbz: Boolean = false,    // Save downloaded chapters as CBZ archives
@@ -109,6 +110,7 @@ sealed interface SettingsEvent : UiEvent {
     data class SetPreloadPagesBefore(val count: Int) : SettingsEvent
     data class SetPreloadPagesAfter(val count: Int) : SettingsEvent
     data class SetCropBordersEnabled(val enabled: Boolean) : SettingsEvent
+    data class SetImageQuality(val quality: Int) : SettingsEvent
     data class SetDataSaverEnabled(val enabled: Boolean) : SettingsEvent
     data class SetDeleteAfterReading(val enabled: Boolean) : SettingsEvent
     data class SetLibraryGridSize(val size: Int) : SettingsEvent

@@ -69,6 +69,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.otakureader.core.preferences.AiTier
 import app.otakureader.core.ui.theme.COLOR_SCHEME_CUSTOM_ACCENT
+import app.otakureader.feature.reader.model.ImageQuality
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -583,6 +584,42 @@ private fun ReaderSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit
                             onEvent(SettingsEvent.SetCropBordersEnabled(it))
                         }
                     )
+                }
+            )
+
+            // Image quality
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_image_quality)) },
+                supportingContent = {
+                    Column(modifier = Modifier.selectableGroup()) {
+                        val qualities = ImageQuality.entries.map { quality ->
+                            stringResource(quality.stringRes) to quality.ordinal
+                        }
+                        qualities.forEach { (label, value) ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .selectable(
+                                        selected = state.imageQuality == value,
+                                        onClick = {
+                                            onEvent(SettingsEvent.SetImageQuality(value))
+                                        },
+                                        role = Role.RadioButton
+                                    )
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                RadioButton(
+                                    selected = state.imageQuality == value,
+                                    onClick = null
+                                )
+                                Text(
+                                    text = label,
+                                    modifier = Modifier.padding(start = 8.dp)
+                                )
+                            }
+                        }
+                    }
                 }
             )
 

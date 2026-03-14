@@ -22,6 +22,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.otakureader.feature.reader.R
 import app.otakureader.feature.reader.components.ZoomableImage
+import app.otakureader.feature.reader.model.ImageQuality
 import app.otakureader.feature.reader.model.ReaderPage
 
 /**
@@ -36,6 +37,7 @@ fun WebtoonReader(
     onTap: (androidx.compose.ui.geometry.Offset) -> Unit,
     rotation: Float = 0f,
     cropBordersEnabled: Boolean = false,
+    imageQuality: ImageQuality = ImageQuality.ORIGINAL,
     dataSaverEnabled: Boolean = false,
     modifier: Modifier = Modifier
 ) {
@@ -104,6 +106,7 @@ fun WebtoonReader(
                     contentScale = imageContentScale,
                     rotation = normalizedRotation,
                     cropBordersEnabled = cropBordersEnabled,
+                    imageQuality = imageQuality,
                     dataSaverEnabled = dataSaverEnabled,
                     onTap = onTap,
                     modifier = Modifier.fillMaxWidth()

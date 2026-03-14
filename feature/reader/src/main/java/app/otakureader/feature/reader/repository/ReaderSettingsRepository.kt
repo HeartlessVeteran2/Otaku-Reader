@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import app.otakureader.core.preferences.AppPreferences
 import app.otakureader.feature.reader.model.ColorFilterMode
+import app.otakureader.feature.reader.model.ImageQuality
 import app.otakureader.feature.reader.model.ReaderMode
 import app.otakureader.feature.reader.model.ReadingDirection
 import app.otakureader.feature.reader.model.TapZoneConfig
@@ -259,6 +260,18 @@ class ReaderSettingsRepository @Inject constructor(
         dataStore.edit { it[Keys.CROP_BORDERS_ENABLED] = enabled }
     }
 
+    // ==================== Image Quality ====================
+
+    /** Global image quality level for page rendering. */
+    val imageQuality: Flow<ImageQuality> = dataStore.data.map { prefs ->
+        val ordinal = prefs[Keys.IMAGE_QUALITY] ?: 0
+        ImageQuality.entries.getOrNull(ordinal) ?: ImageQuality.ORIGINAL
+    }
+
+    suspend fun setImageQuality(quality: ImageQuality) {
+        dataStore.edit { it[Keys.IMAGE_QUALITY] = quality.ordinal }
+    }
+
     // ==================== Data Saver Mode ====================
 
     /** Whether data saver mode is enabled to reduce image quality and bandwidth usage. */
@@ -296,6 +309,7 @@ class ReaderSettingsRepository @Inject constructor(
         val PREFETCH_ADJACENT_CHAPTERS = booleanPreferencesKey("reader_prefetch_adjacent_chapters")
         val PREFETCH_ONLY_ON_WIFI = booleanPreferencesKey("reader_prefetch_only_on_wifi")
         val CROP_BORDERS_ENABLED = booleanPreferencesKey("reader_crop_borders_enabled")
+        val IMAGE_QUALITY = intPreferencesKey("reader_image_quality")
         val DATA_SAVER_ENABLED = booleanPreferencesKey("reader_data_saver_enabled")
     }
     
