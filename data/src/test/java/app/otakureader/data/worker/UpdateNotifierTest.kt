@@ -241,10 +241,7 @@ class UpdateNotifierTest {
     @Test
     fun `notify continues when image loading times out`() = runTest {
         // Given - image loading takes too long (simulated with delay)
-        coEvery { imageLoader.execute(any()) } coAnswers {
-            kotlinx.coroutines.delay(10000L) // Longer than 5s timeout
-            mockk<SuccessResult>()
-        }
+        coEvery { imageLoader.execute(any()) } throws kotlinx.coroutines.TimeoutCancellationException("simulated timeout")
 
         val mangaList = listOf(testManga1)
         val notifier = UpdateNotifier(context)
