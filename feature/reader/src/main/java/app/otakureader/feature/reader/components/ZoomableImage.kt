@@ -30,9 +30,12 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.transformations
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlin.math.max
@@ -53,6 +56,7 @@ fun ZoomableImage(
     doubleTapScale: Float = 2f,
     contentScale: ContentScale = ContentScale.Fit,
     rotation: Float = 0f,
+    cropBordersEnabled: Boolean = false,
     onDoubleTap: ((Offset) -> Unit)? = null,
     onTap: ((Offset) -> Unit)? = null,
     onZoomChange: ((Float) -> Unit)? = null,
@@ -139,8 +143,16 @@ fun ZoomableImage(
         contentAlignment = Alignment.Center
     ) {
         if (imageUrl != null) {
+            val context = LocalContext.current
+            val imageModel = remember(imageUrl, cropBordersEnabled, context) {
+                val builder = ImageRequest.Builder(context).data(imageUrl)
+                if (cropBordersEnabled) {
+                    builder.transformations(CropBorderTransformation())
+                }
+                builder.build()
+            }
             AsyncImage(
-                model = imageUrl,
+                model = imageModel,
                 contentDescription = contentDescription,
                 modifier = Modifier
                     .let { baseModifier ->

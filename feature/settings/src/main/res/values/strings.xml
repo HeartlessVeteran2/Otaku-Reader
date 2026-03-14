@@ -74,6 +74,8 @@
     <string name="settings_preload_before_description">Number of pages to preload before the current page</string>
     <string name="settings_preload_after">Preload Pages After: %1$d</string>
     <string name="settings_preload_after_description">Number of pages to preload after the current page</string>
+    <string name="settings_crop_borders">Crop Borders</string>
+    <string name="settings_crop_borders_description">Automatically remove white or black margins from page images</string>
 
     <!-- Notifications -->
     <string name="settings_notifications">Notifications</string>

@@ -201,6 +201,17 @@ class ReaderSettingsRepository @Inject constructor(
         dataStore.edit { it[Keys.PRELOAD_PAGES_AFTER] = count.coerceIn(0, MAX_PRELOAD_PAGES) }
     }
 
+    // ==================== Crop Borders ====================
+
+    /** Whether automatic border cropping is enabled during image decoding. */
+    val cropBordersEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.CROP_BORDERS_ENABLED] ?: false
+    }
+
+    suspend fun setCropBordersEnabled(enabled: Boolean) {
+        dataStore.edit { it[Keys.CROP_BORDERS_ENABLED] = enabled }
+    }
+
     private object Keys {
         val READER_MODE = intPreferencesKey("reader_mode_setting")
         val BRIGHTNESS = floatPreferencesKey("reader_brightness")
@@ -221,6 +232,7 @@ class ReaderSettingsRepository @Inject constructor(
         val CUSTOM_TINT_COLOR = longPreferencesKey("reader_custom_tint_color")
         val PRELOAD_PAGES_BEFORE = intPreferencesKey("reader_preload_pages_before")
         val PRELOAD_PAGES_AFTER = intPreferencesKey("reader_preload_pages_after")
+        val CROP_BORDERS_ENABLED = booleanPreferencesKey("reader_crop_borders_enabled")
     }
     
     companion object {
