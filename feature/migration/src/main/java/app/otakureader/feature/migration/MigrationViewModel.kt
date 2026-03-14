@@ -33,7 +33,7 @@ class MigrationViewModel @Inject constructor(
     private val _state = MutableStateFlow(MigrationState())
     val state: StateFlow<MigrationState> = _state.asStateFlow()
 
-    private val _effect = Channel<MigrationEffect>()
+    private val _effect = Channel<MigrationEffect>(Channel.BUFFERED)
     val effect: Flow<MigrationEffect> = _effect.receiveAsFlow()
 
     fun onEvent(event: MigrationEvent) {
