@@ -1,5 +1,6 @@
 package app.otakureader.core.network.di
 
+import app.otakureader.core.network.BuildConfig
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import dagger.Module
 import dagger.Provides
@@ -33,11 +34,8 @@ object NetworkModule {
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
 
-        // Only enable HTTP logging in debug builds to prevent information disclosure
-        // Note: In production/release builds, logging should be disabled
-        // This can be controlled via build variants or feature flags
-        val loggingEnabled = false  // Set to true only for debug builds
-        if (loggingEnabled) {
+        // Enable HTTP logging only in debug builds to prevent information disclosure in production
+        if (BuildConfig.DEBUG) {
             builder.addInterceptor(
                 HttpLoggingInterceptor().apply {
                     level = HttpLoggingInterceptor.Level.BASIC
