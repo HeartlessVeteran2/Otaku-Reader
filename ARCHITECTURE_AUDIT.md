@@ -407,16 +407,24 @@ object DispatchersModule {
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
 
+    // Simplified example / pseudocode – see core/database module for full implementation
+    private const val DATABASE_NAME = "otakureader.db"
+
     @Provides
     @Singleton
-    fun provideOtakuReaderDatabase(
+    fun provideDatabase(
         @ApplicationContext context: Context
     ): OtakuReaderDatabase {
         return Room.databaseBuilder(
             context,
             OtakuReaderDatabase::class.java,
-            "otaku_reader.db"
+            DATABASE_NAME
         )
+            .apply {
+                if (BuildConfig.DEBUG) {
+                    fallbackToDestructiveMigration()
+                }
+            }
             .addMigrations(
                 MIGRATION_2_3,
                 MIGRATION_3_4,
