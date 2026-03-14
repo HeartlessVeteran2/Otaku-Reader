@@ -76,7 +76,7 @@ class AiPreferences(
      */
     private object NoOpSharedPreferences : SharedPreferences {
 
-        private val backingMap = java.util.concurrent.ConcurrentHashMap<String, Any?>()
+        private val backingMap = java.util.concurrent.ConcurrentHashMap<String, Any>()
         private val listeners = java.util.concurrent.CopyOnWriteArraySet<SharedPreferences.OnSharedPreferenceChangeListener>()
 
         private class InMemoryEditor : SharedPreferences.Editor {
@@ -85,19 +85,39 @@ class AiPreferences(
             private val keysToRemove: MutableSet<String> = mutableSetOf()
             private var clearRequested: Boolean = false
 
-            override fun putString(key: String?, value: String?): SharedPreferences.Editor = applyChange(key, value)
+            override fun putString(key: String?, value: String?): SharedPreferences.Editor {
+                // SharedPreferences semantics: putString(key, null) == remove(key)
+                if (key == null) return this
+                if (value == null) {
+                    keysToRemove += key
+                    pendingChanges.remove(key)
+                    return this
+                }
+                keysToRemove.remove(key)
+                return applyChange(key, value)
+            }
 
             override fun putStringSet(
                 key: String?,
                 values: MutableSet<String>?
-            ): SharedPreferences.Editor = applyChange(key, values?.toMutableSet())
+            ): SharedPreferences.Editor {
+                // SharedPreferences semantics: putStringSet(key, null) == remove(key)
+                if (key == null) return this
+                if (values == null) {
+                    keysToRemove += key
+                    pendingChanges.remove(key)
+                    return this
+                }
+                keysToRemove.remove(key)
+                // Store a defensive copy of the set to mirror framework behavior
+                return applyChange(key, values.toMutableSet())
+            }
 
             override fun putInt(key: String?, value: Int): SharedPreferences.Editor = applyChange(key, value)
 
             override fun putLong(key: String?, value: Long): SharedPreferences.Editor = applyChange(key, value)
 
             override fun putFloat(key: String?, value: Float): SharedPreferences.Editor = applyChange(key, value)
-
             override fun putBoolean(key: String?, value: Boolean): SharedPreferences.Editor = applyChange(key, value)
 
             override fun remove(key: String?): SharedPreferences.Editor = apply {
