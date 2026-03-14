@@ -40,9 +40,11 @@ class AiRepositoryImpl @Inject constructor(
             } else {
                 Result.success(generatedText)
             }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Result.failure(e)
+                }
     }
 
     /**
