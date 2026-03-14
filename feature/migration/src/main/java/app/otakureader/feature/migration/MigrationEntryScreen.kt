@@ -82,7 +82,13 @@ fun MigrationEntryScreen(
             TopAppBar(
                 title = {
                     if (state.selectedIds.isNotEmpty()) {
-                        Text(stringResource(R.string.migration_entry_selected, state.selectedIds.size))
+                        Text(
+                            androidx.compose.ui.res.pluralStringResource(
+                                R.plurals.migration_entry_selected,
+                                state.selectedIds.size,
+                                state.selectedIds.size
+                            )
+                        )
                     } else {
                         Text(stringResource(R.string.migration_entry_title))
                     }
