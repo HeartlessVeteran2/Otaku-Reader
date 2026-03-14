@@ -1,5 +1,6 @@
 package app.otakureader.feature.reader.viewmodel
 
+import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import app.otakureader.data.loader.PageLoader
 import app.otakureader.domain.model.Chapter
@@ -13,6 +14,7 @@ import app.otakureader.feature.reader.model.ReaderMode
 import app.otakureader.feature.reader.model.ReaderPage
 import app.otakureader.feature.reader.model.ReadingDirection
 import app.otakureader.feature.reader.repository.ReaderSettingsRepository
+import coil3.ImageLoader
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -41,20 +43,24 @@ class UltimateReaderViewModelTest {
     private val mangaId = 1L
     private val chapterId = 10L
 
+    private lateinit var context: Context
     private lateinit var mangaRepository: MangaRepository
     private lateinit var chapterRepository: ChapterRepository
     private lateinit var settingsRepository: ReaderSettingsRepository
     private lateinit var pageLoader: PageLoader
+    private lateinit var imageLoader: ImageLoader
     private lateinit var discordRpcService: DiscordRpcService
     private lateinit var generalPreferences: GeneralPreferences
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
+        context = mockk(relaxed = true)
         mangaRepository = mockk()
         chapterRepository = mockk()
         settingsRepository = mockk()
         pageLoader = mockk()
+        imageLoader = mockk(relaxed = true)
         discordRpcService = mockk(relaxed = true)
         generalPreferences = mockk()
         every { generalPreferences.discordRpcEnabled } returns flowOf(false)
@@ -89,10 +95,12 @@ class UltimateReaderViewModelTest {
 
     private fun createViewModel(): UltimateReaderViewModel =
         UltimateReaderViewModel(
+            context = context,
             mangaRepository = mangaRepository,
             chapterRepository = chapterRepository,
             settingsRepository = settingsRepository,
             pageLoader = pageLoader,
+            imageLoader = imageLoader,
             discordRpcService = discordRpcService,
             generalPreferences = generalPreferences,
             savedStateHandle = SavedStateHandle(
