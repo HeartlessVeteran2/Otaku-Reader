@@ -130,6 +130,8 @@ class SourceRepositoryImpl(
                 healthMonitor.recordSuccess(sourceId)
 
                 Result.success(mangaPage)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 // Record failure for health monitoring
                 healthMonitor.recordFailure(sourceId, e)
