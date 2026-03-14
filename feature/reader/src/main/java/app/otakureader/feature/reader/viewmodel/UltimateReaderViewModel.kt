@@ -110,6 +110,10 @@ class UltimateReaderViewModel @Inject constructor(
     }
 
     private fun recordHistoryOpen() {
+        // Reset page change timestamp when the chapter is opened so that
+        // the first recorded page duration does not include chapter load time.
+        lastPageChangeMs = System.currentTimeMillis()
+
         viewModelScope.launch {
             // Resolve the incognito flag directly from settings to avoid races with loadSettings()
             val isIncognito = runCatching {
