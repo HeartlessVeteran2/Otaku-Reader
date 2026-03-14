@@ -39,7 +39,7 @@ class LibraryViewModel @Inject constructor(
     private val _state = MutableStateFlow(LibraryState())
     val state: StateFlow<LibraryState> = _state.asStateFlow()
 
-    private val _effect = Channel<LibraryEffect>()
+    private val _effect = Channel<LibraryEffect>(Channel.BUFFERED)
     val effect: Flow<LibraryEffect> = _effect.receiveAsFlow()
 
     /** Holds the full, unfiltered library items for reactive filtering. */
