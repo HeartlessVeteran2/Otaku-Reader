@@ -2,6 +2,8 @@ package app.otakureader.widget
 
 import android.content.Context
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
@@ -18,9 +20,6 @@ import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
-import androidx.glance.unit.ColorProvider
-import androidx.glance.unit.dp
-import androidx.glance.unit.sp
 import app.otakureader.R
 
 /**
@@ -79,7 +78,7 @@ private fun ContinueReadingContent(
             Text(
                 text = title,
                 style = TextStyle(
-                    color = ColorProvider(GlanceTheme.colors.onSurface),
+                    color = GlanceTheme.colors.onSurface,
                     fontSize = 18.sp
                 ),
                 modifier = GlanceModifier.fillMaxWidth()
@@ -96,7 +95,7 @@ private fun ContinueReadingContent(
                 Text(
                     text = emptyText,
                     style = TextStyle(
-                        color = ColorProvider(GlanceTheme.colors.onSurfaceVariant),
+                        color = GlanceTheme.colors.onSurfaceVariant,
                         fontSize = 14.sp
                     )
                 )
@@ -113,7 +112,7 @@ private fun ReadingItemWidget(item: ReadingItem) {
         Text(
             text = item.title,
             style = TextStyle(
-                color = ColorProvider(GlanceTheme.colors.onSurface),
+                color = GlanceTheme.colors.onSurface,
                 fontSize = 14.sp
             ),
             maxLines = 1
@@ -121,7 +120,7 @@ private fun ReadingItemWidget(item: ReadingItem) {
         Text(
             text = "${item.chapter} • ${item.progress}",
             style = TextStyle(
-                color = ColorProvider(GlanceTheme.colors.onSurfaceVariant),
+                color = GlanceTheme.colors.onSurfaceVariant,
                 fontSize = 12.sp
             ),
             maxLines = 1
