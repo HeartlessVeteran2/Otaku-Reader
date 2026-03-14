@@ -313,7 +313,9 @@ class DownloadManager @Inject constructor(
                                     ?.forEach { it.delete() }
                             }
                         }
-                        updateStatus(chapterId, DownloadStatus.COMPLETED)
+                        mutex.withLock {
+                            updateStatus(chapterId, DownloadStatus.COMPLETED)
+                        }
                     }
                 } finally {
                     // Always remove the job reference on all terminal paths (success, failure,
