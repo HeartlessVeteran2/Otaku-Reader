@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import app.otakureader.feature.reader.R
+import app.otakureader.feature.reader.components.PanelNavigationView
 import app.otakureader.feature.reader.components.ZoomableImage
 import app.otakureader.feature.reader.model.ReaderPage
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -112,16 +113,36 @@ private fun SmartPanelView(
     dataSaverEnabled: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    // For now, fall back to zoomable image with panel overlay
-    // Advanced panel detection and navigation can be added later
-    ZoomableImage(
-        imageUrl = page.imageUrl,
-        contentDescription = stringResource(R.string.reader_page_content, page.pageNumber),
-        contentScale = ContentScale.Fit,
+    val panels = page.panels
+
+    if (panels.isEmpty()) {
+        // Fallback to full page if no panels detected
+        ZoomableImage(
+            imageUrl = page.imageUrl,
+            contentDescription = stringResource(R.string.reader_page_content, page.pageNumber),
+            contentScale = ContentScale.Fit,
+            rotation = rotation,
+            cropBordersEnabled = cropBordersEnabled,
+            dataSaverEnabled = dataSaverEnabled,
+            onTap = onTap,
+            modifier = modifier
+        )
+        return
+    }
+
+    // Navigate through detected panels
+    val panel = panels.getOrNull(currentPanel) ?: panels.first()
+
+    PanelNavigationView(
+        page = page,
+        panel = panel,
+        currentPanelIndex = currentPanel,
+        totalPanels = panels.size,
+        onPanelChange = onPanelChange,
+        onTap = onTap,
         rotation = rotation,
         cropBordersEnabled = cropBordersEnabled,
         dataSaverEnabled = dataSaverEnabled,
-        onTap = onTap,
         modifier = modifier
     )
 }
