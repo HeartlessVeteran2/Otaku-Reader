@@ -93,7 +93,7 @@ fun WebtoonReader(
                     imageUrl = page.imageUrl,
                     contentDescription = stringResource(R.string.reader_page_content, page.pageNumber),
                     contentScale = ContentScale.FillWidth,
-                    rotation = rotation,
+                    rotation = if (rotation % 180f == 0f) rotation else 0f,
                     onTap = onTap,
                     modifier = Modifier.fillMaxWidth()
                 )
