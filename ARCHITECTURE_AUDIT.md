@@ -407,24 +407,16 @@ object DispatchersModule {
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
 
-    // Simplified example / pseudocode – see core/database module for full implementation
-    private const val DATABASE_NAME = "otakureader.db"
-
     @Provides
     @Singleton
     fun provideDatabase(
         @ApplicationContext context: Context
     ): OtakuReaderDatabase {
-        return Room.databaseBuilder(
+        val builder = Room.databaseBuilder(
             context,
             OtakuReaderDatabase::class.java,
-            DATABASE_NAME
+            OtakuReaderDatabase.DATABASE_NAME  // "otakureader.db"
         )
-            .apply {
-                if (BuildConfig.DEBUG) {
-                    fallbackToDestructiveMigration()
-                }
-            }
             .addMigrations(
                 MIGRATION_2_3,
                 MIGRATION_3_4,
@@ -434,7 +426,12 @@ object DatabaseModule {
                 MIGRATION_7_8,
                 MIGRATION_8_9
             )
-            .build()
+        // Only allow destructive migration in debug builds to avoid silently wiping
+        // user data (including notes) in production if a migration is missing.
+        if (BuildConfig.DEBUG) {
+            builder.fallbackToDestructiveMigration(dropAllTables = true)
+        }
+        return builder.build()
     }
 
     @Provides
@@ -474,32 +471,31 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideOkHttpClient(): OkHttpClient {
-        return OkHttpClient.Builder()
+        val builder = OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
-            .apply {
-                if (BuildConfig.DEBUG) {
-                    addInterceptor(HttpLoggingInterceptor().apply {
-                        level = HttpLoggingInterceptor.Level.BASIC
-                    })
+
+        // Enable HTTP logging only in debug builds to prevent information disclosure in production
+        if (BuildConfig.DEBUG) {
+            builder.addInterceptor(
+                HttpLoggingInterceptor().apply {
+                    level = HttpLoggingInterceptor.Level.BASIC
                 }
-            }
-            .build()
+            )
+        }
+
+        return builder.build()
     }
 
     @Provides
     @Singleton
-    fun provideRetrofit(
-        okHttpClient: OkHttpClient,
-        json: Json
-    ): Retrofit {
-        return Retrofit.Builder()
-            .baseUrl("https://api.example.com")
+    fun provideRetrofit(okHttpClient: OkHttpClient, json: Json): Retrofit =
+        Retrofit.Builder()
             .client(okHttpClient)
+            .baseUrl("https://api.otakureader.app/")
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
-    }
 }
 ```
 
