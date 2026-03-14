@@ -412,7 +412,10 @@ class LibraryUpdateWorkerTest {
 
         // Then - should download chapters 3 and 2 (descending, limited to 2)
         assertEquals(ListenableWorker.Result.success(), result)
-        coVerify(exactly = 2) { downloadManager.enqueue(any()) }
+        io.mockk.coVerifyOrder {
+            downloadManager.enqueue(match { it.chapterId == 3L })
+            downloadManager.enqueue(match { it.chapterId == 2L })
+        }
     }
 
     // -------------------------------------------------------------------------
