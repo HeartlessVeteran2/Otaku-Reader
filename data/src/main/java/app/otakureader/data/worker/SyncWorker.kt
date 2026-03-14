@@ -84,6 +84,10 @@ class SyncWorker @AssistedInject constructor(
             intervalHours: Int = 24,
             wifiOnly: Boolean = true
         ) {
+            // Ensure we never pass an invalid repeat interval to WorkManager.
+            // If callers provide 0 or a negative value, fall back to the minimum of 1 hour.
+            val safeIntervalHours = intervalHours.coerceAtLeast(1)
+
             val constraints = Constraints.Builder()
                 .setRequiredNetworkType(
                     if (wifiOnly) NetworkType.UNMETERED else NetworkType.CONNECTED
@@ -91,7 +95,7 @@ class SyncWorker @AssistedInject constructor(
                 .build()
 
             val workRequest = PeriodicWorkRequestBuilder<SyncWorker>(
-                repeatInterval = intervalHours.toLong(),
+                repeatInterval = safeIntervalHours.toLong(),
                 repeatIntervalTimeUnit = TimeUnit.HOURS
             )
                 .setConstraints(constraints)
