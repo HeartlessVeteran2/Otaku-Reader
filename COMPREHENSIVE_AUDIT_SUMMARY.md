@@ -22,7 +22,7 @@ All critical functionality is implemented and tested. Minor gaps identified are 
 
 **Score: 9.1/10** - Excellent
 
-**Audit Document:** [ARCHITECTURE_AUDIT.md](/home/runner/work/Otaku-Reader/Otaku-Reader/ARCHITECTURE_AUDIT.md)
+**Audit Document:** [ARCHITECTURE_AUDIT.md](./ARCHITECTURE_AUDIT.md)
 
 **Key Findings:**
 - ✅ Domain layer has zero Android dependencies (verified by ArchitectureTest.kt)
@@ -46,8 +46,8 @@ All critical functionality is implemented and tested. Minor gaps identified are 
 **Score: Production Ready**
 
 **Audit Documents:**
-- [READER_IMAGE_LOADING_AUDIT.md](/home/runner/work/Otaku-Reader/Otaku-Reader/READER_IMAGE_LOADING_AUDIT.md)
-- [READER_AUDIT_SUMMARY.md](/home/runner/work/Otaku-Reader/Otaku-Reader/READER_AUDIT_SUMMARY.md)
+- [READER_IMAGE_LOADING_AUDIT.md](./READER_IMAGE_LOADING_AUDIT.md)
+- [READER_AUDIT_SUMMARY.md](./READER_AUDIT_SUMMARY.md)
 
 **Key Findings:**
 - ✅ 4 viewer implementations (Single Page, Dual Page, Webtoon, Smart Panels stub)
