@@ -368,4 +368,40 @@ class UltimateReaderViewModelTest {
         io.mockk.verify { settingsRepository.preloadPagesBefore }
         io.mockk.verify { settingsRepository.preloadPagesAfter }
     }
+
+    // ---- onCleared: final progress/history persistence ----
+
+    @Test
+    fun `cleanupOnExit records history and persists progress when not in incognito`() = runTest {
+        coEvery { chapterRepository.recordHistory(any(), any(), any()) } just runs
+
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Navigate to a specific page so currentPage is captured correctly
+        vm.setPages(List(10) { ReaderPage(index = it) })
+        vm.jumpToPage(4)
+        val state = vm.state.value
+
+        vm.cleanupOnExit(durationMs = 60_000L, currentState = state)
+
+        coVerify { chapterRepository.recordHistory(chapterId, any(), 60_000L) }
+        coVerify { chapterRepository.updateChapterProgress(chapterId, false, 4) }
+    }
+
+    @Test
+    fun `cleanupOnExit does not record history or persist progress in incognito mode`() = runTest {
+        // Configure incognito = true before creating the VM so both loadSettings() and
+        // cleanupOnExit() observe the same incognito state.
+        every { settingsRepository.incognitoMode } returns flowOf(true)
+
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        val state = vm.state.value
+
+        vm.cleanupOnExit(durationMs = 0L, currentState = state)
+
+        coVerify(exactly = 0) { chapterRepository.recordHistory(any(), any(), any()) }
+        coVerify(exactly = 0) { chapterRepository.updateChapterProgress(any<Long>(), any<Boolean>(), any<Int>()) }
+    }
 }

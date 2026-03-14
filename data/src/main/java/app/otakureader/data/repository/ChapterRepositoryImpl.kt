@@ -7,7 +7,6 @@ import app.otakureader.core.database.entity.ChapterWithHistoryEntity
 import app.otakureader.core.database.entity.ChapterWithMangaEntity
 import app.otakureader.core.database.entity.MangaEntity
 import app.otakureader.core.database.entity.MangaStatus as DbMangaStatus
-import app.otakureader.core.database.entity.ReadingHistoryEntity
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.ChapterWithHistory
 import app.otakureader.domain.model.Manga
@@ -90,13 +89,7 @@ class ChapterRepositoryImpl @Inject constructor(
     }
 
     override suspend fun recordHistory(chapterId: Long, readAt: Long, readDurationMs: Long) {
-        readingHistoryDao.upsert(
-            ReadingHistoryEntity(
-                chapterId = chapterId,
-                readAt = readAt,
-                readDurationMs = readDurationMs
-            )
-        )
+        readingHistoryDao.upsert(chapterId, readAt, readDurationMs)
     }
 
     override suspend fun removeFromHistory(chapterId: Long) {

@@ -3,7 +3,6 @@ package app.otakureader.data.repository
 import app.otakureader.core.database.dao.ChapterDao
 import app.otakureader.core.database.entity.ChapterEntity
 import app.otakureader.core.database.entity.ChapterWithHistoryEntity
-import app.otakureader.core.database.entity.ReadingHistoryEntity
 import app.otakureader.domain.model.Chapter
 import app.cash.turbine.test
 import io.mockk.coEvery
@@ -233,16 +232,12 @@ class ChapterRepositoryImplTest {
 
     @Test
     fun recordHistory_upsertsHistoryEntity() = runTest {
-        coEvery { readingHistoryDao.upsert(any()) } returns Unit
+        coEvery { readingHistoryDao.upsert(any(), any(), any()) } returns Unit
 
         repository.recordHistory(chapterId = 5L, readAt = 2000L, readDurationMs = 30_000L)
 
         coVerify {
-            readingHistoryDao.upsert(match { entity ->
-                entity.chapterId == 5L &&
-                    entity.readAt == 2000L &&
-                    entity.readDurationMs == 30_000L
-            })
+            readingHistoryDao.upsert(5L, 2000L, 30_000L)
         }
     }
 

@@ -12,7 +12,6 @@ import app.otakureader.core.preferences.ReaderPreferences
 import app.otakureader.data.backup.mapper.toCategoryEntity
 import app.otakureader.data.backup.mapper.toChapterEntity
 import app.otakureader.data.backup.mapper.toMangaEntity
-import app.otakureader.data.backup.mapper.toReadingHistoryEntity
 import app.otakureader.data.backup.model.BackupData
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.Json
@@ -112,7 +111,9 @@ class BackupRestorer @Inject constructor(
 
             // Restore reading history if present
             backupChapter.readingHistory?.let { history ->
-                readingHistoryDao.upsert(history.toReadingHistoryEntity(chapterId))
+                // Ensure restore is idempotent: clear existing history first so upsert does not accumulate duration
+                readingHistoryDao.deleteHistoryForChapter(chapterId)
+                readingHistoryDao.upsert(chapterId, history.readAt, history.readDurationMs)
             }
         }
     }

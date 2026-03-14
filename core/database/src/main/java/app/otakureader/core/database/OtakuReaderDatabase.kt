@@ -25,7 +25,7 @@ import app.otakureader.core.database.entity.ReadingHistoryEntity
         OpdsServerEntity::class
     ],
     version = 9,
-    exportSchema = false
+    exportSchema = true
 )
 abstract class OtakuReaderDatabase : RoomDatabase() {
     abstract fun mangaDao(): MangaDao
