@@ -47,6 +47,7 @@ dependencies {
     implementation(projects.core.network)
     implementation(projects.core.database)
     implementation(projects.core.preferences)
+    implementation(projects.core.discord)
     implementation(projects.domain)
     implementation(projects.data)
     implementation(projects.sourceApi)
@@ -60,6 +61,7 @@ dependencies {
     implementation(projects.feature.statistics)
     implementation(projects.feature.migration)
     implementation(projects.feature.tracking)
+    implementation(projects.feature.opds)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
@@ -78,6 +80,10 @@ dependencies {
     implementation(libs.glance.material3)
     implementation(libs.hilt.work)
     ksp(libs.hilt.compiler)
+
+    // Coil: required for global SingletonImageLoader.Factory configuration
+    implementation(libs.coil.compose)
+    implementation(libs.coil.okhttp)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.test.ext.junit)

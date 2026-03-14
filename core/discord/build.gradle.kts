@@ -29,9 +29,6 @@ android {
 dependencies {
     implementation(projects.core.preferences)
 
-    // Kizzy - Discord Rich Presence library
-    implementation(libs.kizzy.rpc)
-
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
 

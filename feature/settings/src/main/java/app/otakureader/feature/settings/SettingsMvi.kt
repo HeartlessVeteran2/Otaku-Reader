@@ -51,6 +51,8 @@ data class SettingsState(
     val migrationMinChapterCount: Int = 0,
     // --- Browse ---
     val showNsfwContent: Boolean = false,
+    // --- Discord Rich Presence ---
+    val discordRpcEnabled: Boolean = false,
     // --- AI ---
     val aiEnabled: Boolean = false,
     val aiTier: AiTier = AiTier.FREE,
@@ -65,7 +67,12 @@ data class SettingsState(
     val aiSmartNotifications: Boolean = true,
     val aiAutoCategorization: Boolean = true,
     val aiTokensUsedThisMonth: Long = 0L,
-    val aiTokenTrackingPeriod: String = ""
+    val aiTokenTrackingPeriod: String = "",
+    // --- Reading Goals ---
+    val dailyChapterGoal: Int = 0,
+    val weeklyChapterGoal: Int = 0,
+    val readingRemindersEnabled: Boolean = false,
+    val readingReminderHour: Int = 20
 ) : UiState
 
 sealed interface SettingsEvent : UiEvent {
@@ -106,6 +113,8 @@ sealed interface SettingsEvent : UiEvent {
     data class SetMigrationMinChapterCount(val count: Int) : SettingsEvent
     data object OnNavigateToMigration : SettingsEvent
     data class SetShowNsfwContent(val enabled: Boolean) : SettingsEvent
+    // --- Discord Rich Presence ---
+    data class SetDiscordRpcEnabled(val enabled: Boolean) : SettingsEvent
     // --- AI ---
     data class SetAiEnabled(val enabled: Boolean) : SettingsEvent
     data class SetAiTier(val tier: AiTier) : SettingsEvent
@@ -120,6 +129,11 @@ sealed interface SettingsEvent : UiEvent {
     data class SetAiSmartNotifications(val enabled: Boolean) : SettingsEvent
     data class SetAiAutoCategorization(val enabled: Boolean) : SettingsEvent
     data object ClearAiCache : SettingsEvent
+    // --- Reading Goals ---
+    data class SetDailyChapterGoal(val goal: Int) : SettingsEvent
+    data class SetWeeklyChapterGoal(val goal: Int) : SettingsEvent
+    data class SetReadingRemindersEnabled(val enabled: Boolean) : SettingsEvent
+    data class SetReadingReminderHour(val hour: Int) : SettingsEvent
 }
 
 sealed interface SettingsEffect : UiEffect {

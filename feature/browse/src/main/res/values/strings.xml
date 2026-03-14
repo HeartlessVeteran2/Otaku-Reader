@@ -17,6 +17,7 @@
     <string name="browse_no_results">No results found</string>
     <string name="browse_no_sources_title">No sources installed</string>
     <string name="browse_no_sources_message">Tap + to install a Tachiyomi extension</string>
+    <string name="browse_opds_catalogs">OPDS Catalogs</string>
 
     <!-- Accessibility: SourceMangaScreen -->
     <string name="browse_back">Back</string>

@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Otaku Reader V1 Monochrome Icon: Simplified オト Monogram for themed icons -->
+
+    <!-- Cherry Blossom Petals (single-tone silhouette) -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M54,15
+            C60,15 65,20 68,28
+            L54,45 L40,28
+            C43,20 48,15 54,15Z" />
+
+    <path
+        android:fillColor="#000000"
+        android:pathData="M68,28
+            C75,25 82,30 85,38
+            L70,52 L54,45
+            L68,28Z" />
+
+    <path
+        android:fillColor="#000000"
+        android:pathData="M85,38
+            C90,45 88,55 82,62
+            L65,55 L70,52
+            L85,38Z" />
+
+    <path
+        android:fillColor="#000000"
+        android:pathData="M82,62
+            C78,72 68,75 60,72
+            L58,55 L65,55
+            L82,62Z" />
+
+    <path
+        android:fillColor="#000000"
+        android:pathData="M60,72
+            C52,78 42,75 38,68
+            L50,58 L58,55
+            L60,72Z" />
+
+    <path
+        android:fillColor="#000000"
+        android:pathData="M38,68
+            C30,62 28,52 32,42
+            L48,50 L50,58
+            L38,68Z" />
+
+    <path
+        android:fillColor="#000000"
+        android:pathData="M32,42
+            C30,32 35,25 40,28
+            L48,50 L32,42Z" />
+
+    <!-- Open Book Page (Bottom petal detail) -->
+    <path
+        android:fillColor="#000000"
+        android:fillAlpha="0.3"
+        android:pathData="M45,68
+            L54,78 L63,68
+            L60,65 L54,72 L48,65
+            L45,68Z" />
+
+    <!-- オ (O) - Left Character -->
+    <!-- Vertical stroke -->
+    <path
+        android:strokeColor="#000000"
+        android:strokeWidth="2.5"
+        android:pathData="M38,25 L38,65" />
+
+    <!-- Top horizontal -->
+    <path
+        android:strokeColor="#000000"
+        android:strokeWidth="2.5"
+        android:pathData="M28,25 L48,25" />
+
+    <!-- Left diagonal -->
+    <path
+        android:strokeColor="#000000"
+        android:strokeWidth="2.5"
+        android:pathData="M28,25 L20,50" />
+
+    <!-- Right diagonal -->
+    <path
+        android:strokeColor="#000000"
+        android:strokeWidth="2.5"
+        android:pathData="M48,25 L56,50" />
+
+    <!-- ト (To) - Right Character -->
+    <!-- Main vertical -->
+    <path
+        android:strokeColor="#000000"
+        android:strokeWidth="3.5"
+        android:pathData="M58,20 L58,70" />
+
+    <!-- Top tick mark -->
+    <path
+        android:strokeColor="#000000"
+        android:strokeWidth="3.5"
+        android:pathData="M58,20 L72,15" />
+</vector>

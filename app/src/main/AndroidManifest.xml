@@ -6,18 +6,34 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <!-- Storage permissions for legacy chapter downloads, local manga, covers, and CBZ export -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+
+    <!-- Package visibility and management: required to list and uninstall Tachiyomi extension packages (including sideloaded/private ones on Android 11+) -->
+    <uses-permission
+        android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
 
     <application
         android:name=".OtakuReaderApplication"
         android:allowBackup="false"
         android:enableOnBackInvokedCallback="true"
-        android:icon="@drawable/ic_launcher"
+        android:hardwareAccelerated="true"
+        android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
+        android:largeHeap="true"
         android:localeConfig="@xml/locales_config"
         android:networkSecurityConfig="@xml/network_security_config"
-        android:roundIcon="@drawable/ic_launcher_round"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.OtakuReaderBase">
 
@@ -29,6 +45,24 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            
+            <!-- Deep link intent filter for manga URLs -->
+            <!-- Note: Using single intent-filter with specific host+path combinations -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <!-- MangaDex -->
+                <data android:scheme="https" android:host="mangadex.org" android:pathPrefix="/title" />
+                <data android:scheme="https" android:host="www.mangadex.org" android:pathPrefix="/title" />
+            </intent-filter>
+            
+            <!-- Share intent filter for text/plain -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
             </intent-filter>
         </activity>
 
@@ -74,9 +108,10 @@
 
         <!-- Continue Reading Widget -->
         <receiver
-                    android:name=".widget.ContinueReadingWidgetReceiver"
-                    android:exported="false"
-                    android:label="@string/continue_reading_widget_label">
+            android:name=".widget.ContinueReadingWidgetReceiver"
+            android:exported="true"
+            android:label="@string/continue_reading_widget_label"
+            android:permission="android.permission.BIND_APPWIDGET">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -87,9 +122,10 @@
 
         <!-- Recent Updates Widget -->
         <receiver
-                    android:name=".widget.RecentUpdatesWidgetReceiver"
-                    android:exported="false"
-                    android:label="@string/recent_updates_widget_label">
+            android:name=".widget.RecentUpdatesWidgetReceiver"
+            android:exported="true"
+            android:label="@string/recent_updates_widget_label"
+            android:permission="android.permission.BIND_APPWIDGET">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -97,6 +133,16 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/recent_updates_widget_info" />
         </receiver>
+
+        <!--
+            WorkManager foreground service: declare dataSync type so that library-update
+            and backup workers can run as foreground services on Android 14+ without
+            a ForegroundServiceStartNotAllowedException.
+        -->
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
 
     </application>
 

@@ -11,6 +11,7 @@ dependencies {
     implementation(projects.core.common)
     implementation(projects.core.preferences)
     implementation(projects.core.ui)
+    implementation(projects.core.discord)
     implementation(projects.domain)
     implementation(projects.data)
     implementation(libs.paging.compose)

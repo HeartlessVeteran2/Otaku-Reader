@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -63,6 +64,7 @@ fun BrowseScreen(
     onMangaClick: (sourceId: String, mangaUrl: String) -> Unit,
     onInstallExtensionClick: () -> Unit,
     onGlobalSearchClick: () -> Unit = {},
+    onOpdsClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -88,6 +90,9 @@ fun BrowseScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.browse_title)) },
                 actions = {
+                    IconButton(onClick = onOpdsClick) {
+                        Icon(Icons.Default.Storage, contentDescription = stringResource(R.string.browse_opds_catalogs))
+                    }
                     IconButton(onClick = onGlobalSearchClick) {
                         Icon(Icons.Default.Search, contentDescription = stringResource(R.string.browse_search))
                     }

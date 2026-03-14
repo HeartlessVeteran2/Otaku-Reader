@@ -155,9 +155,13 @@ fun SettingsScreen(
             HorizontalDivider()
             NotificationsSection(state = state, onEvent = viewModel::onEvent)
             HorizontalDivider()
+            ReadingGoalsSection(state = state, onEvent = viewModel::onEvent)
+            HorizontalDivider()
             DataStorageSection(state = state, onEvent = viewModel::onEvent)
             HorizontalDivider()
             MigrationSection(state = state, onEvent = viewModel::onEvent)
+            HorizontalDivider()
+            DiscordSection(state = state, onEvent = viewModel::onEvent)
             HorizontalDivider()
             AiSection(state = state, onEvent = viewModel::onEvent)
         }
@@ -675,6 +679,108 @@ private fun NotificationsSection(state: SettingsState, onEvent: (SettingsEvent) 
 }
 
 @Composable
+private fun ReadingGoalsSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
+    // ── Reading Goals ──────────────────────────────────────────────────
+    SectionHeader(title = "Reading Goals")
+
+    // Daily chapter goal
+    var dailyGoalSlider by remember { mutableFloatStateOf(state.dailyChapterGoal.toFloat()) }
+    LaunchedEffect(state.dailyChapterGoal) {
+        dailyGoalSlider = state.dailyChapterGoal.toFloat()
+    }
+    ListItem(
+        headlineContent = { Text("Daily Chapter Goal") },
+        supportingContent = {
+            Column {
+                Text(if (state.dailyChapterGoal == 0) "Disabled" else "${state.dailyChapterGoal} chapters/day")
+                Slider(
+                    value = dailyGoalSlider,
+                    onValueChange = { dailyGoalSlider = it },
+                    onValueChangeFinished = {
+                        onEvent(SettingsEvent.SetDailyChapterGoal(dailyGoalSlider.roundToInt()))
+                    },
+                    valueRange = 0f..20f,
+                    steps = 19
+                )
+            }
+        }
+    )
+
+    // Weekly chapter goal
+    var weeklyGoalSlider by remember { mutableFloatStateOf(state.weeklyChapterGoal.toFloat()) }
+    LaunchedEffect(state.weeklyChapterGoal) {
+        weeklyGoalSlider = state.weeklyChapterGoal.toFloat()
+    }
+    ListItem(
+        headlineContent = { Text("Weekly Chapter Goal") },
+        supportingContent = {
+            Column {
+                Text(if (state.weeklyChapterGoal == 0) "Disabled" else "${state.weeklyChapterGoal} chapters/week")
+                Slider(
+                    value = weeklyGoalSlider,
+                    onValueChange = { weeklyGoalSlider = it },
+                    onValueChangeFinished = {
+                        onEvent(SettingsEvent.SetWeeklyChapterGoal(weeklyGoalSlider.roundToInt()))
+                    },
+                    valueRange = 0f..50f,
+                    steps = 49
+                )
+            }
+        }
+    )
+
+    // Reading reminders
+    ListItem(
+        headlineContent = { Text("Reading Reminders") },
+        supportingContent = { Text("Get a daily reminder to read") },
+        trailingContent = {
+            Switch(
+                checked = state.readingRemindersEnabled,
+                onCheckedChange = {
+                    onEvent(SettingsEvent.SetReadingRemindersEnabled(it))
+                }
+            )
+        }
+    )
+
+    // Reminder time
+    if (state.readingRemindersEnabled) {
+        ListItem(
+            headlineContent = { Text("Reminder Time") },
+            supportingContent = {
+                Column(modifier = Modifier.selectableGroup()) {
+                    val hours = listOf("Morning (9 AM)" to 9, "Afternoon (2 PM)" to 14, "Evening (8 PM)" to 20)
+                    hours.forEach { (label, hour) ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .selectable(
+                                    selected = state.readingReminderHour == hour,
+                                    onClick = {
+                                        onEvent(SettingsEvent.SetReadingReminderHour(hour))
+                                    },
+                                    role = Role.RadioButton
+                                )
+                                .padding(vertical = 4.dp)
+                        ) {
+                            RadioButton(
+                                selected = state.readingReminderHour == hour,
+                                onClick = null
+                            )
+                            Text(
+                                text = label,
+                                modifier = Modifier.padding(start = 8.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        )
+    }
+}
+
+@Composable
 private fun DataStorageSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
     // ── Data & Storage ────────────────────────────────────────────────
             SectionHeader(title = "Backup, Restore & Migration")
@@ -1034,6 +1140,23 @@ private fun MigrationSection(state: SettingsState, onEvent: (SettingsEvent) -> U
                     modifier = Modifier.fillMaxWidth()
                 )
             }
+        }
+    )
+}
+
+@Composable
+private fun DiscordSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
+    // ── Discord ───────────────────────────────────────────────────────
+    SectionHeader(title = "Discord")
+
+    ListItem(
+        headlineContent = { Text("Rich Presence") },
+        supportingContent = { Text("Show current reading activity as your Discord status") },
+        trailingContent = {
+            Switch(
+                checked = state.discordRpcEnabled,
+                onCheckedChange = { onEvent(SettingsEvent.SetDiscordRpcEnabled(it)) }
+            )
         }
     )
 }

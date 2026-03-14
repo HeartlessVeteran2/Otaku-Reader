@@ -4,7 +4,9 @@ import app.otakureader.domain.repository.CategoryRepository
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.MangaRepository
+import app.otakureader.domain.repository.OpdsRepository
 import app.otakureader.domain.repository.StatisticsRepository
+import app.otakureader.data.opds.OpdsRepositoryImpl
 import app.otakureader.data.repository.CategoryRepositoryImpl
 import app.otakureader.data.repository.ChapterRepositoryImpl
 import app.otakureader.data.repository.DownloadRepositoryImpl
@@ -43,4 +45,9 @@ abstract class RepositoryModule {
     abstract fun bindStatisticsRepository(
         impl: StatisticsRepositoryImpl
     ): StatisticsRepository
+
+    @Binds
+    abstract fun bindOpdsRepository(
+        impl: OpdsRepositoryImpl
+    ): OpdsRepository
 }

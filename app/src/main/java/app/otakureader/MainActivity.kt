@@ -1,5 +1,6 @@
 package app.otakureader
 
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -14,6 +15,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.Lifecycle
@@ -23,6 +26,8 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.compose.rememberNavController
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.ui.theme.OtakuReaderTheme
+import app.otakureader.util.DeepLinkHandler
+import app.otakureader.util.DeepLinkResult
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
@@ -32,11 +37,23 @@ import javax.inject.Inject
 class MainActivity : ComponentActivity() {
 
     @Inject lateinit var generalPreferences: GeneralPreferences
+    
+    // Hold deep link result across recompositions for the current Activity instance
+    private var pendingDeepLinkResult by mutableStateOf<DeepLinkResult?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         applyLocaleFromPreferences()
+        
+        // Handle deep link or share intent only on initial launch
+        if (savedInstanceState == null) {
+            val result = DeepLinkHandler.parseIntent(intent)
+            if (result !is DeepLinkResult.Invalid) {
+                pendingDeepLinkResult = result
+            }
+        }
+        
         setContent {
             val themeMode by generalPreferences.themeMode
                 .collectAsStateWithLifecycle(initialValue = 0)
@@ -66,9 +83,21 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    OtakuReaderApp()
+                    OtakuReaderApp(
+                        deepLinkResult = pendingDeepLinkResult,
+                        onDeepLinkConsumed = { pendingDeepLinkResult = null }
+                    )
                 }
             }
+        }
+    }
+    
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        // Handle new intents when activity is already running
+        val result = DeepLinkHandler.parseIntent(intent)
+        if (result !is DeepLinkResult.Invalid) {
+            pendingDeepLinkResult = result
         }
     }
 
@@ -98,12 +127,17 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun OtakuReaderApp() {
+fun OtakuReaderApp(
+    deepLinkResult: DeepLinkResult? = null,
+    onDeepLinkConsumed: () -> Unit = {}
+) {
     val navController = rememberNavController()
 
     Scaffold { padding ->
         OtakuReaderNavHost(
             navController = navController,
+            deepLinkResult = deepLinkResult,
+            onDeepLinkConsumed = onDeepLinkConsumed,
             modifier = Modifier.padding(padding)
         )
     }

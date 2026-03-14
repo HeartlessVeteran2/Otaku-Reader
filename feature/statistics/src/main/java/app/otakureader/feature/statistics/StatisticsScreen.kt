@@ -26,6 +26,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -36,12 +37,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.otakureader.domain.model.ReadingGoal
 import app.otakureader.domain.model.ReadingStats
 
 /** Statistics screen showing reading analytics. */
@@ -91,6 +94,7 @@ fun StatisticsScreen(
 
             else -> StatisticsContent(
                 stats = state.stats,
+                readingGoal = state.readingGoal,
                 modifier = Modifier.padding(paddingValues)
             )
         }
@@ -100,6 +104,7 @@ fun StatisticsScreen(
 @Composable
 private fun StatisticsContent(
     stats: ReadingStats,
+    readingGoal: ReadingGoal,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -110,8 +115,21 @@ private fun StatisticsContent(
     ) {
         item { Spacer(modifier = Modifier.height(4.dp)) }
 
+        // Reading goals progress
+        if (readingGoal.dailyGoal > 0 || readingGoal.weeklyGoal > 0) {
+            item {
+                SectionTitle("Reading Goals")
+                Spacer(modifier = Modifier.height(8.dp))
+                ReadingGoalsSection(readingGoal)
+            }
+        }
+
         // Summary cards
         item {
+            if (readingGoal.dailyGoal > 0 || readingGoal.weeklyGoal > 0) {
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(4.dp))
+            }
             SectionTitle("Overview")
             Spacer(modifier = Modifier.height(8.dp))
             SummaryCards(stats)
@@ -233,6 +251,78 @@ private fun StreakRow(currentStreak: Int, bestStreak: Int) {
             value = "${bestStreak}d",
             modifier = Modifier.weight(1f)
         )
+    }
+}
+
+@Composable
+private fun ReadingGoalsSection(readingGoal: ReadingGoal) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (readingGoal.dailyGoal > 0) {
+            GoalProgressCard(
+                label = "Daily Goal",
+                progress = readingGoal.dailyProgress,
+                goal = readingGoal.dailyGoal
+            )
+        }
+        if (readingGoal.weeklyGoal > 0) {
+            GoalProgressCard(
+                label = "Weekly Goal",
+                progress = readingGoal.weeklyProgress,
+                goal = readingGoal.weeklyGoal
+            )
+        }
+    }
+}
+
+@Composable
+private fun GoalProgressCard(
+    label: String,
+    progress: Int,
+    goal: Int,
+    modifier: Modifier = Modifier
+) {
+    val fraction = (progress.toFloat() / goal.toFloat()).coerceIn(0f, 1f)
+    val isComplete = progress >= goal
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = if (isComplete) "✓ Complete!" else "$progress / $goal chapters",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (isComplete) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            LinearProgressIndicator(
+                progress = { fraction },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(4.dp)),
+                color = if (isComplete) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.secondary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                strokeCap = StrokeCap.Round,
+            )
+        }
     }
 }
 

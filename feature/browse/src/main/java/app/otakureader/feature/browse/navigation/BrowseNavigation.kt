@@ -20,6 +20,7 @@ fun NavGraphBuilder.browseScreen(
     onNavigateToSource: (sourceId: String) -> Unit,
     onNavigateToExtensions: () -> Unit,
     onNavigateToGlobalSearch: () -> Unit,
+    onNavigateToOpds: () -> Unit = {},
 ) {
     composable<BrowseRoute> {
         BrowseScreen(
@@ -28,7 +29,8 @@ fun NavGraphBuilder.browseScreen(
                 onMangaClick(sourceId, mangaUrl, "")
             },
             onInstallExtensionClick = onNavigateToExtensions,
-            onGlobalSearchClick = onNavigateToGlobalSearch
+            onGlobalSearchClick = onNavigateToGlobalSearch,
+            onOpdsClick = onNavigateToOpds
         )
     }
 }

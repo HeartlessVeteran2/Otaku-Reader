@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width="108" height="108">
+  <!-- Background: Deep Indigo -->
+  <path fill="#0f172a" d="M0,0h108v108H0z"/>
+
+  <!-- Cherry Blossom Glow -->
+  <path fill="#1e1b4b" d="M54,10
+      C70,10 85,25 90,45
+      C95,65 80,85 60,95
+      C45,102 25,90 18,70
+      C12,50 20,25 40,15
+      C46,12 50,10 54,10Z"/>
+
+  <!-- Cherry Blossom Petals -->
+  <path fill="#ec4899" d="M54,15
+      C60,15 65,20 68,28
+      L54,45 L40,28
+      C43,20 48,15 54,15Z"/>
+
+  <path fill="#db2777" d="M68,28
+      C75,25 82,30 85,38
+      L70,52 L54,45
+      L68,28Z"/>
+
+  <path fill="#ec4899" d="M85,38
+      C90,45 88,55 82,62
+      L65,55 L70,52
+      L85,38Z"/>
+
+  <path fill="#be185d" d="M82,62
+      C78,72 68,75 60,72
+      L58,55 L65,55
+      L82,62Z"/>
+
+  <path fill="#db2777" d="M60,72
+      C52,78 42,75 38,68
+      L50,58 L58,55
+      L60,72Z"/>
+
+  <path fill="#ec4899" d="M38,68
+      C30,62 28,52 32,42
+      L48,50 L50,58
+      L38,68Z"/>
+
+  <path fill="#db2777" d="M32,42
+      C30,32 35,25 40,28
+      L48,50 L32,42Z"/>
+
+  <!-- Open Book Page (Bottom petal detail) -->
+  <path fill="#fce7f3" d="M45,68
+      L54,78 L63,68
+      L60,65 L54,72 L48,65
+      L45,68Z"/>
+
+  <!-- オ (O) - Left Character -->
+  <!-- Vertical stroke -->
+  <line x1="38" y1="25" x2="38" y2="65" stroke="#fbbf24" stroke-width="2" fill="none"/>
+
+  <!-- Top horizontal -->
+  <line x1="28" y1="25" x2="48" y2="25" stroke="#fbbf24" stroke-width="2" fill="none"/>
+
+  <!-- Left diagonal -->
+  <line x1="28" y1="25" x2="20" y2="50" stroke="#fbbf24" stroke-width="2" fill="none"/>
+
+  <!-- Right diagonal -->
+  <line x1="48" y1="25" x2="56" y2="50" stroke="#fbbf24" stroke-width="2" fill="none"/>
+
+  <!-- ト (To) - Right Character -->
+  <!-- Main vertical -->
+  <line x1="58" y1="20" x2="58" y2="70" stroke="#fbbf24" stroke-width="3" fill="none"/>
+
+  <!-- Top tick mark -->
+  <line x1="58" y1="20" x2="72" y2="15" stroke="#fbbf24" stroke-width="3" fill="none"/>
+</svg>

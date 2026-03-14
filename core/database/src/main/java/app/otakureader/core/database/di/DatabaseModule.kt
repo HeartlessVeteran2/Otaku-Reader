@@ -99,6 +99,27 @@ object DatabaseModule {
         }
     }
 
+    /**
+     * Adds the opds_servers table for OPDS server management in database version 9.
+     * Credentials are stored separately in EncryptedSharedPreferences.
+     */
+    private val MIGRATION_8_9 = object : Migration(8, 9) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `opds_servers` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `name` TEXT NOT NULL,
+                    `url` TEXT NOT NULL
+                )
+                """.trimIndent()
+            )
+            db.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS `index_opds_servers_url` ON `opds_servers` (`url`)"
+            )
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(
@@ -109,7 +130,7 @@ object DatabaseModule {
             OtakuReaderDatabase::class.java,
             OtakuReaderDatabase.DATABASE_NAME
         )
-            .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+            .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
         // Only allow destructive migration in debug builds to avoid silently wiping
         // user data (including notes) in production if a migration is missing.
         if (BuildConfig.DEBUG) {
@@ -132,4 +153,7 @@ object DatabaseModule {
 
     @Provides
     fun provideReadingHistoryDao(database: OtakuReaderDatabase) = database.readingHistoryDao()
+
+    @Provides
+    fun provideOpdsServerDao(database: OtakuReaderDatabase) = database.opdsServerDao()
 }

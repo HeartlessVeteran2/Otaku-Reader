@@ -269,26 +269,74 @@ class ExtensionInstaller(
     
     /**
      * Uninstall an extension.
+     *
+     * Distinguishes two cases:
+     * - **System-installed (shared) extensions**: the package is registered with the
+     *   Android PackageManager. Launching [Intent.ACTION_DELETE] triggers the system
+     *   uninstaller dialog (requires [android.permission.REQUEST_DELETE_PACKAGES]).
+     *   On user confirmation the system broadcasts [Intent.ACTION_PACKAGE_REMOVED],
+     *   which [ExtensionInstallReceiver] receives to clean up the database entry.
+     *   Any locally cached private APK copy is also removed immediately.
+     * - **Private/sideloaded extensions**: stored only in the app's internal files dir
+     *   and not registered with PackageManager. The local APK and database entry are
+     *   deleted directly and a local removal broadcast is sent.
+     *
      * @param pkgName Package name to uninstall
      * @return Result indicating success or failure
      */
     suspend fun uninstall(pkgName: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             repository.setExtensionStatus(pkgName, InstallStatus.UNINSTALLING)
-            
-            // Delete APK file
-            val apkFile = File(extensionsDir, "$pkgName.apk")
-            if (apkFile.exists()) {
-                apkFile.delete()
-            }
-            
-            // Remove from repository
-            repository.uninstallExtension(pkgName).also {
-                // Notify the receiver that the private extension is gone
-                ExtensionInstallReceiver.notifyRemoved(context, pkgName)
+
+            if (isSystemInstalled(pkgName)) {
+                // Trigger the system uninstaller dialog for shared/installed extensions.
+                // The system will broadcast ACTION_PACKAGE_REMOVED on confirmation,
+                // which ExtensionInstallReceiver handles to remove the DB entry.
+                val deleteIntent = Intent(
+                    Intent.ACTION_DELETE,
+                    "package:$pkgName".toUri()
+                ).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(deleteIntent)
+
+                // Remove any locally cached private APK copy for this package.
+                File(extensionsDir, "$pkgName.apk").takeIf { it.exists() }?.delete()
+
+                Result.success(Unit)
+            } else {
+                // Private/sideloaded extension: delete local APK and remove from DB.
+                File(extensionsDir, "$pkgName.apk").takeIf { it.exists() }?.delete()
+
+                // Remove from repository and notify the receiver.
+                repository.uninstallExtension(pkgName).also {
+                    ExtensionInstallReceiver.notifyRemoved(context, pkgName)
+                }
             }
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    /**
+     * Returns true when [pkgName] is currently installed as a shared system package
+     * discoverable via PackageManager. Private/sideloaded extensions stored only in
+     * the app's internal files dir will return false.
+     */
+    private fun isSystemInstalled(pkgName: String): Boolean {
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                context.packageManager.getPackageInfo(
+                    pkgName,
+                    PackageManager.PackageInfoFlags.of(0)
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                context.packageManager.getPackageInfo(pkgName, 0)
+            }
+            true
+        } catch (_: PackageManager.NameNotFoundException) {
+            false
         }
     }
     

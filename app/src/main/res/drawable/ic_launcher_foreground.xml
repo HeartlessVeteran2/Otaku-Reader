@@ -9,7 +9,10 @@
     <!-- Cherry Blossom Petals (Background of foreground) -->
     <path
         android:fillColor="#ec4899"
-        android:pathData="M54,15 C60,15 65,20 68,28 L54,45 L40,28 C43,20 48,15 54,15Z" />
+        android:pathData="M54,15 
+            C60,15 65,20 68,28 
+            L54,45 L40,28 
+            C43,20 48,15 54,15Z" />
     
     <path
         android:fillColor="#db2777"

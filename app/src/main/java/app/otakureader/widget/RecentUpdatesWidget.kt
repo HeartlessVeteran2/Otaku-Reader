@@ -2,8 +2,6 @@ package app.otakureader.widget
 
 import android.content.Context
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
@@ -20,6 +18,8 @@ import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.otakureader.R
 
 /**
@@ -29,7 +29,7 @@ class RecentUpdatesWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         // TODO: Load actual recent updates from repository
-        val updates = getMockUpdates()
+        val updates = emptyList<MangaUpdate>()
         val title = context.getString(R.string.widget_recent_updates_title)
         val emptyText = context.getString(R.string.widget_no_recent_updates)
 
@@ -44,15 +44,11 @@ class RecentUpdatesWidget : GlanceAppWidget() {
         }
     }
 
-    private fun getMockUpdates(): List<MangaUpdate> {
-        return emptyList()
-    }
 }
 
 private data class MangaUpdate(
     val title: String,
-    val chapter: String,
-    val timeAgo: String
+    val subtitle: String
 )
 
 @Composable
@@ -114,7 +110,7 @@ private fun UpdateItemWidget(update: MangaUpdate) {
             maxLines = 1
         )
         Text(
-            text = context.getString(R.string.widget_chapter_time_format, update.chapter, update.timeAgo),
+            text = update.subtitle,
             style = TextStyle(
                 color = GlanceTheme.colors.primary,
                 fontSize = 12.sp

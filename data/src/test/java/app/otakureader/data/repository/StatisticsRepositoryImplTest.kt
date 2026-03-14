@@ -296,4 +296,34 @@ class StatisticsRepositoryImplTest {
             cancelAndIgnoreRemainingEvents()
         }
     }
+
+    // ── getReadingGoalProgress ──────────────────────────────────────────────────
+
+    @Test
+    fun getReadingGoalProgress_returnsGoalsAndProgress() = runTest {
+        every { readingHistoryDao.getChaptersReadSince(any()) } returns flowOf(3)
+
+        repository.getReadingGoalProgress(dailyGoal = 5, weeklyGoal = 20).test {
+            val goal = awaitItem()
+            assertEquals(5, goal.dailyGoal)
+            assertEquals(20, goal.weeklyGoal)
+            assertEquals(3, goal.dailyProgress)
+            assertEquals(3, goal.weeklyProgress)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun getReadingGoalProgress_zeroGoals_returnsZeroGoals() = runTest {
+        every { readingHistoryDao.getChaptersReadSince(any()) } returns flowOf(0)
+
+        repository.getReadingGoalProgress(dailyGoal = 0, weeklyGoal = 0).test {
+            val goal = awaitItem()
+            assertEquals(0, goal.dailyGoal)
+            assertEquals(0, goal.weeklyGoal)
+            assertEquals(0, goal.dailyProgress)
+            assertEquals(0, goal.weeklyProgress)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
 }

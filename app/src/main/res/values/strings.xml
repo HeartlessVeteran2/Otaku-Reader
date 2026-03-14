@@ -1,4 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Otaku Reader</string>
+
+    <!-- App icon shortcuts -->
+    <string name="shortcut_library_short">Library</string>
+    <string name="shortcut_library_long">Open Library</string>
+    <string name="shortcut_updates_short">Updates</string>
+    <string name="shortcut_updates_long">Check Updates</string>
+    <string name="shortcut_continue_reading_short">Continue</string>
+    <string name="shortcut_continue_reading_long">Continue Reading</string>
 </resources>

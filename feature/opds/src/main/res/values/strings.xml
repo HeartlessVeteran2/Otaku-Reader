@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="opds_title">OPDS Catalogs</string>
+    <string name="opds_add_server">Add Server</string>
+    <string name="opds_edit_server">Edit Server</string>
+    <string name="opds_delete_server">Delete Server</string>
+    <string name="opds_server_name">Server Name</string>
+    <string name="opds_server_url">Server URL</string>
+    <string name="opds_server_username">Username (optional)</string>
+    <string name="opds_server_password">Password (optional)</string>
+    <string name="opds_save">Save</string>
+    <string name="opds_cancel">Cancel</string>
+    <string name="opds_no_servers">No OPDS servers added yet.\nTap + to add one.</string>
+    <string name="opds_browse_catalog">Browse Catalog</string>
+    <string name="opds_search">Search</string>
+    <string name="opds_search_hint">Search catalog…</string>
+    <string name="opds_back">Back</string>
+    <string name="opds_loading">Loading…</string>
+    <string name="opds_error">Error loading feed</string>
+    <string name="opds_retry">Retry</string>
+    <string name="opds_empty_feed">No entries found</string>
+    <string name="opds_add_to_favorites">Add to Favorites</string>
+    <string name="opds_server_name_required">Server name is required</string>
+    <string name="opds_server_url_required">Server URL is required</string>
+    <string name="opds_delete_confirm">Delete \"%1$s\"?</string>
+    <string name="opds_server_saved">Server saved</string>
+    <string name="opds_server_deleted">Server deleted</string>
+    <string name="opds_navigate">Browse</string>
+</resources>

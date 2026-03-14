@@ -2,8 +2,6 @@ package app.otakureader.widget
 
 import android.content.Context
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
@@ -20,6 +18,8 @@ import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.otakureader.R
 
 /**
@@ -44,19 +44,11 @@ class ContinueReadingWidget : GlanceAppWidget() {
         }
     }
 
-    private fun getMockReadingItems(): List<ReadingItem> {
-        return listOf(
-            ReadingItem("One Piece", "Chapter 1085", "80%"),
-            ReadingItem("Jujutsu Kaisen", "Chapter 245", "45%"),
-            ReadingItem("Chainsaw Man", "Chapter 145", "30%")
-        )
-    }
 }
 
 private data class ReadingItem(
     val title: String,
-    val chapter: String,
-    val progress: String
+    val subtitle: String
 )
 
 @Composable
@@ -118,7 +110,7 @@ private fun ReadingItemWidget(item: ReadingItem) {
             maxLines = 1
         )
         Text(
-            text = context.getString(R.string.widget_chapter_progress_format, item.chapter, item.progress),
+            text = item.subtitle,
             style = TextStyle(
                 color = GlanceTheme.colors.onSurfaceVariant,
                 fontSize = 12.sp
