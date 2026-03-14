@@ -46,10 +46,12 @@ import app.otakureader.feature.reader.modes.DualPageReader
 import app.otakureader.feature.reader.modes.SinglePageReader
 import app.otakureader.feature.reader.modes.SmartPanelsReader
 import app.otakureader.feature.reader.modes.WebtoonReader
+import app.otakureader.feature.reader.ui.BatteryTimeOverlay
 import app.otakureader.feature.reader.ui.BrightnessSliderOverlay
 import app.otakureader.feature.reader.ui.FullPageGallery
 import app.otakureader.feature.reader.ui.PageSlider
 import app.otakureader.feature.reader.ui.PageThumbnailStrip
+import app.otakureader.feature.reader.ui.ReadingTimerOverlay
 import app.otakureader.feature.reader.ui.ReaderMenuOverlay
 import app.otakureader.feature.reader.ui.SimpleTapZoneOverlay
 import app.otakureader.feature.reader.ui.ZoomIndicator
@@ -273,7 +275,22 @@ fun ReaderScreen(
             isVisible = state.isMenuVisible && state.pages.isNotEmpty(),
             modifier = Modifier.align(Alignment.BottomCenter)
         )
-        
+
+        // Reading Timer Overlay - top-right corner
+        ReadingTimerOverlay(
+            isVisible = state.showReadingTimer && !state.isMenuVisible,
+            sessionStartMs = viewModel.sessionStartMs,
+            modifier = Modifier.align(Alignment.TopEnd)
+        )
+
+        // Battery/Time Overlay - top-right corner (below timer if both shown)
+        BatteryTimeOverlay(
+            isVisible = state.showBatteryTime && !state.isMenuVisible,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = if (state.showReadingTimer) 52.dp else 0.dp)
+        )
+
         // Snackbar host
         SnackbarHost(
             hostState = snackbarHostState,
