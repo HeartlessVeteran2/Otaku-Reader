@@ -143,8 +143,6 @@ class SmartPrefetchManager @Inject constructor(
             } else {
                 onDemandLoads++
             }
-
-            viewedPages.add(imageUrl)
         }
     }
 
@@ -164,13 +162,12 @@ class SmartPrefetchManager @Inject constructor(
 
     /**
      * Returns prefetch efficiency (0.0 to 1.0).
-     * Ratio of prefetched pages that were actually viewed.
+     * Ratio of prefetched pages that resulted in cache hits when viewed.
      */
     fun getPrefetchEfficiency(): Float {
         return synchronized(prefetchedPages) {
             if (pagesPrefetched > 0) {
-                val viewedPrefetched = viewedPages.count { prefetchedPages.containsKey(it) }
-                viewedPrefetched.toFloat() / pagesPrefetched.toFloat()
+                cacheHits.toFloat() / pagesPrefetched.toFloat()
             } else {
                 0f
             }
