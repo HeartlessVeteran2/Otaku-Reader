@@ -377,9 +377,8 @@ fun RotationControl(
                 .clip(RoundedCornerShape(4.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
                 .semantics {
-                    role = Role.Button
-                    contentDescription = "Reset page rotation"
-                }
+                                    role = Role.Button
+                                }
                 .clickable(onClick = onResetRotation)
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
