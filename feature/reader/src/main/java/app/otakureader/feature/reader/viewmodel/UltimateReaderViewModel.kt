@@ -208,7 +208,7 @@ class UltimateReaderViewModel @Inject constructor(
                 settingsRepository.prefetchAdjacentChapters.first()
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
-                true
+                false
             }
             cachedPrefetchOnlyOnWiFi = try {
                 settingsRepository.prefetchOnlyOnWiFi.first()
