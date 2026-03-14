@@ -142,6 +142,28 @@ data class TapZoneConfig(
 }
 
 /**
+ * Image quality levels for page rendering.
+ * Controls both the Coil decode size and the rendering filter quality.
+ */
+enum class ImageQuality {
+    /** Decode at full resolution. Best quality, highest memory usage. */
+    ORIGINAL,
+
+    /** Downscale to 1080 px on the longer side. Sharp on most displays. */
+    HIGH,
+
+    /** Downscale to 720 px on the longer side. Good balance of quality and memory. */
+    MEDIUM,
+
+    /** Downscale to 480 px on the longer side. Lowest memory; suitable for slow connections. */
+    LOW;
+
+    companion object {
+        fun default(): ImageQuality = ORIGINAL
+    }
+}
+
+/**
  * Color filter modes for the reader overlay.
  */
 enum class ColorFilterMode {

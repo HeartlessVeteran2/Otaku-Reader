@@ -36,6 +36,8 @@ import androidx.compose.ui.unit.IntSize
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.transformations
+import coil3.size.Size
+import app.otakureader.feature.reader.model.ImageQuality
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlin.math.max
@@ -57,6 +59,7 @@ fun ZoomableImage(
     contentScale: ContentScale = ContentScale.Fit,
     rotation: Float = 0f,
     cropBordersEnabled: Boolean = false,
+    imageQuality: ImageQuality = ImageQuality.ORIGINAL,
     onDoubleTap: ((Offset) -> Unit)? = null,
     onTap: ((Offset) -> Unit)? = null,
     onZoomChange: ((Float) -> Unit)? = null,
@@ -144,12 +147,25 @@ fun ZoomableImage(
     ) {
         if (imageUrl != null) {
             val context = LocalContext.current
-            val imageModel = remember(imageUrl, cropBordersEnabled, context) {
+            val imageModel = remember(imageUrl, cropBordersEnabled, imageQuality, context) {
                 val builder = ImageRequest.Builder(context).data(imageUrl)
                 if (cropBordersEnabled) {
                     builder.transformations(CropBorderTransformation())
                 }
+                when (imageQuality) {
+                    ImageQuality.ORIGINAL -> builder.size(Size.ORIGINAL)
+                    // Coil fits the image into the given box (ContentScale.Fit semantics),
+                    // so equal width and height effectively cap the longer side at that value.
+                    ImageQuality.HIGH -> builder.size(1080, 1080)
+                    ImageQuality.MEDIUM -> builder.size(720, 720)
+                    ImageQuality.LOW -> builder.size(480, 480)
+                }
                 builder.build()
+            }
+            val renderFilterQuality = when (imageQuality) {
+                ImageQuality.ORIGINAL, ImageQuality.HIGH -> FilterQuality.High
+                ImageQuality.MEDIUM -> FilterQuality.Medium
+                ImageQuality.LOW -> FilterQuality.Low
             }
             AsyncImage(
                 model = imageModel,
@@ -174,7 +190,7 @@ fun ZoomableImage(
                         rotationZ = rotation
                     },
                 contentScale = contentScale,
-                filterQuality = FilterQuality.High
+                filterQuality = renderFilterQuality
             )
         }
     }

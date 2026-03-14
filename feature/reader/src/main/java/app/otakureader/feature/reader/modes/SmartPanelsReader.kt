@@ -16,6 +16,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import app.otakureader.feature.reader.R
 import app.otakureader.feature.reader.components.ZoomableImage
+import app.otakureader.feature.reader.model.ImageQuality
 import app.otakureader.feature.reader.model.ReaderPage
 import kotlinx.coroutines.flow.distinctUntilChanged
 
@@ -35,6 +36,7 @@ fun SmartPanelsReader(
     onTap: (androidx.compose.ui.geometry.Offset) -> Unit,
     rotation: Float = 0f,
     cropBordersEnabled: Boolean = false,
+    imageQuality: ImageQuality = ImageQuality.ORIGINAL,
     modifier: Modifier = Modifier
 ) {
     val pagerState = rememberPagerState(
@@ -80,6 +82,7 @@ fun SmartPanelsReader(
                     onTap = onTap,
                     rotation = rotation,
                     cropBordersEnabled = cropBordersEnabled,
+                    imageQuality = imageQuality,
                     modifier = Modifier.fillMaxSize()
                 )
             } else {
@@ -90,6 +93,7 @@ fun SmartPanelsReader(
                     contentScale = ContentScale.Fit,
                     rotation = rotation,
                     cropBordersEnabled = cropBordersEnabled,
+                    imageQuality = imageQuality,
                     onTap = onTap,
                     modifier = Modifier.fillMaxSize()
                 )
@@ -106,6 +110,7 @@ private fun SmartPanelView(
     onTap: (androidx.compose.ui.geometry.Offset) -> Unit,
     rotation: Float = 0f,
     cropBordersEnabled: Boolean = false,
+    imageQuality: ImageQuality = ImageQuality.ORIGINAL,
     modifier: Modifier = Modifier
 ) {
     // For now, fall back to zoomable image with panel overlay
@@ -116,6 +121,7 @@ private fun SmartPanelView(
         contentScale = ContentScale.Fit,
         rotation = rotation,
         cropBordersEnabled = cropBordersEnabled,
+        imageQuality = imageQuality,
         onTap = onTap,
         modifier = modifier
     )

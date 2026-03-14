@@ -585,6 +585,45 @@ private fun ReaderSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit
                     )
                 }
             )
+
+            // Image quality
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_image_quality)) },
+                supportingContent = {
+                    Column(modifier = Modifier.selectableGroup()) {
+                        val qualities = listOf(
+                            stringResource(R.string.settings_image_quality_original) to 0,
+                            stringResource(R.string.settings_image_quality_high) to 1,
+                            stringResource(R.string.settings_image_quality_medium) to 2,
+                            stringResource(R.string.settings_image_quality_low) to 3
+                        )
+                        qualities.forEach { (label, value) ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .selectable(
+                                        selected = state.imageQuality == value,
+                                        onClick = {
+                                            onEvent(SettingsEvent.SetImageQuality(value))
+                                        },
+                                        role = Role.RadioButton
+                                    )
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                RadioButton(
+                                    selected = state.imageQuality == value,
+                                    onClick = null
+                                )
+                                Text(
+                                    text = label,
+                                    modifier = Modifier.padding(start = 8.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            )
 }
 
 @Composable

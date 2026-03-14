@@ -15,6 +15,7 @@ import app.otakureader.core.discord.DiscordRpcService
 import app.otakureader.data.backup.BackupScheduler
 import app.otakureader.data.tracking.TrackManager
 import app.otakureader.data.worker.ReadingReminderScheduler
+import app.otakureader.feature.reader.model.ImageQuality
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -110,6 +111,8 @@ class SettingsViewModel @Inject constructor(
                 state.copy(preloadPagesAfter = preloadAfter)
             }.combine(readerSettingsRepository.cropBordersEnabled) { state, cropBorders ->
                 state.copy(cropBordersEnabled = cropBorders)
+            }.combine(readerSettingsRepository.imageQuality) { state, imageQuality ->
+                state.copy(imageQuality = imageQuality.ordinal)
             }.combine(downloadPreferences.autoDownloadEnabled) { state, autoDownloadEnabled ->
                 state.copy(autoDownloadEnabled = autoDownloadEnabled)
             }.combine(downloadPreferences.downloadOnlyOnWifi) { state, downloadOnlyOnWifi ->
@@ -196,6 +199,12 @@ class SettingsViewModel @Inject constructor(
                 is SettingsEvent.SetPreloadPagesBefore -> readerSettingsRepository.setPreloadPagesBefore(event.count)
                 is SettingsEvent.SetPreloadPagesAfter -> readerSettingsRepository.setPreloadPagesAfter(event.count)
                 is SettingsEvent.SetCropBordersEnabled -> readerSettingsRepository.setCropBordersEnabled(event.enabled)
+                is SettingsEvent.SetImageQuality -> {
+                    // quality values are always in-range (0–3) when emitted by the UI radio buttons,
+                    // but we guard here to be safe against future callers.
+                    val quality = ImageQuality.entries.getOrNull(event.quality) ?: ImageQuality.ORIGINAL
+                    readerSettingsRepository.setImageQuality(quality)
+                }
                 is SettingsEvent.SetDeleteAfterReading -> downloadPreferences.setDeleteAfterReading(event.enabled)
                 is SettingsEvent.SetAutoDownloadEnabled -> downloadPreferences.setAutoDownloadEnabled(event.enabled)
                 is SettingsEvent.SetDownloadOnlyOnWifi -> downloadPreferences.setDownloadOnlyOnWifi(event.enabled)

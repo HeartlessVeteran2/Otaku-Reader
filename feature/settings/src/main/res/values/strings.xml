@@ -76,6 +76,11 @@
     <string name="settings_preload_after_description">Number of pages to preload after the current page</string>
     <string name="settings_crop_borders">Crop Borders</string>
     <string name="settings_crop_borders_description">Automatically remove white or black margins from page images</string>
+    <string name="settings_image_quality">Image Quality</string>
+    <string name="settings_image_quality_original">Original (full resolution)</string>
+    <string name="settings_image_quality_high">High (max 1080 px)</string>
+    <string name="settings_image_quality_medium">Medium (max 720 px)</string>
+    <string name="settings_image_quality_low">Low (max 480 px)</string>
 
     <!-- Notifications -->
     <string name="settings_notifications">Notifications</string>

@@ -1,6 +1,7 @@
 package app.otakureader.feature.reader.viewmodel
 
 import app.otakureader.feature.reader.model.ColorFilterMode
+import app.otakureader.feature.reader.model.ImageQuality
 import app.otakureader.feature.reader.model.ReaderMode
 import app.otakureader.feature.reader.model.ReadingDirection
 import app.otakureader.feature.reader.model.ReaderPage
@@ -110,7 +111,10 @@ data class ReaderState(
     val showBatteryTime: Boolean = false,
 
     /** Whether automatic border cropping is enabled for page images */
-    val cropBordersEnabled: Boolean = false
+    val cropBordersEnabled: Boolean = false,
+
+    /** Image quality level for page rendering (controls decode size and filter quality). */
+    val imageQuality: ImageQuality = ImageQuality.ORIGINAL
 ) {
     /** Total pages in chapter (derived from pages.size) */
     val totalPages: Int get() = pages.size
