@@ -73,21 +73,21 @@ class SourceHealthMonitor @Inject constructor() {
      * Increments failure count and may mark source as unhealthy.
      */
     fun recordFailure(sourceId: String, error: Throwable) {
-        val current = healthMap[sourceId] ?: SourceHealth(sourceId)
-        val newFailureCount = (current.consecutiveFailures + 1).coerceAtMost(MAX_FAILURES)
         val now = System.currentTimeMillis()
 
-        val updated = current.copy(
-            consecutiveFailures = newFailureCount,
-            lastFailureTimestamp = now,
-            lastError = error.message ?: error::class.simpleName,
-            isHealthy = newFailureCount < FAILURE_THRESHOLD,
-            canRetry = newFailureCount < MAX_FAILURES
-        )
+        healthMap.compute(sourceId) { _, current ->
+            val existing = current ?: SourceHealth(sourceId)
+            val newFailureCount = (existing.consecutiveFailures + 1).coerceAtMost(MAX_FAILURES)
 
-        healthMap[sourceId] = updated
+            existing.copy(
+                consecutiveFailures = newFailureCount,
+                lastFailureTimestamp = now,
+                lastError = error.message ?: error::class.simpleName,
+                isHealthy = newFailureCount < FAILURE_THRESHOLD,
+                canRetry = newFailureCount < MAX_FAILURES
+            )
+        }
         emitUpdate()
-    }
 
     /**
      * Check if a source is healthy enough to use.
