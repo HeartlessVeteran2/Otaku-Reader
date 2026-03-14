@@ -1,6 +1,7 @@
 package app.otakureader.core.tachiyomi.repository
 
 import android.content.Context
+import androidx.annotation.VisibleForTesting
 import app.otakureader.core.preferences.LocalSourcePreferences
 import app.otakureader.core.tachiyomi.compat.TachiyomiExtensionLoader
 import app.otakureader.core.tachiyomi.health.SourceHealthMonitor
@@ -40,11 +41,19 @@ class SourceRepositoryImpl(
     /**
      * Secondary constructor for tests or other call-sites that already know the directory path
      * and do not have a [LocalSourcePreferences] instance available.
+     *
+     * Note: [healthMonitor] must be provided explicitly to avoid bypassing DI and accidentally
+     * creating a separate monitor instance in production code.
      */
-    constructor(context: Context, localDirectory: String) : this(
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    constructor(
+        context: Context,
+        localDirectory: String,
+        healthMonitor: SourceHealthMonitor
+    ) : this(
         context,
         LocalSourcePreferences.ofDirectory(localDirectory),
-        SourceHealthMonitor()
+        healthMonitor
     )
 
     private val extensionLoader = TachiyomiExtensionLoader(
