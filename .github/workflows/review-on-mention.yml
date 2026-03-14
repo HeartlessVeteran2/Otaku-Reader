@@ -18,7 +18,10 @@ concurrency:
 
 jobs:
   parse-mention:
-    if: github.event.issue.pull_request || github.event.pull_request
+    # Only run on PR comments (not regular issues) and only when triggered by comment events
+    if: |
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request) || 
+      (github.event_name == 'pull_request_review_comment')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
