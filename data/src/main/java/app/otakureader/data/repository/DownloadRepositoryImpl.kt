@@ -43,7 +43,8 @@ class DownloadRepositoryImpl @Inject constructor(
         sourceName: String,
         mangaTitle: String,
         chapterTitle: String,
-        pageUrls: List<String>
+        pageUrls: List<String>,
+        priority: Int
     ) {
         downloadManager.enqueue(
             ChapterDownloadRequest(
@@ -52,7 +53,8 @@ class DownloadRepositoryImpl @Inject constructor(
                 sourceName = sourceName,
                 mangaTitle = mangaTitle,
                 chapterTitle = chapterTitle,
-                pageUrls = pageUrls
+                pageUrls = pageUrls,
+                priority = priority
             )
         )
     }
@@ -67,6 +69,18 @@ class DownloadRepositoryImpl @Inject constructor(
 
     override suspend fun cancelDownload(id: Long) {
         downloadManager.cancel(id)
+    }
+
+    override suspend fun prioritizeDownload(chapterId: Long) {
+        downloadManager.prioritize(chapterId)
+    }
+
+    override suspend fun prioritizeDownloads(chapterIds: Set<Long>) {
+        downloadManager.prioritizeAll(chapterIds)
+    }
+
+    override suspend fun reorderDownload(chapterId: Long, newPriority: Int) {
+        downloadManager.reorder(chapterId, newPriority)
     }
 
     override suspend fun deleteChapterDownload(

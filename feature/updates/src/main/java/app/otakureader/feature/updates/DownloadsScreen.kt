@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DownloadDone
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SelectAll
@@ -42,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.otakureader.domain.model.DownloadItem
+import app.otakureader.domain.model.DownloadPriority
 import app.otakureader.domain.model.DownloadStatus
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -84,6 +86,9 @@ fun DownloadsScreen(
                         IconButton(onClick = { viewModel.onEvent(DownloadsEvent.ResumeSelected) }) {
                             Icon(Icons.Default.PlayArrow, contentDescription = stringResource(R.string.downloads_resume_selected))
                         }
+                        IconButton(onClick = { viewModel.onEvent(DownloadsEvent.PrioritizeSelected) }) {
+                            Icon(Icons.Default.KeyboardArrowUp, contentDescription = stringResource(R.string.downloads_prioritize_selected))
+                        }
                         IconButton(onClick = { viewModel.onEvent(DownloadsEvent.CancelSelected) }) {
                             Icon(Icons.Default.Close, contentDescription = stringResource(R.string.downloads_cancel_selected))
                         }
@@ -125,7 +130,8 @@ fun DownloadsScreen(
                         onLongClick = { viewModel.onEvent(DownloadsEvent.OnItemLongClick(item.id)) },
                         onPause = { viewModel.onEvent(DownloadsEvent.Pause(it)) },
                         onResume = { viewModel.onEvent(DownloadsEvent.Resume(it)) },
-                        onCancel = { viewModel.onEvent(DownloadsEvent.Cancel(it)) }
+                        onCancel = { viewModel.onEvent(DownloadsEvent.Cancel(it)) },
+                        onMoveToFront = { viewModel.onEvent(DownloadsEvent.Prioritize(it)) }
                     )
                 }
             }
@@ -142,6 +148,7 @@ private fun DownloadListItem(
     onPause: (Long) -> Unit,
     onResume: (Long) -> Unit,
     onCancel: (Long) -> Unit,
+    onMoveToFront: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -179,13 +186,27 @@ private fun DownloadListItem(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    Text(
-                        text = item.mangaTitle,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = item.mangaTitle,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        if (item.priority < DownloadPriority.NORMAL) {
+                            Icon(
+                                imageVector = Icons.Default.KeyboardArrowUp,
+                                contentDescription = stringResource(R.string.downloads_priority_high),
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
                     Text(
                         text = item.chapterTitle,
                         style = MaterialTheme.typography.bodyMedium,
@@ -199,6 +220,7 @@ private fun DownloadListItem(
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         when (item.status) {
                             DownloadStatus.DOWNLOADING, DownloadStatus.QUEUED -> {
+                                MoveToFrontButton(onClick = { onMoveToFront(item.id) })
                                 IconButton(onClick = { onPause(item.id) }) {
                                     Icon(
                                         imageVector = Icons.Default.Pause,
@@ -209,6 +231,7 @@ private fun DownloadListItem(
                             }
 
                             DownloadStatus.PAUSED -> {
+                                MoveToFrontButton(onClick = { onMoveToFront(item.id) })
                                 IconButton(onClick = { onResume(item.id) }) {
                                     Icon(
                                         imageVector = Icons.Default.PlayArrow,
@@ -272,6 +295,17 @@ private fun DownloadListItem(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun MoveToFrontButton(onClick: () -> Unit) {
+    IconButton(onClick = onClick) {
+        Icon(
+            imageVector = Icons.Default.KeyboardArrowUp,
+            contentDescription = stringResource(R.string.downloads_move_to_front),
+            tint = MaterialTheme.colorScheme.primary
+        )
     }
 }
 

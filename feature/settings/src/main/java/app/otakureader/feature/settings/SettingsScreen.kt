@@ -571,6 +571,20 @@ private fun ReaderSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit
                     }
                 }
             )
+
+            // Crop borders
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_crop_borders)) },
+                supportingContent = { Text(stringResource(R.string.settings_crop_borders_description)) },
+                trailingContent = {
+                    Switch(
+                        checked = state.cropBordersEnabled,
+                        onCheckedChange = {
+                            onEvent(SettingsEvent.SetCropBordersEnabled(it))
+                        }
+                    )
+                }
+            )
 }
 
 @Composable

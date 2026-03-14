@@ -37,6 +37,7 @@ fun DualPageReader(
     onTap: (androidx.compose.ui.geometry.Offset) -> Unit,
     isRtl: Boolean = false,
     rotation: Float = 0f,
+    cropBordersEnabled: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     // Calculate spread indices (every 2 pages form a spread)
@@ -103,6 +104,7 @@ fun DualPageReader(
                             contentDescription = stringResource(R.string.reader_page_content, leftPage.pageNumber),
                             contentScale = ContentScale.Fit,
                             rotation = rotation,
+                            cropBordersEnabled = cropBordersEnabled,
                             onTap = onTap,
                             modifier = Modifier.fillMaxSize()
                         )
@@ -129,6 +131,7 @@ fun DualPageReader(
                             contentDescription = stringResource(R.string.reader_page_content, rightPage.pageNumber),
                             contentScale = ContentScale.Fit,
                             rotation = rotation,
+                            cropBordersEnabled = cropBordersEnabled,
                             onTap = onTap,
                             modifier = Modifier.fillMaxSize()
                         )

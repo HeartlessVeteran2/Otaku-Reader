@@ -248,6 +248,17 @@ class ReaderSettingsRepository @Inject constructor(
         dataStore.edit { it[Keys.PREFETCH_ONLY_ON_WIFI] = enabled }
     }
 
+    // ==================== Crop Borders ====================
+
+    /** Whether automatic border cropping is enabled during image decoding. */
+    val cropBordersEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.CROP_BORDERS_ENABLED] ?: false
+    }
+
+    suspend fun setCropBordersEnabled(enabled: Boolean) {
+        dataStore.edit { it[Keys.CROP_BORDERS_ENABLED] = enabled }
+    }
+
     private object Keys {
         val READER_MODE = intPreferencesKey("reader_mode_setting")
         val BRIGHTNESS = floatPreferencesKey("reader_brightness")
@@ -273,6 +284,7 @@ class ReaderSettingsRepository @Inject constructor(
         val ADAPTIVE_LEARNING_ENABLED = booleanPreferencesKey("reader_adaptive_learning_enabled")
         val PREFETCH_ADJACENT_CHAPTERS = booleanPreferencesKey("reader_prefetch_adjacent_chapters")
         val PREFETCH_ONLY_ON_WIFI = booleanPreferencesKey("reader_prefetch_only_on_wifi")
+        val CROP_BORDERS_ENABLED = booleanPreferencesKey("reader_crop_borders_enabled")
     }
     
     companion object {

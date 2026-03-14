@@ -45,6 +45,10 @@ class DownloadsViewModel @Inject constructor(
                 downloadRepository.cancelDownload(event.id)
             }
 
+            is DownloadsEvent.Prioritize -> viewModelScope.launch {
+                downloadRepository.prioritizeDownload(event.id)
+            }
+
             DownloadsEvent.ClearAll -> viewModelScope.launch {
                 downloadRepository.clearAll()
             }
@@ -54,6 +58,7 @@ class DownloadsViewModel @Inject constructor(
             DownloadsEvent.PauseSelected -> pauseSelected()
             DownloadsEvent.ResumeSelected -> resumeSelected()
             DownloadsEvent.CancelSelected -> cancelSelected()
+            DownloadsEvent.PrioritizeSelected -> prioritizeSelected()
         }
     }
 
@@ -111,6 +116,26 @@ class DownloadsViewModel @Inject constructor(
             val selectedIds = _state.value.selectedItems
             selectedIds.forEach { id ->
                 downloadRepository.cancelDownload(id)
+            }
+            clearSelection()
+        }
+    }
+
+    private fun prioritizeSelected() {
+        viewModelScope.launch {
+            val state = _state.value
+            val selectedIds = state.items
+                .asSequence()
+                .filter { item ->
+                    item.id in state.selectedItems &&
+                        (item.status == app.otakureader.domain.model.DownloadStatus.QUEUED ||
+                            item.status == app.otakureader.domain.model.DownloadStatus.DOWNLOADING ||
+                            item.status == app.otakureader.domain.model.DownloadStatus.PAUSED)
+                }
+                .map { it.id }
+                .toSet()
+            if (selectedIds.isNotEmpty()) {
+                downloadRepository.prioritizeDownloads(selectedIds)
             }
             clearSelection()
         }

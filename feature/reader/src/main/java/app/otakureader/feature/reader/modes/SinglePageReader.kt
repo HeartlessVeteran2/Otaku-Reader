@@ -33,6 +33,7 @@ fun SinglePageReader(
     onDoubleTap: (androidx.compose.ui.geometry.Offset) -> Unit,
     onZoomChange: (Float) -> Unit,
     rotation: Float = 0f,
+    cropBordersEnabled: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val pagerState = rememberPagerState(
@@ -73,6 +74,7 @@ fun SinglePageReader(
                 contentDescription = stringResource(R.string.reader_page_content, page.pageNumber),
                 contentScale = ContentScale.Fit,
                 rotation = rotation,
+                cropBordersEnabled = cropBordersEnabled,
                 onTap = onTap,
                 onDoubleTap = onDoubleTap,
                 onZoomChange = onZoomChange,

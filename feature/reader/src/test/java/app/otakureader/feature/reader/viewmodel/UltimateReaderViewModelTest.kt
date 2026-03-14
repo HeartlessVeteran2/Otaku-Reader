@@ -79,6 +79,7 @@ class UltimateReaderViewModelTest {
         every { settingsRepository.customTintColor } returns flowOf(0x4000AAFFL)
         every { settingsRepository.preloadPagesBefore } returns flowOf(ReaderSettingsRepository.DEFAULT_PRELOAD_PAGES)
         every { settingsRepository.preloadPagesAfter } returns flowOf(ReaderSettingsRepository.DEFAULT_PRELOAD_PAGES)
+        every { settingsRepository.cropBordersEnabled } returns flowOf(false)
 
         // Return null for chapter/manga so loadChapter() exits early without side-effects.
         coEvery { chapterRepository.getChapterById(chapterId) } returns null

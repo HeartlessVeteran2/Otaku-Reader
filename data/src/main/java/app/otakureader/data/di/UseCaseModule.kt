@@ -1,5 +1,6 @@
 package app.otakureader.data.di
 
+import app.otakureader.domain.repository.AiRepository
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.MangaRepository
@@ -8,6 +9,7 @@ import app.otakureader.domain.usecase.DeleteChapterUseCase
 import app.otakureader.domain.usecase.GetChaptersUseCase
 import app.otakureader.domain.usecase.GetHistoryUseCase
 import app.otakureader.domain.usecase.GetLibraryUseCase
+import app.otakureader.domain.usecase.ai.GenerateAiContentUseCase
 import app.otakureader.domain.usecase.opds.BrowseOpdsCatalogUseCase
 import app.otakureader.domain.usecase.opds.DeleteOpdsServerUseCase
 import app.otakureader.domain.usecase.opds.GetOpdsServersUseCase
@@ -61,4 +63,8 @@ object UseCaseModule {
     @Provides
     fun provideSearchOpdsCatalogUseCase(opdsRepository: OpdsRepository): SearchOpdsCatalogUseCase =
         SearchOpdsCatalogUseCase(opdsRepository)
+
+    @Provides
+    fun provideGenerateAiContentUseCase(aiRepository: AiRepository): GenerateAiContentUseCase =
+        GenerateAiContentUseCase(aiRepository)
 }

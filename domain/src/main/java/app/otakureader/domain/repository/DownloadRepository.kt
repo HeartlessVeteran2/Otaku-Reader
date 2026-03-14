@@ -25,12 +25,35 @@ interface DownloadRepository {
         sourceName: String = "",
         mangaTitle: String,
         chapterTitle: String,
-        pageUrls: List<String> = emptyList()
+        pageUrls: List<String>,
+        priority: Int = app.otakureader.domain.model.DownloadPriority.NORMAL
     )
 
     suspend fun pauseDownload(chapterId: Long)
     suspend fun resumeDownload(chapterId: Long)
     suspend fun cancelDownload(chapterId: Long)
+
+    /**
+     * Moves the given chapter to the front of the download queue by assigning it the
+     * highest available priority.  If the chapter is not currently in the queue this
+     * is a no-op.
+     */
+    suspend fun prioritizeDownload(chapterId: Long)
+
+    /**
+     * Moves all given chapters to the front of the download queue in a single atomic
+     * operation.  Chapters within the set retain their relative queue order.  IDs that
+     * are not in the queue are silently ignored.
+     */
+    suspend fun prioritizeDownloads(chapterIds: Set<Long>)
+
+    /**
+     * Sets an explicit priority value for the given queued chapter.
+     *
+     * Lower values appear earlier in the queue.  Use the constants in [app.otakureader.domain.model.DownloadPriority]
+     * for common presets.  If the chapter is not in the queue this is a no-op.
+     */
+    suspend fun reorderDownload(chapterId: Long, newPriority: Int)
     suspend fun deleteChapterDownload(
         chapterId: Long,
         sourceName: String,
