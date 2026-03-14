@@ -539,7 +539,7 @@ class UltimateReaderViewModel @Inject constructor(
                 _state.update { it.copy(incognitoMode = newValue) }
                 viewModelScope.launch { settingsRepository.setIncognitoMode(newValue) }
             }
-            ReaderSetting.AUTO_CROP -> {
+            ReaderSetting.CROP_BORDERS -> {
                 val newValue = !_state.value.cropBordersEnabled
                 _state.update { it.copy(cropBordersEnabled = newValue) }
                 viewModelScope.launch { settingsRepository.setCropBordersEnabled(newValue) }
