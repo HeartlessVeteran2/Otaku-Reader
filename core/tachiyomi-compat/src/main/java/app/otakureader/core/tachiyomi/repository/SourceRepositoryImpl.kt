@@ -3,6 +3,7 @@ package app.otakureader.core.tachiyomi.repository
 import android.content.Context
 import app.otakureader.core.preferences.LocalSourcePreferences
 import app.otakureader.core.tachiyomi.compat.TachiyomiExtensionLoader
+import app.otakureader.core.tachiyomi.health.SourceHealthMonitor
 import app.otakureader.core.tachiyomi.local.LocalSource
 import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.sourceapi.FilterList
@@ -26,10 +27,14 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * Implementation of SourceRepository using Tachiyomi extension adapters.
  * Also includes the built-in [LocalSource] for on-device manga.
+ *
+ * Integrates [SourceHealthMonitor] to track source failures and prevent
+ * repeated requests to dead/failing sources (inspired by Komikku's health monitoring).
  */
 class SourceRepositoryImpl(
     private val context: Context,
-    private val localSourcePreferences: LocalSourcePreferences
+    private val localSourcePreferences: LocalSourcePreferences,
+    private val healthMonitor: SourceHealthMonitor
 ) : SourceRepository {
 
     /**
@@ -38,7 +43,8 @@ class SourceRepositoryImpl(
      */
     constructor(context: Context, localDirectory: String) : this(
         context,
-        LocalSourcePreferences.ofDirectory(localDirectory)
+        LocalSourcePreferences.ofDirectory(localDirectory),
+        SourceHealthMonitor()
     )
 
     private val extensionLoader = TachiyomiExtensionLoader(
@@ -76,6 +82,12 @@ class SourceRepositoryImpl(
 
     override suspend fun getPopularManga(sourceId: String, page: Int): Result<MangaPage> {
         return withContext(Dispatchers.IO) {
+            // Check source health before attempting request
+            if (!healthMonitor.isSourceHealthy(sourceId)) {
+                val message = healthMonitor.getHealthMessage(sourceId) ?: "Source is temporarily unavailable"
+                return@withContext Result.failure(IllegalStateException(message))
+            }
+
             try {
                 val source = getSource(sourceId)
                     ?: return@withContext Result.failure(IllegalArgumentException("Source not found: $sourceId"))
@@ -90,8 +102,13 @@ class SourceRepositoryImpl(
                 // Cache the result
                 popularMangaCache.computeIfAbsent(sourceId) { ConcurrentHashMap() }[page] = mangaPage
 
+                // Record success
+                healthMonitor.recordSuccess(sourceId)
+
                 Result.success(mangaPage)
             } catch (e: Exception) {
+                // Record failure for health monitoring
+                healthMonitor.recordFailure(sourceId, e)
                 Result.failure(e)
             }
         }
@@ -99,6 +116,12 @@ class SourceRepositoryImpl(
 
     override suspend fun getLatestUpdates(sourceId: String, page: Int): Result<MangaPage> {
         return withContext(Dispatchers.IO) {
+            // Check source health before attempting request
+            if (!healthMonitor.isSourceHealthy(sourceId)) {
+                val message = healthMonitor.getHealthMessage(sourceId) ?: "Source is temporarily unavailable"
+                return@withContext Result.failure(IllegalStateException(message))
+            }
+
             try {
                 val source = getSource(sourceId)
                     ?: return@withContext Result.failure(IllegalArgumentException("Source not found: $sourceId"))
@@ -113,8 +136,13 @@ class SourceRepositoryImpl(
                 // Cache the result
                 latestMangaCache.computeIfAbsent(sourceId) { ConcurrentHashMap() }[page] = mangaPage
 
+                // Record success
+                healthMonitor.recordSuccess(sourceId)
+
                 Result.success(mangaPage)
             } catch (e: Exception) {
+                // Record failure for health monitoring
+                healthMonitor.recordFailure(sourceId, e)
                 Result.failure(e)
             }
         }
@@ -131,6 +159,12 @@ class SourceRepositoryImpl(
         filters: FilterList
     ): Result<MangaPage> {
         return withContext(Dispatchers.IO) {
+            // Check source health before attempting request
+            if (!healthMonitor.isSourceHealthy(sourceId)) {
+                val message = healthMonitor.getHealthMessage(sourceId) ?: "Source is temporarily unavailable"
+                return@withContext Result.failure(IllegalStateException(message))
+            }
+
             try {
                 val source = getSource(sourceId)
                     ?: return@withContext Result.failure(IllegalArgumentException("Source not found: $sourceId"))
@@ -157,8 +191,13 @@ class SourceRepositoryImpl(
                     searchCache.computeIfAbsent(sourceId) { ConcurrentHashMap() }[cacheKey] = mangaPage
                 }
 
+                // Record success
+                healthMonitor.recordSuccess(sourceId)
+
                 Result.success(mangaPage)
             } catch (e: Exception) {
+                // Record failure for health monitoring
+                healthMonitor.recordFailure(sourceId, e)
                 Result.failure(e)
             }
         }
@@ -171,13 +210,25 @@ class SourceRepositoryImpl(
 
     override suspend fun getMangaDetails(sourceId: String, manga: SourceManga): Result<SourceManga> {
         return withContext(Dispatchers.IO) {
+            // Check source health before attempting request
+            if (!healthMonitor.isSourceHealthy(sourceId)) {
+                val message = healthMonitor.getHealthMessage(sourceId) ?: "Source is temporarily unavailable"
+                return@withContext Result.failure(IllegalStateException(message))
+            }
+
             try {
                 val source = getSource(sourceId)
                     ?: return@withContext Result.failure(IllegalArgumentException("Source not found: $sourceId"))
 
                 val details = source.fetchMangaDetails(manga)
+
+                // Record success
+                healthMonitor.recordSuccess(sourceId)
+
                 Result.success(details)
             } catch (e: Exception) {
+                // Record failure for health monitoring
+                healthMonitor.recordFailure(sourceId, e)
                 Result.failure(e)
             }
         }
@@ -185,13 +236,25 @@ class SourceRepositoryImpl(
 
     override suspend fun getChapterList(sourceId: String, manga: SourceManga): Result<List<SourceChapter>> {
         return withContext(Dispatchers.IO) {
+            // Check source health before attempting request
+            if (!healthMonitor.isSourceHealthy(sourceId)) {
+                val message = healthMonitor.getHealthMessage(sourceId) ?: "Source is temporarily unavailable"
+                return@withContext Result.failure(IllegalStateException(message))
+            }
+
             try {
                 val source = getSource(sourceId)
                     ?: return@withContext Result.failure(IllegalArgumentException("Source not found: $sourceId"))
 
                 val chapters = source.fetchChapterList(manga)
+
+                // Record success
+                healthMonitor.recordSuccess(sourceId)
+
                 Result.success(chapters)
             } catch (e: Exception) {
+                // Record failure for health monitoring
+                healthMonitor.recordFailure(sourceId, e)
                 Result.failure(e)
             }
         }
