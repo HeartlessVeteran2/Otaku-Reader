@@ -327,16 +327,35 @@ class DownloadManager @Inject constructor(
     }
 
     private fun updateStatus(chapterId: Long, status: DownloadStatus) {
-        downloadMap[chapterId]?.let { item ->
-            downloadMap[chapterId] = item.copy(status = status)
-            refreshDownloadsList()
+        updateDownloadInPlace(chapterId) { item ->
+            item.copy(status = status)
         }
     }
 
     private fun updateProgress(chapterId: Long, progress: Int) {
-        downloadMap[chapterId]?.let { item ->
-            downloadMap[chapterId] = item.copy(progress = progress)
-            refreshDownloadsList()
+        updateDownloadInPlace(chapterId) { item ->
+            item.copy(progress = progress)
+        }
+    }
+
+    /**
+     * Updates a single [DownloadItem] in both [downloadMap] and [_downloads] without
+     * re-sorting the entire list.  This preserves the existing ordering, which is
+     * already sorted by [DownloadItem.priority] when items are enqueued or their
+     * priority changes.
+     */
+    private fun updateDownloadInPlace(
+        chapterId: Long,
+        transform: (DownloadItem) -> DownloadItem
+    ) {
+        val current = downloadMap[chapterId] ?: return
+        val updated = transform(current)
+        downloadMap[chapterId] = updated
+
+        _downloads.update { list ->
+            list.map { item ->
+                if (item.chapterId == chapterId) updated else item
+            }
         }
     }
 
