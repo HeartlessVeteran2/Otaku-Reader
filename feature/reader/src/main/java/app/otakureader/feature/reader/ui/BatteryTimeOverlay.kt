@@ -63,7 +63,7 @@ fun BatteryTimeOverlay(
             override fun onReceive(context: Context, intent: Intent) {
                 val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, 0)
                 val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 100)
-                batteryLevel = (level / scale.toFloat()) * 100
+                batteryLevel = if (scale > 0) (level / scale.toFloat()) * 100 else 0f
 
                 val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
                 isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
