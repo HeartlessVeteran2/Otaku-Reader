@@ -43,7 +43,7 @@ jobs:
       
     - name: 📈 Upload JUnit to CI Insights
       if: always()
-      uses: mergifyio/gha-mergify-ci@6875ab3991ec1db831576df1cd00a7870603aa9e # v8
+      uses: mergifyio/gha-mergify-ci@62b45952da6270cad56cce30b8d63276f9d99c88 # v16
       with:
         token: ${{ secrets.MERGIFY_TOKEN }}
         report_path: "**/build/test-results/test*/**/*.xml"
@@ -54,7 +54,7 @@ jobs:
       run: exit 1
       
     - name: 📊 Upload Build Artifacts
-      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
       with:
         name: app-debug
         path: app/build/outputs/apk/debug/*.apk
