@@ -85,9 +85,8 @@ fun FullPageGallery(
                 TopAppBar(
                     title = {
                         Text(
-                            pluralStringResource(
-                                R.plurals.reader_page_gallery_title,
-                                pages.size,
+                            stringResource(
+                                R.string.reader_page_gallery_title,
                                 pages.size
                             )
                         )
