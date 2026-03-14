@@ -201,6 +201,53 @@ class ReaderSettingsRepository @Inject constructor(
         dataStore.edit { it[Keys.PRELOAD_PAGES_AFTER] = count.coerceIn(0, MAX_PRELOAD_PAGES) }
     }
 
+    // ==================== Smart Prefetch Settings ====================
+
+    /** Whether smart prefetch is enabled. */
+    val smartPrefetchEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.SMART_PREFETCH_ENABLED] ?: true
+    }
+
+    suspend fun setSmartPrefetchEnabled(enabled: Boolean) {
+        dataStore.edit { it[Keys.SMART_PREFETCH_ENABLED] = enabled }
+    }
+
+    /** Prefetch strategy ordinal (0=Conservative, 1=Balanced, 2=Aggressive, 3=Adaptive). */
+    val prefetchStrategyOrdinal: Flow<Int> = dataStore.data.map { prefs ->
+        prefs[Keys.PREFETCH_STRATEGY] ?: 1 // Default to Balanced
+    }
+
+    suspend fun setPrefetchStrategy(strategyOrdinal: Int) {
+        dataStore.edit { it[Keys.PREFETCH_STRATEGY] = strategyOrdinal.coerceIn(0, 3) }
+    }
+
+    /** Whether adaptive learning is enabled for prefetch optimization. */
+    val adaptiveLearningEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.ADAPTIVE_LEARNING_ENABLED] ?: true
+    }
+
+    suspend fun setAdaptiveLearningEnabled(enabled: Boolean) {
+        dataStore.edit { it[Keys.ADAPTIVE_LEARNING_ENABLED] = enabled }
+    }
+
+    /** Whether to prefetch adjacent chapters. */
+    val prefetchAdjacentChapters: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.PREFETCH_ADJACENT_CHAPTERS] ?: false
+    }
+
+    suspend fun setPrefetchAdjacentChapters(enabled: Boolean) {
+        dataStore.edit { it[Keys.PREFETCH_ADJACENT_CHAPTERS] = enabled }
+    }
+
+    /** Whether to only prefetch on WiFi (disable on mobile data). */
+    val prefetchOnlyOnWiFi: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.PREFETCH_ONLY_ON_WIFI] ?: false
+    }
+
+    suspend fun setPrefetchOnlyOnWiFi(enabled: Boolean) {
+        dataStore.edit { it[Keys.PREFETCH_ONLY_ON_WIFI] = enabled }
+    }
+
     // ==================== Crop Borders ====================
 
     /** Whether automatic border cropping is enabled during image decoding. */
@@ -232,6 +279,11 @@ class ReaderSettingsRepository @Inject constructor(
         val CUSTOM_TINT_COLOR = longPreferencesKey("reader_custom_tint_color")
         val PRELOAD_PAGES_BEFORE = intPreferencesKey("reader_preload_pages_before")
         val PRELOAD_PAGES_AFTER = intPreferencesKey("reader_preload_pages_after")
+        val SMART_PREFETCH_ENABLED = booleanPreferencesKey("reader_smart_prefetch_enabled")
+        val PREFETCH_STRATEGY = intPreferencesKey("reader_prefetch_strategy")
+        val ADAPTIVE_LEARNING_ENABLED = booleanPreferencesKey("reader_adaptive_learning_enabled")
+        val PREFETCH_ADJACENT_CHAPTERS = booleanPreferencesKey("reader_prefetch_adjacent_chapters")
+        val PREFETCH_ONLY_ON_WIFI = booleanPreferencesKey("reader_prefetch_only_on_wifi")
         val CROP_BORDERS_ENABLED = booleanPreferencesKey("reader_crop_borders_enabled")
     }
     
