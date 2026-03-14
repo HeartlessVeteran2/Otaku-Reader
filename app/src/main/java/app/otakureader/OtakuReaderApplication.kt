@@ -51,8 +51,10 @@ class OtakuReaderApplication : Application(), Configuration.Provider, SingletonI
     /**
      * Configures the global Coil [ImageLoader] singleton used throughout the app.
      *
-     * - Memory cache: capped at 25% of the available heap to prevent OOM crashes.
-     * - Disk cache: capped at 2% of free disk space (≈ 50–100 MB on typical devices).
+     * - Memory cache: capped at 25% of the application's available memory class
+     *   (derived from device RAM via [android.app.ActivityManager.memoryClass]) to
+     *   prevent OOM crashes during rapid manga reading.
+     * - Disk cache: capped at 512 MB to support large manga chapter image caches.
      * - Networking: backed by the shared [OkHttpClient] for connection pooling and
      *   consistent headers (e.g. User-Agent, Referer) set by extension interceptors.
      * - Crossfade: smooth image transitions in the UI.
@@ -67,7 +69,7 @@ class OtakuReaderApplication : Application(), Configuration.Provider, SingletonI
             .diskCache {
                 DiskCache.Builder()
                     .directory(context.cacheDir.resolve("image_cache").toOkioPath())
-                    .maxSizeBytes(100L * 1024 * 1024)
+                    .maxSizeBytes(512L * 1024 * 1024)
                     .build()
             }
             .components {
