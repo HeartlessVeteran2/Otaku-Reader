@@ -7,6 +7,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.SnackbarHost
@@ -46,10 +47,12 @@ import app.otakureader.feature.reader.modes.DualPageReader
 import app.otakureader.feature.reader.modes.SinglePageReader
 import app.otakureader.feature.reader.modes.SmartPanelsReader
 import app.otakureader.feature.reader.modes.WebtoonReader
+import app.otakureader.feature.reader.ui.BatteryTimeOverlay
 import app.otakureader.feature.reader.ui.BrightnessSliderOverlay
 import app.otakureader.feature.reader.ui.FullPageGallery
 import app.otakureader.feature.reader.ui.PageSlider
 import app.otakureader.feature.reader.ui.PageThumbnailStrip
+import app.otakureader.feature.reader.ui.ReadingTimerOverlay
 import app.otakureader.feature.reader.ui.ReaderMenuOverlay
 import app.otakureader.feature.reader.ui.SimpleTapZoneOverlay
 import app.otakureader.feature.reader.ui.ZoomIndicator
@@ -273,7 +276,25 @@ fun ReaderScreen(
             isVisible = state.isMenuVisible && state.pages.isNotEmpty(),
             modifier = Modifier.align(Alignment.BottomCenter)
         )
-        
+
+        // Overlays in the top-right corner (stacked vertically)
+        Column(
+            modifier = Modifier.align(Alignment.TopEnd)
+        ) {
+            // Reading Timer Overlay - top item
+            ReadingTimerOverlay(
+                isVisible = state.showReadingTimer && !state.isMenuVisible && !state.isGalleryOpen,
+                sessionStartMs = viewModel.sessionStartMs,
+                modifier = Modifier
+            )
+
+            // Battery/Time Overlay - below the timer when both are visible
+            BatteryTimeOverlay(
+                isVisible = state.showBatteryTime && !state.isMenuVisible && !state.isGalleryOpen,
+                modifier = Modifier
+            )
+        }
+
         // Snackbar host
         SnackbarHost(
             hostState = snackbarHostState,

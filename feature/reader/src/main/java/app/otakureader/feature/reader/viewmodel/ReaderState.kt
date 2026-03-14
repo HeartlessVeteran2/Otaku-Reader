@@ -84,7 +84,13 @@ data class ReaderState(
     val customTintColor: Long = 0x4000AAFFL,
 
     /** Per-manga reader background color (ARGB Long), or null for default (black). */
-    val readerBackgroundColor: Long? = null
+    val readerBackgroundColor: Long? = null,
+
+    /** Show reading timer overlay (displays session duration) */
+    val showReadingTimer: Boolean = false,
+
+    /** Show battery/time overlay (displays battery level and system time) */
+    val showBatteryTime: Boolean = false
 ) {
     /** Total pages in chapter (derived from pages.size) */
     val totalPages: Int get() = pages.size

@@ -73,7 +73,8 @@ class UltimateReaderViewModel @Inject constructor(
     private var autoSaveJob: Job? = null
     private var preloadJob: Job? = null
 
-    private val sessionStartMs = System.currentTimeMillis()
+    /** Session start timestamp - made internal for ReadingTimerOverlay access */
+    internal val sessionStartMs = System.currentTimeMillis()
 
     /** Independent scope used for cleanup work that must survive viewModelScope cancellation. */
     private val cleanupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -129,6 +130,8 @@ class UltimateReaderViewModel @Inject constructor(
             val incognitoMode = settingsRepository.incognitoMode.first()
             val colorFilterMode = settingsRepository.colorFilterMode.first()
             val customTintColor = settingsRepository.customTintColor.first()
+            val showReadingTimer = false
+            val showBatteryTime = false
 
             // Cache preload settings so preloadPages() doesn't read DataStore per page change (#264)
             cachedPreloadBefore = try {
@@ -168,7 +171,9 @@ class UltimateReaderViewModel @Inject constructor(
                     isFullscreen = fullscreen,
                     incognitoMode = incognitoMode,
                     colorFilterMode = effectiveColorFilter,
-                    customTintColor = effectiveTintColor
+                    customTintColor = effectiveTintColor,
+                    showReadingTimer = showReadingTimer,
+                    showBatteryTime = showBatteryTime
                 )
             }
         }
