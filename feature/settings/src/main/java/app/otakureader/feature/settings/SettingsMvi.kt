@@ -13,7 +13,7 @@ data class TrackerInfo(
 )
 
 enum class SyncStatus {
-    IDLE,
+    DISABLED,
     SYNCING,
     SUCCESS,
     ERROR
