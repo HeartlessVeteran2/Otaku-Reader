@@ -136,7 +136,13 @@ class UltimateReaderViewModel @Inject constructor(
             val incognitoMode = settingsRepository.incognitoMode.first()
             val colorFilterMode = settingsRepository.colorFilterMode.first()
             val customTintColor = settingsRepository.customTintColor.first()
-            val cropBordersEnabled = settingsRepository.cropBordersEnabled.first()
+            val cropBordersEnabled = try {
+                settingsRepository.cropBordersEnabled.first()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                false
+            }
             val showReadingTimer = false
             val showBatteryTime = false
 
