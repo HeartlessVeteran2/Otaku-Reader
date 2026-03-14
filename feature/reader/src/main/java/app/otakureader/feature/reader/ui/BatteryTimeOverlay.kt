@@ -55,6 +55,7 @@ fun BatteryTimeOverlay(
     var batteryLevel by remember { mutableFloatStateOf(100f) }
     var isCharging by remember { mutableStateOf(false) }
     var currentTime by remember { mutableStateOf("") }
+    val timeFormatter = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
 
     // Register battery status receiver
     DisposableEffect(Unit) {
@@ -82,12 +83,11 @@ fun BatteryTimeOverlay(
         }
     }
 
-    // Update time every second
+    // Update time every minute (HH:mm does not show seconds)
     LaunchedEffect(Unit) {
         while (true) {
-            currentTime = SimpleDateFormat("HH:mm", Locale.getDefault())
-                .format(Date())
-            delay(1000)
+            currentTime = timeFormatter.format(Date())
+            delay(60_000)
         }
     }
 
