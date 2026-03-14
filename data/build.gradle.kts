@@ -14,6 +14,7 @@ dependencies {
     implementation(projects.core.network)
     implementation(projects.core.database)
     implementation(projects.core.preferences)
+    implementation(projects.core.ai)
     implementation(projects.domain)
     implementation(projects.sourceApi)
 
