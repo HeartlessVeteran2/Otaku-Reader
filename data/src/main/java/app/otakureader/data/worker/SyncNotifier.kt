@@ -1,6 +1,7 @@
 package app.otakureader.data.worker
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
@@ -24,6 +25,7 @@ class SyncNotifier(private val context: Context) {
     /**
      * Show notification that sync is in progress.
      */
+    @SuppressLint("MissingPermission")
     fun notifySyncing() {
         if (!hasNotificationPermission()) return
 
@@ -44,6 +46,7 @@ class SyncNotifier(private val context: Context) {
      * @param changesCount Number of changes applied
      * @param message Optional success message
      */
+    @SuppressLint("MissingPermission")
     fun notifySuccess(changesCount: Int, message: String?) {
         // Cancel syncing notification even if posting new notifications is not allowed.
         notificationManager.cancel(NOTIFICATION_ID_SYNCING)
@@ -72,6 +75,7 @@ class SyncNotifier(private val context: Context) {
      *
      * @param errorMessage Error message to display
      */
+    @SuppressLint("MissingPermission")
     fun notifyFailure(errorMessage: String) {
         // Cancel syncing notification even if posting new notifications is not allowed.
         notificationManager.cancel(NOTIFICATION_ID_SYNCING)
