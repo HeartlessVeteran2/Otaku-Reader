@@ -350,7 +350,7 @@ class UltimateReaderViewModel @Inject constructor(
                 val currentPage = _state.value.pages.getOrNull(_state.value.currentPage)
                 changePanel((currentPage?.panels?.size ?: 1) - 1)
             }
-            ReaderEvent.RotateCW -> rotatePage()
+            ReaderEvent.RotateCW -> cyclePageRotation()
             ReaderEvent.ResetRotation -> _state.update { it.copy(pageRotation = PageRotation.NONE) }
         }
     }
@@ -446,7 +446,7 @@ class UltimateReaderViewModel @Inject constructor(
         }
     }
 
-    private fun rotatePage() {
+    private fun cyclePageRotation() {
         _state.update { it.copy(pageRotation = it.pageRotation.next()) }
     }
 

@@ -376,10 +376,10 @@ fun RotationControl(
                 .weight(1f)
                 .clip(RoundedCornerShape(4.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
-                .semantics {
-                                    role = Role.Button
-                                }
-                .clickable(onClick = onResetRotation)
+                .clickable(
+                    onClickLabel = stringResource(R.string.reader_reset_rotation),
+                    onClick = onResetRotation
+                )
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
             Text(
