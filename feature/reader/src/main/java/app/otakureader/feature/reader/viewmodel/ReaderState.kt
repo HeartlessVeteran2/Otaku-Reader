@@ -7,6 +7,20 @@ import app.otakureader.feature.reader.model.ReaderPage
 import app.otakureader.feature.reader.model.TapZoneConfig
 
 /**
+ * Page rotation applied to all pages in the current reading session.
+ * Each step represents a 90° clockwise rotation.
+ */
+enum class PageRotation(val degrees: Float) {
+    NONE(0f),
+    CW_90(90f),
+    CW_180(180f),
+    CW_270(270f);
+
+    /** Returns the next clockwise rotation (wraps around). */
+    fun next(): PageRotation = entries[(ordinal + 1) % entries.size]
+}
+
+/**
  * Represents the complete state of the reader at any given moment.
  * This is a single source of truth for all UI components.
  */
@@ -85,6 +99,9 @@ data class ReaderState(
 
     /** Per-manga reader background color (ARGB Long), or null for default (black). */
     val readerBackgroundColor: Long? = null,
+
+    /** Current page rotation applied to all pages in the session */
+    val pageRotation: PageRotation = PageRotation.NONE,
 
     /** Show reading timer overlay (displays session duration) */
     val showReadingTimer: Boolean = false,

@@ -59,6 +59,7 @@ import app.otakureader.feature.reader.ui.ZoomIndicator
 import app.otakureader.feature.reader.viewmodel.ReaderEffect
 import app.otakureader.feature.reader.viewmodel.ReaderEvent
 import app.otakureader.feature.reader.viewmodel.TapZone
+import app.otakureader.feature.reader.viewmodel.PageRotation
 import app.otakureader.feature.reader.viewmodel.UltimateReaderViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -218,11 +219,14 @@ fun ReaderScreen(
             colorFilterMode = state.colorFilterMode,
             customTintColor = state.customTintColor,
             readerBackgroundColor = state.readerBackgroundColor,
+            pageRotation = state.pageRotation,
             onBrightnessChange = { viewModel.onEvent(ReaderEvent.OnBrightnessChange(it)) },
             onModeChange = { viewModel.onEvent(ReaderEvent.OnModeChange(it)) },
             onColorFilterChange = { viewModel.onEvent(ReaderEvent.SetColorFilterMode(it)) },
             onCustomTintColorChange = { viewModel.onEvent(ReaderEvent.SetCustomTintColor(it)) },
             onReaderBackgroundColorChange = { viewModel.onEvent(ReaderEvent.SetReaderBackgroundColor(it)) },
+            onRotateCW = { viewModel.onEvent(ReaderEvent.RotateCW) },
+            onResetRotation = { viewModel.onEvent(ReaderEvent.ResetRotation) },
             onZoomIn = { viewModel.onEvent(ReaderEvent.ZoomIn) },
             onZoomOut = { viewModel.onEvent(ReaderEvent.ZoomOut) },
             onResetZoom = { viewModel.onEvent(ReaderEvent.ResetZoom) },
@@ -344,6 +348,7 @@ private fun ReaderContent(
                     onTap = onTap,
                     onDoubleTap = onDoubleTap,
                     onZoomChange = onZoomChange,
+                    rotation = state.pageRotation.degrees,
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -355,6 +360,7 @@ private fun ReaderContent(
                     onPageChange = onPageChange,
                     onTap = onTap,
                     isRtl = state.readingDirection == app.otakureader.feature.reader.model.ReadingDirection.RTL,
+                    rotation = state.pageRotation.degrees,
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -365,6 +371,7 @@ private fun ReaderContent(
                     currentPage = state.currentPage,
                     onPageChange = onPageChange,
                     onTap = onTap,
+                    rotation = state.pageRotation.degrees,
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -377,6 +384,7 @@ private fun ReaderContent(
                     onPageChange = onPageChange,
                     onPanelChange = onPanelChange,
                     onTap = onTap,
+                    rotation = state.pageRotation.degrees,
                     modifier = Modifier.fillMaxSize()
                 )
             }

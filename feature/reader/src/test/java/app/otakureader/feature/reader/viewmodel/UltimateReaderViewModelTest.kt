@@ -412,4 +412,52 @@ class UltimateReaderViewModelTest {
         coVerify(exactly = 0) { chapterRepository.recordHistory(any(), any(), any()) }
         coVerify(exactly = 0) { chapterRepository.updateChapterProgress(any<Long>(), any<Boolean>(), any<Int>()) }
     }
+
+    // ---- Page rotation ----
+
+    @Test
+    fun `pageRotation defaults to NONE`() = runTest {
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(PageRotation.NONE, vm.state.value.pageRotation)
+    }
+
+    @Test
+    fun `RotateCW advances rotation by 90 degrees clockwise`() = runTest {
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        vm.onEvent(ReaderEvent.RotateCW)
+        assertEquals(PageRotation.CW_90, vm.state.value.pageRotation)
+
+        vm.onEvent(ReaderEvent.RotateCW)
+        assertEquals(PageRotation.CW_180, vm.state.value.pageRotation)
+
+        vm.onEvent(ReaderEvent.RotateCW)
+        assertEquals(PageRotation.CW_270, vm.state.value.pageRotation)
+    }
+
+    @Test
+    fun `RotateCW wraps around from 270 back to NONE`() = runTest {
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        repeat(4) { vm.onEvent(ReaderEvent.RotateCW) }
+
+        assertEquals(PageRotation.NONE, vm.state.value.pageRotation)
+    }
+
+    @Test
+    fun `ResetRotation resets to NONE from any rotation`() = runTest {
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        vm.onEvent(ReaderEvent.RotateCW)
+        vm.onEvent(ReaderEvent.RotateCW)
+        assertEquals(PageRotation.CW_180, vm.state.value.pageRotation)
+
+        vm.onEvent(ReaderEvent.ResetRotation)
+        assertEquals(PageRotation.NONE, vm.state.value.pageRotation)
+    }
 }
