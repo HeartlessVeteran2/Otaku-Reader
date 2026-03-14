@@ -26,11 +26,7 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object TachiyomiModule {
 
-    @Provides
-    @Singleton
-    fun provideSourceHealthMonitor(): SourceHealthMonitor {
-        return SourceHealthMonitor()
-    }
+    // SourceHealthMonitor is provided via @Inject constructor (@Singleton).
 
     @Provides
     @Singleton

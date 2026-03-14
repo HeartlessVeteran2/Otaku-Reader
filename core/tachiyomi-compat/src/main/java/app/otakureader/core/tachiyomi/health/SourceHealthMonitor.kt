@@ -38,8 +38,8 @@ class SourceHealthMonitor @Inject constructor() {
     data class SourceHealth(
         val sourceId: String,
         val consecutiveFailures: Int = 0,
-        val lastSuccessTimestamp: Long = System.currentTimeMillis(),
-        val lastFailureTimestamp: Long = 0,
+        val lastSuccessTimestamp: Long = 0L,
+        val lastFailureTimestamp: Long = 0L,
         val lastError: String? = null,
         val isHealthy: Boolean = true,
         val canRetry: Boolean = true
@@ -73,19 +73,20 @@ class SourceHealthMonitor @Inject constructor() {
      * Increments failure count and may mark source as unhealthy.
      */
     fun recordFailure(sourceId: String, error: Throwable) {
-        val current = healthMap[sourceId] ?: SourceHealth(sourceId)
-        val newFailureCount = (current.consecutiveFailures + 1).coerceAtMost(MAX_FAILURES)
         val now = System.currentTimeMillis()
 
-        val updated = current.copy(
-            consecutiveFailures = newFailureCount,
-            lastFailureTimestamp = now,
-            lastError = error.message ?: error::class.simpleName,
-            isHealthy = newFailureCount < FAILURE_THRESHOLD,
-            canRetry = newFailureCount < MAX_FAILURES
-        )
+        healthMap.compute(sourceId) { _, current ->
+            val existing = current ?: SourceHealth(sourceId)
+            val newFailureCount = (existing.consecutiveFailures + 1).coerceAtMost(MAX_FAILURES)
 
-        healthMap[sourceId] = updated
+            existing.copy(
+                consecutiveFailures = newFailureCount,
+                lastFailureTimestamp = now,
+                lastError = error.message ?: error::class.simpleName,
+                isHealthy = newFailureCount < FAILURE_THRESHOLD,
+                canRetry = newFailureCount < MAX_FAILURES
+            )
+        }
         emitUpdate()
     }
 
@@ -161,8 +162,8 @@ class SourceHealthMonitor @Inject constructor() {
                 append(". Source has been disabled due to excessive failures.")
             } else if (!isSourceHealthy(sourceId)) {
                 val timeLeft = RETRY_COOLDOWN_MS - (System.currentTimeMillis() - health.lastFailureTimestamp)
-                val minutesLeft = ((timeLeft + 59_999L) / 60_000L).toInt().coerceAtLeast(1)
-                append(". Will retry in $minutesLeft minutes.")
+                val minutesLeft = ((timeLeft + 59999) / 60000).coerceAtLeast(1)
+                append(". Will retry in about $minutesLeft minute${if (minutesLeft > 1) "s" else ""}.")
             }
         }
     }
