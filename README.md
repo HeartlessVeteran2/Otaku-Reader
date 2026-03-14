@@ -160,7 +160,7 @@ Compatible with the entire **Tachiyomi extension ecosystem** — no extra setup 
 | `domain` | Use cases and domain models |
 | `data` | Repository, downloads, backup, sync |
 | `core/common` | Shared utilities |
-| `core/database` | Room database (v8 with migrations) |
+| `core/database` | Room database (v9 with migrations) |
 | `core/network` | Retrofit + OkHttp |
 | `core/preferences` | DataStore preferences |
 | `core/ui` | Shared Compose components |
@@ -170,6 +170,7 @@ Compatible with the entire **Tachiyomi extension ecosystem** — no extra setup 
 | `core/discord` | Discord Rich Presence |
 | `feature/library` | Library screen |
 | `feature/browse` | Browse & search |
+| `feature/opds` | OPDS catalog support |
 | `feature/details` | Manga details |
 | `feature/reader` | Ultimate reader |
 | `feature/history` | Reading history |
@@ -178,7 +179,6 @@ Compatible with the entire **Tachiyomi extension ecosystem** — no extra setup 
 | `feature/updates` | Updates & downloads |
 | `feature/tracking` | Tracker integration |
 | `feature/migration` | Source migration |
-
 </details>
 
 <details>
@@ -190,7 +190,7 @@ Compatible with the entire **Tachiyomi extension ecosystem** — no extra setup 
 | UI | Jetpack Compose + Material 3 |
 | Architecture | Clean Architecture + MVI |
 | DI | Hilt (Dagger) |
-| Database | Room (v8 with migrations) |
+| Database | Room (v9 with migrations) |
 | Preferences | DataStore |
 | Network | Retrofit + OkHttp |
 | Images | Coil 3 |

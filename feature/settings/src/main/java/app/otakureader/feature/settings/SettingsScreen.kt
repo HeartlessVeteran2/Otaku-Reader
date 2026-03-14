@@ -691,6 +691,7 @@ private fun ReadingGoalsSection(state: SettingsState, onEvent: (SettingsEvent) -
     // ── Reading Goals ──────────────────────────────────────────────────
     SectionHeader(title = stringResource(R.string.settings_reading_goals))
 
+
     // Daily chapter goal
     var dailyGoalSlider by remember { mutableFloatStateOf(state.dailyChapterGoal.toFloat()) }
     LaunchedEffect(state.dailyChapterGoal) {
@@ -704,6 +705,7 @@ private fun ReadingGoalsSection(state: SettingsState, onEvent: (SettingsEvent) -
                     if (state.dailyChapterGoal == 0) stringResource(R.string.settings_goals_disabled)
                     else stringResource(R.string.settings_goals_chapters_per_day, state.dailyChapterGoal)
                 )
+
                 Slider(
                     value = dailyGoalSlider,
                     onValueChange = { dailyGoalSlider = it },
@@ -730,6 +732,7 @@ private fun ReadingGoalsSection(state: SettingsState, onEvent: (SettingsEvent) -
                     if (state.weeklyChapterGoal == 0) stringResource(R.string.settings_goals_disabled)
                     else stringResource(R.string.settings_goals_chapters_per_week, state.weeklyChapterGoal)
                 )
+
                 Slider(
                     value = weeklyGoalSlider,
                     onValueChange = { weeklyGoalSlider = it },
@@ -747,6 +750,7 @@ private fun ReadingGoalsSection(state: SettingsState, onEvent: (SettingsEvent) -
     ListItem(
         headlineContent = { Text(stringResource(R.string.settings_reading_reminders)) },
         supportingContent = { Text(stringResource(R.string.settings_reading_reminders_description)) },
+
         trailingContent = {
             Switch(
                 checked = state.readingRemindersEnabled,
@@ -768,6 +772,7 @@ private fun ReadingGoalsSection(state: SettingsState, onEvent: (SettingsEvent) -
                         stringResource(R.string.settings_reminder_afternoon) to 14,
                         stringResource(R.string.settings_reminder_evening) to 20
                     )
+
                     hours.forEach { (label, hour) ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -1170,6 +1175,7 @@ private fun DiscordSection(state: SettingsState, onEvent: (SettingsEvent) -> Uni
     ListItem(
         headlineContent = { Text(stringResource(R.string.settings_discord_rich_presence)) },
         supportingContent = { Text(stringResource(R.string.settings_discord_rich_presence_description)) },
+
         trailingContent = {
             Switch(
                 checked = state.discordRpcEnabled,

@@ -2,6 +2,7 @@ package app.otakureader.core.discord
 
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Build
 import app.otakureader.core.discord.BuildConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -218,7 +219,12 @@ class DiscordRpcService @Inject constructor(
         )
         return discordPackages.any { pkg ->
             try {
-                context.packageManager.getPackageInfo(pkg, 0)
+if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    context.packageManager.getPackageInfo(pkg, PackageManager.PackageInfoFlags.of(0))
+                } else {
+                    @Suppress("DEPRECATION")
+                    context.packageManager.getPackageInfo(pkg, 0)
+                }
                 true
             } catch (_: PackageManager.NameNotFoundException) {
                 false
