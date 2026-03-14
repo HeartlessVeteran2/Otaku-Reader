@@ -19,6 +19,9 @@
     <string name="downloads_pause">Pause</string>
     <string name="downloads_resume">Resume</string>
     <string name="downloads_cancel">Cancel</string>
+    <string name="downloads_move_to_front">Move to front</string>
+    <string name="downloads_prioritize_selected">Move selected to front</string>
+    <string name="downloads_priority_high">High priority</string>
     <string name="downloads_empty_title">No downloads yet</string>
     <string name="downloads_empty_message">Start a chapter download to see progress here.</string>
     <string name="downloads_empty_icon">No downloads</string>

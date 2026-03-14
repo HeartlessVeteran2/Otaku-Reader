@@ -3,6 +3,7 @@ package app.otakureader.data.download
 import android.content.Context
 import app.otakureader.core.preferences.DownloadPreferences
 import app.otakureader.domain.model.DownloadItem
+import app.otakureader.domain.model.DownloadPriority
 import app.otakureader.domain.model.DownloadStatus
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -26,6 +27,8 @@ import kotlinx.coroutines.sync.withLock
  *
  * @param pageUrls ordered list of remote image URLs; may be empty when pages have not
  *                 been resolved from the source yet.
+ * @param priority queue priority for this request; lower values are processed first.
+ *                 Defaults to [DownloadPriority.NORMAL].
  */
 data class ChapterDownloadRequest(
     val mangaId: Long,
@@ -33,7 +36,8 @@ data class ChapterDownloadRequest(
     val sourceName: String,
     val mangaTitle: String,
     val chapterTitle: String,
-    val pageUrls: List<String>
+    val pageUrls: List<String>,
+    val priority: Int = DownloadPriority.NORMAL
 )
 
 /**
@@ -42,6 +46,9 @@ data class ChapterDownloadRequest(
  * Chapters are added to an in-memory queue backed by a [StateFlow]. Pages for a single chapter
  * are downloaded sequentially, but multiple chapters may be downloaded concurrently (typically
  * one coroutine per chapter, and callers may enqueue many at once).
+ *
+ * The queue is sorted by [DownloadItem.priority] (ascending – lower value = higher priority)
+ * before being emitted.  Items with equal priority are ordered by insertion time (FIFO).
  *
  * Already-downloaded pages are skipped automatically (provided the file is non-empty),
  * making the process idempotent. Partial files from interrupted downloads are re-downloaded.
@@ -93,10 +100,11 @@ class DownloadManager @Inject constructor(
                 chapterId = request.chapterId,
                 mangaTitle = request.mangaTitle,
                 chapterTitle = request.chapterTitle,
-                status = DownloadStatus.QUEUED
+                status = DownloadStatus.QUEUED,
+                priority = request.priority
             )
             downloadMap[request.chapterId] = newItem
-            _downloads.value = downloadMap.values.toList()
+            refreshDownloadsList()
         }
         startDownload(request)
     }
@@ -123,7 +131,7 @@ class DownloadManager @Inject constructor(
             jobs.remove(chapterId)?.cancel()
             requests.remove(chapterId)
             downloadMap.remove(chapterId)
-            _downloads.value = downloadMap.values.toList()
+            refreshDownloadsList()
         }
     }
 
@@ -136,7 +144,7 @@ class DownloadManager @Inject constructor(
             jobs.remove(chapterId)?.cancel()
             requests.remove(chapterId)
             downloadMap.remove(chapterId)
-            _downloads.value = downloadMap.values.toList()
+            refreshDownloadsList()
         }
     }
 
@@ -147,6 +155,113 @@ class DownloadManager @Inject constructor(
             requests.clear()
             downloadMap.clear()
             _downloads.value = emptyList()
+        }
+    }
+
+    /**
+     * Moves the given chapter to the front of the in-memory queue by assigning it a
+     * priority value lower than all currently queued items.
+     *
+     * This affects the ordering of the emitted [downloads] list, but does not interrupt
+     * or preempt already-running downloads in the current implementation.
+     *
+     * If the chapter is not in the queue this is a no-op.
+     */
+    suspend fun prioritize(chapterId: Long) {
+        mutex.withLock {
+            val item = downloadMap[chapterId] ?: return
+            val minPriority = downloadMap.values
+                .filter { it.chapterId != chapterId }
+                .minOfOrNull { it.priority } ?: DownloadPriority.NORMAL
+            val newPriority = if (minPriority > Int.MIN_VALUE) minPriority - 1 else Int.MIN_VALUE
+            downloadMap[chapterId] = item.copy(priority = newPriority)
+            requests[chapterId]?.let { requests[chapterId] = it.copy(priority = newPriority) }
+            refreshDownloadsList()
+        }
+    }
+
+    /**
+     * Sets an explicit [newPriority] value for the given chapter.
+     *
+     * Lower values appear earlier in the queue (higher urgency).  Use the constants in
+     * [DownloadPriority] for common presets.  If the chapter is not in the queue this
+     * is a no-op.
+     */
+    suspend fun reorder(chapterId: Long, newPriority: Int) {
+        mutex.withLock {
+            val item = downloadMap[chapterId] ?: return
+            downloadMap[chapterId] = item.copy(priority = newPriority)
+            requests[chapterId]?.let { requests[chapterId] = it.copy(priority = newPriority) }
+            refreshDownloadsList()
+        }
+    }
+
+    /**
+     * Moves a set of chapters to the front of the queue in a single transaction.
+     *
+     * Each chapter in [chapterIds] receives a priority value lower than every chapter
+     * that is not in the set.  Chapters within the set retain their relative order from
+     * the current queue.  This is more efficient than calling [prioritize] repeatedly
+     * because only one mutex acquisition and one list rebuild are required.
+     *
+     * IDs that are not currently in the queue are silently ignored.
+     */
+    suspend fun prioritizeAll(chapterIds: Set<Long>) {
+        if (chapterIds.isEmpty()) return
+        mutex.withLock {
+            // Determine the targets in their current queue order.
+            val orderedTargets = downloadMap.values
+                .filter { it.chapterId in chapterIds }
+                .sortedBy { it.priority }
+            if (orderedTargets.isEmpty()) {
+                // Nothing to prioritize; all IDs were absent from the queue.
+                return@withLock
+            }
+
+            val outsideMin = downloadMap.values
+                .filter { it.chapterId !in chapterIds }
+                .minOfOrNull { it.priority } ?: DownloadPriority.NORMAL
+
+            // How many distinct Int slots exist below outsideMin, using Long math to avoid overflow.
+            val availableBelow = outsideMin.toLong() - Int.MIN_VALUE.toLong()
+
+            if (availableBelow >= orderedTargets.size.toLong()) {
+                // Enough room: assign contiguous priorities just below outsideMin.
+                val base = outsideMin.toLong() - orderedTargets.size.toLong()
+                orderedTargets.forEachIndexed { index, item ->
+                    val newPriority = (base + index.toLong()).toInt()
+                    downloadMap[item.chapterId] = item.copy(priority = newPriority)
+                    requests[item.chapterId]?.let {
+                        requests[item.chapterId] = it.copy(priority = newPriority)
+                    }
+                }
+            } else {
+                // Not enough room below outsideMin. Renormalize non-targets to non-negative
+                // priorities, then place all targets in the Int.MIN_VALUE.. range so they
+                // are strictly lower than every non-target.
+                val nonTargets = downloadMap.values
+                    .filter { it.chapterId !in chapterIds }
+                    .sortedBy { it.priority }
+
+                nonTargets.forEachIndexed { index, item ->
+                    // Index is non-negative and well within Int range for realistic queues.
+                    val normalizedPriority = index
+                    downloadMap[item.chapterId] = item.copy(priority = normalizedPriority)
+                    requests[item.chapterId]?.let {
+                        requests[item.chapterId] = it.copy(priority = normalizedPriority)
+                    }
+                }
+
+                orderedTargets.forEachIndexed { index, item ->
+                    val newPriority = Int.MIN_VALUE + index
+                    downloadMap[item.chapterId] = item.copy(priority = newPriority)
+                    requests[item.chapterId]?.let {
+                        requests[item.chapterId] = it.copy(priority = newPriority)
+                    }
+                }
+            }
+
+            refreshDownloadsList()
         }
     }
 
@@ -232,7 +347,9 @@ class DownloadManager @Inject constructor(
                                     ?.forEach { it.delete() }
                             }
                         }
-                        updateStatus(chapterId, DownloadStatus.COMPLETED)
+                        mutex.withLock {
+                            updateStatus(chapterId, DownloadStatus.COMPLETED)
+                        }
                     }
                 } finally {
                     // Always remove the job reference on all terminal paths (success, failure,
@@ -244,16 +361,46 @@ class DownloadManager @Inject constructor(
     }
 
     private fun updateStatus(chapterId: Long, status: DownloadStatus) {
-        downloadMap[chapterId]?.let { item ->
-            downloadMap[chapterId] = item.copy(status = status)
-            _downloads.value = downloadMap.values.toList()
+        updateDownloadInPlace(chapterId) { item ->
+            item.copy(status = status)
         }
     }
 
     private fun updateProgress(chapterId: Long, progress: Int) {
-        downloadMap[chapterId]?.let { item ->
-            downloadMap[chapterId] = item.copy(progress = progress)
-            _downloads.value = downloadMap.values.toList()
+        updateDownloadInPlace(chapterId) { item ->
+            item.copy(progress = progress)
         }
+    }
+
+    /**
+     * Updates a single [DownloadItem] in both [downloadMap] and [_downloads] without
+     * re-sorting the entire list.  This preserves the existing ordering, which is
+     * already sorted by [DownloadItem.priority] when items are enqueued or their
+     * priority changes.
+     */
+    private fun updateDownloadInPlace(
+        chapterId: Long,
+        transform: (DownloadItem) -> DownloadItem
+    ) {
+        val current = downloadMap[chapterId] ?: return
+        val updated = transform(current)
+        downloadMap[chapterId] = updated
+
+        _downloads.update { list ->
+            list.map { item ->
+                if (item.chapterId == chapterId) updated else item
+            }
+        }
+    }
+
+    /**
+     * Rebuilds the public [downloads] list, sorted by [DownloadItem.priority] ascending
+     * (lower value = higher priority).  Items with equal priority retain their original
+     * insertion order (stable sort).
+     *
+     * Must be called while holding [mutex].
+     */
+    private fun refreshDownloadsList() {
+        _downloads.value = downloadMap.values.sortedBy { it.priority }
     }
 }

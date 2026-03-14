@@ -169,17 +169,14 @@ class AiPreferences(
                     keysToRemove.clear()
 
                     for ((key, value) in pendingChanges) {
-                        if (value != null) {
-                            val oldValue = backingMap.put(key, value)
-                            // Track changes only if value actually changed
-                            if (oldValue != value) {
-                                changedKeys.add(key)
-                            }
-                        } else {
-                            // null value semantically removes the key (mirrors SharedPreferences.remove behavior)
-                            if (backingMap.remove(key) != null) {
-                                changedKeys.add(key)
-                            }
+                        // Null values should have been routed to keysToRemove by the putXxx
+                        // methods; skip any that slipped through to avoid a NullPointerException
+                        // in ConcurrentHashMap (which does not accept null values).
+                        val nonNullValue = value ?: continue
+                        val oldValue = backingMap.put(key, nonNullValue)
+                        // Track changes only if value actually changed
+                        if (oldValue != nonNullValue) {
+                            changedKeys.add(key)
                         }
                     }
                     pendingChanges.clear()
