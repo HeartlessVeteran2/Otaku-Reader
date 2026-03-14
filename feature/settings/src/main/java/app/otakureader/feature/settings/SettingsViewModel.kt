@@ -110,6 +110,8 @@ class SettingsViewModel @Inject constructor(
                 state.copy(preloadPagesAfter = preloadAfter)
             }.combine(readerSettingsRepository.cropBordersEnabled) { state, cropBorders ->
                 state.copy(cropBordersEnabled = cropBorders)
+            }.combine(readerSettingsRepository.dataSaverEnabled) { state, dataSaver ->
+                state.copy(dataSaverEnabled = dataSaver)
             }.combine(downloadPreferences.autoDownloadEnabled) { state, autoDownloadEnabled ->
                 state.copy(autoDownloadEnabled = autoDownloadEnabled)
             }.combine(downloadPreferences.downloadOnlyOnWifi) { state, downloadOnlyOnWifi ->
@@ -196,6 +198,7 @@ class SettingsViewModel @Inject constructor(
                 is SettingsEvent.SetPreloadPagesBefore -> readerSettingsRepository.setPreloadPagesBefore(event.count)
                 is SettingsEvent.SetPreloadPagesAfter -> readerSettingsRepository.setPreloadPagesAfter(event.count)
                 is SettingsEvent.SetCropBordersEnabled -> readerSettingsRepository.setCropBordersEnabled(event.enabled)
+                is SettingsEvent.SetDataSaverEnabled -> readerSettingsRepository.setDataSaverEnabled(event.enabled)
                 is SettingsEvent.SetDeleteAfterReading -> downloadPreferences.setDeleteAfterReading(event.enabled)
                 is SettingsEvent.SetAutoDownloadEnabled -> downloadPreferences.setAutoDownloadEnabled(event.enabled)
                 is SettingsEvent.SetDownloadOnlyOnWifi -> downloadPreferences.setDownloadOnlyOnWifi(event.enabled)

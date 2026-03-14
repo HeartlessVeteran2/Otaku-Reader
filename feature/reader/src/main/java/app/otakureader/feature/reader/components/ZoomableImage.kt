@@ -57,6 +57,7 @@ fun ZoomableImage(
     contentScale: ContentScale = ContentScale.Fit,
     rotation: Float = 0f,
     cropBordersEnabled: Boolean = false,
+    dataSaverEnabled: Boolean = false,
     onDoubleTap: ((Offset) -> Unit)? = null,
     onTap: ((Offset) -> Unit)? = null,
     onZoomChange: ((Float) -> Unit)? = null,
@@ -144,11 +145,22 @@ fun ZoomableImage(
     ) {
         if (imageUrl != null) {
             val context = LocalContext.current
-            val imageModel = remember(imageUrl, cropBordersEnabled, context) {
-                val builder = ImageRequest.Builder(context).data(imageUrl)
+            val imageModel = remember(imageUrl, cropBordersEnabled, dataSaverEnabled, context) {
+                val builder = ImageRequest.Builder(context)
+                    .data(imageUrl)
+
+                // Apply size restriction when data saver is enabled
+                if (dataSaverEnabled) {
+                    builder
+                        .size(800)
+                        .scale(coil3.size.Scale.FIT) // Enforce max-dimension cap
+                }
+
+                // Apply crop borders transformation if enabled
                 if (cropBordersEnabled) {
                     builder.transformations(CropBorderTransformation())
                 }
+
                 builder.build()
             }
             AsyncImage(

@@ -55,9 +55,6 @@ class SourceRepositoryImpl(
         LocalSourcePreferences.ofDirectory(localDirectory),
         healthMonitor
     )
-        context.packageManager,
-        context.cacheDir
-    )
 
     /**
      * Returns a fresh [LocalSource] using the current scan directory from preferences.

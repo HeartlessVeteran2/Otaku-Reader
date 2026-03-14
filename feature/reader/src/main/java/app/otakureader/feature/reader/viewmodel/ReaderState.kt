@@ -110,7 +110,10 @@ data class ReaderState(
     val showBatteryTime: Boolean = false,
 
     /** Whether automatic border cropping is enabled for page images */
-    val cropBordersEnabled: Boolean = false
+    val cropBordersEnabled: Boolean = false,
+
+    /** Whether data saver mode is enabled to reduce image quality and bandwidth usage */
+    val dataSaverEnabled: Boolean = false
 ) {
     /** Total pages in chapter (derived from pages.size) */
     val totalPages: Int get() = pages.size

@@ -47,6 +47,9 @@ data class ReadingBehavior(
         get() = sequentialNavigationRatio < 0.6f || sampleSize < MIN_SAMPLE_SIZE
 
     companion object {
+        /** Minimum sample size required for meaningful statistics. */
+        const val MIN_SAMPLE_SIZE = 50
+
         /** Default behavior profile for new users (assume typical manga reader). */
         val DEFAULT = ReadingBehavior()
     }

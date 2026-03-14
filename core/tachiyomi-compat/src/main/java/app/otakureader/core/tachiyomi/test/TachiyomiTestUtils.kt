@@ -98,8 +98,8 @@ object TachiyomiTestUtils {
             val repository = SourceRepositoryImpl(context, app.otakureader.core.preferences.LocalSourcePreferences.defaultDirectory())
             val result = repository.getPopularManga(sourceId, 1)
 
-            result.map { page ->
-                page.mangas.map { it.title }
+            result.map { mangaPage ->
+                mangaPage.mangas.map { it.title }
             }
         } catch (e: Exception) {
             Result.failure(e)

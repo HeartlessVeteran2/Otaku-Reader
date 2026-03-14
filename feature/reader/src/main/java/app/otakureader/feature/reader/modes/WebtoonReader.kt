@@ -36,6 +36,7 @@ fun WebtoonReader(
     onTap: (androidx.compose.ui.geometry.Offset) -> Unit,
     rotation: Float = 0f,
     cropBordersEnabled: Boolean = false,
+    dataSaverEnabled: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState(
@@ -103,6 +104,7 @@ fun WebtoonReader(
                     contentScale = imageContentScale,
                     rotation = normalizedRotation,
                     cropBordersEnabled = cropBordersEnabled,
+                    dataSaverEnabled = dataSaverEnabled,
                     onTap = onTap,
                     modifier = Modifier.fillMaxWidth()
                 )

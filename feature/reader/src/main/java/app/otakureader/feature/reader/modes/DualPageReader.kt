@@ -38,6 +38,7 @@ fun DualPageReader(
     isRtl: Boolean = false,
     rotation: Float = 0f,
     cropBordersEnabled: Boolean = false,
+    dataSaverEnabled: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     // Calculate spread indices (every 2 pages form a spread)
@@ -105,6 +106,7 @@ fun DualPageReader(
                             contentScale = ContentScale.Fit,
                             rotation = rotation,
                             cropBordersEnabled = cropBordersEnabled,
+                            dataSaverEnabled = dataSaverEnabled,
                             onTap = onTap,
                             modifier = Modifier.fillMaxSize()
                         )
@@ -132,6 +134,7 @@ fun DualPageReader(
                             contentScale = ContentScale.Fit,
                             rotation = rotation,
                             cropBordersEnabled = cropBordersEnabled,
+                            dataSaverEnabled = dataSaverEnabled,
                             onTap = onTap,
                             modifier = Modifier.fillMaxSize()
                         )

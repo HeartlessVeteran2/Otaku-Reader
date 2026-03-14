@@ -585,6 +585,20 @@ private fun ReaderSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit
                     )
                 }
             )
+
+            // Data saver mode
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_data_saver)) },
+                supportingContent = { Text(stringResource(R.string.settings_data_saver_description)) },
+                trailingContent = {
+                    Switch(
+                        checked = state.dataSaverEnabled,
+                        onCheckedChange = {
+                            onEvent(SettingsEvent.SetDataSaverEnabled(it))
+                        }
+                    )
+                }
+            )
 }
 
 @Composable
