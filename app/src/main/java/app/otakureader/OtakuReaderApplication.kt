@@ -4,6 +4,8 @@ import android.app.Application
 import android.content.Context
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import app.otakureader.core.discord.DiscordRpcService
+import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.shortcut.AppShortcutManager
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
@@ -46,6 +48,20 @@ class OtakuReaderApplication : Application(), Configuration.Provider, SingletonI
         DynamicColors.applyToActivitiesIfAvailable(this)
         // Initialize launcher shortcuts (Library, Updates, Continue Reading)
         appShortcutManager.initialize()
+        // Initialize Discord RPC if enabled
+        initializeDiscordRpc()
+    }
+
+    private fun initializeDiscordRpc() {
+        applicationScope.launch {
+            try {
+                if (generalPreferences.discordRpcEnabled.first()) {
+                    discordRpcService.initialize()
+                }
+            } catch (_: Exception) {
+                // Fail silently – Discord RPC is optional
+            }
+        }
     }
 
     /**

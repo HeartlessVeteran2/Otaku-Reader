@@ -51,6 +51,8 @@ data class SettingsState(
     val migrationMinChapterCount: Int = 0,
     // --- Browse ---
     val showNsfwContent: Boolean = false,
+    // --- Discord Rich Presence ---
+    val discordRpcEnabled: Boolean = false,
     // --- AI ---
     val aiEnabled: Boolean = false,
     val aiTier: AiTier = AiTier.FREE,
@@ -111,6 +113,8 @@ sealed interface SettingsEvent : UiEvent {
     data class SetMigrationMinChapterCount(val count: Int) : SettingsEvent
     data object OnNavigateToMigration : SettingsEvent
     data class SetShowNsfwContent(val enabled: Boolean) : SettingsEvent
+    // --- Discord Rich Presence ---
+    data class SetDiscordRpcEnabled(val enabled: Boolean) : SettingsEvent
     // --- AI ---
     data class SetAiEnabled(val enabled: Boolean) : SettingsEvent
     data class SetAiTier(val tier: AiTier) : SettingsEvent

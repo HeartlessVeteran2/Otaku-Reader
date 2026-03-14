@@ -161,6 +161,8 @@ fun SettingsScreen(
             HorizontalDivider()
             MigrationSection(state = state, onEvent = viewModel::onEvent)
             HorizontalDivider()
+            DiscordSection(state = state, onEvent = viewModel::onEvent)
+            HorizontalDivider()
             AiSection(state = state, onEvent = viewModel::onEvent)
         }
     }
@@ -1138,6 +1140,23 @@ private fun MigrationSection(state: SettingsState, onEvent: (SettingsEvent) -> U
                     modifier = Modifier.fillMaxWidth()
                 )
             }
+        }
+    )
+}
+
+@Composable
+private fun DiscordSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
+    // ── Discord ───────────────────────────────────────────────────────
+    SectionHeader(title = "Discord")
+
+    ListItem(
+        headlineContent = { Text("Rich Presence") },
+        supportingContent = { Text("Show current reading activity as your Discord status") },
+        trailingContent = {
+            Switch(
+                checked = state.discordRpcEnabled,
+                onCheckedChange = { onEvent(SettingsEvent.SetDiscordRpcEnabled(it)) }
+            )
         }
     )
 }
