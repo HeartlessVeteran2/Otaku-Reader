@@ -47,7 +47,7 @@ class DetailsViewModel @Inject constructor(
     private val _state = MutableStateFlow(DetailsContract.State())
     val state: StateFlow<DetailsContract.State> = _state.asStateFlow()
 
-    private val _effect = Channel<DetailsContract.Effect>()
+    private val _effect = Channel<DetailsContract.Effect>(Channel.BUFFERED)
     val effect: Flow<DetailsContract.Effect> = _effect.receiveAsFlow()
 
     init {
