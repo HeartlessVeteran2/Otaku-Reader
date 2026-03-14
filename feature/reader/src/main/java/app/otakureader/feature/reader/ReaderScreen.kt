@@ -7,6 +7,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.SnackbarHost
@@ -276,20 +277,23 @@ fun ReaderScreen(
             modifier = Modifier.align(Alignment.BottomCenter)
         )
 
-        // Reading Timer Overlay - top-right corner
-        ReadingTimerOverlay(
-            isVisible = state.showReadingTimer && !state.isMenuVisible,
-            sessionStartMs = viewModel.sessionStartMs,
+        // Overlays in the top-right corner (stacked vertically)
+        Column(
             modifier = Modifier.align(Alignment.TopEnd)
-        )
+        ) {
+            // Reading Timer Overlay - top item
+            ReadingTimerOverlay(
+                isVisible = state.showReadingTimer && !state.isMenuVisible,
+                sessionStartMs = viewModel.sessionStartMs,
+                modifier = Modifier
+            )
 
-        // Battery/Time Overlay - top-right corner (below timer if both shown)
-        BatteryTimeOverlay(
-            isVisible = state.showBatteryTime && !state.isMenuVisible,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = if (state.showReadingTimer) 52.dp else 0.dp)
-        )
+            // Battery/Time Overlay - below the timer when both are visible
+            BatteryTimeOverlay(
+                isVisible = state.showBatteryTime && !state.isMenuVisible,
+                modifier = Modifier
+            )
+        }
 
         // Snackbar host
         SnackbarHost(
