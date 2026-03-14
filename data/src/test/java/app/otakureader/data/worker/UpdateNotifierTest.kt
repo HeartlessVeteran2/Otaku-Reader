@@ -13,10 +13,12 @@ import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
+import io.mockk.unmockkAll
 import io.mockk.verify
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.Assert.*
@@ -76,6 +78,11 @@ class UpdateNotifierTest {
 
         // Mock package manager
         every { packageManager.getLaunchIntentForPackage(any()) } returns mockk(relaxed = true)
+    }
+
+    @After
+    fun tearDown() {
+        unmockkAll()
     }
 
     // -------------------------------------------------------------------------
@@ -261,10 +268,11 @@ class UpdateNotifierTest {
     }
 
     @Test
-    fun `notify loads cover images successfully`() = runTest {
-        // Given - successful image load; the image is a generic coil3.Image mock.
-        // toBitmap() on an unsupported Image type throws, which loadCoverImage catches,
-        // so the notification is still posted (without a large icon).
+    fun `notify posts notification even when image loading returns unsupported Image type`() = runTest {
+        // Given - imageLoader returns a SuccessResult but the Image implementation is not
+        // bitmap-backed (e.g., a generic mock), so toBitmap() throws inside loadCoverImage.
+        // The exception is caught by loadCoverImage's try-catch, and the notification is
+        // still posted without a large icon.
         val mockImage = mockk<coil3.Image>()
         val successResult = mockk<SuccessResult>()
         every { successResult.image } returns mockImage
@@ -277,8 +285,7 @@ class UpdateNotifierTest {
         // When
         notifier.notify(mangaList, totalNewChapters = 3)
 
-        // Then - notification created (large icon may be absent when image is null, but
-        //         the notification itself is always posted)
+        // Then - notification is still posted despite the missing large icon
         verify(exactly = 1) {
             notificationManager.notify(
                 eq(UPDATE_NOTIFICATION_TAG),

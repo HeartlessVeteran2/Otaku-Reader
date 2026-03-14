@@ -173,7 +173,7 @@ class KitsuTrackerTest {
     }
 
     @Test
-    fun `provider migration — login as different user clears previous userId`() = runTest {
+    fun `provider migration — find after re-login uses new userId`() = runTest {
         coEvery { oauthApi.getAccessToken(any(), any(), any(), any(), any()) } returns tokenResponse
         coEvery { api.getCurrentUser() } returns userResponse(id = "100")
         tracker.login(username = "old@example.com", password = "pass")
@@ -181,10 +181,20 @@ class KitsuTrackerTest {
         tracker.logout()
 
         coEvery { api.getCurrentUser() } returns userResponse(id = "200")
-        val result = tracker.login(username = "new@example.com", password = "pass")
+        tracker.login(username = "new@example.com", password = "pass")
 
-        assertTrue(result)
-        assertTrue(tracker.isLoggedIn)
+        // After re-login with userId=200, find() should call the API with the new userId
+        val attrs = KitsuAttributes(status = "current", progressedChapters = 5, ratingTwenty = null)
+        val libraryEntry = KitsuResource(id = "1", type = "libraryEntries", attributes = attrs)
+        coEvery { api.findLibraryEntry(mangaId = 42L, userId = 200L) } returns KitsuPagedResponse(
+            data = listOf(libraryEntry)
+        )
+
+        val entry = tracker.find(42L)
+
+        assertNotNull(entry)
+        coVerify(exactly = 1) { api.findLibraryEntry(mangaId = 42L, userId = 200L) }
+        coVerify(exactly = 0) { api.findLibraryEntry(mangaId = 42L, userId = 100L) }
     }
 
     // ─────────────────────────────────────────────────────────────────────────

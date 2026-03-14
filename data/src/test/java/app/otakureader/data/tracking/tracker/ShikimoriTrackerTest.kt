@@ -177,7 +177,7 @@ class ShikimoriTrackerTest {
     }
 
     @Test
-    fun `provider migration — re-login with different user updates userId`() = runTest {
+    fun `provider migration — find after re-login uses new userId`() = runTest {
         coEvery { oauthApi.getAccessToken(any(), any(), any(), any(), any()) } returns tokenResponse
         coEvery { api.getCurrentUser() } returns ShikimoriUser(id = 10L, nickname = "user-a")
         tracker.login(username = "", password = "code-a")
@@ -185,10 +185,22 @@ class ShikimoriTrackerTest {
         tracker.logout()
 
         coEvery { api.getCurrentUser() } returns ShikimoriUser(id = 20L, nickname = "user-b")
-        val result = tracker.login(username = "", password = "code-b")
+        tracker.login(username = "", password = "code-b")
 
-        assertTrue(result)
-        assertTrue(tracker.isLoggedIn)
+        // After re-login with userId=20, find() should call the API with the new userId
+        val userRate = ShikimoriUserRate(
+            id = 1L, userId = 20L, targetId = 10L,
+            targetType = "Manga", status = "watching", score = 0, chapters = 0
+        )
+        val manga = ShikimoriManga(id = 10L, name = "Test", url = "/mangas/10", chapters = 10)
+        coEvery { api.getUserRate(userId = 20L, targetId = 10L) } returns listOf(userRate)
+        coEvery { api.getManga(10L) } returns manga
+
+        val entry = tracker.find(10L)
+
+        assertNotNull(entry)
+        coVerify(exactly = 1) { api.getUserRate(userId = 20L, targetId = 10L) }
+        coVerify(exactly = 0) { api.getUserRate(userId = 10L, targetId = any()) }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
