@@ -52,6 +52,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
@@ -375,6 +376,10 @@ fun RotationControl(
                 .weight(1f)
                 .clip(RoundedCornerShape(4.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
+                .semantics {
+                    role = Role.Button
+                    contentDescription = "Reset page rotation"
+                }
                 .clickable(onClick = onResetRotation)
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
