@@ -102,6 +102,8 @@ class SmartPrefetchManager @Inject constructor(
 
         // Decide and record prefetch under lock to avoid races.
         val shouldPrefetch = synchronized(prefetchedPages) {
+            prefetchedPages.entries.removeAll { now - it.value >= 300_000L }
+
             val lastPrefetchTime = prefetchedPages[imageUrl]
             if (lastPrefetchTime != null && now - lastPrefetchTime < 300_000L) {
                 false
