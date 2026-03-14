@@ -6,6 +6,8 @@ import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.MangaRepository
+import app.otakureader.core.discord.DiscordRpcService
+import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.feature.reader.model.ColorFilterMode
 import app.otakureader.feature.reader.model.ReaderMode
 import app.otakureader.feature.reader.model.ReaderPage
@@ -43,6 +45,8 @@ class UltimateReaderViewModelTest {
     private lateinit var chapterRepository: ChapterRepository
     private lateinit var settingsRepository: ReaderSettingsRepository
     private lateinit var pageLoader: PageLoader
+    private lateinit var discordRpcService: DiscordRpcService
+    private lateinit var generalPreferences: GeneralPreferences
 
     @Before
     fun setUp() {
@@ -51,6 +55,9 @@ class UltimateReaderViewModelTest {
         chapterRepository = mockk()
         settingsRepository = mockk()
         pageLoader = mockk()
+        discordRpcService = mockk(relaxed = true)
+        generalPreferences = mockk()
+        every { generalPreferences.discordRpcEnabled } returns flowOf(false)
 
         // Default settings stubs so loadSettings() succeeds.
         every { settingsRepository.readerMode } returns flowOf(ReaderMode.SINGLE_PAGE)
@@ -86,6 +93,8 @@ class UltimateReaderViewModelTest {
             chapterRepository = chapterRepository,
             settingsRepository = settingsRepository,
             pageLoader = pageLoader,
+            discordRpcService = discordRpcService,
+            generalPreferences = generalPreferences,
             savedStateHandle = SavedStateHandle(
                 mapOf("mangaId" to mangaId, "chapterId" to chapterId)
             )

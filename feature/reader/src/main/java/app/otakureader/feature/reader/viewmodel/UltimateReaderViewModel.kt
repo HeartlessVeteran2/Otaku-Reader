@@ -13,6 +13,9 @@ import app.otakureader.feature.reader.model.ReaderMode
 import app.otakureader.feature.reader.model.ReaderPage
 import app.otakureader.feature.reader.model.ReadingDirection
 import app.otakureader.feature.reader.repository.ReaderSettingsRepository
+import app.otakureader.core.discord.DiscordRpcService
+import app.otakureader.core.discord.ReadingStatus
+import app.otakureader.core.preferences.GeneralPreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -42,6 +45,8 @@ class UltimateReaderViewModel @Inject constructor(
     private val chapterRepository: ChapterRepository,
     private val settingsRepository: ReaderSettingsRepository,
     private val pageLoader: PageLoader,
+    private val discordRpcService: DiscordRpcService,
+    private val generalPreferences: GeneralPreferences,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -62,6 +67,9 @@ class UltimateReaderViewModel @Inject constructor(
     private var cachedPreloadBefore: Int = ReaderSettingsRepository.DEFAULT_PRELOAD_PAGES
     private var cachedPreloadAfter: Int = ReaderSettingsRepository.DEFAULT_PRELOAD_PAGES
 
+    /** Cached Discord RPC enabled state, loaded once to avoid DataStore reads on every page change. */
+    private var cachedDiscordRpcEnabled: Boolean = false
+
     private var autoSaveJob: Job? = null
     private var preloadJob: Job? = null
 
@@ -73,6 +81,7 @@ class UltimateReaderViewModel @Inject constructor(
     init {
         loadSettings()
         loadChapter()
+        cacheDiscordPreference()
     }
 
     private fun recordHistoryOpen() {
@@ -218,6 +227,9 @@ class UltimateReaderViewModel @Inject constructor(
                 // Record history now that the chapter is confirmed to exist.
                 recordHistoryOpen()
 
+                // Update Discord Rich Presence with reading info
+                updateDiscordPresence(manga.title, chapter.name, pages.size)
+
                 // Start preloading adjacent pages
                 if (pages.isNotEmpty()) {
                     preloadPages(_state.value.currentPage)
@@ -336,6 +348,14 @@ class UltimateReaderViewModel @Inject constructor(
             _state.update { it.copy(currentPage = validPage) }
             preloadPages(validPage)
             scheduleProgressSave()
+            // Update Discord presence with current page
+            val manga = currentManga
+            val chapter = currentChapter
+            if (manga != null && chapter != null) {
+                updateDiscordPresence(
+                    manga.title, chapter.name, _state.value.pages.size, validPage + 1
+                )
+            }
             val pages = _state.value.pages
             if (pages.isNotEmpty() && validPage == pages.lastIndex) {
                 maybeDeleteAfterReading()
@@ -641,9 +661,61 @@ class UltimateReaderViewModel @Inject constructor(
                 }
             }
         }
+        // Clear Discord Rich Presence when reader closes
+        discordRpcService.clearReadingPresence(showBrowsing = true)
         saveCurrentProgress()
         autoSaveJob?.cancel()
         preloadJob?.cancel()
+    }
+
+    /**
+     * Update Discord Rich Presence if the feature is enabled.
+     * Uses the cached preference value to avoid DataStore reads on every call.
+     */
+    private fun updateDiscordPresence(
+        mangaTitle: String,
+        chapterName: String,
+        totalPages: Int,
+        currentPage: Int? = null
+    ) {
+        if (!cachedDiscordRpcEnabled) return
+        if (currentPage == null) {
+            discordRpcService.resetSessionTimer()
+        }
+        discordRpcService.updateReadingPresence(
+            mangaTitle = mangaTitle,
+            chapterName = chapterName,
+            status = ReadingStatus.READING,
+            page = currentPage,
+            totalPages = totalPages
+        )
+    }
+
+    /** Load Discord RPC preference once to avoid repeated DataStore reads. */
+    private fun cacheDiscordPreference() {
+        viewModelScope.launch {
+            generalPreferences.discordRpcEnabled.collectLatest { enabled ->
+                cachedDiscordRpcEnabled = enabled
+
+                if (!enabled) {
+                    discordRpcService.clearReadingPresence(showBrowsing = false)
+                    return@collectLatest
+                }
+
+                val manga = currentManga
+                val chapter = currentChapter
+                val pages = _state.value.pages
+                if (manga != null && chapter != null) {
+                    val page = if (pages.isNotEmpty()) _state.value.currentPage + 1 else null
+                    updateDiscordPresence(
+                        mangaTitle = manga.title,
+                        chapterName = chapter.name,
+                        totalPages = pages.size,
+                        currentPage = page
+                    )
+                }
+            }
+        }
     }
 
     companion object {

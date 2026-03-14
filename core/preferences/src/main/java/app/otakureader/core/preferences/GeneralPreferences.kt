@@ -83,6 +83,12 @@ class GeneralPreferences(private val dataStore: DataStore<Preferences>) {
     val showNsfwContent: Flow<Boolean> = dataStore.data.map { it[Keys.SHOW_NSFW_CONTENT] ?: false }
     suspend fun setShowNsfwContent(value: Boolean) = dataStore.edit { it[Keys.SHOW_NSFW_CONTENT] = value }
 
+    // --- Discord Rich Presence ---
+
+    /** Whether Discord Rich Presence is enabled. Default: off (opt-in). */
+    val discordRpcEnabled: Flow<Boolean> = dataStore.data.map { it[Keys.DISCORD_RPC_ENABLED] ?: false }
+    suspend fun setDiscordRpcEnabled(value: Boolean) = dataStore.edit { it[Keys.DISCORD_RPC_ENABLED] = value }
+
     private object Keys {
         val THEME_MODE = intPreferencesKey("theme_mode")
         val USE_DYNAMIC_COLOR = booleanPreferencesKey("use_dynamic_color")
@@ -95,5 +101,6 @@ class GeneralPreferences(private val dataStore: DataStore<Preferences>) {
         val UPDATE_CHECK_INTERVAL = intPreferencesKey("update_check_interval")
         val LAST_UPDATES_VIEWED_AT = longPreferencesKey("last_updates_viewed_at")
         val SHOW_NSFW_CONTENT = booleanPreferencesKey("show_nsfw_content")
+        val DISCORD_RPC_ENABLED = booleanPreferencesKey("discord_rpc_enabled")
     }
 }

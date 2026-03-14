@@ -47,6 +47,7 @@ dependencies {
     implementation(projects.core.network)
     implementation(projects.core.database)
     implementation(projects.core.preferences)
+    implementation(projects.core.discord)
     implementation(projects.domain)
     implementation(projects.data)
     implementation(projects.sourceApi)

@@ -3,9 +3,16 @@ package app.otakureader
 import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import app.otakureader.core.discord.DiscordRpcService
+import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.shortcut.AppShortcutManager
 import com.google.android.material.color.DynamicColors
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
@@ -22,6 +29,14 @@ class OtakuReaderApplication : Application(), Configuration.Provider {
     @Inject
     lateinit var appShortcutManager: AppShortcutManager
 
+    @Inject
+    lateinit var discordRpcService: DiscordRpcService
+
+    @Inject
+    lateinit var generalPreferences: GeneralPreferences
+
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
             .setWorkerFactory(workerFactory)
@@ -33,5 +48,19 @@ class OtakuReaderApplication : Application(), Configuration.Provider {
         DynamicColors.applyToActivitiesIfAvailable(this)
         // Initialize launcher shortcuts (Library, Updates, Continue Reading)
         appShortcutManager.initialize()
+        // Initialize Discord RPC if enabled
+        initializeDiscordRpc()
+    }
+
+    private fun initializeDiscordRpc() {
+        applicationScope.launch {
+            try {
+                if (generalPreferences.discordRpcEnabled.first()) {
+                    discordRpcService.initialize()
+                }
+            } catch (_: Exception) {
+                // Fail silently – Discord RPC is optional
+            }
+        }
     }
 }

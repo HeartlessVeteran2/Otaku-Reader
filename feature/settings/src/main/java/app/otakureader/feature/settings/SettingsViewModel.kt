@@ -124,6 +124,14 @@ class SettingsViewModel @Inject constructor(
                 state.copy(migrationMinChapterCount = minChapters)
             }.combine(generalPreferences.showNsfwContent) { state, showNsfw ->
                 state.copy(showNsfwContent = showNsfw)
+            }.combine(generalPreferences.discordRpcEnabled) { state, discordRpc ->
+                            state.copy(
+                                discordRpcEnabled = discordRpc,
+                                dailyChapterGoal = _state.value.dailyChapterGoal,
+                                weeklyChapterGoal = _state.value.weeklyChapterGoal,
+                                readingRemindersEnabled = _state.value.readingRemindersEnabled,
+                                readingReminderHour = _state.value.readingReminderHour
+                            )
             }.combine(backupPreferences.autoBackupEnabled) { state, enabled ->
                 state.copy(autoBackupEnabled = enabled)
             }.combine(backupPreferences.autoBackupIntervalHours) { state, hours ->
@@ -209,6 +217,8 @@ class SettingsViewModel @Inject constructor(
                     _effect.send(SettingsEffect.NavigateToMigrationEntry)
                 is SettingsEvent.SetShowNsfwContent ->
                     generalPreferences.setShowNsfwContent(event.enabled)
+                is SettingsEvent.SetDiscordRpcEnabled ->
+                    handleSetDiscordRpcEnabled(event.enabled)
                 is SettingsEvent.SetCustomAccentColor ->
                     generalPreferences.setCustomAccentColor(event.color)
                 is SettingsEvent.SetAiEnabled -> aiPreferences.setAiEnabled(event.enabled)
@@ -410,6 +420,15 @@ class SettingsViewModel @Inject constructor(
         val enabled = backupPreferences.autoBackupEnabled.first()
         if (enabled) {
             backupScheduler.schedule(hours)
+        }
+    }
+
+    private suspend fun handleSetDiscordRpcEnabled(enabled: Boolean) {
+        generalPreferences.setDiscordRpcEnabled(enabled)
+        if (enabled) {
+            discordRpcService.initialize()
+        } else {
+            discordRpcService.disconnect()
         }
     }
 
