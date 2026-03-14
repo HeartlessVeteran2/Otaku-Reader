@@ -181,11 +181,13 @@ class SmartPrefetchManager @Inject constructor(
      * Resets telemetry counters.
      */
     fun resetTelemetry() {
-        pagesPrefetched = 0L
-        cacheHits = 0L
-        onDemandLoads = 0L
-        prefetchedPages.clear()
-        viewedPages.clear()
+        synchronized(prefetchedPages) {
+            pagesPrefetched = 0L
+            cacheHits = 0L
+            onDemandLoads = 0L
+            prefetchedPages.clear()
+            viewedPages.clear()
+        }
     }
 
     /**
@@ -216,13 +218,29 @@ class SmartPrefetchManager @Inject constructor(
      * Returns telemetry stats as a formatted string.
      */
     fun getTelemetryStats(): String {
-        return buildString {
-            appendLine("Smart Prefetch Telemetry:")
-            appendLine("  Pages Prefetched: $pagesPrefetched")
-            appendLine("  Cache Hits: $cacheHits")
-            appendLine("  On-Demand Loads: $onDemandLoads")
-            appendLine("  Hit Rate: ${"%.1f".format(getCacheHitRate() * 100)}%")
-            appendLine("  Efficiency: ${"%.1f".format(getPrefetchEfficiency() * 100)}%")
+        return synchronized(prefetchedPages) {
+            val totalViews = cacheHits + onDemandLoads
+            val hitRate = if (totalViews > 0) {
+                cacheHits.toFloat() / totalViews.toFloat()
+            } else {
+                0f
+            }
+
+            val efficiency = if (pagesPrefetched > 0) {
+                val viewedPrefetched = viewedPages.count { prefetchedPages.containsKey(it) }
+                viewedPrefetched.toFloat() / pagesPrefetched.toFloat()
+            } else {
+                0f
+            }
+
+            buildString {
+                appendLine("Smart Prefetch Telemetry:")
+                appendLine("  Pages Prefetched: $pagesPrefetched")
+                appendLine("  Cache Hits: $cacheHits")
+                appendLine("  On-Demand Loads: $onDemandLoads")
+                appendLine("  Hit Rate: ${"%.1f".format(hitRate * 100)}%")
+                appendLine("  Efficiency: ${"%.1f".format(efficiency * 100)}%")
+            }
         }
     }
 }
