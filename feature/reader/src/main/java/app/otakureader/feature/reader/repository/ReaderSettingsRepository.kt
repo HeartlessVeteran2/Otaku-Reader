@@ -232,7 +232,7 @@ class ReaderSettingsRepository @Inject constructor(
 
     /** Whether to prefetch adjacent chapters. */
     val prefetchAdjacentChapters: Flow<Boolean> = dataStore.data.map { prefs ->
-        prefs[Keys.PREFETCH_ADJACENT_CHAPTERS] ?: true
+        prefs[Keys.PREFETCH_ADJACENT_CHAPTERS] ?: false
     }
 
     suspend fun setPrefetchAdjacentChapters(enabled: Boolean) {
