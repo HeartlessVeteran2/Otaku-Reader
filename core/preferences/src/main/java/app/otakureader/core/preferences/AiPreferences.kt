@@ -169,10 +169,18 @@ class AiPreferences(
                     keysToRemove.clear()
 
                     for ((key, value) in pendingChanges) {
-                        val oldValue = backingMap.put(key, value as Any)
-                        // Track changes only if value actually changed
-                        if (oldValue != value) {
-                            changedKeys.add(key)
+                        if (value == null) {
+                            // Treat null as a removal, similar to SharedPreferences semantics
+                            val oldValue = backingMap.remove(key)
+                            if (oldValue != null) {
+                                changedKeys.add(key)
+                            }
+                        } else {
+                            val oldValue = backingMap.put(key, value)
+                            // Track changes only if value actually changed
+                            if (oldValue != value) {
+                                changedKeys.add(key)
+                            }
                         }
                     }
                     pendingChanges.clear()
