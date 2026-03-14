@@ -94,4 +94,18 @@
     <string name="details_bookmark_selected">Bookmark selected</string>
     <string name="details_select_all">Select all</string>
     <string name="details_sort_chapters">Sort chapters</string>
+
+    <!-- Chapter context menu actions -->
+    <string name="details_chapter_mark_as_read">Mark as read</string>
+    <string name="details_chapter_mark_as_unread">Mark as unread</string>
+    <string name="details_chapter_bookmark">Bookmark chapter</string>
+    <string name="details_chapter_remove_bookmark">Remove bookmark</string>
+    <string name="details_chapter_mark_previous_as_read">Mark previous as read</string>
+    <string name="details_chapter_download">Download chapter</string>
+    <string name="details_chapter_delete_download">Delete download</string>
+    <string name="details_chapter_export_cbz">Export as CBZ</string>
+
+    <!-- Stepper control -->
+    <string name="details_stepper_decrement">−</string>
+    <string name="details_stepper_increment">+</string>
 </resources>

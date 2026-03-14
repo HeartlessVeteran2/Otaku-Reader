@@ -46,4 +46,30 @@
         <item quantity="one">%d update available</item>
         <item quantity="other">%d updates available</item>
     </plurals>
+
+    <!-- ExtensionInstallScreen labels -->
+    <string name="extensions_install_title">Install Extension</string>
+    <string name="extensions_install_from_url_section">Install from URL</string>
+    <string name="extensions_install_url_label">Extension URL</string>
+    <string name="extensions_install_url_placeholder">https://example.com/extension.apk</string>
+    <string name="extensions_install_from_url">Download &amp; Install</string>
+    <string name="extensions_install_from_file_section">Install from File</string>
+    <string name="extensions_install_file_label">APK File Path</string>
+    <string name="extensions_install_file_placeholder">/storage/emulated/0/Download/extension.apk</string>
+    <string name="extensions_install_from_file">Install from File</string>
+
+    <!-- SourceFilterSheet -->
+    <string name="browse_filters_reset">Reset</string>
+    <string name="browse_filters_cancel">Cancel</string>
+    <string name="browse_filters_apply">Apply</string>
+
+    <!-- GlobalSearchScreen -->
+    <string name="browse_global_search_placeholder">Search all sources…</string>
+
+    <!-- ExtensionsBottomSheet -->
+    <string name="extensions_sheet_title">Extensions</string>
+    <string name="extensions_search_placeholder">Search extensions...</string>
+    <string name="extensions_set_active">Set Active</string>
+    <string name="extensions_repo_url_placeholder">https://.../repo</string>
+    <string name="extensions_add_repository">Add repository</string>
 </resources>

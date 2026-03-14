@@ -83,7 +83,7 @@ fun FullPageGallery(
             Column(modifier = Modifier.fillMaxSize()) {
                 TopAppBar(
                     title = {
-                        Text("Page Gallery (${pages.size} pages)")
+                        Text(stringResource(R.string.reader_page_gallery_title, pages.size))
                     },
                     navigationIcon = {
                         IconButton(onClick = onDismiss) {
@@ -101,7 +101,7 @@ fun FullPageGallery(
                             FilterChip(
                                 selected = columns == count,
                                 onClick = { onColumnsChange(count) },
-                                label = { Text("$count columns") },
+                                label = { Text(stringResource(R.string.reader_gallery_columns, count)) },
                                 modifier = Modifier.padding(end = 4.dp)
                             )
                         }

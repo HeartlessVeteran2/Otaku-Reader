@@ -80,7 +80,7 @@ fun ExtensionInstallScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("Install Extension") },
+                title = { Text(stringResource(R.string.extensions_install_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.extensions_install_back))
@@ -100,7 +100,7 @@ fun ExtensionInstallScreen(
         ) {
             // URL Installation Section
             Text(
-                text = "Install from URL",
+                text = stringResource(R.string.extensions_install_from_url_section),
                 style = MaterialTheme.typography.titleMedium
             )
 
@@ -108,8 +108,8 @@ fun ExtensionInstallScreen(
                 value = urlText,
                 onValueChange = { urlText = it },
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Extension URL") },
-                placeholder = { Text("https://example.com/extension.apk") },
+                label = { Text(stringResource(R.string.extensions_install_url_label)) },
+                placeholder = { Text(stringResource(R.string.extensions_install_url_placeholder)) },
                 singleLine = true
             )
 
@@ -142,7 +142,7 @@ fun ExtensionInstallScreen(
                 } else {
                     Icon(Icons.Default.Download, contentDescription = null)
                     Spacer(modifier = Modifier.padding(horizontal = 4.dp))
-                    Text("Download & Install")
+                    Text(stringResource(R.string.extensions_install_from_url))
                 }
             }
 
@@ -150,7 +150,7 @@ fun ExtensionInstallScreen(
 
             // File Installation Section
             Text(
-                text = "Install from File",
+                text = stringResource(R.string.extensions_install_from_file_section),
                 style = MaterialTheme.typography.titleMedium
             )
 
@@ -158,8 +158,8 @@ fun ExtensionInstallScreen(
                 value = filePath,
                 onValueChange = { filePath = it },
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("APK File Path") },
-                placeholder = { Text("/storage/emulated/0/Download/extension.apk") },
+                label = { Text(stringResource(R.string.extensions_install_file_label)) },
+                placeholder = { Text(stringResource(R.string.extensions_install_file_placeholder)) },
                 singleLine = true
             )
 
@@ -192,7 +192,7 @@ fun ExtensionInstallScreen(
                 } else {
                     Icon(Icons.Default.FileOpen, contentDescription = null)
                     Spacer(modifier = Modifier.padding(horizontal = 4.dp))
-                    Text("Install from File")
+                    Text(stringResource(R.string.extensions_install_from_file))
                 }
             }
 

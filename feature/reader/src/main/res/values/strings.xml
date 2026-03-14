@@ -76,4 +76,8 @@
 
     <!-- Reset zoom -->
     <string name="reader_reset_zoom">Reset zoom</string>
+
+    <!-- Full-page gallery -->
+    <string name="reader_page_gallery_title">Page Gallery (%1$d pages)</string>
+    <string name="reader_gallery_columns">%1$d columns</string>
 </resources>

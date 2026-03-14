@@ -116,7 +116,7 @@ private fun ExtensionsContent(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Extensions") },
+                title = { Text(stringResource(R.string.extensions_sheet_title)) },
                 navigationIcon = {
                     IconButton(onClick = onClose) {
                         Icon(Icons.Default.Close, contentDescription = stringResource(R.string.extensions_close))
@@ -142,7 +142,7 @@ private fun ExtensionsContent(
             TextField(
                 value = state.searchQuery,
                 onValueChange = { onEvent(ExtensionsEvent.OnSearchQueryChange(it)) },
-                placeholder = { Text("Search extensions...") },
+                placeholder = { Text(stringResource(R.string.extensions_search_placeholder)) },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -604,7 +604,7 @@ private fun RepositoryManager(
                 }
                 if (activeRepository != repo) {
                     TextButton(onClick = { onSetActive(repo) }) {
-                        Text("Set Active")
+                        Text(stringResource(R.string.extensions_set_active))
                     }
                 }
                 IconButton(onClick = { onRemove(repo) }) {
@@ -616,7 +616,7 @@ private fun RepositoryManager(
         OutlinedTextField(
             value = repoInput,
             onValueChange = { repoInput = it },
-            placeholder = { Text("https://.../repo") },
+            placeholder = { Text(stringResource(R.string.extensions_repo_url_placeholder)) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )
@@ -632,7 +632,7 @@ private fun RepositoryManager(
                 },
                 enabled = repoInput.isNotBlank()
             ) {
-                Text("Add repository")
+                Text(stringResource(R.string.extensions_add_repository))
             }
         }
 

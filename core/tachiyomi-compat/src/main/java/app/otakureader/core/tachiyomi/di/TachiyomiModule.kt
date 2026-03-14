@@ -2,6 +2,7 @@ package app.otakureader.core.tachiyomi.di
 
 import android.content.Context
 import app.otakureader.core.preferences.LocalSourcePreferences
+import app.otakureader.core.tachiyomi.health.SourceHealthMonitor
 import app.otakureader.core.tachiyomi.repository.SourceRepositoryImpl
 import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.domain.usecase.source.GetLatestUpdatesUseCase
@@ -27,11 +28,18 @@ object TachiyomiModule {
 
     @Provides
     @Singleton
+    fun provideSourceHealthMonitor(): SourceHealthMonitor {
+        return SourceHealthMonitor()
+    }
+
+    @Provides
+    @Singleton
     fun provideSourceRepository(
         @ApplicationContext context: Context,
-        localSourcePreferences: LocalSourcePreferences
+        localSourcePreferences: LocalSourcePreferences,
+        healthMonitor: SourceHealthMonitor
     ): SourceRepository {
-        return SourceRepositoryImpl(context, localSourcePreferences)
+        return SourceRepositoryImpl(context, localSourcePreferences, healthMonitor)
     }
 
     @Provides

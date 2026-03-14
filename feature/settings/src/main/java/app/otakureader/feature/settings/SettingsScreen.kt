@@ -181,14 +181,18 @@ private fun SectionHeader(title: String, modifier: Modifier = Modifier) {
 @Composable
 private fun AppearanceSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
     // ── Appearance ────────────────────────────────────────────────────
-            SectionHeader(title = "Appearance")
+            SectionHeader(title = stringResource(R.string.settings_appearance))
 
             // Theme mode
             ListItem(
-                headlineContent = { Text("Theme") },
+                headlineContent = { Text(stringResource(R.string.settings_theme)) },
                 supportingContent = {
                     Row(modifier = Modifier.selectableGroup()) {
-                        val options = listOf("System" to 0, "Light" to 1, "Dark" to 2)
+                        val options = listOf(
+                            stringResource(R.string.settings_theme_system) to 0,
+                            stringResource(R.string.settings_theme_light) to 1,
+                            stringResource(R.string.settings_theme_dark) to 2
+                        )
                         options.forEach { (label, value) ->
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -218,8 +222,8 @@ private fun AppearanceSection(state: SettingsState, onEvent: (SettingsEvent) -> 
 
             // Pure Black dark mode
             ListItem(
-                headlineContent = { Text("Pure Black (AMOLED)") },
-                supportingContent = { Text("Use pure black background in dark mode") },
+                headlineContent = { Text(stringResource(R.string.settings_pure_black)) },
+                supportingContent = { Text(stringResource(R.string.settings_pure_black_description)) },
                 trailingContent = {
                     Switch(
                         checked = state.usePureBlackDarkMode,
@@ -246,22 +250,22 @@ private fun AppearanceSection(state: SettingsState, onEvent: (SettingsEvent) -> 
 
             // Color scheme picker
             ListItem(
-                headlineContent = { Text("Color Scheme") },
+                headlineContent = { Text(stringResource(R.string.settings_color_scheme)) },
                 supportingContent = {
                     Column(modifier = Modifier.selectableGroup()) {
                         val schemes = listOf(
-                            "System Default" to 0,
-                            "Dynamic (Material You)" to 1,
-                            "Green Apple" to 2,
-                            "Lavender" to 3,
-                            "Midnight Dusk" to 4,
-                            "Strawberry Daiquiri" to 5,
-                            "Tako" to 6,
-                            "Teal & Turquoise" to 7,
-                            "Tidal Wave" to 8,
-                            "Yotsuba" to 9,
-                            "Yin & Yang" to 10,
-                            "Custom Accent" to COLOR_SCHEME_CUSTOM_ACCENT
+                            stringResource(R.string.settings_color_scheme_system_default) to 0,
+                            stringResource(R.string.settings_color_scheme_dynamic) to 1,
+                            stringResource(R.string.settings_color_scheme_green_apple) to 2,
+                            stringResource(R.string.settings_color_scheme_lavender) to 3,
+                            stringResource(R.string.settings_color_scheme_midnight_dusk) to 4,
+                            stringResource(R.string.settings_color_scheme_strawberry_daiquiri) to 5,
+                            stringResource(R.string.settings_color_scheme_tako) to 6,
+                            stringResource(R.string.settings_color_scheme_teal_turquoise) to 7,
+                            stringResource(R.string.settings_color_scheme_tidal_wave) to 8,
+                            stringResource(R.string.settings_color_scheme_yotsuba) to 9,
+                            stringResource(R.string.settings_color_scheme_yin_yang) to 10,
+                            stringResource(R.string.settings_color_scheme_custom_accent) to COLOR_SCHEME_CUSTOM_ACCENT
                         )
                         schemes.forEach { (label, value) ->
                             Row(
@@ -359,7 +363,7 @@ private fun AppearanceSection(state: SettingsState, onEvent: (SettingsEvent) -> 
 @Composable
 private fun LibrarySection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
     // ── Library ───────────────────────────────────────────────────────
-            SectionHeader(title = "Library")
+            SectionHeader(title = stringResource(R.string.settings_library))
 
             // Grid size – use a local slider state so DataStore is written only when
             // the user finishes dragging, not on every intermediate position.
@@ -367,7 +371,7 @@ private fun LibrarySection(state: SettingsState, onEvent: (SettingsEvent) -> Uni
                 mutableFloatStateOf(state.libraryGridSize.toFloat())
             }
             ListItem(
-                headlineContent = { Text("Grid Columns: ${sliderPosition.roundToInt()}") },
+                headlineContent = { Text(stringResource(R.string.settings_grid_columns, sliderPosition.roundToInt())) },
                 supportingContent = {
                     Slider(
                         value = sliderPosition,
@@ -386,8 +390,8 @@ private fun LibrarySection(state: SettingsState, onEvent: (SettingsEvent) -> Uni
 
             // Badges
             ListItem(
-                headlineContent = { Text("Show Unread Badges") },
-                supportingContent = { Text("Display unread chapter count on covers") },
+                headlineContent = { Text(stringResource(R.string.settings_show_unread_badges)) },
+                supportingContent = { Text(stringResource(R.string.settings_show_unread_badges_description)) },
                 trailingContent = {
                     Switch(
                         checked = state.showBadges,
@@ -402,11 +406,11 @@ private fun LibrarySection(state: SettingsState, onEvent: (SettingsEvent) -> Uni
 @Composable
 private fun BrowseSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
     // ── Browse ────────────────────────────────────────────────────────
-    SectionHeader(title = "Browse")
+    SectionHeader(title = stringResource(R.string.settings_browse))
 
     ListItem(
-        headlineContent = { Text("Show NSFW Sources") },
-        supportingContent = { Text("Display adult (18+) extensions and sources in Browse") },
+        headlineContent = { Text(stringResource(R.string.settings_show_nsfw_sources)) },
+        supportingContent = { Text(stringResource(R.string.settings_show_nsfw_sources_description)) },
         trailingContent = {
             Switch(
                 checked = state.showNsfwContent,
@@ -421,11 +425,11 @@ private fun BrowseSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit
 @Composable
 private fun DownloadsSettingsSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
     // ── Downloads ─────────────────────────────────────────────────────
-    SectionHeader(title = "Downloads")
+    SectionHeader(title = stringResource(R.string.settings_downloads))
 
             ListItem(
-                headlineContent = { Text("Remove chapter after reading") },
-                supportingContent = { Text("Automatically delete downloaded chapters once finished") },
+                headlineContent = { Text(stringResource(R.string.settings_remove_after_reading)) },
+                supportingContent = { Text(stringResource(R.string.settings_remove_after_reading_description)) },
                 trailingContent = {
                     Switch(
                         checked = state.deleteAfterReading,
@@ -437,8 +441,8 @@ private fun DownloadsSettingsSection(state: SettingsState, onEvent: (SettingsEve
             )
 
             ListItem(
-                headlineContent = { Text("Save as CBZ") },
-                supportingContent = { Text("Compress downloaded chapters into CBZ archives") },
+                headlineContent = { Text(stringResource(R.string.settings_save_as_cbz)) },
+                supportingContent = { Text(stringResource(R.string.settings_save_as_cbz_description)) },
                 trailingContent = {
                     Switch(
                         checked = state.saveAsCbz,
@@ -453,19 +457,19 @@ private fun DownloadsSettingsSection(state: SettingsState, onEvent: (SettingsEve
 @Composable
 private fun ReaderSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
     // ── Reader ────────────────────────────────────────────────────────
-            SectionHeader(title = "Reader")
+            SectionHeader(title = stringResource(R.string.settings_reader))
 
             // Reader mode – ordinal order matches ReaderMode enum:
             // SINGLE_PAGE=0, DUAL_PAGE=1, WEBTOON=2, SMART_PANELS=3
             ListItem(
-                headlineContent = { Text("Reading Mode") },
+                headlineContent = { Text(stringResource(R.string.settings_reading_mode)) },
                 supportingContent = {
                     Column(modifier = Modifier.selectableGroup()) {
                         val modes = listOf(
-                            "Single Page" to 0,
-                            "Dual Page" to 1,
-                            "Webtoon" to 2,
-                            "Smart Panels" to 3
+                            stringResource(R.string.settings_reading_mode_single_page) to 0,
+                            stringResource(R.string.settings_reading_mode_dual_page) to 1,
+                            stringResource(R.string.settings_reading_mode_webtoon) to 2,
+                            stringResource(R.string.settings_reading_mode_smart_panels) to 3
                         )
                         modes.forEach { (label, value) ->
                             Row(
@@ -497,8 +501,8 @@ private fun ReaderSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit
 
             // Keep screen on
             ListItem(
-                headlineContent = { Text("Keep Screen On") },
-                supportingContent = { Text("Prevent the screen from sleeping while reading") },
+                headlineContent = { Text(stringResource(R.string.settings_keep_screen_on)) },
+                supportingContent = { Text(stringResource(R.string.settings_keep_screen_on_description)) },
                 trailingContent = {
                     Switch(
                         checked = state.keepScreenOn,
@@ -511,8 +515,8 @@ private fun ReaderSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit
 
             // Incognito mode
             ListItem(
-                headlineContent = { Text("Incognito Mode") },
-                supportingContent = { Text("Reading history and progress are not saved while enabled") },
+                headlineContent = { Text(stringResource(R.string.settings_incognito_mode)) },
+                supportingContent = { Text(stringResource(R.string.settings_incognito_mode_description)) },
                 trailingContent = {
                     Switch(
                         checked = state.incognitoMode,
@@ -528,10 +532,10 @@ private fun ReaderSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit
                 mutableFloatStateOf(state.preloadPagesBefore.toFloat())
             }
             ListItem(
-                headlineContent = { Text("Preload Pages Before: ${preloadBeforeSlider.roundToInt()}") },
+                headlineContent = { Text(stringResource(R.string.settings_preload_before, preloadBeforeSlider.roundToInt())) },
                 supportingContent = {
                     Column {
-                        Text("Number of pages to preload before the current page")
+                        Text(stringResource(R.string.settings_preload_before_description))
                         Slider(
                             value = preloadBeforeSlider,
                             onValueChange = { preloadBeforeSlider = it },
@@ -550,10 +554,10 @@ private fun ReaderSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit
                 mutableFloatStateOf(state.preloadPagesAfter.toFloat())
             }
             ListItem(
-                headlineContent = { Text("Preload Pages After: ${preloadAfterSlider.roundToInt()}") },
+                headlineContent = { Text(stringResource(R.string.settings_preload_after, preloadAfterSlider.roundToInt())) },
                 supportingContent = {
                     Column {
-                        Text("Number of pages to preload after the current page")
+                        Text(stringResource(R.string.settings_preload_after_description))
                         Slider(
                             value = preloadAfterSlider,
                             onValueChange = { preloadAfterSlider = it },
@@ -572,12 +576,12 @@ private fun ReaderSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit
 @Composable
 private fun DownloadSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
     // ── Downloads ─────────────────────────────────────────────────────
-            SectionHeader(title = "Downloads")
+            SectionHeader(title = stringResource(R.string.settings_downloads))
 
             // Auto-download new chapters
             ListItem(
-                headlineContent = { Text("Auto-Download New Chapters") },
-                supportingContent = { Text("Automatically download new chapters found during library updates") },
+                headlineContent = { Text(stringResource(R.string.settings_auto_download_new_chapters)) },
+                supportingContent = { Text(stringResource(R.string.settings_auto_download_new_chapters_description)) },
                 trailingContent = {
                     Switch(
                         checked = state.autoDownloadEnabled,
@@ -590,8 +594,8 @@ private fun DownloadSection(state: SettingsState, onEvent: (SettingsEvent) -> Un
 
             // Download only on Wi-Fi
             ListItem(
-                headlineContent = { Text("Download Only on Wi-Fi") },
-                supportingContent = { Text("Restrict downloads to Wi-Fi connections only") },
+                headlineContent = { Text(stringResource(R.string.settings_download_only_wifi)) },
+                supportingContent = { Text(stringResource(R.string.settings_download_only_wifi_description)) },
                 trailingContent = {
                     Switch(
                         checked = state.downloadOnlyOnWifi,
@@ -607,7 +611,7 @@ private fun DownloadSection(state: SettingsState, onEvent: (SettingsEvent) -> Un
                 mutableFloatStateOf(state.autoDownloadLimit.toFloat())
             }
             ListItem(
-                headlineContent = { Text("Auto-Download Limit: ${sliderPosition.roundToInt()} chapters") },
+                headlineContent = { Text(stringResource(R.string.settings_auto_download_limit, sliderPosition.roundToInt())) },
                 supportingContent = {
                     Slider(
                         value = sliderPosition,
@@ -628,11 +632,11 @@ private fun DownloadSection(state: SettingsState, onEvent: (SettingsEvent) -> Un
 @Composable
 private fun NotificationsSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
     // ── Notifications ─────────────────────────────────────────────────
-            SectionHeader(title = "Notifications")
+            SectionHeader(title = stringResource(R.string.settings_notifications))
 
             ListItem(
-                headlineContent = { Text("Enable Notifications") },
-                supportingContent = { Text("Get notified when new chapters are available") },
+                headlineContent = { Text(stringResource(R.string.settings_enable_notifications)) },
+                supportingContent = { Text(stringResource(R.string.settings_enable_notifications_description)) },
                 trailingContent = {
                     Switch(
                         checked = state.notificationsEnabled,
@@ -645,10 +649,14 @@ private fun NotificationsSection(state: SettingsState, onEvent: (SettingsEvent) 
 
             // Update check interval
             ListItem(
-                headlineContent = { Text("Update Check Interval") },
+                headlineContent = { Text(stringResource(R.string.settings_update_check_interval)) },
                 supportingContent = {
                     Column(modifier = Modifier.selectableGroup()) {
-                        val intervals = listOf("6 hours" to 6, "12 hours" to 12, "24 hours" to 24)
+                        val intervals = listOf(
+                            stringResource(R.string.settings_update_interval_6h) to 6,
+                            stringResource(R.string.settings_update_interval_12h) to 12,
+                            stringResource(R.string.settings_update_interval_24h) to 24
+                        )
                         intervals.forEach { (label, hours) ->
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -681,7 +689,7 @@ private fun NotificationsSection(state: SettingsState, onEvent: (SettingsEvent) 
 @Composable
 private fun ReadingGoalsSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
     // ── Reading Goals ──────────────────────────────────────────────────
-    SectionHeader(title = "Reading Goals")
+    SectionHeader(title = stringResource(R.string.settings_reading_goals))
 
     // Daily chapter goal
     var dailyGoalSlider by remember { mutableFloatStateOf(state.dailyChapterGoal.toFloat()) }
@@ -689,10 +697,13 @@ private fun ReadingGoalsSection(state: SettingsState, onEvent: (SettingsEvent) -
         dailyGoalSlider = state.dailyChapterGoal.toFloat()
     }
     ListItem(
-        headlineContent = { Text("Daily Chapter Goal") },
+        headlineContent = { Text(stringResource(R.string.settings_daily_chapter_goal)) },
         supportingContent = {
             Column {
-                Text(if (state.dailyChapterGoal == 0) "Disabled" else "${state.dailyChapterGoal} chapters/day")
+                Text(
+                    if (state.dailyChapterGoal == 0) stringResource(R.string.settings_goals_disabled)
+                    else stringResource(R.string.settings_goals_chapters_per_day, state.dailyChapterGoal)
+                )
                 Slider(
                     value = dailyGoalSlider,
                     onValueChange = { dailyGoalSlider = it },
@@ -712,10 +723,13 @@ private fun ReadingGoalsSection(state: SettingsState, onEvent: (SettingsEvent) -
         weeklyGoalSlider = state.weeklyChapterGoal.toFloat()
     }
     ListItem(
-        headlineContent = { Text("Weekly Chapter Goal") },
+        headlineContent = { Text(stringResource(R.string.settings_weekly_chapter_goal)) },
         supportingContent = {
             Column {
-                Text(if (state.weeklyChapterGoal == 0) "Disabled" else "${state.weeklyChapterGoal} chapters/week")
+                Text(
+                    if (state.weeklyChapterGoal == 0) stringResource(R.string.settings_goals_disabled)
+                    else stringResource(R.string.settings_goals_chapters_per_week, state.weeklyChapterGoal)
+                )
                 Slider(
                     value = weeklyGoalSlider,
                     onValueChange = { weeklyGoalSlider = it },
@@ -731,8 +745,8 @@ private fun ReadingGoalsSection(state: SettingsState, onEvent: (SettingsEvent) -
 
     // Reading reminders
     ListItem(
-        headlineContent = { Text("Reading Reminders") },
-        supportingContent = { Text("Get a daily reminder to read") },
+        headlineContent = { Text(stringResource(R.string.settings_reading_reminders)) },
+        supportingContent = { Text(stringResource(R.string.settings_reading_reminders_description)) },
         trailingContent = {
             Switch(
                 checked = state.readingRemindersEnabled,
@@ -746,10 +760,14 @@ private fun ReadingGoalsSection(state: SettingsState, onEvent: (SettingsEvent) -
     // Reminder time
     if (state.readingRemindersEnabled) {
         ListItem(
-            headlineContent = { Text("Reminder Time") },
+            headlineContent = { Text(stringResource(R.string.settings_reminder_time)) },
             supportingContent = {
                 Column(modifier = Modifier.selectableGroup()) {
-                    val hours = listOf("Morning (9 AM)" to 9, "Afternoon (2 PM)" to 14, "Evening (8 PM)" to 20)
+                    val hours = listOf(
+                        stringResource(R.string.settings_reminder_morning) to 9,
+                        stringResource(R.string.settings_reminder_afternoon) to 14,
+                        stringResource(R.string.settings_reminder_evening) to 20
+                    )
                     hours.forEach { (label, hour) ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -783,31 +801,31 @@ private fun ReadingGoalsSection(state: SettingsState, onEvent: (SettingsEvent) -
 @Composable
 private fun DataStorageSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
     // ── Data & Storage ────────────────────────────────────────────────
-            SectionHeader(title = "Backup, Restore & Migration")
+            SectionHeader(title = stringResource(R.string.settings_backup_restore_migration))
 
             ListItem(
-                headlineContent = { Text("Create Backup") },
-                supportingContent = { Text("Export your library and settings") },
+                headlineContent = { Text(stringResource(R.string.settings_create_backup)) },
+                supportingContent = { Text(stringResource(R.string.settings_create_backup_description)) },
                 trailingContent = {
                     if (state.isBackupInProgress) {
                         CircularProgressIndicator()
                     } else {
                         Button(onClick = { onEvent(SettingsEvent.OnCreateBackup) }) {
-                            Text("Backup")
+                            Text(stringResource(R.string.settings_backup_button))
                         }
                     }
                 }
             )
 
             ListItem(
-                headlineContent = { Text("Restore Backup") },
-                supportingContent = { Text("Import library and settings from a backup file") },
+                headlineContent = { Text(stringResource(R.string.settings_restore_backup)) },
+                supportingContent = { Text(stringResource(R.string.settings_restore_backup_description)) },
                 trailingContent = {
                     if (state.isRestoreInProgress) {
                         CircularProgressIndicator()
                     } else {
                         Button(onClick = { onEvent(SettingsEvent.OnRestoreBackup) }) {
-                            Text("Restore")
+                            Text(stringResource(R.string.settings_restore_button))
                         }
                     }
                 }
@@ -815,11 +833,11 @@ private fun DataStorageSection(state: SettingsState, onEvent: (SettingsEvent) ->
 
             // ── Automatic backups ──
             HorizontalDivider()
-            SectionHeader(title = "Automatic Backups")
+            SectionHeader(title = stringResource(R.string.settings_automatic_backups))
 
             ListItem(
-                headlineContent = { Text("Enable automatic backups") },
-                supportingContent = { Text("Periodically save a backup to device storage") },
+                headlineContent = { Text(stringResource(R.string.settings_enable_auto_backup)) },
+                supportingContent = { Text(stringResource(R.string.settings_enable_auto_backup_description)) },
                 trailingContent = {
                     Switch(
                         checked = state.autoBackupEnabled,
@@ -830,15 +848,15 @@ private fun DataStorageSection(state: SettingsState, onEvent: (SettingsEvent) ->
 
             if (state.autoBackupEnabled) {
                 ListItem(
-                    headlineContent = { Text("Backup frequency") },
+                    headlineContent = { Text(stringResource(R.string.settings_backup_frequency)) },
                     supportingContent = {
                         Column(modifier = Modifier.selectableGroup()) {
                             val options = listOf(
-                                "Every 6 hours" to 6,
-                                "Every 12 hours" to 12,
-                                "Daily" to 24,
-                                "Every 2 days" to 48,
-                                "Weekly" to 168
+                                stringResource(R.string.settings_backup_frequency_6h) to 6,
+                                stringResource(R.string.settings_backup_frequency_12h) to 12,
+                                stringResource(R.string.settings_backup_frequency_daily) to 24,
+                                stringResource(R.string.settings_backup_frequency_2days) to 48,
+                                stringResource(R.string.settings_backup_frequency_weekly) to 168
                             )
                             options.forEach { (label, hours) ->
                                 Row(
@@ -867,7 +885,7 @@ private fun DataStorageSection(state: SettingsState, onEvent: (SettingsEvent) ->
                 )
 
                 ListItem(
-                    headlineContent = { Text("Backups to keep") },
+                    headlineContent = { Text(stringResource(R.string.settings_backups_to_keep)) },
                     supportingContent = {
                         Column(modifier = Modifier.selectableGroup()) {
                             listOf(3, 5, 10).forEach { count ->
@@ -887,7 +905,7 @@ private fun DataStorageSection(state: SettingsState, onEvent: (SettingsEvent) ->
                                         onClick = null
                                     )
                                     Text(
-                                        text = "$count backups",
+                                        text = stringResource(R.string.settings_backup_count, count),
                                         modifier = Modifier.padding(start = 8.dp)
                                     )
                                 }
@@ -897,7 +915,7 @@ private fun DataStorageSection(state: SettingsState, onEvent: (SettingsEvent) ->
                 )
 
                 if (state.localBackupFiles.isNotEmpty()) {
-                    SectionHeader(title = "Restore from automatic backup")
+                    SectionHeader(title = stringResource(R.string.settings_restore_from_auto))
                     state.localBackupFiles.forEach { fileName ->
                         val isRestoringThisFile = state.restoringBackupFileName == fileName
                         ListItem(
@@ -910,7 +928,7 @@ private fun DataStorageSection(state: SettingsState, onEvent: (SettingsEvent) ->
                                         enabled = !state.isRestoreInProgress,
                                         onClick = { onEvent(SettingsEvent.RestoreLocalBackup(fileName)) }
                                     ) {
-                                        Text("Restore")
+                                        Text(stringResource(R.string.settings_restore_button))
                                     }
                                 }
                             }
@@ -918,8 +936,8 @@ private fun DataStorageSection(state: SettingsState, onEvent: (SettingsEvent) ->
                     }
                 } else {
                     ListItem(
-                        headlineContent = { Text("No automatic backups yet") },
-                        supportingContent = { Text("Backups will appear here once created") }
+                        headlineContent = { Text(stringResource(R.string.settings_no_auto_backups)) },
+                        supportingContent = { Text(stringResource(R.string.settings_no_auto_backups_description)) }
                     )
                 }
             }
@@ -927,8 +945,8 @@ private fun DataStorageSection(state: SettingsState, onEvent: (SettingsEvent) ->
             HorizontalDivider()
 
             ListItem(
-                headlineContent = { Text("Migrate manga") },
-                supportingContent = { Text("Move manga from one source to another") },
+                headlineContent = { Text(stringResource(R.string.settings_migrate_manga)) },
+                supportingContent = { Text(stringResource(R.string.settings_migrate_manga_description)) },
                 modifier = Modifier.clickable { onEvent(SettingsEvent.OnNavigateToMigration) }
             )
 }
@@ -936,25 +954,25 @@ private fun DataStorageSection(state: SettingsState, onEvent: (SettingsEvent) ->
 @Composable
 private fun LocalSourceSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
     // ── Local Source ──────────────────────────────────────────────────
-    SectionHeader(title = "Local Source")
+    SectionHeader(title = stringResource(R.string.settings_local_source))
 
     var directoryText by remember(state.localSourceDirectory) {
         mutableStateOf(state.localSourceDirectory)
     }
 
     ListItem(
-        headlineContent = { Text("Scan Directory") },
+        headlineContent = { Text(stringResource(R.string.settings_scan_directory)) },
         supportingContent = {
             Column {
                 Text(
-                    text = "Directory scanned for local manga (CBZ, ZIP, EPUB and image folders).",
+                    text = stringResource(R.string.settings_scan_directory_description),
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
                 OutlinedTextField(
                     value = directoryText,
                     onValueChange = { directoryText = it },
-                    label = { Text("Directory path") },
+                    label = { Text(stringResource(R.string.settings_directory_path)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     trailingIcon = {
@@ -963,12 +981,12 @@ private fun LocalSourceSection(state: SettingsState, onEvent: (SettingsEvent) ->
                                 onEvent(SettingsEvent.SetLocalSourceDirectory(directoryText))
                             }
                         ) {
-                            Text("Save")
+                            Text(stringResource(R.string.settings_save))
                         }
                     }
                 )
                 Text(
-                    text = "Supported: CBZ, ZIP (including ComicInfo.xml), EPUB, and plain image folders.",
+                    text = stringResource(R.string.settings_scan_directory_supported),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp)
@@ -981,12 +999,12 @@ private fun LocalSourceSection(state: SettingsState, onEvent: (SettingsEvent) ->
 @Composable
 private fun TrackingSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
     // ── Tracking ──────────────────────────────────────────────────────
-    SectionHeader(title = "Tracking")
+    SectionHeader(title = stringResource(R.string.settings_tracking))
 
     if (state.trackers.isEmpty()) {
         ListItem(
-            headlineContent = { Text("No tracker services available") },
-            supportingContent = { Text("Tracker services will appear here once registered") }
+            headlineContent = { Text(stringResource(R.string.settings_no_tracker_services)) },
+            supportingContent = { Text(stringResource(R.string.settings_no_tracker_services_description)) }
         )
         return
     }
@@ -1000,9 +1018,9 @@ private fun TrackingSection(state: SettingsState, onEvent: (SettingsEvent) -> Un
             headlineContent = { Text(tracker.name) },
             supportingContent = {
                 if (tracker.isLoggedIn) {
-                    Text("Connected", color = MaterialTheme.colorScheme.primary)
+                    Text(stringResource(R.string.settings_tracker_connected), color = MaterialTheme.colorScheme.primary)
                 } else {
-                    Text("Not connected")
+                    Text(stringResource(R.string.settings_tracker_not_connected))
                 }
             },
             trailingContent = {
@@ -1010,11 +1028,11 @@ private fun TrackingSection(state: SettingsState, onEvent: (SettingsEvent) -> Un
                     CircularProgressIndicator()
                 } else if (tracker.isLoggedIn) {
                     OutlinedButton(onClick = { onEvent(SettingsEvent.LogoutTracker(tracker.id)) }) {
-                        Text("Logout")
+                        Text(stringResource(R.string.settings_tracker_logout))
                     }
                 } else {
                     Button(onClick = { showLogin = !showLogin }) {
-                        Text("Login")
+                        Text(stringResource(R.string.settings_tracker_login))
                     }
                 }
             }
@@ -1029,7 +1047,7 @@ private fun TrackingSection(state: SettingsState, onEvent: (SettingsEvent) -> Un
                 OutlinedTextField(
                     value = username,
                     onValueChange = { username = it },
-                    label = { Text("Username") },
+                    label = { Text(stringResource(R.string.settings_tracker_username)) },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1038,7 +1056,7 @@ private fun TrackingSection(state: SettingsState, onEvent: (SettingsEvent) -> Un
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
-                    label = { Text("Password") },
+                    label = { Text(stringResource(R.string.settings_tracker_password)) },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     modifier = Modifier
@@ -1054,7 +1072,7 @@ private fun TrackingSection(state: SettingsState, onEvent: (SettingsEvent) -> Un
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Connect ${tracker.name}")
+                    Text(stringResource(R.string.settings_tracker_connect, tracker.name))
                 }
             }
         }
@@ -1064,7 +1082,7 @@ private fun TrackingSection(state: SettingsState, onEvent: (SettingsEvent) -> Un
 @Composable
 private fun MigrationSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
     // ── Migration ─────────────────────────────────────────────────────
-    SectionHeader(title = "Migration")
+    SectionHeader(title = stringResource(R.string.settings_migration))
 
     // Similarity threshold slider
     var thresholdSlider by remember(state.migrationSimilarityThreshold) {
@@ -1072,12 +1090,12 @@ private fun MigrationSection(state: SettingsState, onEvent: (SettingsEvent) -> U
     }
     ListItem(
         headlineContent = {
-            Text("Similarity Threshold: ${(thresholdSlider * 100).roundToInt()}%")
+            Text(stringResource(R.string.settings_similarity_threshold, (thresholdSlider * 100).roundToInt()))
         },
         supportingContent = {
             Column {
                 Text(
-                    text = "Minimum score to auto-migrate without confirmation",
+                    text = stringResource(R.string.settings_similarity_threshold_description),
                     style = MaterialTheme.typography.bodySmall
                 )
                 Slider(
@@ -1098,8 +1116,8 @@ private fun MigrationSection(state: SettingsState, onEvent: (SettingsEvent) -> U
 
     // Always confirm toggle
     ListItem(
-        headlineContent = { Text("Always Show Confirmation") },
-        supportingContent = { Text("Always ask before migrating, even when confidence is high") },
+        headlineContent = { Text(stringResource(R.string.settings_always_show_confirmation)) },
+        supportingContent = { Text(stringResource(R.string.settings_always_show_confirmation_description)) },
         trailingContent = {
             Switch(
                 checked = state.migrationAlwaysConfirm,
@@ -1117,14 +1135,14 @@ private fun MigrationSection(state: SettingsState, onEvent: (SettingsEvent) -> U
     ListItem(
         headlineContent = {
             Text(
-                if (minChaptersSlider.roundToInt() == 0) "Min. Chapter Count: No filter"
-                else "Min. Chapter Count: ${minChaptersSlider.roundToInt()}"
+                if (minChaptersSlider.roundToInt() == 0) stringResource(R.string.settings_min_chapter_count_no_filter)
+                else stringResource(R.string.settings_min_chapter_count, minChaptersSlider.roundToInt())
             )
         },
         supportingContent = {
             Column {
                 Text(
-                    text = "Ignore candidates with fewer chapters than this threshold",
+                    text = stringResource(R.string.settings_min_chapter_count_description),
                     style = MaterialTheme.typography.bodySmall
                 )
                 Slider(
@@ -1147,11 +1165,11 @@ private fun MigrationSection(state: SettingsState, onEvent: (SettingsEvent) -> U
 @Composable
 private fun DiscordSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
     // ── Discord ───────────────────────────────────────────────────────
-    SectionHeader(title = "Discord")
+    SectionHeader(title = stringResource(R.string.settings_discord))
 
     ListItem(
-        headlineContent = { Text("Rich Presence") },
-        supportingContent = { Text("Show current reading activity as your Discord status") },
+        headlineContent = { Text(stringResource(R.string.settings_discord_rich_presence)) },
+        supportingContent = { Text(stringResource(R.string.settings_discord_rich_presence_description)) },
         trailingContent = {
             Switch(
                 checked = state.discordRpcEnabled,
@@ -1164,12 +1182,12 @@ private fun DiscordSection(state: SettingsState, onEvent: (SettingsEvent) -> Uni
 @Composable
 private fun AiSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
     // ── AI ────────────────────────────────────────────────────────────
-    SectionHeader(title = "AI Features")
+    SectionHeader(title = stringResource(R.string.settings_ai_features))
 
     // Master toggle
     ListItem(
-        headlineContent = { Text("Enable AI Features") },
-        supportingContent = { Text("Powered by Gemini. Requires an API key.") },
+        headlineContent = { Text(stringResource(R.string.settings_ai_enable)) },
+        supportingContent = { Text(stringResource(R.string.settings_ai_enable_description)) },
         trailingContent = {
             Switch(
                 checked = state.aiEnabled,
@@ -1184,12 +1202,12 @@ private fun AiSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
         var apiKeyVisible by remember { mutableStateOf(false) }
 
         ListItem(
-            headlineContent = { Text("Gemini API Key") },
+            headlineContent = { Text(stringResource(R.string.settings_ai_gemini_api_key)) },
             supportingContent = {
                 Column {
                     if (state.aiApiKeySet) {
                         Text(
-                            text = "API key is set. Enter a new key to replace it.",
+                            text = stringResource(R.string.settings_ai_api_key_set),
                             style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.padding(bottom = 8.dp)
                         )
@@ -1197,7 +1215,7 @@ private fun AiSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
                     OutlinedTextField(
                         value = apiKeyInput,
                         onValueChange = { apiKeyInput = it },
-                        label = { Text("API Key") },
+                        label = { Text(stringResource(R.string.settings_ai_api_key_label)) },
                         singleLine = true,
                         visualTransformation = if (apiKeyVisible) VisualTransformation.None
                         else PasswordVisualTransformation(),
@@ -1206,7 +1224,8 @@ private fun AiSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
                                 Icon(
                                     imageVector = if (apiKeyVisible) Icons.Filled.VisibilityOff
                                     else Icons.Filled.Visibility,
-                                    contentDescription = if (apiKeyVisible) "Hide key" else "Show key"
+                                    contentDescription = if (apiKeyVisible) stringResource(R.string.settings_ai_hide_key)
+                                    else stringResource(R.string.settings_ai_show_key)
                                 )
                             }
                         },
@@ -1222,7 +1241,7 @@ private fun AiSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
                             .fillMaxWidth()
                             .padding(top = 8.dp)
                     ) {
-                        Text("Save API Key")
+                        Text(stringResource(R.string.settings_ai_save_api_key))
                     }
                 }
             }
@@ -1230,13 +1249,13 @@ private fun AiSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
 
         // Tier selection
         ListItem(
-            headlineContent = { Text("Service Tier") },
+            headlineContent = { Text(stringResource(R.string.settings_ai_service_tier)) },
             supportingContent = {
                 Row(modifier = Modifier.selectableGroup()) {
                     listOf(
-                        "Free" to AiTier.FREE,
-                        "Standard" to AiTier.STANDARD,
-                        "Pro" to AiTier.PRO
+                        stringResource(R.string.settings_ai_tier_free) to AiTier.FREE,
+                        stringResource(R.string.settings_ai_tier_standard) to AiTier.STANDARD,
+                        stringResource(R.string.settings_ai_tier_pro) to AiTier.PRO
                     ).forEach { (label, tier) ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -1257,19 +1276,19 @@ private fun AiSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
         )
 
         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-        SectionHeader(title = "Feature Toggles")
+        SectionHeader(title = stringResource(R.string.settings_ai_feature_toggles))
 
         // Individual feature toggles
         val features = listOf(
-            AiFeatureToggle("Reading Insights", "AI-powered reading statistics", state.aiReadingInsights) { SettingsEvent.SetAiReadingInsights(it) },
-            AiFeatureToggle("Smart Search", "Natural language search queries", state.aiSmartSearch) { SettingsEvent.SetAiSmartSearch(it) },
-            AiFeatureToggle("Recommendations", "Personalised manga suggestions", state.aiRecommendations) { SettingsEvent.SetAiRecommendations(it) },
-            AiFeatureToggle("Panel-Aware Reader", "Gemini Vision panel detection", state.aiPanelReader) { SettingsEvent.SetAiPanelReader(it) },
-            AiFeatureToggle("SFX Translation", "Translate sound effects in pages", state.aiSfxTranslation) { SettingsEvent.SetAiSfxTranslation(it) },
-            AiFeatureToggle("Summary Translation", "Auto-translate chapter summaries", state.aiSummaryTranslation) { SettingsEvent.SetAiSummaryTranslation(it) },
-            AiFeatureToggle("Source Intelligence", "Score and rank sources automatically", state.aiSourceIntelligence) { SettingsEvent.SetAiSourceIntelligence(it) },
-            AiFeatureToggle("Smart Notifications", "Context-aware update summaries", state.aiSmartNotifications) { SettingsEvent.SetAiSmartNotifications(it) },
-            AiFeatureToggle("Auto-Categorization", "Categorise new manga automatically", state.aiAutoCategorization) { SettingsEvent.SetAiAutoCategorization(it) }
+            AiFeatureToggle(stringResource(R.string.settings_ai_reading_insights), stringResource(R.string.settings_ai_reading_insights_desc), state.aiReadingInsights) { SettingsEvent.SetAiReadingInsights(it) },
+            AiFeatureToggle(stringResource(R.string.settings_ai_smart_search), stringResource(R.string.settings_ai_smart_search_desc), state.aiSmartSearch) { SettingsEvent.SetAiSmartSearch(it) },
+            AiFeatureToggle(stringResource(R.string.settings_ai_recommendations), stringResource(R.string.settings_ai_recommendations_desc), state.aiRecommendations) { SettingsEvent.SetAiRecommendations(it) },
+            AiFeatureToggle(stringResource(R.string.settings_ai_panel_reader), stringResource(R.string.settings_ai_panel_reader_desc), state.aiPanelReader) { SettingsEvent.SetAiPanelReader(it) },
+            AiFeatureToggle(stringResource(R.string.settings_ai_sfx_translation), stringResource(R.string.settings_ai_sfx_translation_desc), state.aiSfxTranslation) { SettingsEvent.SetAiSfxTranslation(it) },
+            AiFeatureToggle(stringResource(R.string.settings_ai_summary_translation), stringResource(R.string.settings_ai_summary_translation_desc), state.aiSummaryTranslation) { SettingsEvent.SetAiSummaryTranslation(it) },
+            AiFeatureToggle(stringResource(R.string.settings_ai_source_intelligence), stringResource(R.string.settings_ai_source_intelligence_desc), state.aiSourceIntelligence) { SettingsEvent.SetAiSourceIntelligence(it) },
+            AiFeatureToggle(stringResource(R.string.settings_ai_smart_notifications), stringResource(R.string.settings_ai_smart_notifications_desc), state.aiSmartNotifications) { SettingsEvent.SetAiSmartNotifications(it) },
+            AiFeatureToggle(stringResource(R.string.settings_ai_auto_categorization), stringResource(R.string.settings_ai_auto_categorization_desc), state.aiAutoCategorization) { SettingsEvent.SetAiAutoCategorization(it) }
         )
 
         features.forEach { feature ->
@@ -1286,26 +1305,26 @@ private fun AiSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
         }
 
         HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-        SectionHeader(title = "Usage")
+        SectionHeader(title = stringResource(R.string.settings_ai_usage))
 
         // Token usage
         val usageLabel = if (state.aiTokenTrackingPeriod.isNotBlank()) {
-            "${state.aiTokensUsedThisMonth} tokens used (${state.aiTokenTrackingPeriod})"
+            stringResource(R.string.settings_ai_tokens_used_period, state.aiTokensUsedThisMonth, state.aiTokenTrackingPeriod)
         } else {
-            "${state.aiTokensUsedThisMonth} tokens used this month"
+            stringResource(R.string.settings_ai_tokens_used_month, state.aiTokensUsedThisMonth)
         }
         ListItem(
-            headlineContent = { Text("Monthly Token Usage") },
+            headlineContent = { Text(stringResource(R.string.settings_ai_monthly_token_usage)) },
             supportingContent = { Text(usageLabel) }
         )
 
         // Clear AI cache
         ListItem(
-            headlineContent = { Text("Clear AI Cache") },
-            supportingContent = { Text("Remove cached AI responses to free up space") },
+            headlineContent = { Text(stringResource(R.string.settings_ai_clear_cache)) },
+            supportingContent = { Text(stringResource(R.string.settings_ai_clear_cache_description)) },
             trailingContent = {
                 OutlinedButton(onClick = { onEvent(SettingsEvent.ClearAiCache) }) {
-                    Text("Clear")
+                    Text(stringResource(R.string.settings_ai_clear))
                 }
             }
         )
@@ -1359,7 +1378,7 @@ private fun AccentColorPicker(
     modifier: Modifier = Modifier
 ) {
     ListItem(
-        headlineContent = { Text("Accent Color") },
+        headlineContent = { Text(stringResource(R.string.settings_accent_color)) },
         supportingContent = {
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),

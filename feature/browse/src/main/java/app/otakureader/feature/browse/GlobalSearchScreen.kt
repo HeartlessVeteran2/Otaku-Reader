@@ -88,7 +88,7 @@ fun GlobalSearchScreen(
                         value = state.query,
                         onValueChange = { viewModel.onEvent(GlobalSearchEvent.OnQueryChange(it)) },
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Search all sources…") },
+                        placeholder = { Text(stringResource(R.string.browse_global_search_placeholder)) },
                         singleLine = true,
                         trailingIcon = {
                             IconButton(onClick = { viewModel.onEvent(GlobalSearchEvent.Search) }) {

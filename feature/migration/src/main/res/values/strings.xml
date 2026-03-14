@@ -56,4 +56,15 @@
     <!-- Accessibility -->
     <string name="migration_search">Search</string>
     <string name="migration_clear_search">Clear search</string>
+
+    <!-- Migration Entry Screen -->
+    <string name="migration_entry_selected">%1$d selected</string>
+    <string name="migration_entry_title">Select Manga to Migrate</string>
+    <string name="migration_entry_clear">Clear</string>
+    <string name="migration_entry_all">All</string>
+    <string name="migration_entry_migrate_count">Migrate %1$d manga</string>
+    <string name="migration_entry_search_placeholder">Search library…</string>
+    <string name="migration_entry_retry">Retry</string>
+    <string name="migration_entry_library_empty">Your library is empty</string>
+    <string name="migration_entry_no_results">No manga match your search</string>
 </resources>

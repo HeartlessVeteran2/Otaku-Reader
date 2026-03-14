@@ -82,9 +82,9 @@ fun MigrationEntryScreen(
             TopAppBar(
                 title = {
                     if (state.selectedIds.isNotEmpty()) {
-                        Text("${state.selectedIds.size} selected")
+                        Text(stringResource(R.string.migration_entry_selected, state.selectedIds.size))
                     } else {
-                        Text("Select Manga to Migrate")
+                        Text(stringResource(R.string.migration_entry_title))
                     }
                 },
                 navigationIcon = {
@@ -95,11 +95,11 @@ fun MigrationEntryScreen(
                 actions = {
                     if (state.selectedIds.isNotEmpty()) {
                         TextButton(onClick = { viewModel.onEvent(MigrationEntryEvent.ClearSelection) }) {
-                            Text("Clear")
+                            Text(stringResource(R.string.migration_entry_clear))
                         }
                     } else if (filtered.isNotEmpty()) {
                         TextButton(onClick = { viewModel.onEvent(MigrationEntryEvent.SelectAll) }) {
-                            Text("All")
+                            Text(stringResource(R.string.migration_entry_all))
                         }
                     }
                 }
@@ -116,7 +116,7 @@ fun MigrationEntryScreen(
                         onClick = { viewModel.onEvent(MigrationEntryEvent.OnStartMigration) },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Migrate ${state.selectedIds.size} manga")
+                        Text(stringResource(R.string.migration_entry_migrate_count, state.selectedIds.size))
                     }
                 }
             }
@@ -130,7 +130,7 @@ fun MigrationEntryScreen(
             OutlinedTextField(
                 value = state.searchQuery,
                 onValueChange = { viewModel.onEvent(MigrationEntryEvent.OnSearchQueryChange(it)) },
-                placeholder = { Text("Search library…") },
+                placeholder = { Text(stringResource(R.string.migration_entry_search_placeholder)) },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = stringResource(R.string.migration_search)) },
                 trailingIcon = {
                     if (state.searchQuery.isNotEmpty()) {
@@ -163,7 +163,7 @@ fun MigrationEntryScreen(
                                 onClick = { viewModel.onEvent(MigrationEntryEvent.Retry) },
                                 modifier = Modifier.padding(top = 8.dp)
                             ) {
-                                Text("Retry")
+                                Text(stringResource(R.string.migration_entry_retry))
                             }
                         }
                     }
@@ -171,7 +171,7 @@ fun MigrationEntryScreen(
                 filtered.isEmpty() -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
-                            text = if (state.searchQuery.isBlank()) "Your library is empty" else "No manga match your search",
+                            text = if (state.searchQuery.isBlank()) stringResource(R.string.migration_entry_library_empty) else stringResource(R.string.migration_entry_no_results),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

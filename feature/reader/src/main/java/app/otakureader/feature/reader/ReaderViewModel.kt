@@ -16,7 +16,8 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -169,14 +170,26 @@ class ReaderViewModel @Inject constructor(
         )
     }
 
-    /** Load Discord RPC preference once to avoid repeated DataStore reads. */
+    /** Continuously observe Discord RPC preference to react to runtime changes. */
     private fun cacheDiscordPreference() {
         viewModelScope.launch {
-            try {
-                cachedDiscordRpcEnabled = generalPreferences.discordRpcEnabled.first()
-            } catch (_: Exception) {
-                cachedDiscordRpcEnabled = false
-            }
+            generalPreferences.discordRpcEnabled
+                .catch { emit(false) }
+                .collectLatest { enabled ->
+                    cachedDiscordRpcEnabled = enabled
+
+                    if (!enabled) {
+                        discordRpcService.clearReadingPresence(showBrowsing = false)
+                        return@collectLatest
+                    }
+
+                    val currentState = _state.value
+                    val manga = currentState.manga
+                    val chapter = currentState.chapter
+                    if (manga != null && chapter != null) {
+                        updateDiscordPresence(manga.title, chapter.name)
+                    }
+                }
         }
     }
 }

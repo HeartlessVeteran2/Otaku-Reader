@@ -40,6 +40,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import app.otakureader.feature.browse.R
 import app.otakureader.sourceapi.Filter
 import app.otakureader.sourceapi.FilterList
 import app.otakureader.sourceapi.Filters
@@ -78,11 +80,11 @@ fun SourceFilterSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Filters",
+                    text = stringResource(R.string.browse_filters),
                     style = MaterialTheme.typography.titleLarge
                 )
                 TextButton(onClick = onReset) {
-                    Text("Reset")
+                    Text(stringResource(R.string.browse_filters_reset))
                 }
             }
 
@@ -114,13 +116,13 @@ fun SourceFilterSheet(
                     onClick = onDismiss,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.browse_filters_cancel))
                 }
                 Button(
                     onClick = onApply,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text("Apply")
+                    Text(stringResource(R.string.browse_filters_apply))
                 }
             }
         }

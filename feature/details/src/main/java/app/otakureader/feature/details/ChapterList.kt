@@ -417,21 +417,21 @@ fun ChapterListItem(
         onDismissRequest = { showMenu = false }
     ) {
         DropdownMenuItem(
-            text = { Text(if (chapter.read) "Mark as unread" else "Mark as read") },
+            text = { Text(stringResource(if (chapter.read) R.string.details_chapter_mark_as_unread else R.string.details_chapter_mark_as_read)) },
             onClick = {
                 onToggleRead()
                 showMenu = false
             }
         )
         DropdownMenuItem(
-            text = { Text(if (chapter.bookmark) "Remove bookmark" else "Bookmark chapter") },
+            text = { Text(stringResource(if (chapter.bookmark) R.string.details_chapter_remove_bookmark else R.string.details_chapter_bookmark)) },
             onClick = {
                 onToggleBookmark()
                 showMenu = false
             }
         )
         DropdownMenuItem(
-            text = { Text("Mark previous as read") },
+            text = { Text(stringResource(R.string.details_chapter_mark_previous_as_read)) },
             onClick = {
                 onMarkPreviousRead()
                 showMenu = false
@@ -441,7 +441,7 @@ fun ChapterListItem(
         when (chapter.downloadStatus) {
             DetailsContract.DownloadStatus.NOT_DOWNLOADED -> {
                 DropdownMenuItem(
-                    text = { Text("Download chapter") },
+                    text = { Text(stringResource(R.string.details_chapter_download)) },
                     onClick = {
                         onDownload()
                         showMenu = false
@@ -450,14 +450,14 @@ fun ChapterListItem(
             }
             DetailsContract.DownloadStatus.DOWNLOADED -> {
                 DropdownMenuItem(
-                    text = { Text("Delete download") },
+                    text = { Text(stringResource(R.string.details_chapter_delete_download)) },
                     onClick = {
                         onDeleteDownload()
                         showMenu = false
                     }
                 )
                 DropdownMenuItem(
-                    text = { Text("Export as CBZ") },
+                    text = { Text(stringResource(R.string.details_chapter_export_cbz)) },
                     onClick = {
                         onExportAsCbz()
                         showMenu = false

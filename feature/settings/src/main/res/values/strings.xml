@@ -1,12 +1,201 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- General -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_back">Back</string>
+
+    <!-- Appearance -->
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_system">System</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_pure_black">Pure Black (AMOLED)</string>
+    <string name="settings_pure_black_description">Use pure black background in dark mode</string>
+    <string name="settings_color_scheme">Color Scheme</string>
+    <string name="settings_color_scheme_system_default">System Default</string>
+    <string name="settings_color_scheme_dynamic">Dynamic (Material You)</string>
+    <string name="settings_color_scheme_green_apple">Green Apple</string>
+    <string name="settings_color_scheme_lavender">Lavender</string>
+    <string name="settings_color_scheme_midnight_dusk">Midnight Dusk</string>
+    <string name="settings_color_scheme_strawberry_daiquiri">Strawberry Daiquiri</string>
+    <string name="settings_color_scheme_tako">Tako</string>
+    <string name="settings_color_scheme_teal_turquoise">Teal &amp; Turquoise</string>
+    <string name="settings_color_scheme_tidal_wave">Tidal Wave</string>
+    <string name="settings_color_scheme_yotsuba">Yotsuba</string>
+    <string name="settings_color_scheme_yin_yang">Yin &amp; Yang</string>
+    <string name="settings_color_scheme_custom_accent">Custom Accent</string>
+    <string name="settings_accent_color">Accent Color</string>
+
+    <!-- Accessibility -->
+    <string name="settings_high_contrast">High Contrast</string>
+    <string name="settings_high_contrast_description">Increase text and icon contrast for improved readability</string>
+
+    <!-- Language -->
     <string name="settings_language">Language</string>
     <string name="settings_language_system_settings_hint">Change the app language in system settings</string>
     <string name="settings_language_system_default">System default</string>
 
-    <!-- Accessibility -->
-    <string name="settings_title">Settings</string>
-    <string name="settings_back">Back</string>
-    <string name="settings_high_contrast">High Contrast</string>
-    <string name="settings_high_contrast_description">Increase text and icon contrast for improved readability</string>
+    <!-- Library -->
+    <string name="settings_library">Library</string>
+    <string name="settings_grid_columns">Grid Columns: %1$d</string>
+    <string name="settings_show_unread_badges">Show Unread Badges</string>
+    <string name="settings_show_unread_badges_description">Display unread chapter count on covers</string>
+
+    <!-- Browse -->
+    <string name="settings_browse">Browse</string>
+    <string name="settings_show_nsfw_sources">Show NSFW Sources</string>
+    <string name="settings_show_nsfw_sources_description">Display adult (18+) extensions and sources in Browse</string>
+
+    <!-- Downloads (settings section) -->
+    <string name="settings_downloads">Downloads</string>
+    <string name="settings_remove_after_reading">Remove chapter after reading</string>
+    <string name="settings_remove_after_reading_description">Automatically delete downloaded chapters once finished</string>
+    <string name="settings_save_as_cbz">Save as CBZ</string>
+    <string name="settings_save_as_cbz_description">Compress downloaded chapters into CBZ archives</string>
+    <string name="settings_auto_download_new_chapters">Auto-Download New Chapters</string>
+    <string name="settings_auto_download_new_chapters_description">Automatically download new chapters found during library updates</string>
+    <string name="settings_download_only_wifi">Download Only on Wi-Fi</string>
+    <string name="settings_download_only_wifi_description">Restrict downloads to Wi-Fi connections only</string>
+    <string name="settings_auto_download_limit">Auto-Download Limit: %1$d chapters</string>
+
+    <!-- Reader -->
+    <string name="settings_reader">Reader</string>
+    <string name="settings_reading_mode">Reading Mode</string>
+    <string name="settings_reading_mode_single_page">Single Page</string>
+    <string name="settings_reading_mode_dual_page">Dual Page</string>
+    <string name="settings_reading_mode_webtoon">Webtoon</string>
+    <string name="settings_reading_mode_smart_panels">Smart Panels</string>
+    <string name="settings_keep_screen_on">Keep Screen On</string>
+    <string name="settings_keep_screen_on_description">Prevent the screen from sleeping while reading</string>
+    <string name="settings_incognito_mode">Incognito Mode</string>
+    <string name="settings_incognito_mode_description">Reading history and progress are not saved while enabled</string>
+    <string name="settings_preload_before">Preload Pages Before: %1$d</string>
+    <string name="settings_preload_before_description">Number of pages to preload before the current page</string>
+    <string name="settings_preload_after">Preload Pages After: %1$d</string>
+    <string name="settings_preload_after_description">Number of pages to preload after the current page</string>
+
+    <!-- Notifications -->
+    <string name="settings_notifications">Notifications</string>
+    <string name="settings_enable_notifications">Enable Notifications</string>
+    <string name="settings_enable_notifications_description">Get notified when new chapters are available</string>
+    <string name="settings_update_check_interval">Update Check Interval</string>
+    <string name="settings_update_interval_6h">6 hours</string>
+    <string name="settings_update_interval_12h">12 hours</string>
+    <string name="settings_update_interval_24h">24 hours</string>
+
+    <!-- Reading Goals -->
+    <string name="settings_reading_goals">Reading Goals</string>
+    <string name="settings_daily_chapter_goal">Daily Chapter Goal</string>
+    <string name="settings_goals_disabled">Disabled</string>
+    <string name="settings_goals_chapters_per_day">%1$d chapters/day</string>
+    <string name="settings_weekly_chapter_goal">Weekly Chapter Goal</string>
+    <string name="settings_goals_chapters_per_week">%1$d chapters/week</string>
+    <string name="settings_reading_reminders">Reading Reminders</string>
+    <string name="settings_reading_reminders_description">Get a daily reminder to read</string>
+    <string name="settings_reminder_time">Reminder Time</string>
+    <string name="settings_reminder_morning">Morning (9 AM)</string>
+    <string name="settings_reminder_afternoon">Afternoon (2 PM)</string>
+    <string name="settings_reminder_evening">Evening (8 PM)</string>
+
+    <!-- Backup, Restore & Migration -->
+    <string name="settings_backup_restore_migration">Backup, Restore &amp; Migration</string>
+    <string name="settings_create_backup">Create Backup</string>
+    <string name="settings_create_backup_description">Export your library and settings</string>
+    <string name="settings_backup_button">Backup</string>
+    <string name="settings_restore_backup">Restore Backup</string>
+    <string name="settings_restore_backup_description">Import library and settings from a backup file</string>
+    <string name="settings_restore_button">Restore</string>
+    <string name="settings_automatic_backups">Automatic Backups</string>
+    <string name="settings_enable_auto_backup">Enable automatic backups</string>
+    <string name="settings_enable_auto_backup_description">Periodically save a backup to device storage</string>
+    <string name="settings_backup_frequency">Backup frequency</string>
+    <string name="settings_backup_frequency_6h">Every 6 hours</string>
+    <string name="settings_backup_frequency_12h">Every 12 hours</string>
+    <string name="settings_backup_frequency_daily">Daily</string>
+    <string name="settings_backup_frequency_2days">Every 2 days</string>
+    <string name="settings_backup_frequency_weekly">Weekly</string>
+    <string name="settings_backups_to_keep">Backups to keep</string>
+    <string name="settings_backup_count">%1$d backups</string>
+    <string name="settings_restore_from_auto">Restore from automatic backup</string>
+    <string name="settings_no_auto_backups">No automatic backups yet</string>
+    <string name="settings_no_auto_backups_description">Backups will appear here once created</string>
+    <string name="settings_migrate_manga">Migrate manga</string>
+    <string name="settings_migrate_manga_description">Move manga from one source to another</string>
+
+    <!-- Local Source -->
+    <string name="settings_local_source">Local Source</string>
+    <string name="settings_scan_directory">Scan Directory</string>
+    <string name="settings_scan_directory_description">Directory scanned for local manga (CBZ, ZIP, EPUB and image folders).</string>
+    <string name="settings_directory_path">Directory path</string>
+    <string name="settings_save">Save</string>
+    <string name="settings_scan_directory_supported">Supported: CBZ, ZIP (including ComicInfo.xml), EPUB, and plain image folders.</string>
+
+    <!-- Tracking -->
+    <string name="settings_tracking">Tracking</string>
+    <string name="settings_no_tracker_services">No tracker services available</string>
+    <string name="settings_no_tracker_services_description">Tracker services will appear here once registered</string>
+    <string name="settings_tracker_connected">Connected</string>
+    <string name="settings_tracker_not_connected">Not connected</string>
+    <string name="settings_tracker_logout">Logout</string>
+    <string name="settings_tracker_login">Login</string>
+    <string name="settings_tracker_username">Username</string>
+    <string name="settings_tracker_password">Password</string>
+    <string name="settings_tracker_connect">Connect %1$s</string>
+
+    <!-- Migration -->
+    <string name="settings_migration">Migration</string>
+    <string name="settings_similarity_threshold">Similarity Threshold: %1$d%%</string>
+    <string name="settings_similarity_threshold_description">Minimum score to auto-migrate without confirmation</string>
+    <string name="settings_always_show_confirmation">Always Show Confirmation</string>
+    <string name="settings_always_show_confirmation_description">Always ask before migrating, even when confidence is high</string>
+    <string name="settings_min_chapter_count_no_filter">Min. Chapter Count: No filter</string>
+    <string name="settings_min_chapter_count">Min. Chapter Count: %1$d</string>
+    <string name="settings_min_chapter_count_description">Ignore candidates with fewer chapters than this threshold</string>
+
+    <!-- Discord -->
+    <string name="settings_discord">Discord</string>
+    <string name="settings_discord_rich_presence">Rich Presence</string>
+    <string name="settings_discord_rich_presence_description">Show current reading activity as your Discord status</string>
+
+    <!-- AI Features -->
+    <string name="settings_ai_features">AI Features</string>
+    <string name="settings_ai_enable">Enable AI Features</string>
+    <string name="settings_ai_enable_description">Powered by Gemini. Requires an API key.</string>
+    <string name="settings_ai_gemini_api_key">Gemini API Key</string>
+    <string name="settings_ai_api_key_set">API key is set. Enter a new key to replace it.</string>
+    <string name="settings_ai_api_key_label">API Key</string>
+    <string name="settings_ai_hide_key">Hide key</string>
+    <string name="settings_ai_show_key">Show key</string>
+    <string name="settings_ai_save_api_key">Save API Key</string>
+    <string name="settings_ai_service_tier">Service Tier</string>
+    <string name="settings_ai_tier_free">Free</string>
+    <string name="settings_ai_tier_standard">Standard</string>
+    <string name="settings_ai_tier_pro">Pro</string>
+    <string name="settings_ai_feature_toggles">Feature Toggles</string>
+    <string name="settings_ai_reading_insights">Reading Insights</string>
+    <string name="settings_ai_reading_insights_desc">AI-powered reading statistics</string>
+    <string name="settings_ai_smart_search">Smart Search</string>
+    <string name="settings_ai_smart_search_desc">Natural language search queries</string>
+    <string name="settings_ai_recommendations">Recommendations</string>
+    <string name="settings_ai_recommendations_desc">Personalised manga suggestions</string>
+    <string name="settings_ai_panel_reader">Panel-Aware Reader</string>
+    <string name="settings_ai_panel_reader_desc">Gemini Vision panel detection</string>
+    <string name="settings_ai_sfx_translation">SFX Translation</string>
+    <string name="settings_ai_sfx_translation_desc">Translate sound effects in pages</string>
+    <string name="settings_ai_summary_translation">Summary Translation</string>
+    <string name="settings_ai_summary_translation_desc">Auto-translate chapter summaries</string>
+    <string name="settings_ai_source_intelligence">Source Intelligence</string>
+    <string name="settings_ai_source_intelligence_desc">Score and rank sources automatically</string>
+    <string name="settings_ai_smart_notifications">Smart Notifications</string>
+    <string name="settings_ai_smart_notifications_desc">Context-aware update summaries</string>
+    <string name="settings_ai_auto_categorization">Auto-Categorization</string>
+    <string name="settings_ai_auto_categorization_desc">Categorise new manga automatically</string>
+    <string name="settings_ai_usage">Usage</string>
+    <string name="settings_ai_monthly_token_usage">Monthly Token Usage</string>
+    <string name="settings_ai_tokens_used_period">%1$d tokens used (%2$s)</string>
+    <string name="settings_ai_tokens_used_month">%1$d tokens used this month</string>
+    <string name="settings_ai_clear_cache">Clear AI Cache</string>
+    <string name="settings_ai_clear_cache_description">Remove cached AI responses to free up space</string>
+    <string name="settings_ai_clear">Clear</string>
 </resources>

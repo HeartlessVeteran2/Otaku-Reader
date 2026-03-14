@@ -778,7 +778,7 @@ private fun PreloadOption(
                 onClick = { onChange((value ?: 0).coerceAtLeast(0) - 1) },
                 enabled = (value ?: 0) > 0
             ) {
-                Text("-")
+                Text(stringResource(R.string.details_stepper_decrement))
             }
             Text(
                 text = (value ?: 0).toString(),
@@ -788,7 +788,7 @@ private fun PreloadOption(
                 onClick = { onChange((value ?: 0).coerceAtMost(9) + 1) },
                 enabled = (value ?: 0) < 10
             ) {
-                Text("+")
+                Text(stringResource(R.string.details_stepper_increment))
             }
         }
     }

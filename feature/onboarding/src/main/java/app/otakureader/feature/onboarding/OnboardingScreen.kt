@@ -232,7 +232,7 @@ private fun OnboardingBottomBar(
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Install Extensions")
+                Text(stringResource(R.string.onboarding_btn_install_extensions))
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -241,14 +241,14 @@ private fun OnboardingBottomBar(
                 onClick = onNext,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Skip for Now")
+                Text(stringResource(R.string.onboarding_btn_skip))
             }
         } else {
             Button(
                 onClick = onNext,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(if (currentPage == totalPages - 1) "Get Started" else "Next")
+                Text(stringResource(if (currentPage == totalPages - 1) R.string.onboarding_btn_get_started else R.string.onboarding_btn_next))
                 if (currentPage < totalPages - 1) {
                     Spacer(modifier = Modifier.width(8.dp))
                     Icon(
@@ -273,7 +273,7 @@ private fun OnboardingBottomBar(
                     onClick = onSkip,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Skip")
+                    Text(stringResource(R.string.onboarding_btn_skip))
                 }
             }
         }
