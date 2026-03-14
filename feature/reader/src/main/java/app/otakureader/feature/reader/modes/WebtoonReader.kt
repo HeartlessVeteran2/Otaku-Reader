@@ -34,6 +34,7 @@ fun WebtoonReader(
     currentPage: Int,
     onPageChange: (Int) -> Unit,
     onTap: (androidx.compose.ui.geometry.Offset) -> Unit,
+    rotation: Float = 0f,
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState(
@@ -72,6 +73,13 @@ fun WebtoonReader(
         }
     }
     
+    val normalizedRotation = ((rotation % 360f) + 360f) % 360f
+    val imageContentScale = if (normalizedRotation % 180f == 0f) {
+        ContentScale.FillWidth
+    } else {
+        ContentScale.Fit
+    }
+
     LazyColumn(
         state = listState,
         modifier = modifier.fillMaxSize(),
@@ -91,7 +99,8 @@ fun WebtoonReader(
                 ZoomableImage(
                     imageUrl = page.imageUrl,
                     contentDescription = stringResource(R.string.reader_page_content, page.pageNumber),
-                    contentScale = ContentScale.FillWidth,
+                    contentScale = imageContentScale,
+                    rotation = normalizedRotation,
                     onTap = onTap,
                     modifier = Modifier.fillMaxWidth()
                 )

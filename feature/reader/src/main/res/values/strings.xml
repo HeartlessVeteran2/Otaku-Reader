@@ -77,6 +77,12 @@
     <!-- Reset zoom -->
     <string name="reader_reset_zoom">Reset zoom</string>
 
+    <!-- Rotation -->
+    <string name="reader_rotation">Rotation</string>
+    <string name="reader_rotate_cw">Rotate 90° clockwise</string>
+    <string name="reader_rotation_degrees">%1$d°</string>
+    <string name="reader_reset_rotation">Reset rotation</string>
+
     <!-- Full-page gallery -->
     <plurals name="reader_page_gallery_title">
         <item quantity="one">Page Gallery (%1$d page)</item>

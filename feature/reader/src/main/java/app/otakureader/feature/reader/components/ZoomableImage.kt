@@ -52,6 +52,7 @@ fun ZoomableImage(
     maxScale: Float = 4f,
     doubleTapScale: Float = 2f,
     contentScale: ContentScale = ContentScale.Fit,
+    rotation: Float = 0f,
     onDoubleTap: ((Offset) -> Unit)? = null,
     onTap: ((Offset) -> Unit)? = null,
     onZoomChange: ((Float) -> Unit)? = null,
@@ -158,6 +159,7 @@ fun ZoomableImage(
                     .graphicsLayer {
                         scaleX = zoomState.scale
                         scaleY = zoomState.scale
+                        rotationZ = rotation
                     },
                 contentScale = contentScale,
                 filterQuality = FilterQuality.High

@@ -201,6 +201,14 @@ sealed interface ReaderEvent {
      */
     data class SetReaderBackgroundColor(val color: Long?) : ReaderEvent
 
+    // ==================== Rotation Events ====================
+
+    /** Rotate all pages 90° clockwise (cycles through 0°→90°→180°→270°→0°) */
+    data object RotateCW : ReaderEvent
+
+    /** Reset page rotation to 0° */
+    data object ResetRotation : ReaderEvent
+
     companion object {
         /** Default zoom increment for zoom in/out operations */
         const val ZOOM_INCREMENT = 0.25f

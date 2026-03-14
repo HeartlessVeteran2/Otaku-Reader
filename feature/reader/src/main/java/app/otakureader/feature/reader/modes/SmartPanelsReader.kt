@@ -33,6 +33,7 @@ fun SmartPanelsReader(
     onPageChange: (Int) -> Unit,
     onPanelChange: (Int) -> Unit,
     onTap: (androidx.compose.ui.geometry.Offset) -> Unit,
+    rotation: Float = 0f,
     modifier: Modifier = Modifier
 ) {
     val pagerState = rememberPagerState(
@@ -76,6 +77,7 @@ fun SmartPanelsReader(
                     currentPanel = if (pageIndex == currentPage) currentPanel else 0,
                     onPanelChange = onPanelChange,
                     onTap = onTap,
+                    rotation = rotation,
                     modifier = Modifier.fillMaxSize()
                 )
             } else {
@@ -84,6 +86,7 @@ fun SmartPanelsReader(
                     imageUrl = page.imageUrl,
                     contentDescription = stringResource(R.string.reader_page_content, page.pageNumber),
                     contentScale = ContentScale.Fit,
+                    rotation = rotation,
                     onTap = onTap,
                     modifier = Modifier.fillMaxSize()
                 )
@@ -98,6 +101,7 @@ private fun SmartPanelView(
     currentPanel: Int,
     onPanelChange: (Int) -> Unit,
     onTap: (androidx.compose.ui.geometry.Offset) -> Unit,
+    rotation: Float = 0f,
     modifier: Modifier = Modifier
 ) {
     // For now, fall back to zoomable image with panel overlay
@@ -106,6 +110,7 @@ private fun SmartPanelView(
         imageUrl = page.imageUrl,
         contentDescription = stringResource(R.string.reader_page_content, page.pageNumber),
         contentScale = ContentScale.Fit,
+        rotation = rotation,
         onTap = onTap,
         modifier = modifier
     )

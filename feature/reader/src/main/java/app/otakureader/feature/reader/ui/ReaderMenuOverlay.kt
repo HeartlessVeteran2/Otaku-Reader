@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.FitScreen
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.RotateRight
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ZoomIn
 import androidx.compose.material.icons.filled.ZoomOut
@@ -51,6 +52,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
@@ -61,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import app.otakureader.feature.reader.R
 import app.otakureader.feature.reader.model.ColorFilterMode
 import app.otakureader.feature.reader.model.ReaderMode
+import app.otakureader.feature.reader.viewmodel.PageRotation
 
 /** Default custom tint color (semi-transparent blue) used when no custom color is set. */
 private const val DEFAULT_CUSTOM_TINT_COLOR = 0x4000AAFFL
@@ -82,11 +85,14 @@ fun ReaderMenuOverlay(
     colorFilterMode: ColorFilterMode = ColorFilterMode.NONE,
     customTintColor: Long = DEFAULT_CUSTOM_TINT_COLOR,
     readerBackgroundColor: Long? = null,
+    pageRotation: PageRotation = PageRotation.NONE,
     onBrightnessChange: (Float) -> Unit,
     onModeChange: (ReaderMode) -> Unit,
     onColorFilterChange: (ColorFilterMode) -> Unit = {},
     onCustomTintColorChange: (Long) -> Unit = {},
     onReaderBackgroundColorChange: (Long?) -> Unit = {},
+    onRotateCW: () -> Unit = {},
+    onResetRotation: () -> Unit = {},
     onZoomIn: () -> Unit,
     onZoomOut: () -> Unit,
     onResetZoom: () -> Unit,
@@ -160,6 +166,16 @@ fun ReaderMenuOverlay(
                     onZoomIn = onZoomIn,
                     onZoomOut = onZoomOut,
                     onResetZoom = onResetZoom,
+                    modifier = Modifier.padding(16.dp)
+                )
+                
+                HorizontalDivider()
+
+                // Rotation controls
+                RotationControl(
+                    currentRotation = pageRotation,
+                    onRotateCW = onRotateCW,
+                    onResetRotation = onResetRotation,
                     modifier = Modifier.padding(16.dp)
                 )
                 
@@ -328,6 +344,57 @@ fun ZoomControls(
         
         IconButton(onClick = onZoomIn) {
             Icon(Icons.Default.ZoomIn, contentDescription = stringResource(R.string.reader_zoom_in))
+        }
+    }
+}
+
+/**
+ * Controls for rotating the reader session in 90° clockwise increments.
+ * This rotation applies to all pages for the current reading session.
+ * Shows the current rotation angle and provides buttons to rotate or reset.
+ */
+@Composable
+fun RotationControl(
+    currentRotation: PageRotation,
+    onRotateCW: () -> Unit,
+    onResetRotation: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = stringResource(R.string.reader_rotation),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(60.dp)
+        )
+
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .clip(RoundedCornerShape(4.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .clickable(
+                    onClickLabel = stringResource(R.string.reader_reset_rotation),
+                    onClick = onResetRotation
+                )
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.reader_rotation_degrees, currentRotation.degrees.toInt()),
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        IconButton(onClick = onRotateCW) {
+            Icon(
+                Icons.Default.RotateRight,
+                contentDescription = stringResource(R.string.reader_rotate_cw)
+            )
         }
     }
 }
