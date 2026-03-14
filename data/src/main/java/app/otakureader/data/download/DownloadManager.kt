@@ -159,10 +159,11 @@ class DownloadManager @Inject constructor(
     }
 
     /**
-     * Moves the given chapter to the front of the queue by assigning it a priority value
-     * lower than all currently queued items.  Already-active (DOWNLOADING) and terminal
-     * items are updated in-place; the next time the queue is processed the item will be
-     * picked up at the top.
+     * Moves the given chapter to the front of the in-memory queue by assigning it a
+     * priority value lower than all currently queued items.
+     *
+     * This affects the ordering of the emitted [downloads] list, but does not interrupt
+     * or preempt already-running downloads in the current implementation.
      *
      * If the chapter is not in the queue this is a no-op.
      */
