@@ -133,7 +133,7 @@ private fun GlobalSearchContent(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Enter a query to search all sources",
+                    text = stringResource(R.string.browse_global_search_idle_hint),
                     style = MaterialTheme.typography.bodyLarge
                 )
             }

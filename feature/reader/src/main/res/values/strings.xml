@@ -78,6 +78,9 @@
     <string name="reader_reset_zoom">Reset zoom</string>
 
     <!-- Full-page gallery -->
-    <string name="reader_page_gallery_title">Page Gallery (%1$d pages)</string>
+    <plurals name="reader_page_gallery_title">
+        <item quantity="one">Page Gallery (%1$d page)</item>
+        <item quantity="other">Page Gallery (%1$d pages)</item>
+    </plurals>
     <string name="reader_gallery_columns">%1$d columns</string>
 </resources>

@@ -374,7 +374,7 @@ fun ChapterListItem(
                             } else {
                                 Icons.Default.Circle
                             },
-                            contentDescription = if (chapter.read) "Mark as unread" else "Mark as read",
+                            contentDescription = if (chapter.read) stringResource(R.string.details_chapter_mark_as_unread) else stringResource(R.string.details_chapter_mark_as_read),
                             tint = if (chapter.read) {
                                 MaterialTheme.colorScheme.primary
                             } else {
@@ -391,7 +391,7 @@ fun ChapterListItem(
                             } else {
                                 Icons.Default.BookmarkBorder
                             },
-                            contentDescription = if (chapter.bookmark) "Remove bookmark" else "Add bookmark",
+                            contentDescription = if (chapter.bookmark) stringResource(R.string.details_chapter_remove_bookmark) else stringResource(R.string.details_chapter_bookmark),
                             tint = if (chapter.bookmark) {
                                 MaterialTheme.colorScheme.secondary
                             } else {

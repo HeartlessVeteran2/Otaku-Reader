@@ -65,6 +65,7 @@
 
     <!-- GlobalSearchScreen -->
     <string name="browse_global_search_placeholder">Search all sources…</string>
+    <string name="browse_global_search_idle_hint">Enter a query to search all sources</string>
 
     <!-- ExtensionsBottomSheet -->
     <string name="extensions_sheet_title">Extensions</string>
