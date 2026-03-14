@@ -29,7 +29,7 @@
 - ✅ **No storage permissions required** - App-specific directory auto-granted
 - ✅ **Image/chapter extraction correct** - Path traversal protection, max 1000 pages
 - ✅ **Local folder refresh working** - Reactive Flow with proper scanning
-- ✅ **Proper storage permissions** - Limited to API ≤28 (maxSdkVersion)
+- ✅ **Proper storage permissions** - `WRITE_EXTERNAL_STORAGE` limited to API ≤28 and `READ_EXTERNAL_STORAGE` limited to API ≤32 (via `maxSdkVersion`)
 
 **Directory Structure:**
 ```
