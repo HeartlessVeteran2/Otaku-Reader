@@ -21,7 +21,8 @@ class CropBorderTransformation(private val config: CropConfig = CropConfig()) : 
 
     override val cacheKey: String =
         "CropBorderTransformation-${config.threshold}-${config.minCropPercent}" +
-            "-${config.maxCropPercent}-${config.detectWhiteBorders}-${config.detectBlackBorders}"
+            "-${config.maxCropPercent}-${config.detectWhiteBorders}-${config.detectBlackBorders}" +
+            "-${config.enabled}"
 
     override suspend fun transform(input: Bitmap, size: Size): Bitmap {
         if (!config.enabled) return input
