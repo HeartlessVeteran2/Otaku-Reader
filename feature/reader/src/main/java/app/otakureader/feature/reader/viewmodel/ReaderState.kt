@@ -107,7 +107,10 @@ data class ReaderState(
     val showReadingTimer: Boolean = false,
 
     /** Show battery/time overlay (displays battery level and system time) */
-    val showBatteryTime: Boolean = false
+    val showBatteryTime: Boolean = false,
+
+    /** Whether automatic border cropping is enabled for page images */
+    val cropBordersEnabled: Boolean = false
 ) {
     /** Total pages in chapter (derived from pages.size) */
     val totalPages: Int get() = pages.size
