@@ -62,8 +62,9 @@ class SyncWorker @AssistedInject constructor(
             },
             onFailure = { throwable ->
                 if (throwable is CancellationException) {
-                    throw throwable
-                }
+                                    notifier.notifyFailure("Sync cancelled")
+                                    throw throwable
+                                }
                 notifier.notifyFailure(throwable.message ?: "Unknown error")
                 Result.retry()
             }
