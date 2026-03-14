@@ -45,10 +45,10 @@ class SyncNotifier(private val context: Context) {
      * @param message Optional success message
      */
     fun notifySuccess(changesCount: Int, message: String?) {
-        if (!hasNotificationPermission()) return
-
-        // Cancel syncing notification
+        // Cancel syncing notification even if posting new notifications is not allowed.
         notificationManager.cancel(NOTIFICATION_ID_SYNCING)
+
+        if (!hasNotificationPermission()) return
 
         val contentText = when {
             changesCount > 0 -> "Applied $changesCount changes"
