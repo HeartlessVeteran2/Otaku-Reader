@@ -102,7 +102,7 @@ feature/reader/src/main/java/app/otakureader/feature/reader/
 - Reading Timer: Top-right corner, auto-updating every second
 - Battery/Time: Top-right corner (below timer), BroadcastReceiver for battery updates
 - Both hidden when menu is visible
-- Settings persisted in DataStore
+- Overlay visibility flags (`showReadingTimer`, `showBatteryTime`) are persisted via `ReaderSettingsRepository` in DataStore; UI toggles to modify these will be wired in a separate settings PR (current behavior relies on defaults/programmatic control).
 
 ## Performance Optimizations
 
