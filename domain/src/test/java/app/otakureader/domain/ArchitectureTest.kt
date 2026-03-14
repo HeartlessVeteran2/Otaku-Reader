@@ -116,9 +116,13 @@ class ArchitectureTest {
             .filter { it.extension == "kt" }
             .toList()
 
+        val nonInterfaceFiles = repositoryFiles.filterNot { file ->
+            file.readLines().any { it.trimStart().startsWith("interface ") }
+        }
+
         assertTrue(
-            "Domain layer should define repository interfaces",
-            repositoryFiles.isNotEmpty()
+            "Domain repository package should contain only interface declarations. Non-interface files: ${nonInterfaceFiles.joinToString { it.name }}",
+            repositoryFiles.isNotEmpty() && nonInterfaceFiles.isEmpty()
         )
     }
 
