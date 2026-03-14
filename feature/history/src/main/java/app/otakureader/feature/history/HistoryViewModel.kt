@@ -28,7 +28,7 @@ class HistoryViewModel @Inject constructor(
     private val _state = MutableStateFlow(HistoryState())
     val state: StateFlow<HistoryState> = _state.asStateFlow()
 
-    private val _effect = Channel<HistoryEffect>()
+    private val _effect = Channel<HistoryEffect>(Channel.BUFFERED)
     val effect: Flow<HistoryEffect> = _effect.receiveAsFlow()
 
     private val searchQuery = MutableStateFlow("")
