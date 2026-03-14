@@ -25,12 +25,6 @@ class GenerateAiContentUseCase(
             return Result.failure(IllegalArgumentException("Prompt cannot be blank"))
         }
 
-        if (!aiRepository.isAvailable()) {
-            return Result.failure(
-                IllegalStateException("AI service is not available. Please configure an API key in settings.")
-            )
-        }
-
         return aiRepository.generateContent(prompt)
     }
 }
