@@ -11,7 +11,7 @@ This audit validates Otaku Reader's reader implementation and image loading infr
 ✅ **Viewer Implementations:** Robust 4-mode reader with HorizontalPager and LazyColumn
 ✅ **Image Rendering:** Coil 3 properly configured with 25% memory cap and 512MB disk cache
 ✅ **Progress Saving:** Debounced progress saves (3s) with incognito mode support
-⚠️ **Overlays:** Missing Reading Timer and Battery/Time overlays (documented for implementation)
+✅ **Overlays:** Reading Timer and Battery/Time overlays implemented and integrated into `ReaderScreen.kt`
 
 ---
 
@@ -585,19 +585,19 @@ fun ReadingTimerOverlay(
 - Position in top-right corner
 - Session timer already tracked in UltimateReaderViewModel
 
-##### 2. Battery/Time Overlay ❌
-**Status:** NOT IMPLEMENTED
+##### 2. Battery/Time Overlay ✅
+**Status:** IMPLEMENTED in `BatteryTimeOverlay.kt` and integrated into `ReaderScreen.kt`
 
 **Reference:** Komikku shows battery level and system time
 
-**Expected Features:**
+**Features:**
 - Battery level percentage
 - Battery charging status indicator
 - Current system time (HH:MM format)
 - Auto-hide option
 - Minimal visual footprint
 
-**Recommended Implementation:**
+**Implementation Example:**
 ```kotlin
 @Composable
 fun BatteryTimeOverlay(
