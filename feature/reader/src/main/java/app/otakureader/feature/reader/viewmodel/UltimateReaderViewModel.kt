@@ -653,8 +653,13 @@ class UltimateReaderViewModel @Inject constructor(
         val currentState = _state.value
         // Use cleanupScope (not viewModelScope) so the coroutine is not cancelled along with the ViewModel.
         cleanupScope.launch {
+            val isIncognito = runCatching {
+                settingsRepository.incognitoMode.first()
+            }.getOrElse {
+                currentState.incognitoMode
+            }
             // Don't record history or progress if incognito mode is enabled
-            if (!currentState.incognitoMode) {
+            if (!isIncognito) {
                 runCatching {
                     chapterRepository.recordHistory(
                         chapterId = chapterId,
