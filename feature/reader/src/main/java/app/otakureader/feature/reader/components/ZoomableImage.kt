@@ -152,13 +152,12 @@ fun ZoomableImage(
                 if (cropBordersEnabled) {
                     builder.transformations(CropBorderTransformation())
                 }
-                when (imageQuality) {
-                    ImageQuality.ORIGINAL -> builder.size(Size.ORIGINAL)
-                    // Coil fits the image into the given box (ContentScale.Fit semantics),
-                    // so equal width and height effectively cap the longer side at that value.
-                    ImageQuality.HIGH -> builder.size(1080, 1080)
-                    ImageQuality.MEDIUM -> builder.size(720, 720)
-                    ImageQuality.LOW -> builder.size(480, 480)
+                // Coil fits the image into the given box (ContentScale.Fit semantics),
+                // so equal width and height effectively cap the longer side at that value.
+                if (imageQuality.pixels != null) {
+                    builder.size(imageQuality.pixels, imageQuality.pixels)
+                } else {
+                    builder.size(Size.ORIGINAL)
                 }
                 builder.build()
             }

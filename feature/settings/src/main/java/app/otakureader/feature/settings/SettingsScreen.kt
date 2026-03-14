@@ -69,6 +69,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.otakureader.core.preferences.AiTier
 import app.otakureader.core.ui.theme.COLOR_SCHEME_CUSTOM_ACCENT
+import app.otakureader.feature.reader.model.ImageQuality
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -591,12 +592,9 @@ private fun ReaderSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit
                 headlineContent = { Text(stringResource(R.string.settings_image_quality)) },
                 supportingContent = {
                     Column(modifier = Modifier.selectableGroup()) {
-                        val qualities = listOf(
-                            stringResource(R.string.settings_image_quality_original) to 0,
-                            stringResource(R.string.settings_image_quality_high) to 1,
-                            stringResource(R.string.settings_image_quality_medium) to 2,
-                            stringResource(R.string.settings_image_quality_low) to 3
-                        )
+                        val qualities = ImageQuality.entries.map { quality ->
+                            stringResource(quality.stringRes) to quality.ordinal
+                        }
                         qualities.forEach { (label, value) ->
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
