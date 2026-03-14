@@ -348,7 +348,8 @@ fun ZoomControls(
 }
 
 /**
- * Controls for rotating the current page in 90° clockwise increments.
+ * Controls for rotating the reader session in 90° clockwise increments.
+ * This rotation applies to all pages for the current reading session.
  * Shows the current rotation angle and provides buttons to rotate or reset.
  */
 @Composable
