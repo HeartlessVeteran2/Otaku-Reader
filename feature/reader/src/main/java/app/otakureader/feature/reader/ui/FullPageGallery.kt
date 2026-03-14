@@ -35,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -83,7 +84,7 @@ fun FullPageGallery(
             Column(modifier = Modifier.fillMaxSize()) {
                 TopAppBar(
                     title = {
-                        Text(stringResource(R.string.reader_page_gallery_title, pages.size))
+                        Text(pluralStringResource(R.plurals.reader_page_gallery_title, pages.size, pages.size))
                     },
                     navigationIcon = {
                         IconButton(onClick = onDismiss) {

@@ -57,7 +57,7 @@
     <string name="settings_auto_download_new_chapters_description">Automatically download new chapters found during library updates</string>
     <string name="settings_download_only_wifi">Download Only on Wi-Fi</string>
     <string name="settings_download_only_wifi_description">Restrict downloads to Wi-Fi connections only</string>
-    <string name="settings_auto_download_limit">Auto-Download Limit: %1$d chapters</string>
+    <string name="settings_auto_download_limit">Auto-Download Limit: %1$d chapter(s)</string>
 
     <!-- Reader -->
     <string name="settings_reader">Reader</string>
@@ -88,9 +88,9 @@
     <string name="settings_reading_goals">Reading Goals</string>
     <string name="settings_daily_chapter_goal">Daily Chapter Goal</string>
     <string name="settings_goals_disabled">Disabled</string>
-    <string name="settings_goals_chapters_per_day">%1$d chapters/day</string>
+    <string name="settings_goals_chapters_per_day">%1$d chapter(s)/day</string>
     <string name="settings_weekly_chapter_goal">Weekly Chapter Goal</string>
-    <string name="settings_goals_chapters_per_week">%1$d chapters/week</string>
+    <string name="settings_goals_chapters_per_week">%1$d chapter(s)/week</string>
     <string name="settings_reading_reminders">Reading Reminders</string>
     <string name="settings_reading_reminders_description">Get a daily reminder to read</string>
     <string name="settings_reminder_time">Reminder Time</string>

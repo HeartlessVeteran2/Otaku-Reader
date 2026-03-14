@@ -701,8 +701,8 @@ private fun ReadingGoalsSection(state: SettingsState, onEvent: (SettingsEvent) -
         supportingContent = {
             Column {
                 Text(
-                    if (state.dailyChapterGoal == 0) stringResource(R.string.settings_goals_disabled)
-                    else stringResource(R.string.settings_goals_chapters_per_day, state.dailyChapterGoal)
+                    if (dailyGoalSlider.roundToInt() == 0) stringResource(R.string.settings_goals_disabled)
+                    else stringResource(R.string.settings_goals_chapters_per_day, dailyGoalSlider.roundToInt())
                 )
                 Slider(
                     value = dailyGoalSlider,
@@ -727,8 +727,8 @@ private fun ReadingGoalsSection(state: SettingsState, onEvent: (SettingsEvent) -
         supportingContent = {
             Column {
                 Text(
-                    if (state.weeklyChapterGoal == 0) stringResource(R.string.settings_goals_disabled)
-                    else stringResource(R.string.settings_goals_chapters_per_week, state.weeklyChapterGoal)
+                    if (weeklyGoalSlider.roundToInt() == 0) stringResource(R.string.settings_goals_disabled)
+                    else stringResource(R.string.settings_goals_chapters_per_week, weeklyGoalSlider.roundToInt())
                 )
                 Slider(
                     value = weeklyGoalSlider,

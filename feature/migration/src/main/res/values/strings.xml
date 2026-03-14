@@ -58,11 +58,17 @@
     <string name="migration_clear_search">Clear search</string>
 
     <!-- Migration Entry Screen -->
-    <string name="migration_entry_selected">%1$d selected</string>
+    <plurals name="migration_entry_selected">
+        <item quantity="one">%1$d selected</item>
+        <item quantity="other">%1$d selected</item>
+    </plurals>
     <string name="migration_entry_title">Select Manga to Migrate</string>
     <string name="migration_entry_clear">Clear</string>
     <string name="migration_entry_all">All</string>
-    <string name="migration_entry_migrate_count">Migrate %1$d manga</string>
+    <plurals name="migration_entry_migrate_count">
+        <item quantity="one">Migrate %1$d manga</item>
+        <item quantity="other">Migrate %1$d manga</item>
+    </plurals>
     <string name="migration_entry_search_placeholder">Search library…</string>
     <string name="migration_entry_retry">Retry</string>
     <string name="migration_entry_library_empty">Your library is empty</string>
