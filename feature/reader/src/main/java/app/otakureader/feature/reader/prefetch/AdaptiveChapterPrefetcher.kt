@@ -30,34 +30,33 @@ class AdaptiveChapterPrefetcher @Inject constructor(
     private val chapterRepository: ChapterRepository
 ) {
 
-    // A no-op set used while prefetchChapterPages is not fully implemented.
-    // This avoids marking chapters as "prefetched" when no pages have actually been enqueued.
-    private object NoopPrefetchedChapters : MutableSet<Long> {
-        override val size: Int
-            get() = 0
 
-        override fun add(element: Long): Boolean = false
 
-        override fun addAll(elements: Collection<Long>): Boolean = false
 
-        override fun clear() {
-            // no-op
-        }
 
-        override fun iterator(): MutableIterator<Long> = mutableSetOf<Long>().iterator()
 
-        override fun contains(element: Long): Boolean = false
 
-        override fun containsAll(elements: Collection<Long>): Boolean = elements.isEmpty()
 
-        override fun isEmpty(): Boolean = true
 
-        override fun remove(element: Long): Boolean = false
 
-        override fun removeAll(elements: Collection<Long>): Boolean = false
 
-        override fun retainAll(elements: Collection<Long>): Boolean = false
-    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     // Current prefetch jobs
     private var nextChapterPrefetchJob: Job? = null
