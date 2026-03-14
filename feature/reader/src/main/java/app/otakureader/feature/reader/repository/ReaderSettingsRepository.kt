@@ -201,26 +201,6 @@ class ReaderSettingsRepository @Inject constructor(
         dataStore.edit { it[Keys.PRELOAD_PAGES_AFTER] = count.coerceIn(0, MAX_PRELOAD_PAGES) }
     }
 
-    // ==================== Reading Timer Overlay ====================
-
-    val showReadingTimer: Flow<Boolean> = dataStore.data.map { prefs ->
-        prefs[Keys.SHOW_READING_TIMER] ?: false
-    }
-
-    suspend fun setShowReadingTimer(enabled: Boolean) {
-        dataStore.edit { it[Keys.SHOW_READING_TIMER] = enabled }
-    }
-
-    // ==================== Battery/Time Overlay ====================
-
-    val showBatteryTime: Flow<Boolean> = dataStore.data.map { prefs ->
-        prefs[Keys.SHOW_BATTERY_TIME] ?: false
-    }
-
-    suspend fun setShowBatteryTime(enabled: Boolean) {
-        dataStore.edit { it[Keys.SHOW_BATTERY_TIME] = enabled }
-    }
-
     private object Keys {
         val READER_MODE = intPreferencesKey("reader_mode_setting")
         val BRIGHTNESS = floatPreferencesKey("reader_brightness")
@@ -241,8 +221,6 @@ class ReaderSettingsRepository @Inject constructor(
         val CUSTOM_TINT_COLOR = longPreferencesKey("reader_custom_tint_color")
         val PRELOAD_PAGES_BEFORE = intPreferencesKey("reader_preload_pages_before")
         val PRELOAD_PAGES_AFTER = intPreferencesKey("reader_preload_pages_after")
-        val SHOW_READING_TIMER = booleanPreferencesKey("reader_show_reading_timer")
-        val SHOW_BATTERY_TIME = booleanPreferencesKey("reader_show_battery_time")
     }
     
     companion object {
