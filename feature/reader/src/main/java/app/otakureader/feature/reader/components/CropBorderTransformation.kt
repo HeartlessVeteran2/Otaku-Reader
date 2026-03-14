@@ -1,6 +1,8 @@
 package app.otakureader.feature.reader.components
 
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Rect
 import app.otakureader.feature.reader.model.CropConfig
 import coil3.size.Size
 import coil3.transform.Transformation
@@ -172,7 +174,21 @@ class CropBorderTransformation(private val config: CropConfig = CropConfig()) : 
         // Return the same bitmap if nothing actually changed
         if (newWidth == width && newHeight == height) return input
 
-        return Bitmap.createBitmap(input, effectiveLeft, effectiveTop, newWidth, newHeight)
+        // Detach from the source bitmap's pixel buffer to avoid sharing memory with `input`,
+        // which may be reused or recycled by Coil after this transformation.
+        val outputConfig = input.config ?: Bitmap.Config.ARGB_8888
+        val output = Bitmap.createBitmap(newWidth, newHeight, outputConfig)
+        val canvas = Canvas(output)
+        val srcRect = Rect(
+            effectiveLeft,
+            effectiveTop,
+            effectiveLeft + newWidth,
+            effectiveTop + newHeight
+        )
+        val dstRect = Rect(0, 0, newWidth, newHeight)
+        canvas.drawBitmap(input, srcRect, dstRect, null)
+
+        return output
     }
 
     private fun isBorderPixel(argb: Int): Boolean {
