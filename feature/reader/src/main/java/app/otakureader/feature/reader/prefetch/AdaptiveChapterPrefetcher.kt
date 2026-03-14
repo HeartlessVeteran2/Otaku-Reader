@@ -102,6 +102,10 @@ class AdaptiveChapterPrefetcher @Inject constructor(
     private fun prefetchNextChapter(currentChapterId: Long, mangaId: Long, scope: CoroutineScope) {
         nextChapterPrefetchJob?.cancel()
 
+        // Adjacent-chapter prefetch is temporarily disabled while prefetchChapterPages()
+        // is a no-op, to avoid unnecessary DB work and marking chapters as prefetched.
+        return
+
         nextChapterPrefetchJob = scope.launch {
             try {
                 // Get all chapters for this manga
@@ -137,6 +141,10 @@ class AdaptiveChapterPrefetcher @Inject constructor(
      */
     private fun prefetchPreviousChapter(currentChapterId: Long, mangaId: Long, scope: CoroutineScope) {
         previousChapterPrefetchJob?.cancel()
+
+        // Adjacent-chapter prefetch is temporarily disabled while prefetchChapterPages()
+        // is a no-op, to avoid unnecessary DB work and marking chapters as prefetched.
+        return
 
         previousChapterPrefetchJob = scope.launch {
             try {
