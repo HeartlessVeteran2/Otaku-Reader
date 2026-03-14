@@ -1,5 +1,6 @@
 package app.otakureader.feature.reader.viewmodel
 
+import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -16,7 +17,10 @@ import app.otakureader.feature.reader.repository.ReaderSettingsRepository
 import app.otakureader.core.discord.DiscordRpcService
 import app.otakureader.core.discord.ReadingStatus
 import app.otakureader.core.preferences.GeneralPreferences
+import coil3.ImageLoader
+import coil3.request.ImageRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -41,10 +45,12 @@ import kotlin.coroutines.cancellation.CancellationException
  */
 @HiltViewModel
 class UltimateReaderViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val mangaRepository: MangaRepository,
     private val chapterRepository: ChapterRepository,
     private val settingsRepository: ReaderSettingsRepository,
     private val pageLoader: PageLoader,
+    private val imageLoader: ImageLoader,
     private val discordRpcService: DiscordRpcService,
     private val generalPreferences: GeneralPreferences,
     savedStateHandle: SavedStateHandle
@@ -552,6 +558,8 @@ class UltimateReaderViewModel @Inject constructor(
      * Preload pages ahead and behind current page for smooth scrolling.
      * Uses per-manga preload settings if available (#264), otherwise falls back to
      * cached global defaults loaded once during [loadSettings].
+     *
+     * Integrates with Coil's image prefetch to warm up the image cache for upcoming pages.
      */
     private fun preloadPages(currentPage: Int) {
         preloadJob?.cancel()
@@ -567,7 +575,23 @@ class UltimateReaderViewModel @Inject constructor(
 
             preloadRange.forEach { index ->
                 if (index in pages.indices && index != currentPage) {
-                    // Preload logic here - could use Coil's prefetch or custom loader
+                    val page = pages[index]
+                    val imageUrl = page.imageUrl
+
+                    // Prefetch image using Coil's prefetch API
+                    if (!imageUrl.isNullOrBlank()) {
+                        try {
+                            val request = ImageRequest.Builder(context)
+                                .data(imageUrl)
+                                .build()
+
+                            // Enqueue prefetch request (non-blocking, returns immediately)
+                            imageLoader.enqueue(request)
+                        } catch (e: Exception) {
+                            // Silently ignore prefetch failures - they're not critical
+                            // The image will be loaded on-demand when the user navigates to the page
+                        }
+                    }
                 }
             }
         }
