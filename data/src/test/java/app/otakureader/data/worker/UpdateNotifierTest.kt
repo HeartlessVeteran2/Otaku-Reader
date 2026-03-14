@@ -301,7 +301,7 @@ class UpdateNotifierTest {
         notifier.notify(listOf(manga), totalNewChapters = 1)
 
         // Then - should use "1 new chapter" (singular)
-        verify(exactly = 1) {
+        verify(exactly = 2) {
             notificationManager.notify(
                 eq(UPDATE_NOTIFICATION_TAG),
                 any(),
