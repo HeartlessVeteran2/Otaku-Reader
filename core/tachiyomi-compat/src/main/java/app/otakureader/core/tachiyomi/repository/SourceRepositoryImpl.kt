@@ -142,8 +142,11 @@ class SourceRepositoryImpl(
 
     override suspend fun getLatestUpdates(sourceId: String, page: Int): Result<MangaPage> {
         return withContext(Dispatchers.IO) {
-            // Check source health before attempting request
+            // Check source health before attempting request; still allow cached data
             if (!healthMonitor.isSourceHealthy(sourceId)) {
+                latestMangaCache[sourceId]?.get(page)?.let {
+                    return@withContext Result.success(it)
+                }
                 val message = healthMonitor.getHealthMessage(sourceId) ?: "Source is temporarily unavailable"
                 return@withContext Result.failure(IllegalStateException(message))
             }
