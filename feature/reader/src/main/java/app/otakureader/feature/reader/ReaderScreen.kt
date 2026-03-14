@@ -283,7 +283,7 @@ fun ReaderScreen(
         ) {
             // Reading Timer Overlay - top item
             ReadingTimerOverlay(
-                isVisible = state.showReadingTimer && !state.isMenuVisible,
+                isVisible = state.showReadingTimer && !state.isMenuVisible && !state.isGalleryOpen,
                 sessionStartMs = viewModel.sessionStartMs,
                 modifier = Modifier
             )
