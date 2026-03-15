@@ -120,14 +120,15 @@ class GeminiClient @Inject constructor() {
      * Compute an HMAC-SHA256 of [apiKey] and [modelName] keyed by [hmacSalt].
      *
      * Feeding the key and model name separately with a null-byte delimiter prevents
-     * length-extension collisions. Using HMAC (rather than a plain digest) means the
-     * output is bound to the per-process [hmacSalt] and cannot be inverted or
-     * brute-forced to recover the API key by an attacker who only observes [configMac].
+     * concatenation ambiguity (e.g. `"ab"+"cd"` vs `"a"+"bcd"` producing the same bytes).
+     * Using HMAC (rather than a plain digest) means the output is bound to the per-process
+     * [hmacSalt] and cannot be inverted or brute-forced to recover the API key by an
+     * attacker who only observes [configMac].
      */
     private fun configMacOf(apiKey: String, modelName: String): ByteArray {
         val mac = Mac.getInstance("HmacSHA256")
         mac.init(SecretKeySpec(hmacSalt, "HmacSHA256"))
-        // Feed key and model separately with a null-byte delimiter to avoid collisions.
+        // Feed key and model separately with a null-byte delimiter to prevent concatenation ambiguity.
         mac.update(apiKey.toByteArray(Charsets.UTF_8))
         mac.update(0.toByte())
         mac.update(modelName.toByteArray(Charsets.UTF_8))
