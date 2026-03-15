@@ -14,6 +14,9 @@ import app.otakureader.feature.reader.model.ImageQuality
 import app.otakureader.feature.reader.model.ReaderMode
 import app.otakureader.feature.reader.model.ReaderPage
 import app.otakureader.feature.reader.model.ReadingDirection
+import app.otakureader.feature.reader.prefetch.AdaptiveChapterPrefetcher
+import app.otakureader.feature.reader.prefetch.ReadingBehaviorTracker
+import app.otakureader.feature.reader.prefetch.SmartPrefetchManager
 import app.otakureader.feature.reader.repository.ReaderSettingsRepository
 import coil3.ImageLoader
 import io.mockk.coEvery
@@ -52,6 +55,9 @@ class UltimateReaderViewModelTest {
     private lateinit var imageLoader: ImageLoader
     private lateinit var discordRpcService: DiscordRpcService
     private lateinit var generalPreferences: GeneralPreferences
+    private lateinit var behaviorTracker: ReadingBehaviorTracker
+    private lateinit var smartPrefetchManager: SmartPrefetchManager
+    private lateinit var chapterPrefetcher: AdaptiveChapterPrefetcher
 
     @Before
     fun setUp() {
@@ -64,6 +70,9 @@ class UltimateReaderViewModelTest {
         imageLoader = mockk(relaxed = true)
         discordRpcService = mockk(relaxed = true)
         generalPreferences = mockk()
+        behaviorTracker = mockk(relaxed = true)
+        smartPrefetchManager = mockk(relaxed = true)
+        chapterPrefetcher = mockk(relaxed = true)
         every { generalPreferences.discordRpcEnabled } returns flowOf(false)
 
         // Default settings stubs so loadSettings() succeeds.
@@ -83,6 +92,13 @@ class UltimateReaderViewModelTest {
         every { settingsRepository.cropBordersEnabled } returns flowOf(false)
         every { settingsRepository.imageQuality } returns flowOf(ImageQuality.ORIGINAL)
         every { settingsRepository.dataSaverEnabled } returns flowOf(false)
+        every { settingsRepository.showReadingTimer } returns flowOf(false)
+        every { settingsRepository.showBatteryTime } returns flowOf(false)
+        every { settingsRepository.smartPrefetchEnabled } returns flowOf(true)
+        every { settingsRepository.prefetchStrategyOrdinal } returns flowOf(1)
+        every { settingsRepository.adaptiveLearningEnabled } returns flowOf(true)
+        every { settingsRepository.prefetchAdjacentChapters } returns flowOf(false)
+        every { settingsRepository.prefetchOnlyOnWiFi } returns flowOf(false)
 
         // Return null for chapter/manga so loadChapter() exits early without side-effects.
         coEvery { chapterRepository.getChapterById(chapterId) } returns null
@@ -107,6 +123,9 @@ class UltimateReaderViewModelTest {
             imageLoader = imageLoader,
             discordRpcService = discordRpcService,
             generalPreferences = generalPreferences,
+            behaviorTracker = behaviorTracker,
+            smartPrefetchManager = smartPrefetchManager,
+            chapterPrefetcher = chapterPrefetcher,
             savedStateHandle = SavedStateHandle(
                 mapOf("mangaId" to mangaId, "chapterId" to chapterId)
             )
@@ -415,6 +434,29 @@ class UltimateReaderViewModelTest {
 
         coVerify(exactly = 0) { chapterRepository.recordHistory(any(), any(), any()) }
         coVerify(exactly = 0) { chapterRepository.updateChapterProgress(any<Long>(), any<Boolean>(), any<Int>()) }
+    }
+
+    // ---- Overlay settings ----
+
+    @Test
+    fun `showReadingTimer and showBatteryTime defaults to false`() = runTest {
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertFalse(vm.state.value.showReadingTimer)
+        assertFalse(vm.state.value.showBatteryTime)
+    }
+
+    @Test
+    fun `loadSettings reflects showReadingTimer and showBatteryTime from repository`() = runTest {
+        every { settingsRepository.showReadingTimer } returns flowOf(true)
+        every { settingsRepository.showBatteryTime } returns flowOf(true)
+
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(vm.state.value.showReadingTimer)
+        assertTrue(vm.state.value.showBatteryTime)
     }
 
     // ---- Page rotation ----
