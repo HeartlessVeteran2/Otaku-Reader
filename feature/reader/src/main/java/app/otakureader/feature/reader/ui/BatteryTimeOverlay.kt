@@ -103,7 +103,12 @@ fun BatteryTimeOverlay(
         }
 
         onDispose {
-            context.unregisterReceiver(batteryReceiver)
+            // Guard against IllegalArgumentException if registration failed or receiver already unregistered
+            try {
+                context.unregisterReceiver(batteryReceiver)
+            } catch (_: IllegalArgumentException) {
+                // Receiver was not registered or already unregistered - safe to ignore
+            }
         }
     }
 

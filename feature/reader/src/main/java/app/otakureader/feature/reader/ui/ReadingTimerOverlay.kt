@@ -40,10 +40,12 @@ fun ReadingTimerOverlay(
     var currentTimeMs by remember { mutableLongStateOf(SystemClock.elapsedRealtime()) }
 
     // Update current time every second
-    LaunchedEffect(Unit) {
+    // Restart the effect if sessionStartMs changes (e.g., new reading session)
+    LaunchedEffect(sessionStartMs) {
+        currentTimeMs = SystemClock.elapsedRealtime()
         while (true) {
-            currentTimeMs = SystemClock.elapsedRealtime()
             delay(1000)
+            currentTimeMs = SystemClock.elapsedRealtime()
         }
     }
 

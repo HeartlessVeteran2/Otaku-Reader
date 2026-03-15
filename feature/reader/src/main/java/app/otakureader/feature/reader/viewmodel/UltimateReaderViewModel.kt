@@ -473,6 +473,10 @@ class UltimateReaderViewModel @Inject constructor(
                 val pageDuration = nowElapsed - lastPageChangeMs
                 lastPageChangeMs = nowElapsed
 
+                // Derive epoch timestamp consistently from sessionReadAt + monotonic offset
+                // This ensures timestamp and duration use consistent time bases
+                val epochTimestamp = sessionReadAt + (nowElapsed - sessionStartMs)
+
                 val event = PageNavigationEvent(
                     mangaId = mangaId,
                     chapterId = chapterId,
@@ -480,7 +484,7 @@ class UltimateReaderViewModel @Inject constructor(
                     toPage = validPage,
                     pageDurationMs = pageDuration,
                     readerMode = _state.value.mode.ordinal,
-                    timestamp = System.currentTimeMillis()
+                    timestamp = epochTimestamp
                 )
                 behaviorTracker.recordNavigation(event)
             }
