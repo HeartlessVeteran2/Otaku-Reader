@@ -42,10 +42,23 @@ interface DownloadRepository {
 
     /**
      * Moves all given chapters to the front of the download queue in a single atomic
-     * operation.  Chapters within the list retain their relative queue order.  IDs that
-     * are not in the queue are silently ignored.
+     * operation. Chapters within the list retain their relative queue order (callers must
+     * pass a deterministic ordered collection). Duplicates are treated by first occurrence
+     * only; IDs not in the queue are silently ignored.
+     *
+     * @param chapterIds Ordered list of chapter IDs to prioritize
      */
     suspend fun prioritizeDownloads(chapterIds: List<Long>)
+
+    /**
+     * Backwards-compatible overload that accepts a [Set].
+     *
+     * Note: Sets do not guarantee iteration order. If deterministic ordering is required,
+     * use [prioritizeDownloads(List)] with an explicitly ordered list.
+     *
+     * @param chapterIds Set of chapter IDs to prioritize (iteration order is undefined)
+     */
+    suspend fun prioritizeDownloads(chapterIds: Set<Long>) = prioritizeDownloads(chapterIds.toList())
 
     /**
      * Sets an explicit priority value for the given queued chapter.

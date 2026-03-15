@@ -200,16 +200,24 @@ class DownloadManager @Inject constructor(
      * Moves a list of chapters to the front of the queue in a single transaction.
      *
      * Each chapter in [chapterIds] receives a priority value lower than every chapter
-     * that is not in the list.  Chapters within the list retain their relative order from
-     * the current queue.  This is more efficient than calling [prioritize] repeatedly
+     * that is not in the list. Chapters within the list retain their relative order from
+     * the current queue. This is more efficient than calling [prioritize] repeatedly
      * because only one mutex acquisition and one list rebuild are required.
      *
      * IDs that are not currently in the queue are silently ignored.
+     *
+     * Duplicates in [chapterIds] are treated by first occurrence only.
+     *
+     * @param chapterIds Ordered list of chapter IDs to prioritize (defensive copy is made)
      */
     suspend fun prioritizeAll(chapterIds: List<Long>) {
+        // Short-circuit: empty input is a no-op
         if (chapterIds.isEmpty()) return
+
+        // Defensive copy to prevent concurrent mutation by caller
+        val chapterIdsCopy = chapterIds.toList()
         mutex.withLock {
-            val chapterIdSet = chapterIds.toHashSet()
+            val chapterIdSet = chapterIdsCopy.toHashSet()
             // Determine the targets in their current queue order.
             val orderedTargets = downloadMap.values
                 .filter { it.chapterId in chapterIdSet }
