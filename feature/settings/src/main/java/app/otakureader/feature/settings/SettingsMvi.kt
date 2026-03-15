@@ -5,6 +5,7 @@ import app.otakureader.core.common.mvi.UiEvent
 import app.otakureader.core.common.mvi.UiState
 import app.otakureader.core.preferences.AiTier
 import app.otakureader.core.preferences.LocalSourcePreferences
+import app.otakureader.feature.reader.model.ImageQuality
 
 data class TrackerInfo(
     val id: Int,
@@ -35,7 +36,7 @@ data class SettingsState(
     val preloadPagesAfter: Int = 3,    // Pages to preload after current (0–10)
     val cropBordersEnabled: Boolean = false, // Automatically crop white/black borders from page images
     /** ImageQuality stored as enum entry name (e.g. "ORIGINAL", "HIGH", "MEDIUM", "LOW") for stability. */
-    val imageQuality: String = "ORIGINAL",
+    val imageQuality: String = ImageQuality.ORIGINAL.name,
     val dataSaverEnabled: Boolean = false,   // Data saver mode - reduce image quality for bandwidth savings
     val deleteAfterReading: Boolean = false,
     val saveAsCbz: Boolean = false,    // Save downloaded chapters as CBZ archives

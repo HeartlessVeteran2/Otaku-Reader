@@ -14,8 +14,11 @@ import app.otakureader.feature.reader.model.ImageQuality
 import app.otakureader.feature.reader.model.ReaderMode
 import app.otakureader.feature.reader.model.ReadingDirection
 import app.otakureader.feature.reader.model.TapZoneConfig
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -269,10 +272,10 @@ class ReaderSettingsRepository @Inject constructor(
      * storage would break if entries were reordered or inserted.
      *
      * Migration: users who previously had an ordinal stored under the old int key
-     * ([Keys.IMAGE_QUALITY_LEGACY], name "reader_image_quality") are migrated transparently
-     * on the first read.  The new key uses a distinct name ("reader_image_quality_name") to
-     * avoid a ClassCastException — DataStore key equality is name-only, so two keys with the
-     * same name but different types would collide.
+     * ([Keys.IMAGE_QUALITY_LEGACY], name "reader_image_quality") are migrated proactively:
+     * on first read the ordinal is converted to the enum name and persisted to the new key,
+     * and the legacy key is removed. This ensures the migration happens once and future reads
+     * use the stable string key.
      */
     val imageQuality: Flow<ImageQuality> = dataStore.data.map { prefs ->
         val name = prefs[Keys.IMAGE_QUALITY]
@@ -281,7 +284,21 @@ class ReaderSettingsRepository @Inject constructor(
         } else {
             // Migrate from legacy ordinal stored under the old int key.
             val legacyOrdinal = prefs[Keys.IMAGE_QUALITY_LEGACY]
-            ImageQuality.entries.getOrNull(legacyOrdinal ?: 0) ?: ImageQuality.ORIGINAL
+            val migratedQuality = ImageQuality.entries.getOrNull(legacyOrdinal ?: 0) ?: ImageQuality.ORIGINAL
+            
+            // Proactively persist the migrated value (fire-and-forget)
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    dataStore.edit { editPrefs ->
+                        editPrefs[Keys.IMAGE_QUALITY] = migratedQuality.name
+                        editPrefs.remove(Keys.IMAGE_QUALITY_LEGACY)
+                    }
+                } catch (_: Exception) {
+                    // Migration failure is non-critical; the in-memory value is still correct
+                }
+            }
+            
+            migratedQuality
         }
     }
 

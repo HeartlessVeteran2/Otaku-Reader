@@ -202,8 +202,18 @@ class SettingsViewModel @Inject constructor(
                 is SettingsEvent.SetPreloadPagesAfter -> readerSettingsRepository.setPreloadPagesAfter(event.count)
                 is SettingsEvent.SetCropBordersEnabled -> readerSettingsRepository.setCropBordersEnabled(event.enabled)
                 is SettingsEvent.SetImageQuality -> {
-                    val quality = ImageQuality.entries.firstOrNull { it.name == event.quality }
-                        ?: ImageQuality.ORIGINAL
+                    // Validate and normalize the incoming quality string with case-insensitive matching
+                    val normalizedInput = event.quality.trim().uppercase()
+                    val quality = ImageQuality.entries.firstOrNull { 
+                        it.name.equals(normalizedInput, ignoreCase = true) 
+                    } ?: run {
+                        // Log invalid value for debugging (non-fatal)
+                        android.util.Log.w(
+                            "SettingsViewModel",
+                            "Invalid image quality value '${event.quality}', falling back to ORIGINAL"
+                        )
+                        ImageQuality.ORIGINAL
+                    }
                     readerSettingsRepository.setImageQuality(quality)
                 }
                 is SettingsEvent.SetDataSaverEnabled -> readerSettingsRepository.setDataSaverEnabled(event.enabled)
