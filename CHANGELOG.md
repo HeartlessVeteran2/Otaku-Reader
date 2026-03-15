@@ -12,6 +12,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 📝 Professional GitHub project setup
 - 📚 Improved documentation
 
+## [0.3.0-alpha] - 2026-03-15
+
+### Added
+- 🤖 **Smart Panels**: Automatic manga panel detection with guided panel-by-panel navigation
+  - Edge detection algorithm (Sobel-like gradient), horizontal/vertical separator line detection
+  - Animated zoom/pan with spring easing via `PanelNavigationView`
+  - Configurable sensitivity (edge threshold, min line length, min panel size)
+  - Reading-order support: RTL (manga) and LTR (comics)
+  - Graceful fallback to full-page view when detection fails
+- ⚡ **Smart Prefetch**: Adaptive page/chapter prefetching based on reading behavior
+  - Four strategies: Conservative, Balanced, Aggressive, Adaptive
+  - `ReadingBehaviorTracker` records navigation events and computes reading stats
+  - `AdaptiveChapterPrefetcher` adjusts prefetch depth to reading speed and completion rate
+  - `PrefetchTelemetry` for hit-rate and efficiency monitoring
+- 🔄 **Cloud Sync (Google Drive)**: Background cross-device library synchronization
+  - `SyncManager` / `SyncProvider` abstraction (Google Drive prototype; Dropbox & WebDAV stubs)
+  - Four conflict-resolution strategies: PREFER_NEWER, PREFER_LOCAL, PREFER_REMOTE, MERGE
+  - `SyncWorker` (WorkManager) with configurable interval and Wi-Fi-only constraint
+  - `SyncNotifier` for in-progress/success/failure notifications
+  - `SyncPreferences` with validated interval (1–168 h) and strategy storage
+- 📡 **OPDS Catalog**: Self-hosted server support (Komga, Kavita, etc.)
+  - Add/edit/delete OPDS servers with authentication
+  - Browse catalog hierarchy, search feeds, and download archives (CBZ/CBR)
+- 🤖 **AI Recommendations (Gemini)**: `GeminiClient` for manga recommendations
+  - SHA-256 config fingerprint of `(apiKey, modelName)` stored as hex string (reduces raw API key exposure in memory)
+  - `AiRepositoryImpl` with `TimeoutCancellationException` → `Result.failure` mapping
+- 🎮 **Discord Rich Presence**: `DiscordRpcService` shows currently reading manga
+  - Graceful fallback when Discord is not installed or not running
+- 📈 **Statistics**: Reading analytics screen with charts and reading streaks
+- 🔄 **Migration**: Migrate manga between sources with chapter mapping and progress transfer
+- 🛳️ **Onboarding**: First-run onboarding flow for new users
+
+### Changed
+- 🗄️ Database upgraded to version 9 (indexes on `manga`, `chapter`, and related tables)
+- 📦 `DownloadManager` refactored to O(1) lookup via internal `LinkedHashMap` (was O(n) list scan)
+
+### Performance
+- ⚡ `MangaEntity` / `ChapterEntity` indexes added (sourceId, title, favorite, sourceId+url composite)
+- ⚡ Batch `UPDATE … WHERE id IN (:ids)` queries chunked to ≤997 IDs to respect SQLite 999-parameter limit
+
 ## [0.2.0-alpha] - 2026-03-09
 
 ### Added

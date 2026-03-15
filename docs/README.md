@@ -23,6 +23,15 @@ Welcome to the Otaku Reader documentation. This is the central index for all pro
 
 ### ✨ Features
 - [Features Overview](features/) — Detailed feature documentation
+- [Smart Panels](features/#smart-panels) — Panel detection and guided navigation
+- [Smart Prefetch](features/#smart-prefetch) — Adaptive page prefetching
+- [Cloud Sync](features/#cloud-sync) — Cross-device library sync
+- [OPDS Catalog](features/#opds-catalog) — Self-hosted server support
+- [AI Recommendations](features/#ai-recommendations) — Gemini-powered recommendations
+- [Discord Rich Presence](features/#discord-rich-presence) — Discord activity integration
+- [Tracking](features/#tracking) — MAL, AniList, Kitsu, and more
+- [Statistics](features/#statistics) — Reading analytics and charts
+- [Migration](features/#migration) — Migrate manga between sources
 
 ### 🤝 Contributing
 - [Contributing Guide](contributing/contributing.md) — How to contribute
