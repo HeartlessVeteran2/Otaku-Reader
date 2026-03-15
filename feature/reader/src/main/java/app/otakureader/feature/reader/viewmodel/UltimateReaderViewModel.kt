@@ -1,6 +1,7 @@
 package app.otakureader.feature.reader.viewmodel
 
 import android.content.Context
+import android.os.SystemClock
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -96,14 +97,22 @@ class UltimateReaderViewModel @Inject constructor(
     private var preloadJob: Job? = null
 
     /** Timestamp when last page change occurred, for tracking page duration. */
-    private var lastPageChangeMs: Long = System.currentTimeMillis()
+    private var lastPageChangeMs: Long = SystemClock.elapsedRealtime()
 
     /**
-     * Session start timestamp - captured at ViewModel creation.
-     * Made internal for ReadingTimerOverlay access within the feature:reader module.
+     * Wall-clock timestamp captured at ViewModel creation, used as the `readAt` value when
+     * recording history entries (epoch millis, suitable for display and comparison).
+     */
+    internal val sessionReadAt: Long = System.currentTimeMillis()
+
+    /**
+     * Monotonic timestamp captured at ViewModel creation, used for computing reading session
+     * duration. Using [SystemClock.elapsedRealtime] (not wall-clock time) ensures the measured
+     * duration is unaffected by clock adjustments, timezone changes, or daylight-saving shifts.
+     * Made internal for [ReadingTimerOverlay] access within the feature:reader module.
      * This timestamp is never updated and represents the start of the reading session.
      */
-    internal val sessionStartMs = System.currentTimeMillis()
+    internal val sessionStartMs: Long = SystemClock.elapsedRealtime()
 
     /** Independent scope used for cleanup work that must survive viewModelScope cancellation. */
     private val cleanupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -117,7 +126,7 @@ class UltimateReaderViewModel @Inject constructor(
     private fun recordHistoryOpen() {
         // Reset page change timestamp when the chapter is opened so that
         // the first recorded page duration does not include chapter load time.
-        lastPageChangeMs = System.currentTimeMillis()
+        lastPageChangeMs = SystemClock.elapsedRealtime()
 
         viewModelScope.launch {
             // Resolve the incognito flag directly from settings to avoid races with loadSettings()
@@ -135,7 +144,7 @@ class UltimateReaderViewModel @Inject constructor(
             runCatching {
                 chapterRepository.recordHistory(
                     chapterId = chapterId,
-                    readAt = sessionStartMs,
+                    readAt = sessionReadAt,
                     readDurationMs = 0L
                 )
             }
@@ -185,10 +194,21 @@ class UltimateReaderViewModel @Inject constructor(
                 false
             }
 
-            // TODO: Add DataStore persistence for overlay settings (showReadingTimer, showBatteryTime)
-            // When implemented, use try-catch with CancellationException re-throw like other settings
-            val showReadingTimer = false
-            val showBatteryTime = false
+            // Load overlay settings from DataStore
+            val showReadingTimer = try {
+                settingsRepository.showReadingTimer.first()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                false
+            }
+            val showBatteryTime = try {
+                settingsRepository.showBatteryTime.first()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                false
+            }
 
             // Cache preload settings so preloadPages() doesn't read DataStore per page change (#264)
             cachedPreloadBefore = try {
@@ -449,9 +469,9 @@ class UltimateReaderViewModel @Inject constructor(
 
             // Record navigation event for behavior tracking
             if (cachedAdaptiveLearningEnabled) {
-                val now = System.currentTimeMillis()
-                val pageDuration = now - lastPageChangeMs
-                lastPageChangeMs = now
+                val nowElapsed = SystemClock.elapsedRealtime()
+                val pageDuration = nowElapsed - lastPageChangeMs
+                lastPageChangeMs = nowElapsed
 
                 val event = PageNavigationEvent(
                     mangaId = mangaId,
@@ -460,7 +480,7 @@ class UltimateReaderViewModel @Inject constructor(
                     toPage = validPage,
                     pageDurationMs = pageDuration,
                     readerMode = _state.value.mode.ordinal,
-                    timestamp = now
+                    timestamp = System.currentTimeMillis()
                 )
                 behaviorTracker.recordNavigation(event)
             }
@@ -828,7 +848,7 @@ class UltimateReaderViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
-        val durationMs = System.currentTimeMillis() - sessionStartMs
+        val durationMs = SystemClock.elapsedRealtime() - sessionStartMs
         // Capture state before the ViewModel is torn down so the cleanupScope coroutine can
         // safely read it after viewModelScope (and therefore state updates) are cancelled.
         val currentState = _state.value
@@ -858,7 +878,7 @@ class UltimateReaderViewModel @Inject constructor(
             runCatching {
                 chapterRepository.recordHistory(
                     chapterId = chapterId,
-                    readAt = sessionStartMs,
+                    readAt = sessionReadAt,
                     readDurationMs = durationMs
                 )
             }

@@ -39,8 +39,28 @@ import java.util.Date
 import java.util.Locale
 
 /**
+ * Parses battery level percentage and charging state from a battery-status [Intent].
+ *
+ * @return Pair of (batteryPercent: Float in 0–100, isCharging: Boolean).
+ */
+private fun parseBatteryIntent(intent: Intent): Pair<Float, Boolean> {
+    val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, 0)
+    val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 100)
+    // Guard against division by zero and clamp to valid range (0-100)
+    val percent = if (scale > 0) {
+        ((level / scale.toFloat()) * 100f).coerceIn(0f, 100f)
+    } else {
+        0f
+    }
+    val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+    val charging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                   status == BatteryManager.BATTERY_STATUS_FULL
+    return percent to charging
+}
+
+/**
  * Displays battery level and current system time in the reader.
- * Battery status updates via BroadcastReceiver, time updates every second.
+ * Battery status updates via BroadcastReceiver, time updates every minute.
  *
  * Inspired by Komikku's battery/time overlay for reader convenience.
  */
@@ -61,18 +81,9 @@ fun BatteryTimeOverlay(
     DisposableEffect(Unit) {
         val batteryReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
-                val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, 0)
-                val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 100)
-                // Guard against division by zero and clamp to valid range (0-100)
-                batteryLevel = if (scale > 0) {
-                    ((level / scale.toFloat()) * 100f).coerceIn(0f, 100f)
-                } else {
-                    0f
-                }
-
-                val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
-                isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
-                             status == BatteryManager.BATTERY_STATUS_FULL
+                val (level, charging) = parseBatteryIntent(intent)
+                batteryLevel = level
+                isCharging = charging
             }
         }
 
@@ -86,17 +97,9 @@ fun BatteryTimeOverlay(
 
         // Process sticky intent to initialize battery level immediately
         stickyIntent?.let { intent ->
-            val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, 0)
-            val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 100)
-            batteryLevel = if (scale > 0) {
-                ((level / scale.toFloat()) * 100f).coerceIn(0f, 100f)
-            } else {
-                0f
-            }
-
-            val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
-            isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
-                         status == BatteryManager.BATTERY_STATUS_FULL
+            val (level, charging) = parseBatteryIntent(intent)
+            batteryLevel = level
+            isCharging = charging
         }
 
         onDispose {

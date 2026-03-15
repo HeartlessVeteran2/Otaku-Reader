@@ -304,6 +304,26 @@ class ReaderSettingsRepository @Inject constructor(
         dataStore.edit { it[Keys.DATA_SAVER_ENABLED] = enabled }
     }
 
+    // ==================== Overlay Settings ====================
+
+    /** Whether the reading session timer overlay is shown in the reader. */
+    val showReadingTimer: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.SHOW_READING_TIMER] ?: false
+    }
+
+    suspend fun setShowReadingTimer(enabled: Boolean) {
+        dataStore.edit { it[Keys.SHOW_READING_TIMER] = enabled }
+    }
+
+    /** Whether the battery/time overlay is shown in the reader. */
+    val showBatteryTime: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[Keys.SHOW_BATTERY_TIME] ?: false
+    }
+
+    suspend fun setShowBatteryTime(enabled: Boolean) {
+        dataStore.edit { it[Keys.SHOW_BATTERY_TIME] = enabled }
+    }
+
     private object Keys {
         val READER_MODE = intPreferencesKey("reader_mode_setting")
         val BRIGHTNESS = floatPreferencesKey("reader_brightness")
@@ -340,6 +360,8 @@ class ReaderSettingsRepository @Inject constructor(
         /** Legacy int key kept solely for one-time migration from the old ordinal-based storage. */
         val IMAGE_QUALITY_LEGACY = intPreferencesKey("reader_image_quality")
         val DATA_SAVER_ENABLED = booleanPreferencesKey("reader_data_saver_enabled")
+        val SHOW_READING_TIMER = booleanPreferencesKey("reader_show_reading_timer")
+        val SHOW_BATTERY_TIME = booleanPreferencesKey("reader_show_battery_time")
     }
     
     companion object {
