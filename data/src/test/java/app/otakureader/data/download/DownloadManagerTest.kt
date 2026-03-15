@@ -52,7 +52,7 @@ class DownloadManagerTest {
         every { downloadPreferences.saveAsCbz } returns flowOf(false)
 
         // Mock successful download
-        coEvery { downloader.downloadPage(any(), any()) } returns Result.success(Unit)
+        coEvery { downloader.downloadPage(any(), any()) } returns Result.success(File("/tmp/test/page.jpg"))
 
         // Mock file operations
         every { context.getExternalFilesDir(null) } returns File("/tmp/test")
