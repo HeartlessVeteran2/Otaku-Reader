@@ -147,7 +147,6 @@ private fun SmartPanelView(
         onTap = onTap,
         rotation = rotation,
         cropBordersEnabled = cropBordersEnabled,
-        imageQuality = imageQuality,
         dataSaverEnabled = dataSaverEnabled,
         modifier = modifier
     )

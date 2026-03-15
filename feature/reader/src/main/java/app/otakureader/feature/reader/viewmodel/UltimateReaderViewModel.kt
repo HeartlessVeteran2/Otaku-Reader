@@ -98,7 +98,11 @@ class UltimateReaderViewModel @Inject constructor(
     /** Timestamp when last page change occurred, for tracking page duration. */
     private var lastPageChangeMs: Long = System.currentTimeMillis()
 
-    /** Session start timestamp - made internal for ReadingTimerOverlay access */
+    /**
+     * Session start timestamp - captured at ViewModel creation.
+     * Made internal for ReadingTimerOverlay access within the feature:reader module.
+     * This timestamp is never updated and represents the start of the reading session.
+     */
     internal val sessionStartMs = System.currentTimeMillis()
 
     /** Independent scope used for cleanup work that must survive viewModelScope cancellation. */
@@ -180,6 +184,9 @@ class UltimateReaderViewModel @Inject constructor(
             } catch (_: Exception) {
                 false
             }
+
+            // TODO: Add DataStore persistence for overlay settings (showReadingTimer, showBatteryTime)
+            // When implemented, use try-catch with CancellationException re-throw like other settings
             val showReadingTimer = false
             val showBatteryTime = false
 

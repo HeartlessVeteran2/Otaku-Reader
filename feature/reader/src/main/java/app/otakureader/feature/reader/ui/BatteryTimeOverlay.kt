@@ -63,7 +63,12 @@ fun BatteryTimeOverlay(
             override fun onReceive(context: Context, intent: Intent) {
                 val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, 0)
                 val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 100)
-                batteryLevel = if (scale > 0) (level / scale.toFloat()) * 100 else 0f
+                // Guard against division by zero and clamp to valid range (0-100)
+                batteryLevel = if (scale > 0) {
+                    ((level / scale.toFloat()) * 100f).coerceIn(0f, 100f)
+                } else {
+                    0f
+                }
 
                 val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
                 isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
@@ -71,12 +76,28 @@ fun BatteryTimeOverlay(
             }
         }
 
-        ContextCompat.registerReceiver(
+        // Register receiver and process sticky intent to initialize battery state
+        val stickyIntent = ContextCompat.registerReceiver(
             context,
             batteryReceiver,
             IntentFilter(Intent.ACTION_BATTERY_CHANGED),
             ContextCompat.RECEIVER_NOT_EXPORTED
         )
+
+        // Process sticky intent to initialize battery level immediately
+        stickyIntent?.let { intent ->
+            val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, 0)
+            val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 100)
+            batteryLevel = if (scale > 0) {
+                ((level / scale.toFloat()) * 100f).coerceIn(0f, 100f)
+            } else {
+                0f
+            }
+
+            val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+            isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                         status == BatteryManager.BATTERY_STATUS_FULL
+        }
 
         onDispose {
             context.unregisterReceiver(batteryReceiver)
