@@ -112,7 +112,7 @@ class SettingsViewModel @Inject constructor(
             }.combine(readerSettingsRepository.cropBordersEnabled) { state, cropBorders ->
                 state.copy(cropBordersEnabled = cropBorders)
             }.combine(readerSettingsRepository.imageQuality) { state, imageQuality ->
-                state.copy(imageQuality = imageQuality.ordinal)
+                state.copy(imageQuality = imageQuality.name)
             }.combine(readerSettingsRepository.dataSaverEnabled) { state, dataSaver ->
                 state.copy(dataSaverEnabled = dataSaver)
             }.combine(downloadPreferences.autoDownloadEnabled) { state, autoDownloadEnabled ->
@@ -202,9 +202,8 @@ class SettingsViewModel @Inject constructor(
                 is SettingsEvent.SetPreloadPagesAfter -> readerSettingsRepository.setPreloadPagesAfter(event.count)
                 is SettingsEvent.SetCropBordersEnabled -> readerSettingsRepository.setCropBordersEnabled(event.enabled)
                 is SettingsEvent.SetImageQuality -> {
-                    // quality values are always in-range (0–3) when emitted by the UI radio buttons,
-                    // but we guard here to be safe against future callers.
-                    val quality = ImageQuality.entries.getOrNull(event.quality) ?: ImageQuality.ORIGINAL
+                    val quality = ImageQuality.entries.firstOrNull { it.name == event.quality }
+                        ?: ImageQuality.ORIGINAL
                     readerSettingsRepository.setImageQuality(quality)
                 }
                 is SettingsEvent.SetDataSaverEnabled -> readerSettingsRepository.setDataSaverEnabled(event.enabled)

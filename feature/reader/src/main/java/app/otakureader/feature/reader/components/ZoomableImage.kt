@@ -151,16 +151,24 @@ fun ZoomableImage(
     ) {
         if (imageUrl != null) {
             val context = LocalContext.current
-            val imageModel = remember(imageUrl, cropBordersEnabled, imageQuality, dataSaverEnabled, context) {
+            val imageModel = remember(imageUrl, cropBordersEnabled, imageQuality, dataSaverEnabled, containerSize, context) {
                 val builder = ImageRequest.Builder(context).data(imageUrl)
+                // Determine the container's longest side in px (0 when not yet measured).
+                val containerMax = if (containerSize != IntSize.Zero)
+                    max(containerSize.width, containerSize.height) else 0
                 // imageQuality caps by explicit pixel budget; dataSaverEnabled is a fallback cap
-                // when quality is ORIGINAL.
+                // when quality is ORIGINAL.  Where the container is already measured we further
+                // cap at the container dimension so we never decode more pixels than fit on screen.
                 if (imageQuality.pixels != null) {
                     // Coil fits the image into the given box (ContentScale.Fit semantics),
                     // so equal width and height effectively cap the longer side at that value.
-                    builder.size(imageQuality.pixels, imageQuality.pixels)
+                    val targetPx = if (containerMax > 0) min(imageQuality.pixels, containerMax)
+                                   else imageQuality.pixels
+                    builder.size(targetPx, targetPx)
                 } else if (dataSaverEnabled) {
-                    builder.size(DATA_SAVER_MAX_DIMENSION).scale(coil3.size.Scale.FIT)
+                    val targetPx = if (containerMax > 0) min(DATA_SAVER_MAX_DIMENSION, containerMax)
+                                   else DATA_SAVER_MAX_DIMENSION
+                    builder.size(targetPx).scale(coil3.size.Scale.FIT)
                 } else {
                     builder.size(Size.ORIGINAL)
                 }

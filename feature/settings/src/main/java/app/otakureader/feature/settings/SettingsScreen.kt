@@ -593,7 +593,7 @@ private fun ReaderSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit
                 supportingContent = {
                     Column(modifier = Modifier.selectableGroup()) {
                         val qualities = ImageQuality.entries.map { quality ->
-                            stringResource(quality.stringRes) to quality.ordinal
+                            stringResource(quality.stringRes) to quality.name
                         }
                         qualities.forEach { (label, value) ->
                             Row(
