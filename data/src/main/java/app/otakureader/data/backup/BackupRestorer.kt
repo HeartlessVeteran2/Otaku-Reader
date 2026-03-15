@@ -109,11 +109,11 @@ class BackupRestorer @Inject constructor(
                 chapterDao.insert(backupChapter.toChapterEntity(mangaId))
             }
 
-            // Restore reading history if present
+            // Restore reading history if present.
+            // replaceHistory uses INSERT OR REPLACE, which is a single atomic statement that
+            // sets the exact backed-up values without accumulating duration on repeated restores.
             backupChapter.readingHistory?.let { history ->
-                // Ensure restore is idempotent: clear existing history first so upsert does not accumulate duration
-                readingHistoryDao.deleteHistoryForChapter(chapterId)
-                readingHistoryDao.upsert(chapterId, history.readAt, history.readDurationMs)
+                readingHistoryDao.replaceHistory(chapterId, history.readAt, history.readDurationMs)
             }
         }
     }
