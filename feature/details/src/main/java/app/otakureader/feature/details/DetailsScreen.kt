@@ -70,6 +70,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
@@ -764,6 +766,8 @@ private fun PreloadOption(
     onChange: (Int?) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val decrementDesc = stringResource(R.string.details_stepper_decrement_description)
+    val incrementDesc = stringResource(R.string.details_stepper_increment_description)
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -776,7 +780,8 @@ private fun PreloadOption(
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(
                 onClick = { onChange((value ?: 0).coerceAtLeast(0) - 1) },
-                enabled = (value ?: 0) > 0
+                enabled = (value ?: 0) > 0,
+                modifier = Modifier.semantics { contentDescription = decrementDesc }
             ) {
                 Text(stringResource(R.string.details_stepper_decrement))
             }
@@ -786,7 +791,8 @@ private fun PreloadOption(
             )
             TextButton(
                 onClick = { onChange((value ?: 0).coerceAtMost(9) + 1) },
-                enabled = (value ?: 0) < 10
+                enabled = (value ?: 0) < 10,
+                modifier = Modifier.semantics { contentDescription = incrementDesc }
             ) {
                 Text(stringResource(R.string.details_stepper_increment))
             }

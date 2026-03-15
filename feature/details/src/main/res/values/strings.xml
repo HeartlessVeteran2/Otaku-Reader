@@ -108,4 +108,6 @@
     <!-- Stepper control -->
     <string name="details_stepper_decrement">−</string>
     <string name="details_stepper_increment">+</string>
+    <string name="details_stepper_decrement_description">Decrease</string>
+    <string name="details_stepper_increment_description">Increase</string>
 </resources>

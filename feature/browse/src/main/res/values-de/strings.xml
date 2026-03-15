@@ -25,4 +25,15 @@
         <item quantity="one">%d Aktualisierung verfügbar</item>
         <item quantity="other">%d Aktualisierungen verfügbar</item>
     </plurals>
+
+    <!-- SourceFilterSheet -->
+    <string name="browse_filters_reset">Zurücksetzen</string>
+    <string name="browse_filters_cancel">Abbrechen</string>
+    <string name="browse_filters_apply">Anwenden</string>
+
+    <!-- SourceFilterSheet accessibility -->
+    <string name="browse_sort_ascending">Aufsteigend</string>
+    <string name="browse_sort_descending">Absteigend</string>
+    <string name="browse_group_collapse">Einklappen</string>
+    <string name="browse_group_expand">Ausklappen</string>
 </resources>

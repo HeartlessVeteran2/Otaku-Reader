@@ -25,4 +25,15 @@
         <item quantity="one">%d обновление доступно</item>
         <item quantity="other">%d обновлений доступно</item>
     </plurals>
+
+    <!-- SourceFilterSheet -->
+    <string name="browse_filters_reset">Сбросить</string>
+    <string name="browse_filters_cancel">Отмена</string>
+    <string name="browse_filters_apply">Применить</string>
+
+    <!-- SourceFilterSheet accessibility -->
+    <string name="browse_sort_ascending">По возрастанию</string>
+    <string name="browse_sort_descending">По убыванию</string>
+    <string name="browse_group_collapse">Свернуть</string>
+    <string name="browse_group_expand">Развернуть</string>
 </resources>

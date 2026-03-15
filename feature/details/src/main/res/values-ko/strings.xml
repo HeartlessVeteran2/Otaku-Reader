@@ -86,4 +86,6 @@
     <string name="details_sort_ascending">↑ 오름차순</string>
     <string name="details_sort_descending">↓ 내림차순</string>
     <string name="details_no_manga">만화 상세정보가 없습니다</string>
+    <string name="details_stepper_decrement_description">감소</string>
+    <string name="details_stepper_increment_description">증가</string>
 </resources>
