@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.InterruptedIOException
 import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
 
@@ -129,8 +130,10 @@ class SourceRepositoryImpl(
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
-                // Record failure for health monitoring
-                healthMonitor.recordFailure(sourceId, e)
+                // Don't record transient I/O interruptions (e.g. socket timeouts) as source failures
+                if (e !is InterruptedIOException) {
+                    healthMonitor.recordFailure(sourceId, e)
+                }
                 Result.failure(e)
             }
         }
@@ -165,9 +168,13 @@ class SourceRepositoryImpl(
                 healthMonitor.recordSuccess(sourceId)
 
                 Result.success(mangaPage)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
-                // Record failure for health monitoring
-                healthMonitor.recordFailure(sourceId, e)
+                // Don't record transient I/O interruptions (e.g. socket timeouts) as source failures
+                if (e !is InterruptedIOException) {
+                    healthMonitor.recordFailure(sourceId, e)
+                }
                 Result.failure(e)
             }
         }
@@ -220,9 +227,13 @@ class SourceRepositoryImpl(
                 healthMonitor.recordSuccess(sourceId)
 
                 Result.success(mangaPage)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
-                // Record failure for health monitoring
-                healthMonitor.recordFailure(sourceId, e)
+                // Don't record transient I/O interruptions (e.g. socket timeouts) as source failures
+                if (e !is InterruptedIOException) {
+                    healthMonitor.recordFailure(sourceId, e)
+                }
                 Result.failure(e)
             }
         }
@@ -251,9 +262,13 @@ class SourceRepositoryImpl(
                 healthMonitor.recordSuccess(sourceId)
 
                 Result.success(details)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
-                // Record failure for health monitoring
-                healthMonitor.recordFailure(sourceId, e)
+                // Don't record transient I/O interruptions (e.g. socket timeouts) as source failures
+                if (e !is InterruptedIOException) {
+                    healthMonitor.recordFailure(sourceId, e)
+                }
                 Result.failure(e)
             }
         }
@@ -277,9 +292,13 @@ class SourceRepositoryImpl(
                 healthMonitor.recordSuccess(sourceId)
 
                 Result.success(chapters)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
-                // Record failure for health monitoring
-                healthMonitor.recordFailure(sourceId, e)
+                // Don't record transient I/O interruptions (e.g. socket timeouts) as source failures
+                if (e !is InterruptedIOException) {
+                    healthMonitor.recordFailure(sourceId, e)
+                }
                 Result.failure(e)
             }
         }
