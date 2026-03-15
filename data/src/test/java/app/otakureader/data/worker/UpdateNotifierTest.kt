@@ -24,6 +24,14 @@ import org.junit.Test
 import org.junit.Assert.*
 
 /**
+ * Fully-qualified class name for Coil's SingletonImageLoader extension file.
+ * This is a generated Kotlin class name that maps to the file where `Context.imageLoader`
+ * is defined. If Coil changes its internal structure, this may need updating.
+ * Consider using a test utility or DI to avoid this brittleness.
+ */
+private const val COIL_IMAGE_LOADER_CLASS = "coil3.SingletonImageLoader_androidKt"
+
+/**
  * Unit tests for UpdateNotifier notification grouping and cover image loading.
  * Tests notification creation, grouping logic, and image timeout handling.
  */
@@ -69,19 +77,28 @@ class UpdateNotifierTest {
         mockkStatic(NotificationManagerCompat::class)
         every { NotificationManagerCompat.from(context) } returns notificationManager
 
-        // Mock static PendingIntent.getActivity()
+        // Mock static PendingIntent.getActivity() with specific flag matching for Android 12+ compatibility.
+        // Production code uses FLAG_UPDATE_CURRENT | FLAG_IMMUTABLE, so we match that exact combination.
         mockkStatic(PendingIntent::class)
-        every { PendingIntent.getActivity(any(), any(), any(), any()) } returns mockk(relaxed = true)
+        every { 
+            PendingIntent.getActivity(
+                any<Context>(), 
+                any<Int>(), 
+                any(), 
+                eq(PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            ) 
+        } returns mockk(relaxed = true)
 
         // Mock context services
         every { context.packageName } returns "app.otakureader"
         every { context.packageManager } returns packageManager
 
         // Mock Coil's Context.imageLoader extension property.
-        // This requires mocking the file where the extension is defined (SingletonImageLoader.android.kt in Coil3).
-        // While the generated class name could change with library updates, this is the standard approach
-        // for mocking extension properties from external libraries.
-        mockkStatic("coil3.SingletonImageLoader_androidKt")
+        // This mocks the file where the extension is defined (SingletonImageLoader.android.kt in Coil3).
+        // Note: This is a generated class name that could change with Coil library updates.
+        // If tests fail after updating Coil, verify the actual class name in the Coil artifact.
+        // Centralizing this in a test utility or using dependency injection would be more robust.
+        mockkStatic(COIL_IMAGE_LOADER_CLASS)
         every { context.imageLoader } returns imageLoader
 
         every { context.getSystemService(NotificationManager::class.java) } returns systemNotificationManager
@@ -259,7 +276,14 @@ class UpdateNotifierTest {
     @Test
     fun `notify continues when image loading times out`() = runTest {
         // Given - image loading takes too long (simulated with timeout)
-        // Use a generic exception instead of CancellationException to avoid canceling the test scope
+        // We use TimeoutException instead of CancellationException because throwing
+        // CancellationException would cancel the test scope itself (runTest uses a
+        // TestScope that treats CancellationException specially).
+        // 
+        // PRODUCTION NOTE: The production code catches Exception, so TimeoutException
+        // is handled the same way as any other failure - the notification proceeds
+        // without the cover image. If production code specifically handles cancellation
+        // differently, that should be tested separately with a different mocking approach.
         coEvery { imageLoader.execute(any()) } throws java.util.concurrent.TimeoutException("simulated timeout")
 
         val mangaList = listOf(testManga1)
