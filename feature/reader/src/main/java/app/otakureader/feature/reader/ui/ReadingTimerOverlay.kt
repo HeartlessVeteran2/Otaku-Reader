@@ -1,5 +1,6 @@
 package app.otakureader.feature.reader.ui
 
+import android.os.SystemClock
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
@@ -36,12 +37,12 @@ fun ReadingTimerOverlay(
 ) {
     if (!isVisible) return
 
-    var currentTimeMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    var currentTimeMs by remember { mutableLongStateOf(SystemClock.elapsedRealtime()) }
 
     // Update current time every second
     LaunchedEffect(Unit) {
         while (true) {
-            currentTimeMs = System.currentTimeMillis()
+            currentTimeMs = SystemClock.elapsedRealtime()
             delay(1000)
         }
     }
