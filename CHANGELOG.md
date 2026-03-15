@@ -36,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add/edit/delete OPDS servers with authentication
   - Browse catalog hierarchy, search feeds, and download archives (CBZ/CBR)
 - 🤖 **AI Recommendations (Gemini)**: `GeminiClient` for manga recommendations
-  - HMAC-SHA256 (per-process SecureRandom salt) config fingerprint for cache integrity
+  - SHA-256 config fingerprint of `(apiKey, modelName)` stored as hex string (reduces raw API key exposure in memory)
   - `AiRepositoryImpl` with `TimeoutCancellationException` → `Result.failure` mapping
 - 🎮 **Discord Rich Presence**: `DiscordRpcService` shows currently reading manga
   - Graceful fallback when Discord is not installed or not running

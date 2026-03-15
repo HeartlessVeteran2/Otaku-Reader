@@ -346,12 +346,12 @@ The download system allows chapters to be saved locally for offline reading, wit
 
 ```
 {app external files dir}/OtakuReader/
-  {sourceId}/
-    {mangaId}/
-      {chapterId}/         ← loose image files
-        0.jpg, 1.jpg, …
-      {chapterId}.cbz      ← CBZ archive (optional)
-      {chapterId}/.pages/  ← CBZ extraction cache
+  {sanitized sourceName}/
+    {sanitized mangaTitle}/
+      {sanitized chapterName}/
+        0.jpg, 1.jpg, …   ← loose image files
+        chapter.cbz        ← optional CBZ archive
+        .pages/            ← CBZ extraction cache
 ```
 
 ### Status Values
@@ -432,7 +432,7 @@ OPDS (Open Publication Distribution System) support allows browsing and download
 
 ### Key Design
 
-- **Config Fingerprinting**: Uses HMAC-SHA256 (keyed by a per-process 32-byte SecureRandom salt) to detect configuration changes and invalidate cached recommendations.
+- **Config Fingerprinting**: Uses SHA-256 (via `MessageDigest`) on the `(apiKey, modelName)` pair (null-byte delimited) to detect configuration changes. The resulting hex string is stored in memory instead of the raw API key to reduce secret exposure.
 - **Timeout Handling**: `TimeoutCancellationException` is caught before the generic `CancellationException` in `AiRepositoryImpl` to correctly map request timeouts to `Result.failure`.
 - **Privacy**: All AI calls are opt-in; no data is sent without user consent.
 
