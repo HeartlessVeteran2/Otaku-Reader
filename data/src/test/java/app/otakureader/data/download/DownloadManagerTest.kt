@@ -402,8 +402,14 @@ class DownloadManagerTest {
         downloadManager.enqueue(emptyRequest)
         advanceUntilIdle()
 
+        // Poll until the IO job completes and sets the status back to QUEUED
+        var downloads = downloadManager.downloads.first()
+        while (downloads.firstOrNull()?.status == DownloadStatus.DOWNLOADING) {
+            advanceUntilIdle()
+            downloads = downloadManager.downloads.first()
+        }
+
         // Then - should stay QUEUED (not fail)
-        val downloads = downloadManager.downloads.first()
         assertEquals(1, downloads.size)
         assertEquals(DownloadStatus.QUEUED, downloads[0].status)
     }
@@ -515,6 +521,141 @@ class DownloadManagerTest {
         // Then - insertion order preserved for equal priorities
         val downloads = downloadManager.downloads.first()
         assertEquals(listOf(1L, 2L, 3L), downloads.map { it.chapterId })
+    }
+
+    // -------------------------------------------------------------------------
+    // prioritizeAll Tests
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `prioritizeAll moves targets before non-targets`() = runTest(testDispatcher) {
+        // Given - four chapters in default priority order (all with no pages to stay QUEUED)
+        for (id in 1L..4L) {
+            downloadManager.enqueue(testRequest.copy(chapterId = id, pageUrls = emptyList()))
+        }
+        advanceUntilIdle()
+
+        // When - bulk-prioritize chapters 3 and 4
+        downloadManager.prioritizeAll(listOf(3L, 4L))
+        advanceUntilIdle()
+
+        // Then - chapters 3 and 4 appear before 1 and 2
+        val ids = downloadManager.downloads.first().map { it.chapterId }
+        val indexOf3 = ids.indexOf(3L)
+        val indexOf4 = ids.indexOf(4L)
+        val indexOf1 = ids.indexOf(1L)
+        val indexOf2 = ids.indexOf(2L)
+        assertTrue("3 should come before 1", indexOf3 < indexOf1)
+        assertTrue("3 should come before 2", indexOf3 < indexOf2)
+        assertTrue("4 should come before 1", indexOf4 < indexOf1)
+        assertTrue("4 should come before 2", indexOf4 < indexOf2)
+    }
+
+    @Test
+    fun `prioritizeAll preserves relative order of targets`() = runTest(testDispatcher) {
+        // Given - five chapters enqueued with ascending priorities so queue order is 1,2,3,4,5
+        for (id in 1L..5L) {
+            downloadManager.enqueue(
+                testRequest.copy(chapterId = id, pageUrls = emptyList(), priority = id.toInt())
+            )
+        }
+        advanceUntilIdle()
+
+        // When - bulk-prioritize chapters 5, 2, 4 (in arbitrary caller order)
+        downloadManager.prioritizeAll(listOf(5L, 2L, 4L))
+        advanceUntilIdle()
+
+        // Then - targets appear before non-targets AND retain their relative queue order (2,4,5)
+        val ids = downloadManager.downloads.first().map { it.chapterId }
+        // Non-target IDs 1 and 3 come after the three targets
+        val firstNonTargetIndex = ids.indexOfFirst { it == 1L || it == 3L }
+        val lastTargetIndex = ids.indexOfLast { it == 2L || it == 4L || it == 5L }
+        assertTrue("All targets should be before non-targets", lastTargetIndex < firstNonTargetIndex)
+        // Relative queue order among targets: 2 before 4 before 5
+        assertTrue(ids.indexOf(2L) < ids.indexOf(4L))
+        assertTrue(ids.indexOf(4L) < ids.indexOf(5L))
+    }
+
+    @Test
+    fun `prioritizeAll ignores IDs not in queue`() = runTest(testDispatcher) {
+        // Given
+        downloadManager.enqueue(testRequest.copy(chapterId = 1L, pageUrls = emptyList()))
+        downloadManager.enqueue(testRequest.copy(chapterId = 2L, pageUrls = emptyList()))
+        advanceUntilIdle()
+
+        val before = downloadManager.downloads.first()
+
+        // When - include an ID (999) that is not in the queue
+        downloadManager.prioritizeAll(listOf(999L))
+        advanceUntilIdle()
+
+        // Then - queue unchanged
+        val after = downloadManager.downloads.first()
+        assertEquals(before.map { it.chapterId }, after.map { it.chapterId })
+        assertEquals(before.map { it.priority }, after.map { it.priority })
+    }
+
+    @Test
+    fun `prioritizeAll with empty list is a no-op`() = runTest(testDispatcher) {
+        // Given
+        downloadManager.enqueue(testRequest.copy(chapterId = 1L, pageUrls = emptyList()))
+        advanceUntilIdle()
+        val before = downloadManager.downloads.first()
+
+        // When
+        downloadManager.prioritizeAll(emptyList())
+        advanceUntilIdle()
+
+        // Then - unchanged
+        val after = downloadManager.downloads.first()
+        assertEquals(before.map { it.chapterId }, after.map { it.chapterId })
+    }
+
+    @Test
+    fun `prioritizeAll handles near Int-MIN_VALUE priorities correctly`() = runTest(testDispatcher) {
+        // Given - one target already near Int.MIN_VALUE, two non-targets with NORMAL priority
+        val nearMin = testRequest.copy(chapterId = 1L, pageUrls = emptyList(), priority = Int.MIN_VALUE + 1)
+        val normal1 = testRequest.copy(chapterId = 2L, pageUrls = emptyList(), priority = 0)
+        val normal2 = testRequest.copy(chapterId = 3L, pageUrls = emptyList(), priority = 1)
+
+        downloadManager.enqueue(nearMin)
+        downloadManager.enqueue(normal1)
+        downloadManager.enqueue(normal2)
+        advanceUntilIdle()
+
+        // When - prioritize the already-near-min item AND normal1
+        downloadManager.prioritizeAll(listOf(1L, 2L))
+        advanceUntilIdle()
+
+        // Then - both prioritized items appear before normal2, and none have crashed
+        val downloads = downloadManager.downloads.first()
+        assertEquals(3, downloads.size)
+        val idx1 = downloads.indexOfFirst { it.chapterId == 1L }
+        val idx2 = downloads.indexOfFirst { it.chapterId == 2L }
+        val idx3 = downloads.indexOfFirst { it.chapterId == 3L }
+        assertTrue("chapter 1 before chapter 3", idx1 < idx3)
+        assertTrue("chapter 2 before chapter 3", idx2 < idx3)
+        // All prioritized items must have strictly lower priority than non-targets
+        assertTrue(downloads[idx1].priority < downloads[idx3].priority)
+        assertTrue(downloads[idx2].priority < downloads[idx3].priority)
+    }
+
+    @Test
+    fun `prioritizeAll when all items are targets leaves them all present`() = runTest(testDispatcher) {
+        // Given
+        for (id in 1L..3L) {
+            downloadManager.enqueue(testRequest.copy(chapterId = id, pageUrls = emptyList()))
+        }
+        advanceUntilIdle()
+
+        // When - target every item
+        downloadManager.prioritizeAll(listOf(1L, 2L, 3L))
+        advanceUntilIdle()
+
+        // Then - all items still present
+        val downloads = downloadManager.downloads.first()
+        assertEquals(3, downloads.size)
+        assertEquals(setOf(1L, 2L, 3L), downloads.map { it.chapterId }.toSet())
     }
 }
 

@@ -133,7 +133,7 @@ class DownloadsViewModel @Inject constructor(
                             item.status == app.otakureader.domain.model.DownloadStatus.PAUSED)
                 }
                 .map { it.id }
-                .toSet()
+                .toList()
             if (selectedIds.isNotEmpty()) {
                 downloadRepository.prioritizeDownloads(selectedIds)
             }
