@@ -378,6 +378,8 @@ class DownloadManager @Inject constructor(
      * re-sorting the entire list.  This preserves the existing ordering, which is
      * already sorted by [DownloadItem.priority] when items are enqueued or their
      * priority changes.
+     *
+     * Must be called while holding [mutex].
      */
     private fun updateDownloadInPlace(
         chapterId: Long,
