@@ -197,21 +197,22 @@ class DownloadManager @Inject constructor(
     }
 
     /**
-     * Moves a set of chapters to the front of the queue in a single transaction.
+     * Moves a list of chapters to the front of the queue in a single transaction.
      *
      * Each chapter in [chapterIds] receives a priority value lower than every chapter
-     * that is not in the set.  Chapters within the set retain their relative order from
+     * that is not in the list.  Chapters within the list retain their relative order from
      * the current queue.  This is more efficient than calling [prioritize] repeatedly
      * because only one mutex acquisition and one list rebuild are required.
      *
      * IDs that are not currently in the queue are silently ignored.
      */
-    suspend fun prioritizeAll(chapterIds: Set<Long>) {
+    suspend fun prioritizeAll(chapterIds: List<Long>) {
         if (chapterIds.isEmpty()) return
         mutex.withLock {
+            val chapterIdSet = chapterIds.toHashSet()
             // Determine the targets in their current queue order.
             val orderedTargets = downloadMap.values
-                .filter { it.chapterId in chapterIds }
+                .filter { it.chapterId in chapterIdSet }
                 .sortedBy { it.priority }
             if (orderedTargets.isEmpty()) {
                 // Nothing to prioritize; all IDs were absent from the queue.
@@ -219,7 +220,7 @@ class DownloadManager @Inject constructor(
             }
 
             val outsideMin = downloadMap.values
-                .filter { it.chapterId !in chapterIds }
+                .filter { it.chapterId !in chapterIdSet }
                 .minOfOrNull { it.priority } ?: DownloadPriority.NORMAL
 
             // How many distinct Int slots exist below outsideMin, using Long math to avoid overflow.
@@ -240,7 +241,7 @@ class DownloadManager @Inject constructor(
                 // priorities, then place all targets in the Int.MIN_VALUE.. range so they
                 // are strictly lower than every non-target.
                 val nonTargets = downloadMap.values
-                    .filter { it.chapterId !in chapterIds }
+                    .filter { it.chapterId !in chapterIdSet }
                     .sortedBy { it.priority }
 
                 nonTargets.forEachIndexed { index, item ->
@@ -291,7 +292,7 @@ class DownloadManager @Inject constructor(
                     if (totalPages == 0) {
                         // No pages provided yet – keep the chapter queued so it can be retried
                         // later when the caller supplies the actual URLs.
-                        updateStatus(chapterId, DownloadStatus.QUEUED)
+                        mutex.withLock { updateStatus(chapterId, DownloadStatus.QUEUED) }
                         return@launch
                     }
 
@@ -319,13 +320,13 @@ class DownloadManager @Inject constructor(
                             if (result.isFailure) {
                                 // Clean up any partial write so future retries start fresh.
                                 destFile.delete()
-                                updateStatus(chapterId, DownloadStatus.FAILED)
+                                mutex.withLock { updateStatus(chapterId, DownloadStatus.FAILED) }
                                 return@launch
                             }
                         }
 
                         // Always update progress whether the file was downloaded or already existed.
-                        updateProgress(chapterId, ((index + 1) * 100) / totalPages)
+                        mutex.withLock { updateProgress(chapterId, ((index + 1) * 100) / totalPages) }
                     }
 
                     if (isActive) {

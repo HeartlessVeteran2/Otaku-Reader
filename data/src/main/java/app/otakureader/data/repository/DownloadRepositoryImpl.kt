@@ -75,7 +75,7 @@ class DownloadRepositoryImpl @Inject constructor(
         downloadManager.prioritize(chapterId)
     }
 
-    override suspend fun prioritizeDownloads(chapterIds: Set<Long>) {
+    override suspend fun prioritizeDownloads(chapterIds: List<Long>) {
         downloadManager.prioritizeAll(chapterIds)
     }
 

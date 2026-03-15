@@ -42,10 +42,10 @@ interface DownloadRepository {
 
     /**
      * Moves all given chapters to the front of the download queue in a single atomic
-     * operation.  Chapters within the set retain their relative queue order.  IDs that
+     * operation.  Chapters within the list retain their relative queue order.  IDs that
      * are not in the queue are silently ignored.
      */
-    suspend fun prioritizeDownloads(chapterIds: Set<Long>)
+    suspend fun prioritizeDownloads(chapterIds: List<Long>)
 
     /**
      * Sets an explicit priority value for the given queued chapter.
