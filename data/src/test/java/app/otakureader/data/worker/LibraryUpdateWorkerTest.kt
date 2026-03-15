@@ -11,6 +11,7 @@ import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.data.download.DownloadManager
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
+import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.usecase.GetLibraryMangaUseCase
 import app.otakureader.domain.usecase.UpdateLibraryMangaUseCase
@@ -57,11 +58,10 @@ class LibraryUpdateWorkerTest {
         author = "Author 1",
         artist = "Artist 1",
         description = "Description 1",
-        genres = listOf("Action", "Adventure"),
-        status = 0,
+        genre = listOf("Action", "Adventure"),
+        status = MangaStatus.ONGOING,
         thumbnailUrl = "https://example.com/cover1.jpg",
         favorite = true,
-        lastUpdate = System.currentTimeMillis(),
         initialized = true,
         notifyNewChapters = true,
         autoDownload = false
@@ -75,11 +75,10 @@ class LibraryUpdateWorkerTest {
         author = "Author 2",
         artist = "Artist 2",
         description = "Description 2",
-        genres = listOf("Romance", "Comedy"),
-        status = 0,
+        genre = listOf("Romance", "Comedy"),
+        status = MangaStatus.ONGOING,
         thumbnailUrl = "https://example.com/cover2.jpg",
         favorite = true,
-        lastUpdate = System.currentTimeMillis(),
         initialized = true,
         notifyNewChapters = false, // Notifications disabled for this manga
         autoDownload = true
@@ -90,13 +89,12 @@ class LibraryUpdateWorkerTest {
         mangaId = 1L,
         url = "https://example.com/chapter1",
         name = "Chapter 1",
-        chapterNumber = 1.0,
+        chapterNumber = 1.0f,
         scanlator = "Test Scanlator",
-        uploadDate = System.currentTimeMillis(),
+        dateUpload = System.currentTimeMillis(),
         read = false,
-        bookmarked = false,
-        lastReadPage = 0,
-        totalPages = 20
+        bookmark = false,
+        lastPageRead = 0
     )
 
     @Before
@@ -287,9 +285,9 @@ class LibraryUpdateWorkerTest {
         coEvery { updateLibraryManga(testManga1) } returns Result.success(3)
         coEvery { chapterRepository.getChaptersByMangaId(testManga1.id) } returns flowOf(
             listOf(
-                testChapter.copy(id = 1L, chapterNumber = 3.0, read = false),
-                testChapter.copy(id = 2L, chapterNumber = 2.0, read = false),
-                testChapter.copy(id = 3L, chapterNumber = 1.0, read = false)
+                testChapter.copy(id = 1L, chapterNumber = 3.0f, read = false),
+                testChapter.copy(id = 2L, chapterNumber = 2.0f, read = false),
+                testChapter.copy(id = 3L, chapterNumber = 1.0f, read = false)
             )
         )
 
@@ -375,10 +373,10 @@ class LibraryUpdateWorkerTest {
         coEvery { updateLibraryManga(testManga1) } returns Result.success(4)
         coEvery { chapterRepository.getChaptersByMangaId(testManga1.id) } returns flowOf(
             listOf(
-                testChapter.copy(id = 1L, chapterNumber = 4.0, read = false),
-                testChapter.copy(id = 2L, chapterNumber = 3.0, read = true), // Read - should skip
-                testChapter.copy(id = 3L, chapterNumber = 2.0, read = false),
-                testChapter.copy(id = 4L, chapterNumber = 1.0, read = true)  // Read - should skip
+                testChapter.copy(id = 1L, chapterNumber = 4.0f, read = false),
+                testChapter.copy(id = 2L, chapterNumber = 3.0f, read = true), // Read - should skip
+                testChapter.copy(id = 3L, chapterNumber = 2.0f, read = false),
+                testChapter.copy(id = 4L, chapterNumber = 1.0f, read = true)  // Read - should skip
             )
         )
 
@@ -401,9 +399,9 @@ class LibraryUpdateWorkerTest {
         coEvery { updateLibraryManga(testManga1) } returns Result.success(3)
         coEvery { chapterRepository.getChaptersByMangaId(testManga1.id) } returns flowOf(
             listOf(
-                testChapter.copy(id = 1L, chapterNumber = 1.0, read = false),
-                testChapter.copy(id = 2L, chapterNumber = 2.0, read = false),
-                testChapter.copy(id = 3L, chapterNumber = 3.0, read = false)
+                testChapter.copy(id = 1L, chapterNumber = 1.0f, read = false),
+                testChapter.copy(id = 2L, chapterNumber = 2.0f, read = false),
+                testChapter.copy(id = 3L, chapterNumber = 3.0f, read = false)
             )
         )
 
@@ -422,7 +420,6 @@ class LibraryUpdateWorkerTest {
     // WiFi Detection Tests
     // -------------------------------------------------------------------------
 
-    @Test
     @Test
     fun `isConnectedToWifi returns false when ConnectivityManager unavailable`() = runTest {
         // Given
@@ -492,7 +489,6 @@ class LibraryUpdateWorkerTest {
         assertEquals(ListenableWorker.Result.failure(), result)
     }
 
-    @Test
     @Test
     fun `doWork continues when auto-download enqueue fails`() = runTest {
         // Given
