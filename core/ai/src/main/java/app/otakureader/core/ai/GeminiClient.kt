@@ -8,6 +8,9 @@ import javax.crypto.spec.SecretKeySpec
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/** HMAC algorithm used for config MAC. */
+private const val HMAC_ALGORITHM = "HmacSHA256"
+
 /**
  * Client for interacting with Google's Gemini AI API.
  *
@@ -45,8 +48,12 @@ class GeminiClient @Inject constructor() {
      * Per-process random salt for HMAC. Generated once at instantiation time and never
      * exposed outside this object. Because the salt is only in process memory, an
      * attacker observing [configMac] cannot reverse it to obtain the API key.
+     *
+     * Uses [SecureRandom.nextBytes] for consistent entropy across platforms.
      */
-    private val hmacSalt: ByteArray = SecureRandom().generateSeed(32)
+    private val hmacSalt: ByteArray = ByteArray(32).apply {
+        SecureRandom().nextBytes(this)
+    }
 
     /**
      * Initialize the Gemini client with an API key.
@@ -78,6 +85,10 @@ class GeminiClient @Inject constructor() {
 
             generativeModel = GenerativeModel(
                 modelName = modelName,
+                // SECURITY NOTE: The raw API key is passed to the SDK here. The Gemini SDK
+                // may retain this key internally (heap, caches, logs). This is an SDK
+                // limitation - we cannot avoid passing the raw key. The key is stored
+                // encrypted at rest (see AiPreferences), but will be in memory during use.
                 apiKey = apiKey
             )
             // Store an HMAC rather than the raw API key to reduce secret exposure.
@@ -126,8 +137,8 @@ class GeminiClient @Inject constructor() {
      * attacker who only observes [configMac].
      */
     private fun configMacOf(apiKey: String, modelName: String): ByteArray {
-        val mac = Mac.getInstance("HmacSHA256")
-        mac.init(SecretKeySpec(hmacSalt, "HmacSHA256"))
+        val mac = Mac.getInstance(HMAC_ALGORITHM)
+        mac.init(SecretKeySpec(hmacSalt, HMAC_ALGORITHM))
         // Feed key and model separately with a null-byte delimiter to prevent concatenation ambiguity.
         mac.update(apiKey.toByteArray(Charsets.UTF_8))
         mac.update(0.toByte())

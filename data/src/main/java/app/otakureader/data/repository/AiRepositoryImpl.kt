@@ -10,32 +10,36 @@ import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private const val GENERATE_CONTENT_TIMEOUT_MILLIS = 30_000L
+private const val DEFAULT_GENERATE_CONTENT_TIMEOUT_MILLIS = 30_000L
 
 /**
  * Implementation of [AiRepository] using Google's Gemini AI.
  *
  * This repository provides AI-powered features by interfacing with
  * the Gemini client from the core:ai module.
+ *
+ * @property geminiClient Client for Gemini AI operations
+ * @property timeoutMillis Timeout for AI requests in milliseconds (default: 30s)
  */
 @Singleton
 class AiRepositoryImpl @Inject constructor(
-    private val geminiClient: GeminiClient
+    private val geminiClient: GeminiClient,
+    private val timeoutMillis: Long = DEFAULT_GENERATE_CONTENT_TIMEOUT_MILLIS
 ) : AiRepository {
 
     /**
      * Generate content using the Gemini AI model.
      *
-     * The request is wrapped in a [kotlinx.coroutines.withTimeout] of
-     * [GENERATE_CONTENT_TIMEOUT_MILLIS]. The Gemini SDK's `generateContent` is a
-     * suspending function that honours coroutine cancellation, so the timeout will
-     * correctly abort the in-flight network request.
+     * The request is wrapped in a [kotlinx.coroutines.withTimeout] of [timeoutMillis].
+     * The Gemini SDK's `generateContent` is a suspending function that honours coroutine
+     * cancellation, so the timeout will correctly abort the in-flight network request.
      *
      * Timeout behaviour: a [kotlinx.coroutines.TimeoutCancellationException] is caught
-     * and converted to a [Result.failure] with a descriptive [IllegalStateException],
-     * keeping the timeout transparent to callers as a domain error rather than a
-     * coroutine cancellation. External cancellations (any other
-     * [kotlinx.coroutines.CancellationException]) are re-thrown so the caller's
+     * and converted to a [Result.failure] with a descriptive [IllegalStateException].
+     * This is INTENTIONAL - timeouts are treated as domain errors (the AI service is
+     * temporarily unavailable) rather than coroutine cancellations. Callers can distinguish
+     * timeouts from other errors by checking the exception message. External cancellations
+     * (any other [kotlinx.coroutines.CancellationException]) are re-thrown so the caller's
      * coroutine scope is properly cancelled.
      *
      * @param prompt The text prompt to send to the AI
@@ -49,7 +53,7 @@ class AiRepositoryImpl @Inject constructor(
                 )
             }
 
-            val response = withTimeout(GENERATE_CONTENT_TIMEOUT_MILLIS) {
+            val response = withTimeout(timeoutMillis) {
                 geminiClient.generateContent(prompt)
             }
             val generatedText = response.text ?: ""
@@ -60,7 +64,7 @@ class AiRepositoryImpl @Inject constructor(
                 Result.success(generatedText)
             }
         } catch (e: TimeoutCancellationException) {
-            Result.failure(IllegalStateException("AI request timed out after ${GENERATE_CONTENT_TIMEOUT_MILLIS}ms", e))
+            Result.failure(IllegalStateException("AI request timed out after ${timeoutMillis}ms", e))
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
