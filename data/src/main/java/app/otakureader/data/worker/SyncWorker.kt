@@ -15,6 +15,7 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.combine
 import java.util.concurrent.TimeUnit
 
 /**
@@ -39,22 +40,29 @@ class SyncWorker @AssistedInject constructor(
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
-        val notifier = SyncNotifier(applicationContext)
+        val notifier = SyncNotifier()
 
         // Check if sync is enabled and properly configured for automatic sync
-        val isSyncEnabled = syncPreferences.isSyncEnabled.first()
-        val isAutoSyncEnabled = syncPreferences.autoSyncEnabled.first()
-        val providerId = syncPreferences.providerId.first()
+        // Combine flows into a single snapshot to read them atomically and reduce suspension overhead
+        val (isSyncEnabled, isAutoSyncEnabled, providerId) = combine(
+            syncPreferences.isSyncEnabled,
+            syncPreferences.autoSyncEnabled,
+            syncPreferences.providerId
+        ) { syncEnabled, autoEnabled, provider ->
+            Triple(syncEnabled, autoEnabled, provider)
+        }.first()
+
         if (!isSyncEnabled || !isAutoSyncEnabled || providerId == null) {
                     cancel(applicationContext)
                     return Result.success()
                 }
 
-        notifier.notifySyncing()
+        notifier.notifySyncing(applicationContext)
 
         return syncManager.sync().fold(
             onSuccess = { syncResult ->
                 notifier.notifySuccess(
+                    context = applicationContext,
                     changesCount = syncResult.totalChanges,
                     message = syncResult.message
                 )
@@ -65,7 +73,7 @@ class SyncWorker @AssistedInject constructor(
                     // Propagate coroutine/WorkManager cancellation without showing a failure notification.
                     throw throwable
                 }
-                notifier.notifyFailure(throwable.message ?: "Unknown error")
+                notifier.notifyFailure(applicationContext, throwable.message ?: "Unknown error")
                 if (throwable is IllegalStateException || throwable is NotImplementedError) {
                     Result.failure()
                 } else {

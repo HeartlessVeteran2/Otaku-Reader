@@ -13,21 +13,20 @@ import androidx.core.content.ContextCompat
 
 /**
  * Handles notifications for sync operations.
+ *
+ * Note: Does not store Context to avoid potential memory leaks. Instead, Context is
+ * passed as parameter to each notification method.
  */
-class SyncNotifier(private val context: Context) {
-
-    private val notificationManager = NotificationManagerCompat.from(context)
-
-    init {
-        createNotificationChannel()
-    }
+class SyncNotifier {
 
     /**
      * Show notification that sync is in progress.
      */
     @SuppressLint("MissingPermission")
-    fun notifySyncing() {
-        if (!hasNotificationPermission()) return
+    fun notifySyncing(context: Context) {
+        if (!hasNotificationPermission(context)) return
+
+        createNotificationChannelIfNeeded(context)
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setContentTitle("Syncing library")
@@ -37,7 +36,7 @@ class SyncNotifier(private val context: Context) {
             .setOngoing(true)
             .build()
 
-        notificationManager.notify(NOTIFICATION_ID_SYNCING, notification)
+        NotificationManagerCompat.from(context).notify(NOTIFICATION_ID_SYNCING, notification)
     }
 
     /**
@@ -47,11 +46,14 @@ class SyncNotifier(private val context: Context) {
      * @param message Optional success message
      */
     @SuppressLint("MissingPermission")
-    fun notifySuccess(changesCount: Int, message: String?) {
+    fun notifySuccess(context: Context, changesCount: Int, message: String?) {
+        val notificationManager = NotificationManagerCompat.from(context)
         // Cancel syncing notification even if posting new notifications is not allowed.
         notificationManager.cancel(NOTIFICATION_ID_SYNCING)
 
-        if (!hasNotificationPermission()) return
+        if (!hasNotificationPermission(context)) return
+
+        createNotificationChannelIfNeeded(context)
 
         val contentText = when {
             changesCount > 0 -> "Applied $changesCount changes"
@@ -76,11 +78,14 @@ class SyncNotifier(private val context: Context) {
      * @param errorMessage Error message to display
      */
     @SuppressLint("MissingPermission")
-    fun notifyFailure(errorMessage: String) {
+    fun notifyFailure(context: Context, errorMessage: String) {
+        val notificationManager = NotificationManagerCompat.from(context)
         // Cancel syncing notification even if posting new notifications is not allowed.
         notificationManager.cancel(NOTIFICATION_ID_SYNCING)
 
-        if (!hasNotificationPermission()) return
+        if (!hasNotificationPermission(context)) return
+
+        createNotificationChannelIfNeeded(context)
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setContentTitle("Sync failed")
@@ -93,7 +98,7 @@ class SyncNotifier(private val context: Context) {
         notificationManager.notify(NOTIFICATION_ID_RESULT, notification)
     }
 
-    private fun createNotificationChannel() {
+    private fun createNotificationChannelIfNeeded(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
@@ -109,7 +114,7 @@ class SyncNotifier(private val context: Context) {
         }
     }
 
-    private fun hasNotificationPermission(): Boolean {
+    private fun hasNotificationPermission(context: Context): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             ContextCompat.checkSelfPermission(
                 context,

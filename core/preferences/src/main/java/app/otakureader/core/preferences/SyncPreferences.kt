@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import app.otakureader.domain.sync.ConflictResolutionStrategy
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -30,14 +31,23 @@ class SyncPreferences(private val dataStore: DataStore<Preferences>) {
     }
 
     /**
-     * Conflict resolution strategy as integer ordinal.
-     * 0 = PREFER_NEWER (default)
-     * 1 = PREFER_LOCAL
-     * 2 = PREFER_REMOTE
-     * 3 = MERGE
+     * Conflict resolution strategy as a stable string name.
+     * Stored as the enum name (e.g., "PREFER_NEWER", "PREFER_LOCAL") instead of ordinal
+     * to avoid issues when enum order changes.
      */
-    val conflictResolutionStrategyOrdinal: Flow<Int> = dataStore.data.map { prefs ->
-        prefs[Keys.CONFLICT_STRATEGY] ?: 0 // Default to PREFER_NEWER
+    val conflictResolutionStrategy: Flow<String> = dataStore.data.map { prefs ->
+        prefs[Keys.CONFLICT_STRATEGY] ?: "PREFER_NEWER" // Default to PREFER_NEWER
+    }
+
+    /**
+     * Conflict resolution strategy as enum. Converts from stored string to enum.
+     */
+    val conflictResolutionStrategyEnum: Flow<ConflictResolutionStrategy> = conflictResolutionStrategy.map { name ->
+        try {
+            ConflictResolutionStrategy.valueOf(name)
+        } catch (e: IllegalArgumentException) {
+            ConflictResolutionStrategy.PREFER_NEWER // Fallback to default
+        }
     }
 
     val autoSyncEnabled: Flow<Boolean> = dataStore.data.map { it[Keys.AUTO_SYNC_ENABLED] ?: false }
@@ -72,10 +82,22 @@ class SyncPreferences(private val dataStore: DataStore<Preferences>) {
         }
     }
 
-    suspend fun setConflictResolutionStrategyOrdinal(ordinal: Int) {
-        val clamped = ordinal.coerceAtLeast(0)
+    suspend fun setConflictResolutionStrategy(strategy: ConflictResolutionStrategy) {
         dataStore.edit { prefs ->
-            prefs[Keys.CONFLICT_STRATEGY] = clamped
+            prefs[Keys.CONFLICT_STRATEGY] = strategy.name
+        }
+    }
+
+    suspend fun setConflictResolutionStrategyByName(strategyName: String) {
+        // Validate that the strategy name is valid before storing
+        val validStrategies = setOf("PREFER_NEWER", "PREFER_LOCAL", "PREFER_REMOTE", "MERGE")
+        val validatedStrategy = if (strategyName in validStrategies) {
+            strategyName
+        } else {
+            "PREFER_NEWER" // Fallback to default if invalid
+        }
+        dataStore.edit { prefs ->
+            prefs[Keys.CONFLICT_STRATEGY] = validatedStrategy
         }
     }
 
@@ -86,9 +108,10 @@ class SyncPreferences(private val dataStore: DataStore<Preferences>) {
     }
 
     suspend fun setSyncIntervalHours(hours: Int) {
-        val clamped = hours.coerceAtLeast(1)
+        // Validate that interval is reasonable (at least 1 hour, at most 168 hours/7 days)
+        val validatedHours = hours.coerceIn(1, 168)
         dataStore.edit { prefs ->
-            prefs[Keys.SYNC_INTERVAL_HOURS] = clamped
+            prefs[Keys.SYNC_INTERVAL_HOURS] = validatedHours
         }
     }
 
@@ -121,7 +144,7 @@ class SyncPreferences(private val dataStore: DataStore<Preferences>) {
         val PROVIDER_ID = stringPreferencesKey("sync_provider_id")
         val LAST_SYNC_TIME = longPreferencesKey("sync_last_sync_time")
         val DEVICE_ID = stringPreferencesKey("sync_device_id")
-        val CONFLICT_STRATEGY = intPreferencesKey("sync_conflict_strategy")
+        val CONFLICT_STRATEGY = stringPreferencesKey("sync_conflict_strategy")
         val AUTO_SYNC_ENABLED = booleanPreferencesKey("sync_auto_enabled")
         val SYNC_INTERVAL_HOURS = intPreferencesKey("sync_interval_hours")
         val SYNC_ONLY_WIFI = booleanPreferencesKey("sync_only_wifi")

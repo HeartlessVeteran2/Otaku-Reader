@@ -93,7 +93,11 @@ data class SettingsState(
     val autoSyncEnabled: Boolean = false,
     val syncIntervalHours: Int = 24,
     val syncOnlyOnWifi: Boolean = true,
-    val conflictResolutionStrategy: Int = 0 // 0=PREFER_NEWER, 1=PREFER_LOCAL, 2=PREFER_REMOTE, 3=MERGE
+    /**
+     * Conflict resolution strategy stored as enum name (PREFER_NEWER, PREFER_LOCAL, PREFER_REMOTE, MERGE).
+     * Using stable string identifier instead of ordinal to avoid issues when enum order changes.
+     */
+    val conflictResolutionStrategy: String = "PREFER_NEWER"
 ) : UiState
 
 sealed interface SettingsEvent : UiEvent {
@@ -164,7 +168,7 @@ sealed interface SettingsEvent : UiEvent {
     data class SetAutoSyncEnabled(val enabled: Boolean) : SettingsEvent
     data class SetSyncIntervalHours(val hours: Int) : SettingsEvent
     data class SetSyncOnlyOnWifi(val onlyWifi: Boolean) : SettingsEvent
-    data class SetConflictResolutionStrategy(val strategy: Int) : SettingsEvent
+    data class SetConflictResolutionStrategy(val strategy: String) : SettingsEvent
 }
 
 sealed interface SettingsEffect : UiEffect {
