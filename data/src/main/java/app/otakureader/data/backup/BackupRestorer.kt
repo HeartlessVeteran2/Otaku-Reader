@@ -1,5 +1,7 @@
 package app.otakureader.data.backup
 
+import androidx.room.withTransaction
+import app.otakureader.core.database.OtakuReaderDatabase
 import app.otakureader.core.database.dao.CategoryDao
 import app.otakureader.core.database.dao.ChapterDao
 import app.otakureader.core.database.dao.MangaDao
@@ -21,6 +23,7 @@ import javax.inject.Inject
  * Restores backup data by parsing JSON and inserting data back into Room database.
  */
 class BackupRestorer @Inject constructor(
+    private val database: OtakuReaderDatabase,
     private val mangaDao: MangaDao,
     private val chapterDao: ChapterDao,
     private val categoryDao: CategoryDao,
@@ -92,28 +95,36 @@ class BackupRestorer @Inject constructor(
 
     /**
      * Restores chapters and reading history for a manga.
+     *
+     * Wraps both chapter insert/update and reading history restore in a single database transaction
+     * to ensure atomic operation. This prevents partial state if the process is interrupted between
+     * the chapter operation and the history restore.
      */
     private suspend fun restoreChapters(mangaId: Long, backupManga: app.otakureader.data.backup.model.BackupManga) {
         backupManga.chapters.forEach { backupChapter ->
-            // Check if chapter already exists by URL
-            val existingChapters = chapterDao.getChaptersByMangaId(mangaId).first()
-            val existingChapter = existingChapters.find { it.url == backupChapter.url }
+            // Wrap chapter and history restore in a single transaction to maintain atomicity
+            database.withTransaction {
+                // Check if chapter already exists by URL
+                val existingChapters = chapterDao.getChaptersByMangaId(mangaId).first()
+                val existingChapter = existingChapters.find { it.url == backupChapter.url }
 
-            val chapterId = if (existingChapter != null) {
-                // Update existing chapter
-                val updatedChapter = backupChapter.toChapterEntity(mangaId).copy(id = existingChapter.id)
-                chapterDao.update(updatedChapter)
-                existingChapter.id
-            } else {
-                // Insert new chapter
-                chapterDao.insert(backupChapter.toChapterEntity(mangaId))
-            }
+                val chapterId = if (existingChapter != null) {
+                    // Update existing chapter
+                    val updatedChapter = backupChapter.toChapterEntity(mangaId).copy(id = existingChapter.id)
+                    chapterDao.update(updatedChapter)
+                    existingChapter.id
+                } else {
+                    // Insert new chapter
+                    chapterDao.insert(backupChapter.toChapterEntity(mangaId))
+                }
 
-            // Restore reading history if present.
-            // replaceHistory uses INSERT OR REPLACE, which is a single atomic statement that
-            // sets the exact backed-up values without accumulating duration on repeated restores.
-            backupChapter.readingHistory?.let { history ->
-                readingHistoryDao.replaceHistory(chapterId, history.readAt, history.readDurationMs)
+                // Restore reading history if present.
+                // replaceHistory uses an UPDATE-then-INSERT pattern to set the exact backed-up values
+                // without accumulating duration on repeated restores. This avoids the DELETE-trigger
+                // side-effects that raw INSERT OR REPLACE would cause on the auto-generated primary key.
+                backupChapter.readingHistory?.let { history ->
+                    readingHistoryDao.replaceHistory(chapterId, history.readAt, history.readDurationMs)
+                }
             }
         }
     }

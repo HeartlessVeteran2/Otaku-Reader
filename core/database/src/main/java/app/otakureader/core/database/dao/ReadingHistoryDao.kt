@@ -50,6 +50,11 @@ interface ReadingHistoryDao {
      * Uses the same UPDATE-then-INSERT transaction pattern as [upsert] to preserve the existing
      * row's `id` (avoiding DELETE-trigger side-effects that `INSERT OR REPLACE` would cause on a
      * table with an auto-generated primary key).
+     *
+     * **WARNING**: This method intentionally differs from [upsert] by NOT accumulating duration.
+     * It should ONLY be used in backup restore logic. Using it elsewhere would silently lose
+     * accumulated reading time and alter tracking semantics. For normal reading session tracking,
+     * always use [upsert] instead.
      */
     @Transaction
     suspend fun replaceHistory(chapterId: Long, readAt: Long, readDurationMs: Long) {
