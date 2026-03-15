@@ -8,9 +8,18 @@ Complete documentation of all features available in Otaku Reader.
 - [Library Management](#library-management)
 - [Browse & Search](#browse--search)
 - [Reader](#reader)
+- [Smart Panels](#smart-panels)
+- [Smart Prefetch](#smart-prefetch)
 - [Updates](#updates)
-- [Settings](#settings)
+- [Downloads](#downloads)
+- [Cloud Sync](#cloud-sync)
+- [OPDS Catalog](#opds-catalog)
+- [AI Recommendations](#ai-recommendations)
+- [Discord Rich Presence](#discord-rich-presence)
+- [Tracking](#tracking)
 - [Statistics](#statistics)
+- [Migration](#migration)
+- [Settings](#settings)
 - [Future Suggestions & Enhancements](#future-suggestions--enhancements)
 - [Usage Instructions](#usage-instructions)
 
@@ -24,10 +33,18 @@ Otaku Reader offers a comprehensive set of features for manga enthusiasts:
 | **Browse** | Multiple sources, filters, latest/popular |
 | **Search** | Global search, source-specific search, history |
 | **Reader** | Multiple modes, zoom, brightness, gestures |
+| **Smart Panels** | Auto panel detection, guided panel-by-panel navigation |
+| **Smart Prefetch** | Adaptive prefetch based on reading speed and behavior |
 | **Updates** | Auto-check, notifications, batch updates |
+| **Downloads** | Background queue, CBZ export, pause/resume |
+| **Cloud Sync** | Google Drive sync, conflict resolution, periodic background sync |
+| **OPDS** | Self-hosted catalog support (Komga, Kavita), add/browse/search |
+| **AI** | Gemini-powered manga recommendations |
+| **Discord** | Rich Presence showing currently reading manga |
+| **Tracking** | MyAnimeList, AniList, Kitsu, MangaUpdates, Shikimori |
+| **Statistics** | Reading analytics, charts, insights |
+| **Migration** | Migrate manga between sources |
 | **Settings** | Appearance, reader, downloads, backup |
-| **Stats** | Reading analytics, charts, insights |
-| **Sync** | Cloud backup, cross-device sync |
 
 ## Library Management
 
@@ -201,6 +218,72 @@ The reader overlay provides quick access to:
   <img src="docs/screenshots/reader_overlay.png" width="200" alt="Reader Overlay">
 </p>
 
+## Smart Panels
+
+### Overview
+
+Smart Panels provides guided panel-by-panel navigation similar to ComiXology's Guided View, automatically detecting manga panels and animating through them.
+
+### How It Works
+
+1. When Smart Panels mode is active, `PanelDetectionService` loads the page bitmap via Coil 3.
+2. `PanelDetector` runs an edge detection pipeline (grayscale → Sobel-like gradient → horizontal/vertical line detection → region extraction).
+3. Detected panels are stored in `ReaderPage.panels` and navigated via `PanelNavigationView`.
+4. Smooth spring-eased zoom/pan animations center each panel on screen.
+
+### Detection Settings
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| **Panel Detection** | Enabled | Toggle panel auto-detection |
+| **Edge Threshold** | 30 | Gradient strength required to detect an edge (0–255) |
+| **Min Line Length** | 40% | Minimum separator line length as fraction of dimension |
+| **Min Panel Size** | 10% | Minimum panel area as fraction of page |
+| **Auto Advance** | Off | Automatically advance to next panel/page |
+| **Show Borders** | Off | Overlay detected panel borders |
+
+### Tap Zones
+
+| Tap Area | Action |
+|----------|--------|
+| Left | Previous panel |
+| Right | Next panel |
+| Center | Show menu |
+
+### Fallback Behavior
+
+If panel detection fails or returns no panels, the reader falls back to the standard `ZoomableImage` full-page view transparently.
+
+## Smart Prefetch
+
+### Overview
+
+Smart Prefetch proactively loads pages and chapters before the user reaches them, minimizing loading delays for a seamless reading experience.
+
+### Prefetch Strategies
+
+| Strategy | Pages Ahead | Cross-Chapter | Best For |
+|----------|-------------|---------------|----------|
+| **Conservative** | 1–2 | No | Mobile data, battery saving |
+| **Balanced** | 3 (1 back) | Next only (last 3 pages) | Wi-Fi, mid-range devices |
+| **Aggressive** | 7–10 (2–3 back) | Next + prev | Fast Wi-Fi, high-end devices |
+| **Adaptive** | Dynamic | Based on completion rate | All users (default) |
+
+### Adaptive Strategy
+
+`ReadingBehaviorTracker` records `PageNavigationEvent`s and computes:
+
+- `forwardNavigationRatio` — how often the user reads forward
+- `averagePageDurationMs` — average time per page
+- `completionRate` — probability of finishing a chapter
+- `sequentialNavigationRatio` — sequential vs. jump navigation
+
+The `AdaptiveChapterPrefetcher` uses these metrics to tune prefetch depth at runtime.
+
+### Telemetry
+
+`PrefetchTelemetry` tracks hit rate and efficiency so the adaptive strategy can continuously improve without any user configuration.
+
 ## Updates
 
 ### Overview
@@ -243,6 +326,171 @@ The Updates feature keeps track of new chapters and notifies you of updates.
   <img src="docs/screenshots/updates.png" width="200" alt="Updates">
   <img src="docs/screenshots/update_notification.png" width="200" alt="Notification">
 </p>
+
+## Downloads
+
+### Overview
+
+The download system allows chapters to be saved locally for offline reading, with a managed queue and CBZ archive support.
+
+### Features
+
+- **Background Queue**: Download multiple chapters simultaneously in the background
+- **Pause / Resume**: Suspend and resume individual downloads at any time
+- **Cancel**: Remove downloads from the queue at any point
+- **CBZ Export**: Save chapters as CBZ archives for use with other readers
+- **Auto-Download**: Automatically download new chapters when they are detected
+- **Wi-Fi Only**: Restrict downloads to unmetered (Wi-Fi) connections
+
+### Storage Layout
+
+```
+{app external files dir}/OtakuReader/
+  {sanitized sourceName}/
+    {sanitized mangaTitle}/
+      {sanitized chapterName}/
+        0.jpg, 1.jpg, …   ← loose image files
+        chapter.cbz        ← optional CBZ archive
+        .pages/            ← CBZ extraction cache
+```
+
+### Status Values
+
+| Status | Description |
+|--------|-------------|
+| `QUEUED` | Waiting to start |
+| `DOWNLOADING` | Currently downloading |
+| `PAUSED` | Manually paused |
+| `COMPLETED` | Download finished |
+| `FAILED` | Download error |
+
+## Cloud Sync
+
+### Overview
+
+Cloud Sync keeps library data (favorites, categories, reading progress) synchronized across devices using a pluggable provider architecture.
+
+### Providers
+
+| Provider | Status |
+|----------|--------|
+| **Google Drive** | Prototype (OAuth 2.0, Drive REST API v3) |
+| **Dropbox** | Stub (future) |
+| **WebDAV** | Stub (future) |
+
+### Conflict Resolution Strategies
+
+| Strategy | Behavior |
+|----------|----------|
+| `PREFER_NEWER` | Keep the snapshot with the most recent timestamp (default) |
+| `PREFER_LOCAL` | Always use local data |
+| `PREFER_REMOTE` | Always use remote data |
+| `MERGE` | Intelligent merge: OR for booleans (favorites/read), max for progress |
+
+### Background Sync
+
+`SyncWorker` runs via WorkManager and supports:
+
+- Configurable sync interval (1–168 hours)
+- Wi-Fi-only constraint
+- In-progress, success, and failure notifications via `SyncNotifier`
+
+### What Is Synced
+
+- ✅ Library manga (favorites, categories)
+- ✅ Read progress (chapter read status, page progress)
+- ✅ Categories
+- ❌ Preferences (device-specific, not synced)
+- ❌ Full reading history (too large; may sync separately in future)
+- ❌ Theme/display settings (device-specific)
+
+## OPDS Catalog
+
+### Overview
+
+OPDS (Open Publication Distribution System) support allows browsing and downloading manga from self-hosted servers such as Komga or Kavita.
+
+### Features
+
+- **Add Servers**: Save multiple OPDS server URLs with optional credentials
+- **Browse Hierarchy**: Navigate catalog folders recursively
+- **Search**: Use server-side search feeds when available
+- **Direct Download**: Download CBZ/CBR archives directly into the reader
+- **Edit / Delete**: Manage saved servers at any time
+
+### Compatible Software
+
+- [Komga](https://komga.org/) — Self-hosted manga/comics library server
+- [Kavita](https://www.kavitareader.com/) — Self-hosted reading server
+- Any OPDS-compliant catalog
+
+## AI Recommendations
+
+### Overview
+
+`GeminiClient` integrates Google Gemini to generate personalized manga recommendations based on the user's reading history and preferences.
+
+### Key Design
+
+- **Config Fingerprinting**: Uses SHA-256 (via `MessageDigest`) on the `(apiKey, modelName)` pair (null-byte delimited) to detect configuration changes. The resulting hex string is stored in memory instead of the raw API key to reduce secret exposure.
+- **Timeout Handling**: `TimeoutCancellationException` is caught before the generic `CancellationException` in `AiRepositoryImpl` to correctly map request timeouts to `Result.failure`.
+- **Privacy**: All AI calls are opt-in; no data is sent without user consent.
+
+## Discord Rich Presence
+
+### Overview
+
+`DiscordRpcService` (in `core/discord`) tracks the currently reading manga and updates Discord Rich Presence activity.
+
+### Behavior
+
+- Shows manga title, chapter, and elapsed reading time in the Discord status.
+- Gracefully disconnects when Discord is not installed or not running.
+- No network/IPC communication is performed while Discord is unavailable.
+
+### Connection States
+
+| State | Description |
+|-------|-------------|
+| `Connected` | Rich Presence active |
+| `Disconnected` | No active session |
+| `Error` | Discord unavailable or rejected |
+
+## Tracking
+
+### Overview
+
+Otaku Reader integrates with major manga tracking services to automatically sync reading progress.
+
+### Supported Services
+
+| Service | Features |
+|---------|---------|
+| **MyAnimeList** | Reading status, score, progress sync |
+| **AniList** | Reading status, score, progress sync |
+| **Kitsu** | Reading status, score, progress sync |
+| **MangaUpdates** | Reading list sync |
+| **Shikimori** | Reading status and progress |
+
+### Features
+
+- **Auto Sync**: Update trackers automatically when a chapter is marked as read
+- **Manual Sync**: Trigger sync from the manga details screen
+- **Multi-Tracker**: Track the same manga on multiple services simultaneously
+
+## Migration
+
+### Overview
+
+The Migration feature allows moving manga from one source to another while preserving reading progress and chapter history.
+
+### Features
+
+- **Source Selection**: Choose the target source to migrate to
+- **Chapter Mapping**: Automatically map chapters from old source to new source
+- **Progress Transfer**: Carry over read/unread status and page progress
+- **Batch Migration**: Migrate multiple manga in a single operation
+- **Status Tracking**: Monitor migration progress with per-manga status indicators
 
 ## Settings
 

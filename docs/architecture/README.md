@@ -126,28 +126,37 @@ class MangaRepositoryImpl @Inject constructor(
 otaku-reader/
 ├── app/                    # Application entry point
 ├── core/                   # Shared core modules
+│   ├── ai/                # Gemini AI client & recommendation models
 │   ├── common/            # Utilities and extensions
-│   ├── database/          # Room database (v3)
-│   ├── extension/         # Extension loading
+│   ├── database/          # Room database (v9) with migrations
+│   ├── discord/           # Discord Rich Presence service
+│   ├── extension/         # Extension loading & validation
 │   ├── navigation/        # Navigation components
 │   ├── network/           # Retrofit + OkHttp networking
 │   ├── preferences/       # DataStore preferences & IncognitoManager
 │   ├── tachiyomi-compat/  # Legacy Tachiyomi extension support
-│   └── ui/                # Shared UI components
+│   └── ui/                # Shared UI components (Material 3)
 ├── domain/                # Domain layer (pure Kotlin)
 ├── data/                  # Data layer implementations
 │   ├── backup/            # Backup & restore
 │   ├── download/          # Download manager & provider
 │   ├── loader/            # Page loader (local-first)
 │   ├── repository/        # Repository implementations
+│   ├── sync/              # Cloud sync providers & manager
 │   └── worker/            # WorkManager background jobs
 ├── feature/               # Feature modules
+│   ├── about/             # About screen
 │   ├── browse/            # Browse manga & extensions
 │   ├── details/           # Manga details & chapter list
 │   ├── history/           # Reading history
 │   ├── library/           # Library management
-│   ├── reader/            # Manga reader
+│   ├── migration/         # Source migration
+│   ├── onboarding/        # First-run onboarding
+│   ├── opds/              # OPDS catalog browser
+│   ├── reader/            # Manga reader (Single/Dual/Webtoon/Smart Panels)
 │   ├── settings/          # App settings
+│   ├── statistics/        # Reading statistics & charts
+│   ├── tracking/          # Tracker integration (MAL, AniList, Kitsu…)
 │   └── updates/           # Updates & downloads
 ├── source-api/            # Extension API contracts
 └── baselineprofile/       # Baseline profile for startup optimization

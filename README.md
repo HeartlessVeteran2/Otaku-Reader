@@ -32,11 +32,19 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 |----------|----------|
 | **📚 Library** | Grid/column views, categories, drag-and-drop, batch operations, NSFW toggle |
 | **🔍 Browse** | 2000+ sources, global search, extension catalog with repository management |
-| **📖 Reader** | 4 reading modes, color filters, 3×3 tap zones, pinch zoom, gallery view |
-| **⬇️ Downloads** | Background queue, CBZ export, auto-download on Wi-Fi |
+| **📖 Reader** | 4 reading modes (Single, Dual, Webtoon, Smart Panels), color filters, 3×3 tap zones, pinch zoom, gallery view |
+| **🤖 Smart Panels** | Automatic panel detection, guided panel-by-panel navigation with smooth animations |
+| **⚡ Smart Prefetch** | Adaptive page/chapter prefetching based on reading behavior, 4 prefetch strategies |
+| **⬇️ Downloads** | Background queue, CBZ export, auto-download on Wi-Fi, pause/resume |
 | **📊 Tracking** | MyAnimeList, AniList, Kitsu, MangaUpdates, Shikimori |
 | **🔔 Notifications** | Rich new chapter alerts with covers, grouped by series |
 | **☁️ Backup** | Scheduled backups, JSON export/import |
+| **🔄 Cloud Sync** | Google Drive sync, conflict resolution, background periodic sync |
+| **📡 OPDS** | Self-hosted catalog support (Komga, Kavita), add/browse/search OPDS servers |
+| **🤖 AI Recommendations** | Gemini-powered manga recommendations based on reading history |
+| **🎮 Discord RPC** | Rich Presence showing currently reading manga |
+| **📈 Statistics** | Reading analytics, charts, reading streaks, and insights |
+| **🔄 Migration** | Migrate manga between sources with progress and chapter mapping |
 
 **See [Full Features Guide](docs/features/) for details.**
 
@@ -75,6 +83,7 @@ Clean Architecture + MVI with modular feature structure.
 | **Features** | [docs/features/](docs/features/) |
 | **Architecture** | [docs/architecture/](docs/architecture/) |
 | **API Reference** | [docs/architecture/api.md](docs/architecture/api.md) |
+| **Cloud Sync** | [docs/architecture/sync.md](docs/architecture/sync.md) |
 | **Contributing** | [docs/contributing/contributing.md](docs/contributing/contributing.md) |
 | **Changelog** | [CHANGELOG.md](CHANGELOG.md) |
 
@@ -82,8 +91,9 @@ Clean Architecture + MVI with modular feature structure.
 
 ## 🗺️ Roadmap
 
-- **🚧 In Progress:** Cloud Sync (Google Drive), OPDS Support
-- **🔮 Future:** AI recommendations, widget improvements, panel-by-panel mode
+- **✅ Shipped:** Smart Panels (panel-by-panel navigation), Smart Prefetch, OPDS Catalog, AI Recommendations (Gemini), Discord Rich Presence, Cloud Sync (Google Drive), Statistics, Migration
+- **🚧 In Progress:** Cloud Sync provider expansion (Dropbox, WebDAV), Smart Panels ML model (TensorFlow Lite)
+- **🔮 Future:** Widget improvements, KMP expansion, Macrobenchmark baseline profiles
 
 ---
 
