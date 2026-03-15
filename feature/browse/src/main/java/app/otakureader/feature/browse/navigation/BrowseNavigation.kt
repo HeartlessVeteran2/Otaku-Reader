@@ -1,5 +1,8 @@
 package app.otakureader.feature.browse.navigation
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
@@ -54,7 +57,12 @@ fun NavGraphBuilder.sourceDetailScreen(
 fun NavGraphBuilder.extensionsBottomSheet(
     onDismiss: () -> Unit,
 ) {
-    composable<ExtensionsRoute> {
+    composable<ExtensionsRoute>(
+        enterTransition = { fadeIn(animationSpec = tween(200)) },
+        exitTransition = { fadeOut(animationSpec = tween(200)) },
+        popEnterTransition = { fadeIn(animationSpec = tween(200)) },
+        popExitTransition = { fadeOut(animationSpec = tween(200)) }
+    ) {
         ExtensionsBottomSheet(
             onDismiss = onDismiss
         )

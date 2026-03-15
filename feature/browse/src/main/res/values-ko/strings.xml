@@ -25,4 +25,15 @@
         <item quantity="one">%d개의 업데이트 가능</item>
         <item quantity="other">%d개의 업데이트 가능</item>
     </plurals>
+
+    <!-- SourceFilterSheet -->
+    <string name="browse_filters_reset">초기화</string>
+    <string name="browse_filters_cancel">취소</string>
+    <string name="browse_filters_apply">적용</string>
+
+    <!-- SourceFilterSheet accessibility -->
+    <string name="browse_sort_ascending">오름차순</string>
+    <string name="browse_sort_descending">내림차순</string>
+    <string name="browse_group_collapse">접기</string>
+    <string name="browse_group_expand">펼치기</string>
 </resources>

@@ -63,6 +63,12 @@
     <string name="browse_filters_cancel">Cancel</string>
     <string name="browse_filters_apply">Apply</string>
 
+    <!-- SourceFilterSheet accessibility -->
+    <string name="browse_sort_ascending">Ascending</string>
+    <string name="browse_sort_descending">Descending</string>
+    <string name="browse_group_collapse">Collapse</string>
+    <string name="browse_group_expand">Expand</string>
+
     <!-- GlobalSearchScreen -->
     <string name="browse_global_search_placeholder">Search all sources…</string>
     <string name="browse_global_search_idle_hint">Enter a query to search all sources</string>

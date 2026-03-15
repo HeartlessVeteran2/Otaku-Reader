@@ -25,4 +25,15 @@
         <item quantity="one">%d 个更新可用</item>
         <item quantity="other">%d 个更新可用</item>
     </plurals>
+
+    <!-- SourceFilterSheet -->
+    <string name="browse_filters_reset">重置</string>
+    <string name="browse_filters_cancel">取消</string>
+    <string name="browse_filters_apply">应用</string>
+
+    <!-- SourceFilterSheet accessibility -->
+    <string name="browse_sort_ascending">升序</string>
+    <string name="browse_sort_descending">降序</string>
+    <string name="browse_group_collapse">折叠</string>
+    <string name="browse_group_expand">展开</string>
 </resources>

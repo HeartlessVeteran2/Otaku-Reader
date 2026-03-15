@@ -86,4 +86,6 @@
     <string name="details_sort_ascending">↑ Crescente</string>
     <string name="details_sort_descending">↓ Decrescente</string>
     <string name="details_no_manga">Nenhum detalhe do mangá disponível</string>
+    <string name="details_stepper_decrement_description">Diminuir</string>
+    <string name="details_stepper_increment_description">Aumentar</string>
 </resources>

@@ -25,4 +25,15 @@
         <item quantity="one">%d 件の更新があります</item>
         <item quantity="other">%d 件の更新があります</item>
     </plurals>
+
+    <!-- SourceFilterSheet -->
+    <string name="browse_filters_reset">リセット</string>
+    <string name="browse_filters_cancel">キャンセル</string>
+    <string name="browse_filters_apply">適用</string>
+
+    <!-- SourceFilterSheet accessibility -->
+    <string name="browse_sort_ascending">昇順</string>
+    <string name="browse_sort_descending">降順</string>
+    <string name="browse_group_collapse">折りたたむ</string>
+    <string name="browse_group_expand">展開</string>
 </resources>

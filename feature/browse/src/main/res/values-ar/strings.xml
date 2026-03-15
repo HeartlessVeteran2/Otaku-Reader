@@ -25,4 +25,15 @@
         <item quantity="one">%d تحديث متاح</item>
         <item quantity="other">%d تحديثات متاحة</item>
     </plurals>
+
+    <!-- SourceFilterSheet -->
+    <string name="browse_filters_reset">إعادة تعيين</string>
+    <string name="browse_filters_cancel">إلغاء</string>
+    <string name="browse_filters_apply">تطبيق</string>
+
+    <!-- SourceFilterSheet accessibility -->
+    <string name="browse_sort_ascending">تصاعدي</string>
+    <string name="browse_sort_descending">تنازلي</string>
+    <string name="browse_group_collapse">طي</string>
+    <string name="browse_group_expand">توسيع</string>
 </resources>
