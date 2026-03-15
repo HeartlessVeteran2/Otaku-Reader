@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import app.otakureader.core.preferences.AppPreferences
 import app.otakureader.feature.reader.model.ColorFilterMode
 import app.otakureader.feature.reader.model.ImageQuality
@@ -262,14 +263,30 @@ class ReaderSettingsRepository @Inject constructor(
 
     // ==================== Image Quality ====================
 
-    /** Global image quality level for page rendering. */
+    /**
+     * Global image quality level for page rendering.
+     * Stored as enum name (string) for stability — ordinal-based storage would break
+     * if entries were reordered or inserted. Migrates transparently from the legacy
+     * ordinal (int) key on first read.
+     */
     val imageQuality: Flow<ImageQuality> = dataStore.data.map { prefs ->
-        val ordinal = prefs[Keys.IMAGE_QUALITY] ?: 0
-        ImageQuality.entries.getOrNull(ordinal) ?: ImageQuality.ORIGINAL
+        val name = prefs[Keys.IMAGE_QUALITY]
+        if (name != null) {
+            ImageQuality.entries.firstOrNull { it.name == name } ?: ImageQuality.ORIGINAL
+        } else {
+            // Migrate from legacy ordinal storage (key reuses the same string name but
+            // different type, so both keys can coexist in the DataStore).
+            val legacyOrdinal = prefs[Keys.IMAGE_QUALITY_LEGACY]
+            ImageQuality.entries.getOrNull(legacyOrdinal ?: 0) ?: ImageQuality.ORIGINAL
+        }
     }
 
     suspend fun setImageQuality(quality: ImageQuality) {
-        dataStore.edit { it[Keys.IMAGE_QUALITY] = quality.ordinal }
+        dataStore.edit { prefs ->
+            prefs[Keys.IMAGE_QUALITY] = quality.name
+            // Remove the legacy int key so future reads always take the new path.
+            prefs.remove(Keys.IMAGE_QUALITY_LEGACY)
+        }
     }
 
     // ==================== Data Saver Mode ====================
@@ -309,7 +326,16 @@ class ReaderSettingsRepository @Inject constructor(
         val PREFETCH_ADJACENT_CHAPTERS = booleanPreferencesKey("reader_prefetch_adjacent_chapters")
         val PREFETCH_ONLY_ON_WIFI = booleanPreferencesKey("reader_prefetch_only_on_wifi")
         val CROP_BORDERS_ENABLED = booleanPreferencesKey("reader_crop_borders_enabled")
-        val IMAGE_QUALITY = intPreferencesKey("reader_image_quality")
+        /** Stable string key – stores the enum entry name (e.g. "HIGH"). */
+        val IMAGE_QUALITY = stringPreferencesKey("reader_image_quality")
+        /**
+         * Legacy int key for migrating users who had the ordinal stored by the old implementation.
+         * Intentionally uses the same string identifier as [IMAGE_QUALITY] — DataStore Preferences
+         * namespaces keys by both name AND type, so an int key and a string key with the same name
+         * are two distinct, non-conflicting entries.  The identical name is required to find the
+         * previously persisted ordinal value during the one-time migration.
+         */
+        val IMAGE_QUALITY_LEGACY = intPreferencesKey("reader_image_quality")
         val DATA_SAVER_ENABLED = booleanPreferencesKey("reader_data_saver_enabled")
     }
     
