@@ -2,7 +2,9 @@ package app.otakureader.core.ai
 
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.GenerateContentResponse
-import java.security.MessageDigest
+import java.security.SecureRandom
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -11,6 +13,12 @@ import javax.inject.Singleton
  *
  * This class provides a wrapper around the Gemini Generative AI SDK,
  * offering methods to generate AI-powered content and responses.
+ *
+ * **Initialization contract**: [initialize] must be called before [generateContent]. If
+ * [generateContent] is called before initialization completes, it will throw an
+ * [IllegalStateException]. Callers should ensure initialization is complete before
+ * invoking content generation (e.g., check [isInitialized] or use a lifecycle-aware
+ * initialization gate).
  */
 @Singleton
 class GeminiClient @Inject constructor() {
@@ -23,14 +31,22 @@ class GeminiClient @Inject constructor() {
     private var generativeModel: GenerativeModel? = null
 
     /**
-     * Hash of the (apiKey, modelName) pair used during initialization.
+     * HMAC-SHA256 of the (apiKey, modelName) pair, keyed by [hmacSalt].
      * Stored instead of the raw API key to avoid persisting secrets in memory.
-     * Uses SHA-256 to avoid false-positive collisions from String.hashCode().
+     * Using HMAC with a per-process random salt means the stored value cannot be used
+     * for offline brute-force attacks to recover the API key.
      */
     @Volatile
-    private var configHash: String = ""
+    private var configMac: ByteArray = ByteArray(0)
 
     private val initLock = Any()
+
+    /**
+     * Per-process random salt for HMAC. Generated once at instantiation time and never
+     * exposed outside this object. Because the salt is only in process memory, an
+     * attacker observing [configMac] cannot reverse it to obtain the API key.
+     */
+    private val hmacSalt: ByteArray = SecureRandom().generateSeed(32)
 
     /**
      * Initialize the Gemini client with an API key.
@@ -48,8 +64,8 @@ class GeminiClient @Inject constructor() {
 
         synchronized(initLock) {
             if (generativeModel != null) {
-                val newConfigHash = configHashOf(apiKey, modelName)
-                if (configHash == newConfigHash) {
+                val newConfigMac = configMacOf(apiKey, modelName)
+                if (configMac.contentEquals(newConfigMac)) {
                     // Already initialized with the same configuration; nothing to do.
                     return
                 } else {
@@ -64,13 +80,21 @@ class GeminiClient @Inject constructor() {
                 modelName = modelName,
                 apiKey = apiKey
             )
-            // Store a hash rather than the raw API key to reduce secret exposure.
-            configHash = configHashOf(apiKey, modelName)
+            // Store an HMAC rather than the raw API key to reduce secret exposure.
+            configMac = configMacOf(apiKey, modelName)
         }
     }
 
     /**
      * Generate content based on a text prompt.
+     *
+     * The Gemini SDK's [GenerativeModel.generateContent] is a suspending function and
+     * honours coroutine cancellation, so [kotlinx.coroutines.withTimeout] in callers
+     * will correctly abort the underlying request.
+     *
+     * **Note**: This method throws [IllegalStateException] if called before [initialize]
+     * has returned successfully. Callers that may invoke this during app startup should
+     * guard with [isInitialized] or await a lifecycle signal.
      *
      * @param prompt The text prompt to send to the AI
      * @return The generated response from Gemini
@@ -78,7 +102,10 @@ class GeminiClient @Inject constructor() {
      */
     suspend fun generateContent(prompt: String): GenerateContentResponse {
         val model = generativeModel
-            ?: error("GeminiClient must be initialized with an API key before use")
+            ?: error(
+                "GeminiClient is not yet initialized. " +
+                    "Call initialize() with a valid API key before generating content."
+            )
         return model.generateContent(prompt)
     }
 
@@ -89,13 +116,21 @@ class GeminiClient @Inject constructor() {
      */
     fun isInitialized(): Boolean = generativeModel != null
 
-    private fun configHashOf(apiKey: String, modelName: String): String {
-        val digest = MessageDigest.getInstance("SHA-256")
+    /**
+     * Compute an HMAC-SHA256 of [apiKey] and [modelName] keyed by [hmacSalt].
+     *
+     * Feeding the key and model name separately with a null-byte delimiter prevents
+     * length-extension collisions. Using HMAC (rather than a plain digest) means the
+     * output is bound to the per-process [hmacSalt] and cannot be inverted or
+     * brute-forced to recover the API key by an attacker who only observes [configMac].
+     */
+    private fun configMacOf(apiKey: String, modelName: String): ByteArray {
+        val mac = Mac.getInstance("HmacSHA256")
+        mac.init(SecretKeySpec(hmacSalt, "HmacSHA256"))
         // Feed key and model separately with a null-byte delimiter to avoid collisions.
-        // Avoid concatenating the API key into a String to minimize secret exposure.
-        digest.update(apiKey.toByteArray(Charsets.UTF_8))
-        digest.update(0.toByte())
-        digest.update(modelName.toByteArray(Charsets.UTF_8))
-        return digest.digest().joinToString("") { "%02x".format(it) }
+        mac.update(apiKey.toByteArray(Charsets.UTF_8))
+        mac.update(0.toByte())
+        mac.update(modelName.toByteArray(Charsets.UTF_8))
+        return mac.doFinal()
     }
 }

@@ -26,6 +26,18 @@ class AiRepositoryImpl @Inject constructor(
     /**
      * Generate content using the Gemini AI model.
      *
+     * The request is wrapped in a [kotlinx.coroutines.withTimeout] of
+     * [GENERATE_CONTENT_TIMEOUT_MILLIS]. The Gemini SDK's `generateContent` is a
+     * suspending function that honours coroutine cancellation, so the timeout will
+     * correctly abort the in-flight network request.
+     *
+     * Timeout behaviour: a [kotlinx.coroutines.TimeoutCancellationException] is caught
+     * and converted to a [Result.failure] with a descriptive [IllegalStateException],
+     * keeping the timeout transparent to callers as a domain error rather than a
+     * coroutine cancellation. External cancellations (any other
+     * [kotlinx.coroutines.CancellationException]) are re-thrown so the caller's
+     * coroutine scope is properly cancelled.
+     *
      * @param prompt The text prompt to send to the AI
      * @return Result containing the generated text on success, or an error on failure
      */
