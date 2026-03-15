@@ -265,17 +265,21 @@ class ReaderSettingsRepository @Inject constructor(
 
     /**
      * Global image quality level for page rendering.
-     * Stored as enum name (string) for stability — ordinal-based storage would break
-     * if entries were reordered or inserted. Migrates transparently from the legacy
-     * ordinal (int) key on first read.
+     * Stored as enum name (string) under [Keys.IMAGE_QUALITY] for stability — ordinal-based
+     * storage would break if entries were reordered or inserted.
+     *
+     * Migration: users who previously had an ordinal stored under the old int key
+     * ([Keys.IMAGE_QUALITY_LEGACY], name "reader_image_quality") are migrated transparently
+     * on the first read.  The new key uses a distinct name ("reader_image_quality_name") to
+     * avoid a ClassCastException — DataStore key equality is name-only, so two keys with the
+     * same name but different types would collide.
      */
     val imageQuality: Flow<ImageQuality> = dataStore.data.map { prefs ->
         val name = prefs[Keys.IMAGE_QUALITY]
         if (name != null) {
             ImageQuality.entries.firstOrNull { it.name == name } ?: ImageQuality.ORIGINAL
         } else {
-            // Migrate from legacy ordinal storage (key reuses the same string name but
-            // different type, so both keys can coexist in the DataStore).
+            // Migrate from legacy ordinal stored under the old int key.
             val legacyOrdinal = prefs[Keys.IMAGE_QUALITY_LEGACY]
             ImageQuality.entries.getOrNull(legacyOrdinal ?: 0) ?: ImageQuality.ORIGINAL
         }
@@ -326,15 +330,14 @@ class ReaderSettingsRepository @Inject constructor(
         val PREFETCH_ADJACENT_CHAPTERS = booleanPreferencesKey("reader_prefetch_adjacent_chapters")
         val PREFETCH_ONLY_ON_WIFI = booleanPreferencesKey("reader_prefetch_only_on_wifi")
         val CROP_BORDERS_ENABLED = booleanPreferencesKey("reader_crop_borders_enabled")
-        /** Stable string key – stores the enum entry name (e.g. "HIGH"). */
-        val IMAGE_QUALITY = stringPreferencesKey("reader_image_quality")
         /**
-         * Legacy int key for migrating users who had the ordinal stored by the old implementation.
-         * Intentionally uses the same string identifier as [IMAGE_QUALITY] — DataStore Preferences
-         * namespaces keys by both name AND type, so an int key and a string key with the same name
-         * are two distinct, non-conflicting entries.  The identical name is required to find the
-         * previously persisted ordinal value during the one-time migration.
+         * Stable string key – stores the enum entry name (e.g. "HIGH").
+         * Uses a distinct preference name ("reader_image_quality_name") from the old int key so
+         * the two never collide: DataStore key equality is name-only, meaning a string key and an
+         * int key with the same name would be treated as the same key and cause a ClassCastException.
          */
+        val IMAGE_QUALITY = stringPreferencesKey("reader_image_quality_name")
+        /** Legacy int key kept solely for one-time migration from the old ordinal-based storage. */
         val IMAGE_QUALITY_LEGACY = intPreferencesKey("reader_image_quality")
         val DATA_SAVER_ENABLED = booleanPreferencesKey("reader_data_saver_enabled")
     }
