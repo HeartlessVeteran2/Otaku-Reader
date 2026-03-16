@@ -2,6 +2,7 @@ package app.otakureader.core.tachiyomi.test
 
 import android.content.Context
 import app.otakureader.core.tachiyomi.compat.TachiyomiExtensionLoader
+import app.otakureader.core.tachiyomi.health.SourceHealthMonitor
 import app.otakureader.core.tachiyomi.repository.SourceRepositoryImpl
 import kotlinx.coroutines.runBlocking
 import java.io.File
@@ -95,7 +96,12 @@ object TachiyomiTestUtils {
         sourceId: String
     ): Result<List<String>> {
         return try {
-            val repository = SourceRepositoryImpl(context, app.otakureader.core.preferences.LocalSourcePreferences.defaultDirectory())
+            val healthMonitor = SourceHealthMonitor()
+            val repository = SourceRepositoryImpl(
+                context,
+                app.otakureader.core.preferences.LocalSourcePreferences.defaultDirectory(),
+                healthMonitor
+            )
             val result = repository.getPopularManga(sourceId, 1)
 
             result.map { mangaPage ->
