@@ -20,6 +20,16 @@ import java.io.File
  *
  * This matches the loading strategy used by the canonical Komikku / Tachiyomi
  * repositories.
+ *
+ * ## Code Duplication Note
+ *
+ * This class maintains its own implementation of extension loading logic rather than
+ * using ExtensionLoadingUtils from core:extension to avoid circular dependencies:
+ * - core:extension already depends on core:tachiyomi-compat
+ * - Adding the reverse dependency creates a Gradle circular dependency error
+ *
+ * Constants are intentionally duplicated and should be kept synchronized.
+ * See docs/EXTENSION_LOADER_CONSOLIDATION.md for full details.
  */
 class TachiyomiExtensionLoader(
     private val packageManager: PackageManager,

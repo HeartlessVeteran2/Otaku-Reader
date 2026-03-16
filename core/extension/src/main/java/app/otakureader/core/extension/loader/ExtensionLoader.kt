@@ -42,16 +42,16 @@ class ExtensionLoader(
 
     companion object {
         /** Feature flag that identifies a package as a Tachiyomi-compatible extension. */
-        const val EXTENSION_FEATURE = "tachiyomi.extension"
+        const val EXTENSION_FEATURE = ExtensionLoadingUtils.EXTENSION_FEATURE
 
         /** Metadata key containing the fully-qualified source class name(s). */
-        const val METADATA_SOURCE_CLASS = "tachiyomi.extension.class"
+        const val METADATA_SOURCE_CLASS = ExtensionLoadingUtils.METADATA_SOURCE_CLASS
 
         /** Metadata key for extensions that use SourceFactory. */
-        const val METADATA_SOURCE_FACTORY = "tachiyomi.extension.factory"
+        const val METADATA_SOURCE_FACTORY = ExtensionLoadingUtils.METADATA_SOURCE_FACTORY
 
         /** Metadata key indicating NSFW content (1 = nsfw). */
-        const val METADATA_NSFW = "tachiyomi.extension.nsfw"
+        const val METADATA_NSFW = ExtensionLoadingUtils.METADATA_NSFW
 
         /** Minimum supported extension library version. */
         const val LIB_VERSION_MIN = 1.2
@@ -87,7 +87,7 @@ class ExtensionLoader(
                 ?: return ExtensionLoadResult.Error("Failed to parse package info from APK")
 
             // Fix base paths so assets/icon loading works on Android 13+
-            packageInfo.applicationInfo?.fixBasePaths(apkPath)
+            packageInfo.applicationInfo?.let { ExtensionLoadingUtils.run { it.fixBasePaths(apkPath) } }
 
             loadFromPackageInfo(packageInfo)
         } catch (e: Exception) {
@@ -168,21 +168,21 @@ class ExtensionLoader(
             )
         }
 
-        val isNsfw = (appInfo.metaData?.getInt(METADATA_NSFW) ?: 0) == 1
+        val isNsfw = ExtensionLoadingUtils.isNsfw(appInfo)
 
         // Build a DexClassLoader for dynamic class loading
         val apkPath = appInfo.sourceDir
         val nativeLibDir = appInfo.nativeLibraryDir
-        val dexOutputDir = File(context.codeCacheDir, DEX_OUTPUT_DIR).apply { mkdirs() }
-        val classLoader = DexClassLoader(
+        val dexOutputDir = File(context.codeCacheDir, DEX_OUTPUT_DIR)
+        val classLoader = ExtensionLoadingUtils.createClassLoader(
             apkPath,
-            dexOutputDir.absolutePath,
+            dexOutputDir,
             nativeLibDir,
-            context.classLoader,
+            context.classLoader
         )
 
         // Resolve source instances from the metadata
-        val sources = resolveSourcesFromMetadata(appInfo, pkgName, classLoader)
+        val sources = ExtensionLoadingUtils.resolveSourcesFromMetadata(appInfo, pkgName, classLoader)
             .ifEmpty { return ExtensionLoadResult.Error("No valid sources found in extension $pkgName") }
 
         val extension = buildExtension(apkPath, packageInfo, sources, isNsfw)
@@ -193,70 +193,7 @@ class ExtensionLoader(
      * Returns true if the given package declares the Tachiyomi extension uses-feature.
      */
     fun isPackageAnExtension(pkgInfo: PackageInfo): Boolean {
-        return pkgInfo.reqFeatures.orEmpty().any { it.name == EXTENSION_FEATURE }
-    }
-
-    /**
-     * Resolve source instances from the extension's metadata.
-     *
-     * First checks [METADATA_SOURCE_FACTORY]; if absent, falls back to
-     * [METADATA_SOURCE_CLASS]. Both keys support multiple class names separated by `;`.
-     * Relative class names starting with `.` are expanded using the package name.
-     *
-     * Loaded objects are cast to [eu.kanade.tachiyomi.source.Source] / [SourceFactory]
-     * so they match the ABI that real Tachiyomi/Komikku extensions implement.
-     */
-    private fun resolveSourcesFromMetadata(
-        appInfo: ApplicationInfo,
-        pkgName: String,
-        classLoader: DexClassLoader,
-    ): List<Source> {
-        val metadata = appInfo.metaData ?: return emptyList()
-
-        // Prefer SourceFactory when declared
-        val factoryClassName = metadata.getString(METADATA_SOURCE_FACTORY)
-        if (!factoryClassName.isNullOrBlank()) {
-            val resolvedClass = resolveClassName(factoryClassName.trim(), pkgName)
-            val instance = instantiateClass(classLoader, resolvedClass)
-            if (instance is SourceFactory) {
-                return instance.createSources()
-            }
-        }
-
-        // Fall back to direct source class(es)
-        val sourceClassEntry = metadata.getString(METADATA_SOURCE_CLASS)
-            ?: return emptyList()
-
-        return sourceClassEntry
-            .split(";")
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
-            .flatMap { rawClass ->
-                val resolvedClass = resolveClassName(rawClass, pkgName)
-                when (val instance = instantiateClass(classLoader, resolvedClass)) {
-                    is SourceFactory -> instance.createSources()
-                    is Source -> listOf(instance)
-                    else -> emptyList()
-                }
-            }
-    }
-
-    /**
-     * Expand a potentially relative class name (starting with `.`) using the package name.
-     */
-    private fun resolveClassName(className: String, pkgName: String): String {
-        return if (className.startsWith(".")) pkgName + className else className
-    }
-
-    /**
-     * Instantiate a class by name using the provided class loader, returning null on any error.
-     */
-    private fun instantiateClass(classLoader: DexClassLoader, className: String): Any? {
-        return try {
-            Class.forName(className, false, classLoader).getDeclaredConstructor().newInstance()
-        } catch (e: Exception) {
-            null
-        }
+        return ExtensionLoadingUtils.isPackageAnExtension(pkgInfo)
     }
 
     /**
@@ -342,14 +279,5 @@ class ExtensionLoader(
             supportsSearch = true,
             supportsLatest = catalogue?.supportsLatest ?: false,
         )
-    }
-
-    /**
-     * On Android 13+ the [ApplicationInfo] produced by [PackageManager.getPackageArchiveInfo]
-     * may have null [ApplicationInfo.sourceDir], which breaks class loading and icon loading.
-     */
-    private fun ApplicationInfo.fixBasePaths(apkPath: String) {
-        if (sourceDir == null) sourceDir = apkPath
-        if (publicSourceDir == null) publicSourceDir = apkPath
     }
 }
