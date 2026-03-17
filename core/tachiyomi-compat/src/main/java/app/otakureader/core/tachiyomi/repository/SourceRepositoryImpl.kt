@@ -22,9 +22,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import java.io.File
 import java.io.InterruptedIOException
-import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -37,7 +38,8 @@ import java.util.concurrent.ConcurrentHashMap
 class SourceRepositoryImpl(
     private val context: Context,
     private val localSourcePreferences: LocalSourcePreferences,
-    private val healthMonitor: SourceHealthMonitor
+    private val healthMonitor: SourceHealthMonitor,
+    private val httpClient: OkHttpClient
 ) : SourceRepository {
 
     /**
@@ -51,11 +53,13 @@ class SourceRepositoryImpl(
     constructor(
         context: Context,
         localDirectory: String,
-        healthMonitor: SourceHealthMonitor
+        healthMonitor: SourceHealthMonitor,
+        httpClient: OkHttpClient
     ) : this(
         context,
         LocalSourcePreferences.ofDirectory(localDirectory),
-        healthMonitor
+        healthMonitor,
+        httpClient
     )
 
     /**
@@ -342,25 +346,38 @@ class SourceRepositoryImpl(
 
     override suspend fun loadExtensionFromUrl(url: String): Result<Unit> {
         return withContext(Dispatchers.IO) {
-            try {
-                // Download the APK to a temporary file
-                val tempFile = File(context.cacheDir, "extension_${System.currentTimeMillis()}.apk")
+            // Download the APK to a temporary file using OkHttp
+            val tempFile = File(context.cacheDir, "extension_${System.currentTimeMillis()}.apk")
 
-                URL(url).openStream().use { input ->
-                    tempFile.outputStream().use { output ->
-                        input.copyTo(output)
+            try {
+                val request = Request.Builder()
+                    .url(url)
+                    .header("Accept", "application/vnd.android.package-archive")
+                    .build()
+
+                httpClient.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        return@withContext Result.failure(
+                            IllegalStateException("Failed to download extension: HTTP ${response.code}")
+                        )
+                    }
+                    val body = response.body
+                        ?: return@withContext Result.failure(IllegalStateException("Empty response body"))
+
+                    body.byteStream().use { input ->
+                        tempFile.outputStream().use { output ->
+                            input.copyTo(output)
+                        }
                     }
                 }
 
                 // Load the extension from the downloaded file
-                val result = loadExtension(tempFile.absolutePath)
-
-                // Clean up the temporary file
-                tempFile.delete()
-
-                result
+                loadExtension(tempFile.absolutePath)
             } catch (e: Exception) {
                 Result.failure(e)
+            } finally {
+                // Always clean up the temporary file
+                tempFile.delete()
             }
         }
     }

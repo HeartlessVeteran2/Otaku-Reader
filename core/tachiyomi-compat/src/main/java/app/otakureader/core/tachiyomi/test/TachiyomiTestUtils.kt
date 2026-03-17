@@ -5,13 +5,26 @@ import app.otakureader.core.tachiyomi.compat.TachiyomiExtensionLoader
 import app.otakureader.core.tachiyomi.health.SourceHealthMonitor
 import app.otakureader.core.tachiyomi.repository.SourceRepositoryImpl
 import kotlinx.coroutines.runBlocking
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import java.io.File
-import java.net.URL
+import java.util.concurrent.TimeUnit
 
 /**
  * Test utilities for Tachiyomi extension loading.
  */
 object TachiyomiTestUtils {
+
+    /**
+     * Create a default OkHttp client for testing with appropriate timeouts.
+     */
+    private fun createTestHttpClient(): OkHttpClient {
+        return OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .build()
+    }
 
     /**
      * Download and install a Tachiyomi extension from a URL.
@@ -25,13 +38,30 @@ object TachiyomiTestUtils {
         context: Context,
         apkUrl: String
     ): Result<String> {
-        return try {
-            // Download the APK
-            val tempFile = File(context.cacheDir, "test_extension_${System.currentTimeMillis()}.apk")
+        val httpClient = createTestHttpClient()
 
-            URL(apkUrl).openStream().use { input ->
-                tempFile.outputStream().use { output ->
-                    input.copyTo(output)
+        // Download the APK using OkHttp
+        val tempFile = File(context.cacheDir, "test_extension_${System.currentTimeMillis()}.apk")
+
+        return try {
+            val request = Request.Builder()
+                .url(apkUrl)
+                .header("Accept", "application/vnd.android.package-archive")
+                .build()
+
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    return Result.failure(
+                        IllegalStateException("Failed to download extension: HTTP ${response.code}")
+                    )
+                }
+                val body = response.body
+                    ?: return Result.failure(IllegalStateException("Empty response body"))
+
+                body.byteStream().use { input ->
+                    tempFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
                 }
             }
 
@@ -44,12 +74,12 @@ object TachiyomiTestUtils {
             val extension = extensionLoader.loadExtensionFromApk(tempFile.absolutePath)
                 ?: return Result.failure(IllegalStateException("Failed to load extension"))
 
-            // Clean up temp file
-            tempFile.delete()
-
             Result.success("Loaded extension: ${extension.name} with ${extension.sources.size} sources")
         } catch (e: Exception) {
             Result.failure(e)
+        } finally {
+            // Always clean up temp file
+            tempFile.delete()
         }
     }
 
@@ -97,10 +127,12 @@ object TachiyomiTestUtils {
     ): Result<List<String>> {
         return try {
             val healthMonitor = SourceHealthMonitor()
+            val httpClient = createTestHttpClient()
             val repository = SourceRepositoryImpl(
                 context,
                 app.otakureader.core.preferences.LocalSourcePreferences.defaultDirectory(),
-                healthMonitor
+                healthMonitor,
+                httpClient
             )
             val result = repository.getPopularManga(sourceId, 1)
 
