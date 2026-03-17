@@ -49,11 +49,34 @@ enum class AiFeature(
 
     companion object {
         /**
+         * Pre-computed map of serializedName -> AiFeature for O(1) lookup.
+         * Initialized lazily on first access (thread-safe).
+         */
+        private val BY_SERIALIZED_NAME: Map<String, AiFeature> by lazy {
+            val map = entries.associateBy { it.serializedName }
+
+            // Runtime validation: Ensure all serializedNames are unique.
+            // This will throw if there are any duplicates, failing fast during initialization.
+            require(map.size == entries.size) {
+                val duplicates = entries.groupBy { it.serializedName }
+                    .filter { it.value.size > 1 }
+                    .keys
+                "Duplicate serializedName values found: $duplicates. " +
+                    "Each AiFeature must have a unique serializedName for stable persistence."
+            }
+
+            map
+        }
+
+        /**
          * Lookup an [AiFeature] by its [serializedName].
+         *
+         * This method performs an O(1) lookup using a precomputed map,
+         * making it efficient even with large enums or frequent lookups.
          *
          * @return The matching [AiFeature], or `null` if [serializedName] is not recognized.
          */
         fun fromSerializedName(serializedName: String): AiFeature? =
-            entries.find { it.serializedName == serializedName }
+            BY_SERIALIZED_NAME[serializedName]
     }
 }
