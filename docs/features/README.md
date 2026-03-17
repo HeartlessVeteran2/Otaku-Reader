@@ -37,9 +37,9 @@ Otaku Reader offers a comprehensive set of features for manga enthusiasts:
 | **Smart Prefetch** | Adaptive prefetch based on reading speed and behavior |
 | **Updates** | Auto-check, notifications, batch updates |
 | **Downloads** | Background queue, CBZ export, pause/resume |
-| **Cloud Sync** | Google Drive sync, conflict resolution, periodic background sync |
+| **Cloud Sync** | Core engine complete; Google Drive OAuth integration pending |
 | **OPDS** | Self-hosted catalog support (Komga, Kavita), add/browse/search |
-| **AI** | Gemini-powered manga recommendations |
+| **AI** | Gemini API integration complete; recommendation engine implementation pending |
 | **Discord** | Rich Presence showing currently reading manga |
 | **Tracking** | MyAnimeList, AniList, Kitsu, MangaUpdates, Shikimori |
 | **Statistics** | Reading analytics, charts, insights |
@@ -370,13 +370,22 @@ The download system allows chapters to be saved locally for offline reading, wit
 
 Cloud Sync keeps library data (favorites, categories, reading progress) synchronized across devices using a pluggable provider architecture.
 
+**Current Implementation Status:**
+- ✅ **Core Sync Engine**: Complete and production-ready
+- ✅ **Background Sync**: Fully functional with WorkManager integration
+- ⚠️ **Google Drive Provider**: Prototype implementation (REST API calls work, OAuth not implemented)
+- ❌ **OAuth Authentication**: Not implemented - requires Google Sign-In SDK integration
+- ❌ **Sync Settings UI**: Not connected to settings screen
+
+**User Impact:** Cloud sync cannot be used by end users until Google Drive OAuth authentication is implemented. The core sync engine is production-ready and well-tested, but users cannot authorize the app to access their Google Drive without the OAuth flow.
+
 ### Providers
 
-| Provider | Status |
-|----------|--------|
-| **Google Drive** | Prototype (OAuth 2.0, Drive REST API v3) |
-| **Dropbox** | Stub (future) |
-| **WebDAV** | Stub (future) |
+| Provider | Implementation Status |
+|----------|----------------------|
+| **Google Drive** | ⚠️ Prototype (REST API v3 implemented, OAuth pending) |
+| **Dropbox** | ❌ Stub only (future implementation) |
+| **WebDAV** | ❌ Stub only (future implementation) |
 
 ### Conflict Resolution Strategies
 
@@ -389,11 +398,15 @@ Cloud Sync keeps library data (favorites, categories, reading progress) synchron
 
 ### Background Sync
 
-`SyncWorker` runs via WorkManager and supports:
+`SyncWorker` runs via WorkManager and is **fully implemented and production-ready**:
 
-- Configurable sync interval (1–168 hours)
-- Wi-Fi-only constraint
-- In-progress, success, and failure notifications via `SyncNotifier`
+- ✅ Configurable sync interval (1–168 hours)
+- ✅ Wi-Fi-only constraint
+- ✅ In-progress, success, and failure notifications via `SyncNotifier`
+- ✅ Automatic retry on transient failures
+- ✅ Proper handling of provider errors
+
+**Note:** Background sync infrastructure is complete, but requires OAuth implementation to function for end users.
 
 ### What Is Synced
 
@@ -428,13 +441,39 @@ OPDS (Open Publication Distribution System) support allows browsing and download
 
 ### Overview
 
-`GeminiClient` integrates Google Gemini to generate personalized manga recommendations based on the user's reading history and preferences.
+AI recommendation infrastructure using Google Gemini API for personalized manga suggestions.
+
+**Current Implementation Status:**
+- ✅ **GeminiClient**: Fully implemented with API integration, config fingerprinting, timeout handling
+- ✅ **Feature Gate System**: Complete feature toggle infrastructure for 9 AI features
+- ✅ **Settings UI**: AI preferences and toggles in settings screen
+- ✅ **GenerateAiContentUseCase**: Generic AI content generation use case
+- ❌ **Recommendation Engine**: Not implemented - no logic to generate recommendations from reading history
+- ❌ **Reading History Analysis**: Not implemented - no code to analyze user's reading patterns
+- ❌ **Prompt Engineering**: Not implemented - no recommendation-specific prompts
+
+**User Impact:** While users can configure AI settings and enter API keys, the actual recommendation generation logic is not implemented. The infrastructure exists, but there is no functionality that analyzes reading history and generates personalized manga recommendations.
 
 ### Key Design
 
-- **Config Fingerprinting**: Uses SHA-256 (via `MessageDigest`) on the `(apiKey, modelName)` pair (null-byte delimited) to detect configuration changes. The resulting hex string is stored in memory instead of the raw API key to reduce secret exposure.
-- **Timeout Handling**: `TimeoutCancellationException` is caught before the generic `CancellationException` in `AiRepositoryImpl` to correctly map request timeouts to `Result.failure`.
-- **Privacy**: All AI calls are opt-in; no data is sent without user consent.
+- **Config Fingerprinting**: Uses HMAC-SHA256 on the `(apiKey, modelName)` pair to detect configuration changes and zero sensitive memory
+- **Timeout Handling**: `TimeoutCancellationException` is caught before the generic `CancellationException` in `AiRepositoryImpl` to correctly map request timeouts to `Result.failure`
+- **Privacy**: All AI calls are opt-in; no data is sent without user consent
+- **Security**: API keys stored encrypted in DataStore
+
+### Available AI Features (Infrastructure Only)
+
+The following features have toggle infrastructure in place but no actual implementation:
+
+1. **RECOMMENDATIONS** - Personalized manga recommendations (not implemented)
+2. READING_INSIGHTS - Reading pattern analysis (not implemented)
+3. SMART_SEARCH - AI-enhanced search (not implemented)
+4. PANEL_READER - Panel detection AI (not implemented)
+5. SFX_TRANSLATION - Sound effect translation (not implemented)
+6. SUMMARY_TRANSLATION - Summary generation (not implemented)
+7. SOURCE_INTELLIGENCE - Source quality analysis (not implemented)
+8. SMART_NOTIFICATIONS - AI-driven notifications (not implemented)
+9. AUTO_CATEGORIZATION - Automatic manga categorization (not implemented)
 
 ## Discord Rich Presence
 

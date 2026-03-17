@@ -39,9 +39,9 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 | **📊 Tracking** | MyAnimeList, AniList, Kitsu, MangaUpdates, Shikimori |
 | **🔔 Notifications** | Rich new chapter alerts with covers, grouped by series |
 | **☁️ Backup** | Scheduled backups, JSON export/import |
-| **🔄 Cloud Sync** | Google Drive sync, conflict resolution, background periodic sync |
+| **🔄 Cloud Sync** | Core engine complete with conflict resolution and background sync; Google Drive OAuth integration pending |
 | **📡 OPDS** | Self-hosted catalog support (Komga, Kavita), add/browse/search OPDS servers |
-| **🤖 AI Recommendations** | Gemini-powered manga recommendations based on reading history |
+| **🤖 AI Recommendations** | Gemini API integration complete; recommendation engine implementation pending |
 | **🎮 Discord RPC** | Rich Presence showing currently reading manga |
 | **📈 Statistics** | Reading analytics, charts, reading streaks, and insights |
 | **🔄 Migration** | Migrate manga between sources with progress and chapter mapping |
@@ -91,9 +91,9 @@ Clean Architecture + MVI with modular feature structure.
 
 ## 🗺️ Roadmap
 
-- **✅ Shipped:** Smart Panels (panel-by-panel navigation), Smart Prefetch, OPDS Catalog, AI Recommendations (Gemini), Discord Rich Presence, Cloud Sync (Google Drive), Statistics, Migration
-- **🚧 In Progress:** Cloud Sync provider expansion (Dropbox, WebDAV), Smart Panels ML model (TensorFlow Lite)
-- **🔮 Future:** Widget improvements, KMP expansion, Macrobenchmark baseline profiles
+- **✅ Shipped:** Smart Panels (panel-by-panel navigation), Smart Prefetch, OPDS Catalog, Discord Rich Presence, Statistics, Migration, Background Sync
+- **🚧 In Progress:** Cloud Sync (core complete, OAuth pending), AI Recommendations (API integration complete, recommendation engine pending), Smart Panels ML model (TensorFlow Lite)
+- **🔮 Future:** Cloud Sync provider expansion (Dropbox, WebDAV), Widget improvements, KMP expansion, Macrobenchmark baseline profiles
 
 ---
 
