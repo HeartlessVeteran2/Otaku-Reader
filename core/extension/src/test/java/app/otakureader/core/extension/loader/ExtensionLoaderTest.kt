@@ -114,7 +114,7 @@ class ExtensionLoaderTest {
     fun `loadExtension returns error when package info cannot be parsed`() {
         // Given
         val apkPath = createTempApkFile()
-        every { packageManager.getPackageArchiveInfo(apkPath, any()) } returns null
+        every { packageManager.getPackageArchiveInfo(apkPath, any<Int>()) } returns null
 
         // When
         val result = extensionLoader.loadExtension(apkPath)
@@ -133,7 +133,7 @@ class ExtensionLoaderTest {
             pkgName = "com.regular.app",
             hasExtensionFeature = false
         )
-        every { packageManager.getPackageArchiveInfo(apkPath, any()) } returns packageInfo
+        every { packageManager.getPackageArchiveInfo(apkPath, any<Int>()) } returns packageInfo
 
         // When
         val result = extensionLoader.loadExtension(apkPath)
@@ -153,7 +153,7 @@ class ExtensionLoaderTest {
             reqFeatures = arrayOf(FeatureInfo().apply { name = ExtensionLoader.EXTENSION_FEATURE })
             applicationInfo = null
         }
-        every { packageManager.getPackageArchiveInfo(apkPath, any()) } returns packageInfo
+        every { packageManager.getPackageArchiveInfo(apkPath, any<Int>()) } returns packageInfo
 
         // When
         val result = extensionLoader.loadExtension(apkPath)
@@ -172,7 +172,7 @@ class ExtensionLoaderTest {
             pkgName = "eu.kanade.tachiyomi.extension.en.test",
             versionName = null
         )
-        every { packageManager.getPackageArchiveInfo(apkPath, any()) } returns packageInfo
+        every { packageManager.getPackageArchiveInfo(apkPath, any<Int>()) } returns packageInfo
 
         // When
         val result = extensionLoader.loadExtension(apkPath)
@@ -195,7 +195,7 @@ class ExtensionLoaderTest {
             pkgName = "eu.kanade.tachiyomi.extension.en.test",
             versionName = "1.0.5"  // Below minimum 1.2
         )
-        every { packageManager.getPackageArchiveInfo(apkPath, any()) } returns packageInfo
+        every { packageManager.getPackageArchiveInfo(apkPath, any<Int>()) } returns packageInfo
 
         // When
         val result = extensionLoader.loadExtension(apkPath)
@@ -214,7 +214,7 @@ class ExtensionLoaderTest {
             pkgName = "eu.kanade.tachiyomi.extension.en.test",
             versionName = "2.0.1"  // Above maximum 1.5
         )
-        every { packageManager.getPackageArchiveInfo(apkPath, any()) } returns packageInfo
+        every { packageManager.getPackageArchiveInfo(apkPath, any<Int>()) } returns packageInfo
 
         // When
         val result = extensionLoader.loadExtension(apkPath)
@@ -233,7 +233,7 @@ class ExtensionLoaderTest {
             pkgName = "eu.kanade.tachiyomi.extension.en.test",
             versionName = "invalid"
         )
-        every { packageManager.getPackageArchiveInfo(apkPath, any()) } returns packageInfo
+        every { packageManager.getPackageArchiveInfo(apkPath, any<Int>()) } returns packageInfo
 
         // When
         val result = extensionLoader.loadExtension(apkPath)
@@ -252,7 +252,7 @@ class ExtensionLoaderTest {
             pkgName = "eu.kanade.tachiyomi.extension.en.test",
             versionName = "1.2.100"
         )
-        every { packageManager.getPackageArchiveInfo(apkPath, any()) } returns packageInfo
+        every { packageManager.getPackageArchiveInfo(apkPath, any<Int>()) } returns packageInfo
 
         // When
         val result = extensionLoader.loadExtension(apkPath)
@@ -271,7 +271,7 @@ class ExtensionLoaderTest {
             pkgName = "eu.kanade.tachiyomi.extension.en.test",
             versionName = "1.5.999"
         )
-        every { packageManager.getPackageArchiveInfo(apkPath, any()) } returns packageInfo
+        every { packageManager.getPackageArchiveInfo(apkPath, any<Int>()) } returns packageInfo
 
         // When
         val result = extensionLoader.loadExtension(apkPath)
@@ -295,7 +295,7 @@ class ExtensionLoaderTest {
             versionName = "1.4.0",
             isNsfw = true
         )
-        every { packageManager.getPackageArchiveInfo(apkPath, any()) } returns packageInfo
+        every { packageManager.getPackageArchiveInfo(apkPath, any<Int>()) } returns packageInfo
 
         // When
         val result = extensionLoader.loadExtension(apkPath)
@@ -314,7 +314,7 @@ class ExtensionLoaderTest {
             versionName = "1.4.0",
             isNsfw = false
         )
-        every { packageManager.getPackageArchiveInfo(apkPath, any()) } returns packageInfo
+        every { packageManager.getPackageArchiveInfo(apkPath, any<Int>()) } returns packageInfo
 
         // When
         val result = extensionLoader.loadExtension(apkPath)
@@ -338,7 +338,7 @@ class ExtensionLoaderTest {
             sourceClass = null,
             sourceFactory = null
         )
-        every { packageManager.getPackageArchiveInfo(apkPath, any()) } returns packageInfo
+        every { packageManager.getPackageArchiveInfo(apkPath, any<Int>()) } returns packageInfo
 
         // When
         val result = extensionLoader.loadExtension(apkPath)
@@ -358,7 +358,7 @@ class ExtensionLoaderTest {
             versionName = "1.4.0",
             sourceClass = ""
         )
-        every { packageManager.getPackageArchiveInfo(apkPath, any()) } returns packageInfo
+        every { packageManager.getPackageArchiveInfo(apkPath, any<Int>()) } returns packageInfo
 
         // When
         val result = extensionLoader.loadExtension(apkPath)
@@ -472,7 +472,7 @@ class ExtensionLoaderTest {
         // Given
         val apkPath = createTempApkFile()
         every {
-            packageManager.getPackageArchiveInfo(apkPath, any())
+            packageManager.getPackageArchiveInfo(apkPath, any<Int>())
         } throws RuntimeException("Mock exception")
 
         // When

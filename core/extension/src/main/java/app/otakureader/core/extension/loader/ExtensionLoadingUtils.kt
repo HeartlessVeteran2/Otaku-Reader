@@ -42,6 +42,7 @@ object ExtensionLoadingUtils {
      * @param nativeLibDir Directory containing native libraries (optional)
      * @param parentClassLoader Parent class loader (defaults to current class loader)
      * @return Configured DexClassLoader
+     * @throws IllegalStateException if optimized directory creation fails
      */
     fun createClassLoader(
         apkPath: String,
@@ -49,7 +50,21 @@ object ExtensionLoadingUtils {
         nativeLibDir: String?,
         parentClassLoader: ClassLoader? = ExtensionLoadingUtils::class.java.classLoader
     ): DexClassLoader {
-        optimizedDir.mkdirs()
+        require(apkPath.isNotBlank()) { "APK path must not be blank" }
+
+        // Ensure directory exists and is usable
+        if (!optimizedDir.exists() && !optimizedDir.mkdirs()) {
+            throw IllegalStateException("Failed to create optimized directory: ${optimizedDir.absolutePath}")
+        }
+
+        // Validate that the path is actually a directory and is writable
+        if (!optimizedDir.isDirectory) {
+            throw IllegalStateException("Optimized path exists but is not a directory: ${optimizedDir.absolutePath}")
+        }
+        if (!optimizedDir.canWrite()) {
+            throw IllegalStateException("Optimized directory is not writable: ${optimizedDir.absolutePath}")
+        }
+
         return DexClassLoader(
             apkPath,
             optimizedDir.absolutePath,
@@ -72,14 +87,40 @@ object ExtensionLoadingUtils {
     /**
      * Instantiate a class by name using the provided class loader.
      *
+     * @param classLoader The DexClassLoader to use for loading the class
+     * @param className The fully-qualified class name to instantiate
      * @return Instance of the class, or null if instantiation fails
      */
     fun instantiateClass(classLoader: DexClassLoader, className: String): Any? {
+        require(className.isNotBlank()) { "Class name must not be blank" }
+
         return try {
             Class.forName(className, false, classLoader)
                 .getDeclaredConstructor()
                 .newInstance()
-        } catch (e: Exception) {
+        } catch (e: ClassNotFoundException) {
+            // Class not found in APK - expected for invalid/missing source classes
+            null
+        } catch (e: NoSuchMethodException) {
+            // No parameterless constructor - expected for non-source classes
+            null
+        } catch (e: InstantiationException) {
+            // Cannot instantiate (abstract class/interface) - expected for invalid sources
+            null
+        } catch (e: IllegalAccessException) {
+            // Constructor not accessible - expected for inaccessible classes
+            null
+        } catch (e: SecurityException) {
+            // Security manager denies access - rare but expected
+            null
+        } catch (e: java.lang.reflect.InvocationTargetException) {
+            // Constructor threw an exception - expected for extension code with initialization errors
+            null
+        } catch (e: ExceptionInInitializerError) {
+            // Static initializer threw an exception - expected for extension code with init errors
+            null
+        } catch (e: LinkageError) {
+            // Class linking failed - expected for extensions with missing dependencies
             null
         }
     }
@@ -153,6 +194,12 @@ object ExtensionLoadingUtils {
      * Resolve Source instances from ApplicationInfo metadata.
      *
      * This is a convenience overload that extracts metadata from ApplicationInfo.
+     *
+     * @param appInfo ApplicationInfo containing extension metadata
+     * @param pkgName Package name for resolving relative class names
+     * @param classLoader DexClassLoader for loading classes
+     * @param filterType Optional class to filter by (e.g., CatalogueSource::class.java)
+     * @return List of Source instances, empty if metadata is null
      */
     fun resolveSourcesFromMetadata(
         appInfo: ApplicationInfo,

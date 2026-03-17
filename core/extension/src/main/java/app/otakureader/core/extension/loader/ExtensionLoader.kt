@@ -172,14 +172,22 @@ class ExtensionLoader(
 
         // Build a DexClassLoader for dynamic class loading
         val apkPath = appInfo.sourceDir
+            ?: return ExtensionLoadResult.Error("Application sourceDir is null for package $pkgName")
         val nativeLibDir = appInfo.nativeLibraryDir
         val dexOutputDir = File(context.codeCacheDir, DEX_OUTPUT_DIR)
-        val classLoader = ExtensionLoadingUtils.createClassLoader(
-            apkPath,
-            dexOutputDir,
-            nativeLibDir,
-            context.classLoader
-        )
+
+        val classLoader = try {
+            ExtensionLoadingUtils.createClassLoader(
+                apkPath,
+                dexOutputDir,
+                nativeLibDir,
+                context.classLoader
+            )
+        } catch (e: IllegalStateException) {
+            return ExtensionLoadResult.Error("Failed to create class loader: ${e.message}", e)
+        } catch (e: IllegalArgumentException) {
+            return ExtensionLoadResult.Error("Invalid parameters for class loader: ${e.message}", e)
+        }
 
         // Resolve source instances from the metadata
         val sources = ExtensionLoadingUtils.resolveSourcesFromMetadata(appInfo, pkgName, classLoader)

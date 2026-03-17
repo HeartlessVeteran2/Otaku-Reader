@@ -150,7 +150,20 @@ class TachiyomiExtensionLoader(
 
         // Build the class loader
         val nativeLibDir = appInfo.nativeLibraryDir
-        val optimizedDir = File(cacheDir, "tachiyomi-dex").apply { mkdirs() }
+        val optimizedDir = File(cacheDir, "tachiyomi-dex")
+
+        // Ensure the optimized directory exists and is usable
+        if (!optimizedDir.exists() && !optimizedDir.mkdirs()) {
+            // Failed to create directory - cannot proceed with class loading
+            return null
+        }
+
+        // Validate that the path is actually a directory and is writable
+        if (!optimizedDir.isDirectory || !optimizedDir.canWrite()) {
+            // Directory is not usable - cannot proceed with class loading
+            return null
+        }
+
         val classLoader = DexClassLoader(
             apkPath,
             optimizedDir.absolutePath,
@@ -242,9 +255,33 @@ class TachiyomiExtensionLoader(
 
     /** Instantiate a class by name; returns null on any error. */
     private fun instantiateClass(classLoader: DexClassLoader, className: String): Any? {
+        if (className.isBlank()) return null
+
         return try {
             Class.forName(className, false, classLoader).getDeclaredConstructor().newInstance()
-        } catch (e: Exception) {
+        } catch (e: ClassNotFoundException) {
+            // Class not found in APK - expected for invalid/missing source classes
+            null
+        } catch (e: NoSuchMethodException) {
+            // No parameterless constructor - expected for non-source classes
+            null
+        } catch (e: InstantiationException) {
+            // Cannot instantiate (abstract class/interface) - expected for invalid sources
+            null
+        } catch (e: IllegalAccessException) {
+            // Constructor not accessible - expected for inaccessible classes
+            null
+        } catch (e: SecurityException) {
+            // Security manager denies access - rare but expected
+            null
+        } catch (e: java.lang.reflect.InvocationTargetException) {
+            // Constructor threw an exception - expected for extension code with initialization errors
+            null
+        } catch (e: ExceptionInInitializerError) {
+            // Static initializer threw an exception - expected for extension code with init errors
+            null
+        } catch (e: LinkageError) {
+            // Class linking failed - expected for extensions with missing dependencies
             null
         }
     }
