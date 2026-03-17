@@ -57,6 +57,11 @@ glance = "1.1.1"
 
 # AI
 generativeai = "0.9.0"
+mlkit-text-recognition = "16.0.1"
+mlkit-image-labeling = "17.0.9"
+
+# Firebase
+firebase-bom = "33.11.0"
 
 # Testing
 junit = "4.13.2"
@@ -151,6 +156,12 @@ glance-material3 = { group = "androidx.glance", name = "glance-material3", versi
 
 # AI
 generativeai = { group = "com.google.ai.client.generativeai", name = "generativeai", version.ref = "generativeai" }
+mlkit-text-recognition = { group = "com.google.mlkit", name = "text-recognition", version.ref = "mlkit-text-recognition" }
+mlkit-image-labeling = { group = "com.google.mlkit", name = "image-labeling", version.ref = "mlkit-image-labeling" }
+
+# Firebase
+firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebase-bom" }
+firebase-firestore-ktx = { group = "com.google.firebase", name = "firebase-firestore-ktx" }
 
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }

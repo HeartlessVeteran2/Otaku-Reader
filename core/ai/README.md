@@ -67,6 +67,99 @@ suspend fun generateSummary(prompt: String) {
 
 ## Dependencies
 
+### Gemini AI SDK
+- **Package**: `com.google.ai.client.generativeai:generativeai:0.9.0`
+- **Exposure**: `api` - Types are exposed to consumers (data layer)
+- **Purpose**: Generative AI text generation and content understanding
+
+### ML Kit Text Recognition
+- **Package**: `com.google.mlkit:text-recognition:16.0.1`
+- **Exposure**: `implementation` - Types are internal to this module
+- **Purpose**: On-device optical character recognition (OCR) for manga pages
+- **Size Impact**: ~15-20 MB (models + native libraries)
+- **Runtime Requirements**: Google Play Services ML Kit
+
+### ML Kit Image Labeling
+- **Package**: `com.google.mlkit:image-labeling:17.0.9`
+- **Exposure**: `implementation` - Types are internal to this module
+- **Purpose**: On-device image classification and content detection
+- **Size Impact**: ~10-15 MB (models + native libraries)
+- **Runtime Requirements**: Google Play Services ML Kit
+
+### Firebase Firestore
+- **Package**: `com.google.firebase:firebase-firestore-ktx` (version managed by BoM)
+- **Firebase BoM**: `33.11.0` ensures compatible versions across Firebase components
+- **Exposure**: `implementation` - Types are internal to this module
+- **Purpose**: Cloud storage for AI-related data and user preferences
+- **Runtime Requirements**: Google Play Services, internet connectivity
+
+## API Surface Decisions
+
+### Why `api` for Gemini AI SDK?
+The `GeminiClient` class exposes types from the Gemini SDK (e.g., `GenerateContentResponse`) in its public API. Consumers in the data layer need access to these types, so we use `api(...)` to transitively expose the dependency.
+
+### Why `implementation` for ML Kit and Firestore?
+ML Kit and Firestore types are not exposed through this module's public API. All ML Kit and Firestore operations are encapsulated within internal classes. Using `implementation` keeps the module's API surface minimal and prevents dependency leakage.
+
+**Important**: If future features need to expose ML Kit or Firestore types (e.g., returning `Text` objects from ML Kit), those dependencies should be changed to `api`.
+
+## APK Size Impact
+
+Adding ML Kit and Firebase dependencies increases the APK size:
+- **Text Recognition**: ~15-20 MB
+- **Image Labeling**: ~10-15 MB
+- **Firebase Firestore**: ~5-8 MB
+- **Total estimated increase**: ~30-43 MB
+
+### Mitigation Strategies
+
+1. **Dynamic Feature Modules** (Future Enhancement)
+   - Move ML Kit features to a separate dynamic feature module
+   - Download on-demand when users enable AI features
+   - Reduces base APK size for users who don't use AI features
+
+2. **Model Download Options**
+   - ML Kit supports downloading models at runtime vs bundling
+   - Can be configured in the consuming app module
+   - Trade-off: Initial feature use requires network + download time
+
+3. **ProGuard/R8 Optimization**
+   - Ensure ProGuard/R8 is enabled in release builds
+   - Unused code will be stripped automatically
+   - Firebase and ML Kit include their own ProGuard rules
+
+## Runtime Requirements
+
+### Google Play Services
+ML Kit and Firebase require Google Play Services. On devices without Play Services (e.g., F-Droid builds):
+- ML Kit features will fail at runtime
+- Use the `foss` build flavor which excludes this module
+- The `core/ai-noop` module provides no-op implementations for FOSS builds
+
+### Permissions
+The app module must declare required permissions in `AndroidManifest.xml`:
+- `INTERNET` - Required for Firestore and Gemini API
+- ML Kit may require `CAMERA`/`READ_EXTERNAL_STORAGE` for certain use cases
+
+### Initialization
+Firebase must be initialized in the Application class. This is handled automatically by the Firebase SDK via ContentProvider, but ensure:
+- `google-services.json` is present in the `app/` module for full flavor builds
+- Firebase initialization happens before using Firestore
+
+## Build Variants
+
+This module is only included in the **full** build flavor:
+```kotlin
+// In data/build.gradle.kts
+fullImplementation(projects.core.ai)
+```
+
+The **foss** flavor uses `core/ai-noop` instead, which provides no-op implementations of all AI features.
+
+---
+
+## Original Dependencies Documentation
+
 - `com.google.ai.client.generativeai:generativeai:0.9.0` - Gemini AI SDK
 - `core:common` - Common utilities
 - Hilt for dependency injection
