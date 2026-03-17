@@ -1,5 +1,23 @@
 # Cloud Sync Architecture - Implementation Summary
 
+**Implementation Status:** Core Complete, OAuth Integration Pending
+
+This document provides a detailed summary of the cloud sync implementation in Otaku Reader. The core sync engine is production-ready with comprehensive testing, but Google Drive OAuth authentication is not yet implemented and is required for end-to-end functionality.
+
+## Implementation Status Overview
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| **Core Sync Engine** | ✅ Complete | Snapshot creation, conflict resolution, background sync |
+| **Domain Layer** | ✅ Complete | Use cases, interfaces, models |
+| **Background Sync** | ✅ Complete | WorkManager integration, notifications |
+| **Testing** | ✅ Complete | 31 tests passing |
+| **Google Drive Provider** | ⚠️ Prototype | REST API calls implemented, OAuth not implemented |
+| **Google Drive OAuth** | ❌ Not Implemented | Throws `NotImplementedError` - requires Google Sign-In SDK |
+| **Sync Settings UI** | ❌ Not Implemented | UI components not connected to settings screen |
+| **Dropbox Provider** | ❌ Stub Only | Placeholder implementation |
+| **WebDAV Provider** | ❌ Stub Only | Placeholder implementation |
+
 ## Completed Features ✅
 
 ### Domain Layer
@@ -38,10 +56,16 @@
    - Category management with proper relationships
 
 2. **Sync Providers**
-   - **GoogleDriveSyncProvider** - Prototype with Drive REST API v3
-   - **DropboxSyncProvider** - Stub for future implementation
-   - **WebDavSyncProvider** - Stub for future implementation
-   - **GoogleDriveAuthenticator** - OAuth stub with token storage structure
+   - **GoogleDriveSyncProvider** - ⚠️ Functional prototype with Drive REST API v3
+     - ✅ Implemented: File upload/download, JSON serialization, snapshot management
+     - ❌ Not Implemented: OAuth token acquisition (requires Google Sign-In SDK integration)
+     - **Critical Gap**: `GoogleDriveAuthenticator.authenticate()` throws `NotImplementedError` at line 80
+   - **DropboxSyncProvider** - ❌ Stub only (placeholder for future implementation)
+   - **WebDavSyncProvider** - ❌ Stub only (placeholder for future implementation)
+   - **GoogleDriveAuthenticator** - ⚠️ Token storage structure only
+     - ✅ Implemented: DataStore-based token storage, validation, expiry checks
+     - ❌ Not Implemented: Actual OAuth flow (line 80 throws `NotImplementedError`)
+     - **Missing**: Google Sign-In SDK integration, token refresh mechanism
 
 3. **Background Sync**
    - **SyncWorker** - WorkManager periodic sync worker
@@ -123,11 +147,23 @@ Intelligent merging logic implemented:
 
 ## Remaining Work 🚧
 
-### High Priority
-1. **Sync Settings UI**
-   - ✅ MVI state and events added to SettingsMvi.kt
-   - ⚠️ Need to add sync section to SettingsScreen.kt
-   - ⚠️ Need to implement sync events in SettingsViewModel.kt
+### Critical (Required for Production)
+
+1. **Google Drive OAuth Integration** ⚠️ **BLOCKER**
+   - **Current State**: `GoogleDriveAuthenticator.authenticate()` throws `NotImplementedError` (line 80)
+   - **Required Steps**:
+     - Add Google Sign-In SDK dependency (`com.google.android.gms:play-services-auth`)
+     - Implement actual OAuth flow in `GoogleDriveAuthenticator`
+     - Request `drive.appdata` scope
+     - Implement token refresh mechanism
+     - Use EncryptedSharedPreferences for token storage
+   - **Impact**: Without this, cloud sync cannot authenticate and is non-functional for end users
+
+2. **Sync Settings UI** ⚠️ **HIGH PRIORITY**
+   - **Current State**: MVI state and events added to SettingsMvi.kt, but UI not connected
+   - **Required Steps**:
+     - Add sync section to SettingsScreen.kt
+     - Implement sync events in SettingsViewModel.kt
    - UI should include:
      - Enable/disable sync toggle
      - Provider selection (Google Drive, Dropbox, WebDAV)
@@ -136,13 +172,7 @@ Intelligent merging logic implemented:
      - Auto-sync configuration
      - Conflict resolution strategy selector
      - Sync status indicator
-
-2. **Google Drive OAuth Integration**
-   - Add Google Sign-In SDK dependency
-   - Implement actual OAuth flow in GoogleDriveAuthenticator
-   - Request `drive.appdata` scope
-   - Implement token refresh mechanism
-   - Use EncryptedSharedPreferences for token storage
+   - **Impact**: Without this, users cannot configure or trigger sync from the app
 
 3. **SettingsViewModel Integration**
    - Inject SyncPreferences and sync use cases
@@ -327,7 +357,7 @@ Current sync snapshot for 1000 manga with 10 chapters each:
 
 ## Conclusion
 
-The cloud sync architecture is now **functionally complete** with a production-ready foundation:
+The cloud sync architecture is **functionally complete at the core level** with a production-ready foundation:
 - ✅ Clean architecture with proper layer separation
 - ✅ Comprehensive conflict resolution
 - ✅ Background sync infrastructure
@@ -336,4 +366,13 @@ The cloud sync architecture is now **functionally complete** with a production-r
 - ✅ Type-safe preferences
 - ✅ Proper dependency injection
 
-The remaining work is primarily UI integration and OAuth implementation, which can be completed in follow-up PRs. The core sync engine is robust, well-tested, and ready for production use.
+**Critical Gaps for End-User Functionality:**
+- ❌ Google Drive OAuth not implemented (authentication flow throws `NotImplementedError`)
+- ❌ Sync settings UI not connected to settings screen
+- ❌ Dropbox and WebDAV are stub implementations only
+
+**Current User Impact:**
+The cloud sync feature **cannot be used by end users** until Google Drive OAuth is implemented. The core sync engine works perfectly in tests, but without OAuth authentication, users cannot authorize the app to access their Google Drive.
+
+**Recommendation:**
+Update user-facing documentation to clarify that cloud sync is "in development" rather than "shipped" until OAuth integration is complete. The remaining work is primarily OAuth implementation and UI integration, which can be completed in follow-up PRs.
