@@ -38,12 +38,12 @@ object TachiyomiTestUtils {
         context: Context,
         apkUrl: String
     ): Result<String> {
+        val httpClient = createTestHttpClient()
+
+        // Download the APK using OkHttp
+        val tempFile = File(context.cacheDir, "test_extension_${System.currentTimeMillis()}.apk")
+
         return try {
-            val httpClient = createTestHttpClient()
-
-            // Download the APK using OkHttp
-            val tempFile = File(context.cacheDir, "test_extension_${System.currentTimeMillis()}.apk")
-
             val request = Request.Builder()
                 .url(apkUrl)
                 .header("Accept", "application/vnd.android.package-archive")
@@ -74,12 +74,12 @@ object TachiyomiTestUtils {
             val extension = extensionLoader.loadExtensionFromApk(tempFile.absolutePath)
                 ?: return Result.failure(IllegalStateException("Failed to load extension"))
 
-            // Clean up temp file
-            tempFile.delete()
-
             Result.success("Loaded extension: ${extension.name} with ${extension.sources.size} sources")
         } catch (e: Exception) {
             Result.failure(e)
+        } finally {
+            // Always clean up temp file
+            tempFile.delete()
         }
     }
 

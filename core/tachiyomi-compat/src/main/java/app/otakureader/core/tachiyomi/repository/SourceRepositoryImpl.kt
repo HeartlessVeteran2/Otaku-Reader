@@ -346,10 +346,10 @@ class SourceRepositoryImpl(
 
     override suspend fun loadExtensionFromUrl(url: String): Result<Unit> {
         return withContext(Dispatchers.IO) {
-            try {
-                // Download the APK to a temporary file using OkHttp
-                val tempFile = File(context.cacheDir, "extension_${System.currentTimeMillis()}.apk")
+            // Download the APK to a temporary file using OkHttp
+            val tempFile = File(context.cacheDir, "extension_${System.currentTimeMillis()}.apk")
 
+            try {
                 val request = Request.Builder()
                     .url(url)
                     .header("Accept", "application/vnd.android.package-archive")
@@ -372,14 +372,12 @@ class SourceRepositoryImpl(
                 }
 
                 // Load the extension from the downloaded file
-                val result = loadExtension(tempFile.absolutePath)
-
-                // Clean up the temporary file
-                tempFile.delete()
-
-                result
+                loadExtension(tempFile.absolutePath)
             } catch (e: Exception) {
                 Result.failure(e)
+            } finally {
+                // Always clean up the temporary file
+                tempFile.delete()
             }
         }
     }
