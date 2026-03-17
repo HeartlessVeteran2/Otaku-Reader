@@ -346,8 +346,8 @@ class SourceRepositoryImpl(
 
     override suspend fun loadExtensionFromUrl(url: String): Result<Unit> {
         return withContext(Dispatchers.IO) {
-            // Download the APK to a temporary file using OkHttp
-            val tempFile = File(context.cacheDir, "extension_${System.currentTimeMillis()}.apk")
+            // Download the APK to a temporary file using OkHttp with safe temp file creation
+            val tempFile = File.createTempFile("extension_", ".apk", context.cacheDir)
 
             try {
                 val request = Request.Builder()

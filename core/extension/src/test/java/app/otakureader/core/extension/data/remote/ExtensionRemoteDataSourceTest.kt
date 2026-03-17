@@ -41,6 +41,10 @@ class ExtensionRemoteDataSourceTest {
     @After
     fun tearDown() {
         mockWebServer.shutdown()
+        // Clean up OkHttp client resources
+        httpClient.dispatcher.executorService.shutdown()
+        httpClient.connectionPool.evictAll()
+        httpClient.cache?.close()
     }
 
     @Test
