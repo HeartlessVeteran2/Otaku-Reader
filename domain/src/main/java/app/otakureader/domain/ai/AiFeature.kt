@@ -50,7 +50,7 @@ enum class AiFeature(
     companion object {
         /**
          * Pre-computed map of serializedName -> AiFeature for O(1) lookup.
-         * Initialized once at class load time.
+         * Initialized lazily on first access (thread-safe).
          */
         private val BY_SERIALIZED_NAME: Map<String, AiFeature> by lazy {
             val map = entries.associateBy { it.serializedName }

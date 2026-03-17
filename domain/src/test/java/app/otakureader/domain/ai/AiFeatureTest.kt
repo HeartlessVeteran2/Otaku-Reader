@@ -32,15 +32,17 @@ class AiFeatureTest {
     }
 
     @Test
-    fun `companion object validates uniqueness at initialization`() {
+    fun `companion object validates uniqueness on first access`() {
         // This test documents that the companion object's BY_SERIALIZED_NAME map
-        // validates uniqueness at class initialization time. If there are duplicates,
+        // validates uniqueness on first access (lazy initialization). If there are duplicates,
         // the require() check will throw an IllegalArgumentException.
         //
         // We verify this by accessing the companion object (which triggers lazy init)
         // and ensuring no exception is thrown.
-        val feature = AiFeature.fromSerializedName("reading_insights")
+        val firstEntry = AiFeature.entries.first()
+        val feature = AiFeature.fromSerializedName(firstEntry.serializedName)
         assertNotNull("Companion object should initialize without throwing", feature)
+        assertEquals("Should retrieve the correct feature", firstEntry, feature)
     }
 
     @Test
