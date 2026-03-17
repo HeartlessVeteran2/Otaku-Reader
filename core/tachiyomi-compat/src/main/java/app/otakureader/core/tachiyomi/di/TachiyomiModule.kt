@@ -17,6 +17,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import okhttp3.OkHttpClient
 import javax.inject.Singleton
 
 /**
@@ -33,9 +34,10 @@ object TachiyomiModule {
     fun provideSourceRepository(
         @ApplicationContext context: Context,
         localSourcePreferences: LocalSourcePreferences,
-        healthMonitor: SourceHealthMonitor
+        healthMonitor: SourceHealthMonitor,
+        httpClient: OkHttpClient
     ): SourceRepository {
-        return SourceRepositoryImpl(context, localSourcePreferences, healthMonitor)
+        return SourceRepositoryImpl(context, localSourcePreferences, healthMonitor, httpClient)
     }
 
     @Provides

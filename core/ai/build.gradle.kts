@@ -17,6 +17,13 @@ dependencies {
     // Gemini AI SDK
     api(libs.generativeai)
 
+    // ML Kit for text recognition and image labeling
+    implementation(libs.mlkit.text.recognition)
+    implementation(libs.mlkit.image.labeling)
+
+    // Firebase Firestore
+    implementation(libs.firebase.firestore.ktx)
+
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
 
