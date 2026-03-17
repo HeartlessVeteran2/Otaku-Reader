@@ -1,6 +1,7 @@
 package app.otakureader.data.ai
 
 import app.otakureader.core.preferences.AiPreferences
+import app.otakureader.data.TestConstants.FAKE_API_KEY
 import app.otakureader.domain.ai.AiFeature
 import app.otakureader.domain.repository.AiRepository
 import io.mockk.coEvery
@@ -49,7 +50,7 @@ class AiFeatureGateImplTest {
     @Test
     fun `isAiAvailable returns false when key set but backend not initialized`() = runTest {
         every { aiPreferences.aiEnabled } returns flowOf(true)
-        coEvery { aiPreferences.getGeminiApiKey() } returns "AIzaSomeFakeKey"
+        coEvery { aiPreferences.getGeminiApiKey() } returns FAKE_API_KEY
         coEvery { aiRepository.isAvailable() } returns false
 
         assertFalse(gate.isAiAvailable())
@@ -58,7 +59,7 @@ class AiFeatureGateImplTest {
     @Test
     fun `isAiAvailable returns true when toggle on, key set, and backend available`() = runTest {
         every { aiPreferences.aiEnabled } returns flowOf(true)
-        coEvery { aiPreferences.getGeminiApiKey() } returns "AIzaSomeFakeKey"
+        coEvery { aiPreferences.getGeminiApiKey() } returns FAKE_API_KEY
         coEvery { aiRepository.isAvailable() } returns true
 
         assertTrue(gate.isAiAvailable())
@@ -76,7 +77,7 @@ class AiFeatureGateImplTest {
     @Test
     fun `isFeatureAvailable returns false when feature toggle is off`() = runTest {
         every { aiPreferences.aiEnabled } returns flowOf(true)
-        coEvery { aiPreferences.getGeminiApiKey() } returns "AIzaSomeFakeKey"
+        coEvery { aiPreferences.getGeminiApiKey() } returns FAKE_API_KEY
         coEvery { aiRepository.isAvailable() } returns true
         every { aiPreferences.aiReadingInsights } returns flowOf(false)
 
@@ -86,7 +87,7 @@ class AiFeatureGateImplTest {
     @Test
     fun `isFeatureAvailable returns true when global AI available and feature toggle on`() = runTest {
         every { aiPreferences.aiEnabled } returns flowOf(true)
-        coEvery { aiPreferences.getGeminiApiKey() } returns "AIzaSomeFakeKey"
+        coEvery { aiPreferences.getGeminiApiKey() } returns FAKE_API_KEY
         coEvery { aiRepository.isAvailable() } returns true
         every { aiPreferences.aiSmartSearch } returns flowOf(true)
 
@@ -96,7 +97,7 @@ class AiFeatureGateImplTest {
     @Test
     fun `isFeatureAvailable checks the correct toggle for each feature`() = runTest {
         every { aiPreferences.aiEnabled } returns flowOf(true)
-        coEvery { aiPreferences.getGeminiApiKey() } returns "AIzaSomeFakeKey"
+        coEvery { aiPreferences.getGeminiApiKey() } returns FAKE_API_KEY
         coEvery { aiRepository.isAvailable() } returns true
         every { aiPreferences.aiReadingInsights } returns flowOf(true)
         every { aiPreferences.aiSmartSearch } returns flowOf(false)

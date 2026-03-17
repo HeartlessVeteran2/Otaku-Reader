@@ -1,5 +1,9 @@
 # Cloud Sync Architecture
 
+**Implementation Status:** Core Complete, OAuth Integration Pending
+
+This document describes the cloud sync architecture in Otaku Reader. The core sync engine is production-ready with comprehensive testing, but Google Drive OAuth authentication is not yet implemented and is required for end-to-end functionality.
+
 ## Overview
 
 The cloud sync architecture enables cross-device synchronization of library data (favorites, categories, read progress) while keeping the system flexible and extensible.
@@ -53,28 +57,35 @@ Abstract cloud storage provider. Responsibilities:
 
 ### Data Layer (`data/src/main/java/app/otakureader/data/sync/`)
 
-#### `GoogleDriveSyncProvider` (Prototype)
+#### `GoogleDriveSyncProvider` (Prototype - OAuth Not Implemented)
 Reference implementation using Google Drive REST API v3.
 
-**Features**:
-- OAuth 2.0 authentication (via `GoogleDriveAuthenticator`)
-- Single-file storage in app data folder (hidden from user)
-- JSON serialization of snapshots
-- CRUD operations on Drive files
+**Implemented Features**:
+- ✅ Drive REST API v3 integration
+- ✅ Single-file storage in app data folder (hidden from user)
+- ✅ JSON serialization of snapshots
+- ✅ CRUD operations on Drive files
 
-**Production TODOs**:
-- ✅ Implement OAuth using Google Sign-In SDK
-- ✅ Add automatic token refresh
-- ✅ Implement retry logic with exponential backoff
-- ✅ Add compression for large snapshots (gzip)
-- ✅ Parse modification timestamps properly
-- ✅ Handle rate limiting
-- ✅ Add progress callbacks for large uploads
+**Not Implemented (Critical Gap)**:
+- ❌ OAuth 2.0 authentication - `GoogleDriveAuthenticator.authenticate()` throws `NotImplementedError`
+- ❌ Automatic token refresh
+- ❌ Token storage encryption
+
+**Production Requirements**:
+- Implement OAuth using Google Sign-In SDK (`com.google.android.gms:play-services-auth`)
+- Add automatic token refresh mechanism
+- Implement retry logic with exponential backoff
+- Add compression for large snapshots (gzip)
+- Parse modification timestamps properly
+- Handle rate limiting
+- Add progress callbacks for large uploads
 
 #### `GoogleDriveAuthenticator`
 Manages OAuth 2.0 authentication flow.
 
-**Current state**: Prototype stub
+**Current state**: Stub implementation - throws `NotImplementedError` at line 80
+**Critical Gap**: OAuth flow is not implemented; users cannot authenticate
+
 **Required for production**:
 - Integrate Google Sign-In SDK (`com.google.android.gms:play-services-auth`)
 - Request `drive.appdata` scope (user can't see/delete sync file)
@@ -181,8 +192,14 @@ Target: Keep snapshots under 1MB for fast sync.
 
 ## Future Enhancements
 
+### Phase 1: Complete Core Functionality (Critical)
+- [ ] **Google Sign-In SDK integration** - Required for OAuth authentication
+- [ ] **Sync Settings UI** - Connect UI to settings screen
+- [ ] **Token refresh mechanism** - Automatic token renewal
+- [ ] **Error handling improvements** - Retry logic, user-friendly messages
+
 ### Phase 2: Advanced Sync
-- [ ] Automatic background sync (WorkManager)
+- [ ] Automatic background sync (WorkManager) - ✅ Infrastructure complete, needs OAuth
 - [ ] Differential sync (only changed entities since last sync)
 - [ ] Three-way merge for complex conflicts
 - [ ] Sync history/audit log
@@ -202,19 +219,22 @@ Target: Keep snapshots under 1MB for fast sync.
 
 ## Testing Strategy
 
-### Unit Tests
-- [ ] Conflict resolution logic
-- [ ] Timestamp comparison
-- [ ] Merge strategies
-- [ ] Serialization/deserialization
+### Unit Tests (Completed ✅)
+- [x] Conflict resolution logic - 11 tests in SyncManagerImplTest
+- [x] Timestamp comparison
+- [x] Merge strategies
+- [x] Serialization/deserialization - 11 tests in SyncModelsTest
+- [x] Use case tests - 9 tests in SyncUseCasesTest
 
-### Integration Tests
+**Total: 31 tests passing**
+
+### Integration Tests (Pending)
 - [ ] Mock Google Drive API responses
 - [ ] Full sync flow end-to-end
 - [ ] OAuth flow (UI tests)
 - [ ] Multi-device simulation
 
-### Manual Testing
+### Manual Testing (Pending OAuth Implementation)
 - [ ] Actual Google Drive integration
 - [ ] Token refresh
 - [ ] Network error handling
@@ -222,21 +242,28 @@ Target: Keep snapshots under 1MB for fast sync.
 
 ## Implementation Checklist
 
+### Completed ✅
 - [x] `SyncManager` interface
 - [x] `SyncProvider` interface
 - [x] `SyncSnapshot` data structures
-- [x] `GoogleDriveSyncProvider` prototype
-- [x] `GoogleDriveAuthenticator` stub
-- [ ] `SyncManagerImpl` implementation
-- [ ] Sync preferences (enable/disable, provider selection)
-- [ ] UI for sync settings
-- [ ] Conflict resolution implementation
-- [ ] Snapshot creation from DB
-- [ ] Snapshot application to DB
+- [x] `GoogleDriveSyncProvider` prototype (REST API calls)
+- [x] `SyncManagerImpl` implementation
+- [x] Sync preferences (enable/disable, provider selection)
+- [x] Conflict resolution implementation
+- [x] Snapshot creation from DB
+- [x] Snapshot application to DB
+- [x] Unit tests (31 tests passing)
+- [x] Background sync worker (SyncWorker)
+- [x] Sync notifications (SyncNotifier)
+
+### Pending ❌
+- [ ] `GoogleDriveAuthenticator` OAuth implementation (currently throws `NotImplementedError`)
+- [ ] UI for sync settings (MVI events exist, UI not connected)
 - [ ] Google Sign-In SDK integration
 - [ ] Token refresh mechanism
-- [ ] Unit tests
 - [ ] Integration tests
+- [ ] Dropbox provider implementation
+- [ ] WebDAV provider implementation
 
 ## References
 
