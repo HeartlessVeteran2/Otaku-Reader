@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.room.Room
+import app.otakureader.core.extension.BuildConfig
 import app.otakureader.core.extension.data.local.ExtensionDao
 import app.otakureader.core.extension.data.local.ExtensionDatabase
 import app.otakureader.core.extension.data.remote.ExtensionRemoteDataSource
@@ -30,13 +31,17 @@ object ExtensionModule {
     fun provideExtensionDatabase(
         @ApplicationContext context: Context
     ): ExtensionDatabase {
-        return Room.databaseBuilder(
+        val builder = Room.databaseBuilder(
             context,
             ExtensionDatabase::class.java,
             "extension_database"
         )
-            .fallbackToDestructiveMigration() // For now, allow destructive migrations
-            .build()
+        // Only allow destructive migration in debug builds to avoid silently wiping
+        // extension metadata in production if a migration is missing.
+        if (BuildConfig.DEBUG) {
+            builder.fallbackToDestructiveMigration(dropAllTables = true)
+        }
+        return builder.build()
     }
 
     @Provides

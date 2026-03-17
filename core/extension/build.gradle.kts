@@ -8,6 +8,10 @@ plugins {
 
 android {
     namespace = "app.otakureader.core.extension"
+
+    buildFeatures {
+        buildConfig = true
+    }
 }
 
 dependencies {
