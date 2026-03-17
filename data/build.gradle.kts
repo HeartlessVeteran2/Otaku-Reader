@@ -38,6 +38,9 @@ dependencies {
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.turbine)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.androidx.test.ext.junit)
+    testImplementation(libs.robolectric)
     // AiRepositoryImplTest needs GeminiClient on the classpath (it mocks it).
     "testFullImplementation"(projects.core.ai)
 }

@@ -12,4 +12,10 @@ dependencies {
     api(libs.datastore.preferences)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.security.crypto)
+
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.androidx.test.ext.junit)
+    testImplementation(libs.robolectric)
 }
