@@ -109,10 +109,21 @@ class GeminiClient @Inject constructor() {
      * This is the correct way to support key rotation: call [reset] followed by
      * [initialize] with the new key.
      *
+     * **Security**: Zeroes the [configMac] buffer before reassignment to prevent the
+     * HMAC of the API key from lingering in memory until GC/reallocation.
+     *
+     * **Note**: The Gemini SDK's [GenerativeModel] may retain the raw API key
+     * internally in its own data structures. This implementation cannot force the SDK
+     * to clear its internal state. Nulling [generativeModel] makes it eligible for GC,
+     * but the SDK does not expose a shutdown/close/clear method for deterministic cleanup.
+     *
      * This method is thread-safe.
      */
     fun reset() {
         synchronized(initLock) {
+            // SECURITY: Zero the HMAC buffer before dropping the reference to minimize
+            // the window during which secret-derived material remains in memory.
+            configMac.fill(0)
             generativeModel = null
             configMac = ByteArray(0)
         }
@@ -127,24 +138,45 @@ class GeminiClient @Inject constructor() {
      *
      * Use this for key rotation (e.g. when the user updates their API key in settings).
      *
+     * **Error handling**: If initialization fails, the client remains in a reset state
+     * (uninitialized). The previous configuration is not restored, as the old API key
+     * may no longer be valid. Callers should handle failures by either retrying with
+     * corrected parameters or accepting that the client is uninitialized.
+     *
      * This method is thread-safe.
      *
      * @param apiKey The new Gemini API key for authentication
      * @param modelName The model name to use (default: "gemini-pro")
+     * @throws IllegalArgumentException if the API key is blank
+     * @throws Exception if model initialization fails (SDK-specific exceptions)
      */
     fun reinitialize(apiKey: String, modelName: String = "gemini-pro") {
         synchronized(initLock) {
             require(apiKey.isNotBlank()) {
                 "Gemini API key must not be blank."
             }
+
+            // Zero and clear the old state first
+            configMac.fill(0)
             generativeModel = null
             configMac = ByteArray(0)
-            generativeModel = GenerativeModel(
-                modelName = modelName,
-                // SECURITY NOTE: The raw API key is passed to the SDK here. See initialize().
-                apiKey = apiKey
-            )
-            configMac = configMacOf(apiKey, modelName)
+
+            try {
+                // Attempt to create the new model
+                val newModel = GenerativeModel(
+                    modelName = modelName,
+                    // SECURITY NOTE: The raw API key is passed to the SDK here. See initialize().
+                    apiKey = apiKey
+                )
+                generativeModel = newModel
+                configMac = configMacOf(apiKey, modelName)
+            } catch (e: Exception) {
+                // On failure, the client remains reset (generativeModel = null, configMac = empty).
+                // We do NOT restore the old model because:
+                // 1. The old API key may be invalid/revoked (why the user is changing it)
+                // 2. Leaving the client uninitialized is safer than using potentially bad state
+                throw e
+            }
         }
     }
 

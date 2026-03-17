@@ -14,8 +14,13 @@ import javax.inject.Singleton
  * In a FOSS product flavor, include `:core:ai-noop` and install this module
  * instead of the real `AiModule` + `RepositoryModule`'s `bindAiRepository`.
  *
- * **Note**: Do **not** install this module alongside the real `AiRepositoryImpl`
- * binding — Hilt will report a duplicate binding error.
+ * **Duplicate binding prevention**: This module should never be installed alongside
+ * [AiRepositoryModule] (the real implementation in `data/src/full/`). The flavor
+ * separation in build.gradle.kts enforces this: `foss` flavor depends on
+ * `:core:ai-noop` but NOT `:core:ai`, while `full` flavor depends on `:core:ai`
+ * but NOT `:core:ai-noop`. If both modules were accidentally included, Hilt would
+ * report a duplicate binding error at compile time, preventing a broken build from
+ * being created.
  */
 @Module
 @InstallIn(SingletonComponent::class)
