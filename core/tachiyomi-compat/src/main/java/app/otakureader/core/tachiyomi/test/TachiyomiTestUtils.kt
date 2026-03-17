@@ -16,11 +16,10 @@ import java.util.concurrent.TimeUnit
 object TachiyomiTestUtils {
 
     /**
-     * Shared OkHttp client for testing to avoid resource exhaustion.
-     * Reused across multiple test calls to conserve connection pools and threads.
+     * Create a default OkHttp client for testing with appropriate timeouts.
      */
-    private val testHttpClient: OkHttpClient by lazy {
-        OkHttpClient.Builder()
+    private fun createTestHttpClient(): OkHttpClient {
+        return OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
@@ -39,7 +38,9 @@ object TachiyomiTestUtils {
         context: Context,
         apkUrl: String
     ): Result<String> {
-        // Download the APK using the shared OkHttp client
+        val httpClient = createTestHttpClient()
+
+        // Download the APK using OkHttp
         val tempFile = File(context.cacheDir, "test_extension_${System.currentTimeMillis()}.apk")
 
         return try {
@@ -48,7 +49,7 @@ object TachiyomiTestUtils {
                 .header("Accept", "application/vnd.android.package-archive")
                 .build()
 
-            testHttpClient.newCall(request).execute().use { response ->
+            httpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
                     return Result.failure(
                         IllegalStateException("Failed to download extension: HTTP ${response.code}")
@@ -126,11 +127,12 @@ object TachiyomiTestUtils {
     ): Result<List<String>> {
         return try {
             val healthMonitor = SourceHealthMonitor()
+            val httpClient = createTestHttpClient()
             val repository = SourceRepositoryImpl(
                 context,
                 app.otakureader.core.preferences.LocalSourcePreferences.defaultDirectory(),
                 healthMonitor,
-                testHttpClient
+                httpClient
             )
             val result = repository.getPopularManga(sourceId, 1)
 
