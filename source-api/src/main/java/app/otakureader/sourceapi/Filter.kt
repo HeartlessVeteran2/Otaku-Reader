@@ -53,8 +53,7 @@ fun Filter<*>.isActive(): Boolean = when (this) {
     is Filter.TriState -> state != Filter.TriState.STATE_IGNORE
     is Filter.Sort -> state != null
     is Filter.Group<*> -> {
-        @Suppress("UNCHECKED_CAST")
-        val children = (state as? List<*>)?.filterIsInstance<Filter<*>>() ?: emptyList()
+        val children = state.filterIsInstance<Filter<*>>()
         children.any { it.isActive() }
     }
     else -> false

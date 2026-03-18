@@ -119,11 +119,13 @@ class ArchitectureTest {
             .forEach { file ->
                 val lines = file.readLines()
                 lines.forEachIndexed { index, line ->
-                    // Match data class declarations with optional modifiers/annotations
-                    // Handles: data class, internal data class, @Serializable data class, etc.
-                    // Excludes: line comments (//), block comments (/*, */), and KDoc (*)
+                    // Match top-level data class declarations only (not indented/nested).
+                    // Nested data classes (inside use cases, sealed classes, interfaces)
+                    // are tightly coupled to their parent and don't need to live in the model package.
                     val trimmed = line.trimStart()
-                    if (Regex("""\bdata\s+class\s+\w+""").containsMatchIn(trimmed) &&
+                    val isIndented = line != trimmed && line.isNotBlank()
+                    if (!isIndented &&
+                        Regex("""\bdata\s+class\s+\w+""").containsMatchIn(trimmed) &&
                         !trimmed.startsWith("//") &&
                         !trimmed.startsWith("/*") &&
                         !trimmed.startsWith("*")) {

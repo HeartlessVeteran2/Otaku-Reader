@@ -58,7 +58,7 @@ class SyncRoutesTest {
         val response = client.get("/health")
 
         assertEquals(HttpStatusCode.OK, response.status)
-        assertTrue(response.bodyAsText().contains("\"status\":\"OK\""))
+        assertTrue(response.bodyAsText().contains("\"status\": \"OK\""))
     }
 
     @Test
@@ -123,6 +123,6 @@ class SyncRoutesTest {
             header("Authorization", "Bearer $testToken")
         }
 
-        assertTrue(downloadResponse.bodyAsText().contains("\"exists\":false"))
+        assertTrue(downloadResponse.bodyAsText().contains("\"exists\": false"))
     }
 }

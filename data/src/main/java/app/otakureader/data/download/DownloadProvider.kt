@@ -40,7 +40,7 @@ object DownloadProvider {
     private const val PAGES_CACHE_SUBDIR = ".pages"
 
     /** The file extensions recognised as downloaded page images. */
-    internal val PAGE_EXTENSIONS = setOf("jpg", "jpeg", "png", "webp")
+    val PAGE_EXTENSIONS = setOf("jpg", "jpeg", "png", "webp")
 
     // -------------------------------------------------------------------------
     // Context-based public API
@@ -156,7 +156,7 @@ object DownloadProvider {
     // Internal root-File overloads (used for testing without a real Context)
     // -------------------------------------------------------------------------
 
-    internal fun getChapterDir(
+    fun getChapterDir(
         root: File,
         sourceName: String,
         mangaTitle: String,
@@ -166,7 +166,7 @@ object DownloadProvider {
         "$ROOT_DIR/${sanitize(sourceName)}/${sanitize(mangaTitle)}/${sanitize(chapterName)}"
     )
 
-    internal fun getPageFile(
+    fun getPageFile(
         root: File,
         sourceName: String,
         mangaTitle: String,
@@ -174,14 +174,14 @@ object DownloadProvider {
         pageIndex: Int
     ): File = File(getChapterDir(root, sourceName, mangaTitle, chapterName), "$pageIndex.jpg")
 
-    internal fun getCbzFile(
+    fun getCbzFile(
         root: File,
         sourceName: String,
         mangaTitle: String,
         chapterName: String
     ): File = File(getChapterDir(root, sourceName, mangaTitle, chapterName), CbzCreator.CBZ_FILE_NAME)
 
-    internal fun isChapterDownloaded(
+    fun isChapterDownloaded(
         root: File,
         sourceName: String,
         mangaTitle: String,
@@ -198,7 +198,7 @@ object DownloadProvider {
         }
     }
 
-    internal fun getDownloadedPageUris(
+    fun getDownloadedPageUris(
         root: File,
         sourceName: String,
         mangaTitle: String,
@@ -244,7 +244,7 @@ object DownloadProvider {
         return extracted.take(MAX_PAGE_FILES).map { "file://${it.absolutePath}" }
     }
 
-    internal fun deleteChapter(
+    fun deleteChapter(
         root: File,
         sourceName: String,
         mangaTitle: String,
@@ -255,7 +255,7 @@ object DownloadProvider {
         return dir.deleteRecursively()
     }
 
-    internal fun migrateChapterDownload(
+    fun migrateChapterDownload(
         root: File,
         fromSourceName: String,
         fromMangaTitle: String,
@@ -317,7 +317,7 @@ object DownloadProvider {
      * Replaces characters that are illegal in filesystem paths with underscores and
      * trims surrounding whitespace.
      */
-    internal fun sanitize(name: String): String =
+    fun sanitize(name: String): String =
         name.replace(Regex("""[/\\:*?"<>|]"""), "_").trim()
 
     private fun rootFor(context: Context): File =

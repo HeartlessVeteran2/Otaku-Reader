@@ -163,7 +163,7 @@ class SyncPreferences(private val dataStore: DataStore<Preferences>) {
             }
         }
 
-    val lastSyncTimestamp: Long
+    var lastSyncTimestamp: Long
         get() = runBlocking { dataStore.data.first()[Keys.LAST_SYNC_TIMESTAMP] ?: 0L }
         set(value) = runBlocking {
             dataStore.edit { prefs ->

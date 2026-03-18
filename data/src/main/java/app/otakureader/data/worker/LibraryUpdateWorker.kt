@@ -3,6 +3,7 @@ package app.otakureader.data.worker
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.util.Log
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
@@ -48,9 +49,8 @@ class LibraryUpdateWorker @AssistedInject constructor(
             val autoDownloadLimit = downloadPreferences.autoDownloadLimit.first()
             val notificationsEnabled = generalPreferences.notificationsEnabled.first()
 
-            // Check if we should skip auto-download due to Wi-Fi requirement
-            val shouldAutoDownload = autoDownloadEnabled &&
-                (!downloadOnlyOnWifi || isConnectedToWifi())
+            // Check if Wi-Fi is available for downloads requiring Wi-Fi
+            val onWifi = !downloadOnlyOnWifi || isConnectedToWifi()
 
             val mangaWithNewChapters = mutableListOf<NotificationManga>()
             var failedUpdates = 0
@@ -74,8 +74,10 @@ class LibraryUpdateWorker @AssistedInject constructor(
                         }
                     }
 
-                    // Auto-download new chapters if enabled and conditions are met
-                    if (shouldAutoDownload && newChapterCount > 0) {
+                    // Auto-download new chapters if conditions are met.
+                    // Per-manga autoDownload can opt-in even when global is off,
+                    // but cannot opt-out when global is on.
+                    if (newChapterCount > 0 && onWifi) {
                         val shouldDownloadForManga = manga.autoDownload || autoDownloadEnabled
 
                         if (shouldDownloadForManga) {
@@ -90,10 +92,16 @@ class LibraryUpdateWorker @AssistedInject constructor(
             // Send notification if new chapters were found and notifications are enabled
             if (notificationsEnabled && mangaWithNewChapters.isNotEmpty()) {
                 val totalNewChapters = mangaWithNewChapters.sumOf { it.newChapterCount }
-                UpdateNotifier(applicationContext).notify(
-                    mangaWithNewChapters,
-                    totalNewChapters
-                )
+                try {
+                    UpdateNotifier(applicationContext).notify(
+                        mangaWithNewChapters,
+                        totalNewChapters
+                    )
+                } catch (e: Exception) {
+                    // Notification failures should not fail the entire library update.
+                    // Log the error for diagnostics (e.g., SecurityException, channel creation issues).
+                    Log.w(TAG, "Failed to send library update notification", e)
+                }
             }
 
             // Consider it a success if at least some manga were updated successfully
@@ -149,6 +157,7 @@ class LibraryUpdateWorker @AssistedInject constructor(
     }
 
     companion object {
+        private const val TAG = "LibraryUpdateWorker"
         const val WORK_NAME = "library_update"
     }
 }

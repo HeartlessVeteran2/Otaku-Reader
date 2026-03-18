@@ -1,7 +1,9 @@
 package app.otakureader.feature.about
 
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -19,7 +21,6 @@ import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Gavel
-import androidx.compose.material.icons.filled.GitHub
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocalLibrary
@@ -38,6 +39,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -58,6 +60,22 @@ fun AboutScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val versionName = remember {
+        try {
+            val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                context.packageManager.getPackageInfo(
+                    context.packageName,
+                    PackageManager.PackageInfoFlags.of(0)
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                context.packageManager.getPackageInfo(context.packageName, 0)
+            }
+            packageInfo.versionName ?: ""
+        } catch (_: PackageManager.NameNotFoundException) {
+            ""
+        }
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -82,7 +100,7 @@ fun AboutScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             // App Info Header
-            AppInfoHeader()
+            AppInfoHeader(versionName = versionName)
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
@@ -163,7 +181,7 @@ fun AboutScreen(
             AboutSectionTitle(stringResource(R.string.about_connect_section))
 
             AboutListItem(
-                icon = Icons.Default.GitHub,
+                icon = Icons.Default.Code,
                 title = stringResource(R.string.about_github_title),
                 subtitle = stringResource(R.string.about_github_subtitle),
                 onClick = {
@@ -196,7 +214,7 @@ fun AboutScreen(
 }
 
 @Composable
-private fun AppInfoHeader() {
+private fun AppInfoHeader(versionName: String) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -219,7 +237,7 @@ private fun AppInfoHeader() {
         )
 
         Text(
-            text = stringResource(R.string.about_version_format, BuildConfig.VERSION_NAME),
+            text = stringResource(R.string.about_version_format, versionName),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
