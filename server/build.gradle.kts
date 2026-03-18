@@ -13,24 +13,24 @@ repositories {
 }
 
 dependencies {
-    // Ktor
-    implementation("io.ktor:ktor-server-core:3.0.3")
-    implementation("io.ktor:ktor-server-netty:3.0.3")
-    implementation("io.ktor:ktor-server-content-negotiation:3.0.3")
-    implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.3")
-    implementation("io.ktor:ktor-server-auth:3.0.3")
-    implementation("io.ktor:ktor-server-status-pages:3.0.3")
-    implementation("io.ktor:ktor-server-call-logging:3.0.3")
+    // Ktor (updated to 3.1.2 for security fixes)
+    implementation("io.ktor:ktor-server-core:3.1.2")
+    implementation("io.ktor:ktor-server-netty:3.1.2")
+    implementation("io.ktor:ktor-server-content-negotiation:3.1.2")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.1.2")
+    implementation("io.ktor:ktor-server-auth:3.1.2")
+    implementation("io.ktor:ktor-server-status-pages:3.1.2")
+    implementation("io.ktor:ktor-server-call-logging:3.1.2")
     
     // Serialization
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.10.0")
     
     // Logging
-    implementation("ch.qos.logback:logback-classic:1.5.16")
+    implementation("ch.qos.logback:logback-classic:1.5.18")
     
     // Testing
-    testImplementation("io.ktor:ktor-server-test-host:3.0.3")
-    testImplementation("org.jetbrains.kotlin:kotlin-test:2.1.0")
+    testImplementation("io.ktor:ktor-server-test-host:3.1.2")
+    testImplementation("org.jetbrains.kotlin:kotlin-test:2.1.10")
 }
 
 kotlin {
