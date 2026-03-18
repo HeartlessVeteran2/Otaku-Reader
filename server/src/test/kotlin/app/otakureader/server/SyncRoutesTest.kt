@@ -1,6 +1,8 @@
 package app.otakureader.server
 
 import app.otakureader.server.config.AppConfig
+import app.otakureader.server.model.SnapshotResponse
+import io.ktor.client.call.body
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.header
@@ -15,6 +17,7 @@ import io.ktor.server.testing.testApplication
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.test.assertFalse
 import java.io.File
 import kotlin.io.path.createTempDirectory
 import kotlin.test.AfterTest
@@ -114,13 +117,12 @@ class SyncRoutesTest {
 
         assertEquals(HttpStatusCode.OK, deleteResponse.status)
 
-        // Verify deleted
+        // Verify deleted by parsing JSON response
         val downloadResponse = client.get("/sync/download") {
             header("Authorization", "Bearer $testToken")
         }
 
-        // Parse response body as it will be pretty-printed JSON
-        val body = downloadResponse.bodyAsText()
-        assertTrue(body.contains("\"exists\"") && (body.contains("false") || body.contains(": false")))
+        val snapshotResponse = downloadResponse.body<SnapshotResponse>()
+        assertFalse(snapshotResponse.exists, "Snapshot should not exist after deletion")
     }
 }

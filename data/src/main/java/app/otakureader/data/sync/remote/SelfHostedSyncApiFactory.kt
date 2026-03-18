@@ -8,6 +8,7 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -21,8 +22,8 @@ class SelfHostedSyncApiFactory @Inject constructor(
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
-    // Cache for Retrofit instances keyed by base URL
-    private val apiCache = mutableMapOf<String, SelfHostedSyncApi>()
+    // Thread-safe cache for Retrofit instances keyed by base URL
+    private val apiCache = ConcurrentHashMap<String, SelfHostedSyncApi>()
 
     // Cached OkHttpClient (shared across all Retrofit instances)
     private val okHttpClient: OkHttpClient by lazy {
@@ -56,12 +57,16 @@ class SelfHostedSyncApiFactory @Inject constructor(
 
     /**
      * Creates an API instance with the current URL from preferences,
-     * or returns null if URL is not configured.
+     * or returns null if URL is not configured or invalid.
      */
     suspend fun createOrNull(): SelfHostedSyncApi? {
         return try {
             create()
         } catch (e: IllegalStateException) {
+            // URL not configured
+            null
+        } catch (e: IllegalArgumentException) {
+            // Invalid URL (missing scheme, invalid format, etc.)
             null
         }
     }

@@ -44,9 +44,12 @@ fun Route.syncRoutes(config: AppConfig) {
                         )
                     },
                     onFailure = { error ->
+                        // Log detailed error server-side
+                        call.application.environment.log.error("Failed to store snapshot", error)
+                        // Return generic error to client
                         call.respond(
                             HttpStatusCode.InternalServerError,
-                            ErrorResponse("Failed to store snapshot: ${error.message}")
+                            ErrorResponse("Failed to store snapshot")
                         )
                     }
                 )
@@ -115,9 +118,12 @@ fun Route.syncRoutes(config: AppConfig) {
                     )
                 },
                 onFailure = { error ->
+                    // Log detailed error server-side
+                    call.application.environment.log.error("Failed to delete snapshot", error)
+                    // Return generic error to client
                     call.respond(
                         HttpStatusCode.InternalServerError,
-                        ErrorResponse("Failed to delete snapshot: ${error.message}")
+                        ErrorResponse("Failed to delete snapshot")
                     )
                 }
             )

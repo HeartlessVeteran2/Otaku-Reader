@@ -45,15 +45,19 @@ class SyncService(private val config: AppConfig) {
     /**
      * Delete the stored snapshot.
      */
-    fun deleteSnapshot(): Result<Unit> {
+    fun deleteSnapshot(): Result<Unit> = try {
         val snapshotDeleted = if (snapshotFile.exists()) snapshotFile.delete() else true
         val timestampDeleted = if (timestampFile.exists()) timestampFile.delete() else true
 
-        return if (snapshotDeleted && timestampDeleted) {
+        if (snapshotDeleted && timestampDeleted) {
             Result.success(Unit)
         } else {
             Result.failure(IOException("Failed to delete snapshot files"))
         }
+    } catch (e: SecurityException) {
+        Result.failure(e)
+    } catch (e: Exception) {
+        Result.failure(e)
     }
     
     /**
