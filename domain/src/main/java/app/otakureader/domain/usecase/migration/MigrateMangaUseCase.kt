@@ -104,6 +104,9 @@ class MigrateMangaUseCase @Inject constructor(
                 sourceManga.categoryIds.forEach { categoryId ->
                     try {
                         categoryRepository.addMangaToCategory(targetMangaId, categoryId)
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        // Propagate cancellation immediately
+                        throw e
                     } catch (e: Exception) {
                         // Category might already be assigned, ignore
                     }
@@ -117,6 +120,9 @@ class MigrateMangaUseCase @Inject constructor(
                 try {
                     val migratedEntry = entry.copy(mangaId = targetMangaId)
                     trackRepository.upsertEntry(migratedEntry)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    // Propagate cancellation immediately
+                    throw e
                 } catch (e: Exception) {
                     // Individual tracker migration failure is non-fatal; continue
                     // with the remaining entries so partial progress is preserved.
@@ -134,6 +140,9 @@ class MigrateMangaUseCase @Inject constructor(
                         sourceManga.categoryIds.forEach { categoryId ->
                             try {
                                 categoryRepository.removeMangaFromCategory(sourceManga.id, categoryId)
+                            } catch (e: kotlinx.coroutines.CancellationException) {
+                                // Propagate cancellation immediately
+                                throw e
                             } catch (e: Exception) {
                                 // Category removal is non-critical; continue
                             }

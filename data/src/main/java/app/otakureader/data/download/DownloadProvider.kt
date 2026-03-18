@@ -289,7 +289,10 @@ object DownloadProvider {
                         if (!file.renameTo(destFile)) {
                             // Fallback: copy then delete original
                             file.copyTo(destFile, overwrite = true)
-                            file.delete()
+                            if (!file.delete()) {
+                                // Delete failed; migration incomplete
+                                return false
+                            }
                         }
                     }
                 } else if (file.isDirectory) {
@@ -301,7 +304,10 @@ object DownloadProvider {
                         if (!file.renameTo(destSubdir)) {
                             // Fallback: copy recursively then delete original
                             file.copyRecursively(destSubdir, overwrite = true)
-                            file.deleteRecursively()
+                            if (!file.deleteRecursively()) {
+                                // Delete failed; migration incomplete
+                                return false
+                            }
                         }
                     }
                 }
