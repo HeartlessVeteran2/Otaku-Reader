@@ -4,7 +4,9 @@ import android.content.Context
 import app.otakureader.core.tachiyomi.compat.TachiyomiExtensionLoader
 import app.otakureader.core.tachiyomi.health.SourceHealthMonitor
 import app.otakureader.core.tachiyomi.repository.SourceRepositoryImpl
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
@@ -17,6 +19,12 @@ object TachiyomiTestUtils {
 
     /**
      * Create a default OkHttp client for testing with appropriate timeouts.
+     *
+     * Note: Each call creates a new client instance. Callers are responsible for cleanup
+     * if needed (shutdown dispatcher executor, evict connection pool, close cache).
+     * For single-use utility functions, this is acceptable as resources are released
+     * when the process terminates. For test fixtures that create clients in @Before,
+     * consider adding cleanup in @After.
      */
     private fun createTestHttpClient(): OkHttpClient {
         return OkHttpClient.Builder()
@@ -37,13 +45,13 @@ object TachiyomiTestUtils {
     suspend fun installExtensionFromUrl(
         context: Context,
         apkUrl: String
-    ): Result<String> {
+    ): Result<String> = withContext(Dispatchers.IO) {
         val httpClient = createTestHttpClient()
 
-        // Download the APK using OkHttp
-        val tempFile = File(context.cacheDir, "test_extension_${System.currentTimeMillis()}.apk")
+        // Download the APK using OkHttp with safe temp file creation
+        val tempFile = File.createTempFile("test_extension_", ".apk", context.cacheDir)
 
-        return try {
+        return@withContext try {
             val request = Request.Builder()
                 .url(apkUrl)
                 .header("Accept", "application/vnd.android.package-archive")
@@ -51,12 +59,12 @@ object TachiyomiTestUtils {
 
             httpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
-                    return Result.failure(
+                    return@withContext Result.failure(
                         IllegalStateException("Failed to download extension: HTTP ${response.code}")
                     )
                 }
                 val body = response.body
-                    ?: return Result.failure(IllegalStateException("Empty response body"))
+                    ?: return@withContext Result.failure(IllegalStateException("Empty response body"))
 
                 body.byteStream().use { input ->
                     tempFile.outputStream().use { output ->
@@ -72,7 +80,7 @@ object TachiyomiTestUtils {
             )
 
             val extension = extensionLoader.loadExtensionFromApk(tempFile.absolutePath)
-                ?: return Result.failure(IllegalStateException("Failed to load extension"))
+                ?: return@withContext Result.failure(IllegalStateException("Failed to load extension"))
 
             Result.success("Loaded extension: ${extension.name} with ${extension.sources.size} sources")
         } catch (e: Exception) {

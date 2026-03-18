@@ -241,34 +241,38 @@ class ExtensionRemoteDataSourceImpl(
      * Fetch extensions from index.min.json (Keiyoushi/Komikku/Suwayomi format).
      */
     private suspend fun fetchMinifiedIndex(baseUrl: String): List<Extension> {
-        val request = Request.Builder()
-            .url(baseUrl + REPO_INDEX_MIN_PATH)
-            .build()
+        return withContext(Dispatchers.IO) {
+            val request = Request.Builder()
+                .url(baseUrl + REPO_INDEX_MIN_PATH)
+                .build()
 
-        val responseBody = httpClient.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) error("HTTP ${response.code}")
-            response.body?.string() ?: error("Empty body")
+            val responseBody = httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) error("HTTP ${response.code}")
+                response.body?.string() ?: error("Empty body")
+            }
+
+            val minifiedExtensions = json.decodeFromString<List<MinifiedExtensionDto>>(responseBody)
+            minifiedExtensions.map { it.toDomain(baseUrl) }
         }
-
-        val minifiedExtensions = json.decodeFromString<List<MinifiedExtensionDto>>(responseBody)
-        return minifiedExtensions.map { it.toDomain(baseUrl) }
     }
 
     /**
      * Fetch extensions from index.json (standard format).
      */
     private suspend fun fetchStandardIndex(baseUrl: String): List<Extension> {
-        val request = Request.Builder()
-            .url(baseUrl + REPO_INDEX_PATH)
-            .build()
+        return withContext(Dispatchers.IO) {
+            val request = Request.Builder()
+                .url(baseUrl + REPO_INDEX_PATH)
+                .build()
 
-        val responseBody = httpClient.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) error("HTTP ${response.code}")
-            response.body?.string() ?: error("Empty body")
+            val responseBody = httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) error("HTTP ${response.code}")
+                response.body?.string() ?: error("Empty body")
+            }
+
+            val repoResponse = json.decodeFromString(ExtensionRepoResponse.serializer(), responseBody)
+            repoResponse.extensions.map { it.toDomain() }
         }
-
-        val repoResponse = json.decodeFromString(ExtensionRepoResponse.serializer(), responseBody)
-        return repoResponse.extensions.map { it.toDomain() }
     }
 
     override suspend fun downloadApk(apkUrl: String, destination: File): Result<File> {
@@ -278,6 +282,7 @@ class ExtensionRemoteDataSourceImpl(
                     .url(apkUrl)
                     .header("Accept", "application/vnd.android.package-archive")
                     .build()
+
                 httpClient.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) error("HTTP ${response.code}")
                     val body = response.body ?: error("Empty body")
