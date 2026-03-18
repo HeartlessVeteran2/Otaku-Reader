@@ -868,10 +868,11 @@ class UltimateReaderViewModel @Inject constructor(
 
     /**
      * Performs the final persistence work when the reader is closed.
-     * Extracted to an `internal` suspend function so it can be tested directly without
+     * Extracted to a suspend function so it can be tested directly without
      * going through the protected [onCleared] / [cleanupScope] boundary.
      */
-    internal suspend fun cleanupOnExit(durationMs: Long, currentState: ReaderState) {
+    @androidx.annotation.VisibleForTesting
+    suspend fun cleanupOnExit(durationMs: Long, currentState: ReaderState) {
         val isIncognito = runCatching {
             settingsRepository.incognitoMode.first()
         }.getOrElse {

@@ -7,10 +7,14 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
 /**
  * Unit tests for PanelDetector
  */
+@RunWith(RobolectricTestRunner::class)
+@org.robolectric.annotation.Config(sdk = [34])
 class PanelDetectorTest {
 
     private lateinit var panelDetector: PanelDetector
@@ -38,7 +42,8 @@ class PanelDetectorTest {
         val config = PanelDetectionConfig(
             edgeThreshold = 20,
             minLineLengthPercent = 0.3f,
-            minPanelWidthPercent = 0.1f
+            minPanelWidthPercent = 0.1f,
+            maxPanelHeightPercent = 1.0f
         )
 
         val panels = panelDetector.detectPanels(bitmap, config)

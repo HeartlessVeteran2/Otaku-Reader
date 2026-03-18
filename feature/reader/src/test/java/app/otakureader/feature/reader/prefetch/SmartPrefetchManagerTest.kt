@@ -129,7 +129,7 @@ class SmartPrefetchManagerTest {
         every { networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) } returns false
 
         // Recreate manager with new context
-        val manager = SmartPrefetchManager(context, imageLoader, behaviorTracker)
+        val manager = SmartPrefetchManager(context, imageLoader)
 
         val pages = createTestPages(10)
 
@@ -256,9 +256,9 @@ class SmartPrefetchManagerTest {
     fun `prefetchPages does not prefetch blank URLs`() = runTest(testDispatcher) {
         // Given: Pages with blank URLs
         val pages = listOf(
-            ReaderPage(0, null, emptyList()),
-            ReaderPage(1, "", emptyList()),
-            ReaderPage(2, "   ", emptyList())
+            ReaderPage(index = 0, imageUrl = null),
+            ReaderPage(index = 1, imageUrl = ""),
+            ReaderPage(index = 2, imageUrl = "   ")
         )
 
         // When
