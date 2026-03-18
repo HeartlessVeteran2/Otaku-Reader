@@ -26,23 +26,23 @@ class SelfHostedSyncProvider @Inject constructor(
     override val id: String = "self_hosted"
     override val name: String = "Self-Hosted Server"
 
-    override val isAuthenticated: Boolean
-        get() = syncPreferences.selfHostedServerUrl.isNotBlank() &&
-                syncPreferences.selfHostedAuthToken.isNotBlank()
+    override suspend fun isAuthenticated(): Boolean =
+        syncPreferences.getSelfHostedServerUrl().isNotBlank() &&
+                syncPreferences.getSelfHostedAuthToken().isNotBlank()
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    private fun getApi(): SelfHostedSyncApi? {
+    private suspend fun getApi(): SelfHostedSyncApi? {
         return apiFactory.createOrNull()
     }
 
-    private fun getAuthHeader(): String {
-        return "Bearer ${syncPreferences.selfHostedAuthToken}"
+    private suspend fun getAuthHeader(): String {
+        return "Bearer ${syncPreferences.getSelfHostedAuthToken()}"
     }
 
     override suspend fun authenticate(): Result<Unit> {
-        val url = syncPreferences.selfHostedServerUrl
-        val token = syncPreferences.selfHostedAuthToken
+        val url = syncPreferences.getSelfHostedServerUrl()
+        val token = syncPreferences.getSelfHostedAuthToken()
 
         if (url.isBlank() || token.isBlank()) {
             return Result.failure(IllegalStateException("Server URL and auth token must be configured"))
@@ -65,12 +65,12 @@ class SelfHostedSyncProvider @Inject constructor(
     }
 
     override suspend fun logout() {
-        syncPreferences.selfHostedServerUrl = ""
-        syncPreferences.selfHostedAuthToken = ""
+        syncPreferences.setSelfHostedServerUrl("")
+        syncPreferences.setSelfHostedAuthToken("")
     }
 
     override suspend fun uploadSnapshot(snapshot: SyncSnapshot): Result<Unit> {
-        if (!isAuthenticated) {
+        if (!isAuthenticated()) {
             return Result.failure(IllegalStateException("Not authenticated"))
         }
 
@@ -92,7 +92,7 @@ class SelfHostedSyncProvider @Inject constructor(
             )
 
             if (response.isSuccessful && response.body()?.success == true) {
-                syncPreferences.lastSyncTimestamp = timestamp
+                syncPreferences.setLastSyncTimestamp(timestamp)
                 Result.success(Unit)
             } else {
                 Result.failure(
@@ -107,7 +107,7 @@ class SelfHostedSyncProvider @Inject constructor(
     }
 
     override suspend fun downloadSnapshot(): Result<SyncSnapshot?> {
-        if (!isAuthenticated) {
+        if (!isAuthenticated()) {
             return Result.failure(IllegalStateException("Not authenticated"))
         }
 
@@ -139,7 +139,7 @@ class SelfHostedSyncProvider @Inject constructor(
     }
 
     override suspend fun getLastSnapshotTime(): Long? {
-        if (!isAuthenticated) return null
+        if (!isAuthenticated()) return null
 
         val api = getApi() ?: return null
 
@@ -156,7 +156,7 @@ class SelfHostedSyncProvider @Inject constructor(
     }
 
     override suspend fun deleteAllData(): Result<Unit> {
-        if (!isAuthenticated) {
+        if (!isAuthenticated()) {
             return Result.failure(IllegalStateException("Not authenticated"))
         }
 

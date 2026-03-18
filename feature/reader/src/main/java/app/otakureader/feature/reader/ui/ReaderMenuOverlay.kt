@@ -470,7 +470,7 @@ fun ColorFilterControl(
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(ColorFilterMode.entries) { mode ->
+            items(ColorFilterMode.entries, key = { it.name }) { mode ->
                 FilterChip(
                     selected = currentMode == mode,
                     onClick = { onModeChange(mode) },
@@ -522,7 +522,7 @@ private fun CustomTintPicker(
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(TintPresets) { preset ->
+            items(TintPresets, key = { it.rgb }) { preset ->
                 val isSelected = (currentRgb == preset.rgb)
                 val presetName = stringResource(preset.nameResId)
                 Box(

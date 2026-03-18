@@ -248,7 +248,7 @@ private fun SourcesContent(
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(sources) { sourceId ->
+            items(sources, key = { it }) { sourceId ->
                 FilterChip(
                     selected = sourceId == currentSourceId,
                     onClick = { onSourceSelect(sourceId) },
@@ -304,7 +304,7 @@ private fun MangaGrid(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        items(manga) { mangaItem ->
+        items(manga, key = { it.url }) { mangaItem ->
             MangaCard(
                 manga = mangaItem,
                 onClick = { onMangaClick(mangaItem) }

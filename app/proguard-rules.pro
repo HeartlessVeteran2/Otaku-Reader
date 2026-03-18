@@ -5,7 +5,7 @@
 -keep class javax.inject.** { *; }
 
 # Keep Room entities
--keep class app.komikku.core.database.entity.** { *; }
+-keep class app.otakureader.core.database.entity.** { *; }
 
 # Keep serialization
 -keep class kotlinx.serialization.** { *; }

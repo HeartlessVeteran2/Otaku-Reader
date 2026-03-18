@@ -21,8 +21,8 @@ class SelfHostedSyncApiFactory @Inject constructor(
     // Cache Retrofit instances by base URL to avoid rebuilding
     private val retrofitCache = mutableMapOf<String, Retrofit>()
 
-    fun create(): SelfHostedSyncApi {
-        val baseUrl = syncPreferences.selfHostedServerUrl.takeIf { it.isNotBlank() }
+    suspend fun create(): SelfHostedSyncApi {
+        val baseUrl = syncPreferences.getSelfHostedServerUrl().takeIf { it.isNotBlank() }
             ?: throw IllegalStateException("Server URL not configured")
 
         // Validate URL has scheme
@@ -49,7 +49,7 @@ class SelfHostedSyncApiFactory @Inject constructor(
      * Creates an API instance with the current URL from preferences,
      * or returns null if URL is not configured or invalid.
      */
-    fun createOrNull(): SelfHostedSyncApi? {
+    suspend fun createOrNull(): SelfHostedSyncApi? {
         return try {
             create()
         } catch (e: IllegalStateException) {

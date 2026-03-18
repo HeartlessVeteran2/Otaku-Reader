@@ -168,7 +168,7 @@ fun TrackingScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(state.trackers) { tracker ->
+                    items(state.trackers, key = { it.id }) { tracker ->
                         TrackerCard(
                             tracker = tracker,
                             onLogin = { viewModel.onEvent(TrackingEvent.InitiateLogin(tracker.id)) },
@@ -429,7 +429,7 @@ fun SearchMangaDialog(
                         modifier = Modifier.height(300.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(results) { entry ->
+                        items(results, key = { it.remoteId }) { entry ->
                             SearchResultItem(
                                 entry = entry,
                                 onClick = { onSelect(entry) }
