@@ -110,9 +110,9 @@ class MigrateMangaUseCaseTest {
         assertEquals(TrackerType.ANILIST, migratedEntrySlots[0].trackerId)
         assertEquals(TrackerType.MY_ANIME_LIST, migratedEntrySlots[1].trackerId)
 
-        // Verify old tracker entries were deleted in MOVE mode
-        coVerify(exactly = 1) { trackRepository.deleteEntry(TrackerType.ANILIST, 100L) }
-        coVerify(exactly = 1) { trackRepository.deleteEntry(TrackerType.MY_ANIME_LIST, 200L) }
+        // Verify old tracker entries were NOT explicitly deleted in MOVE mode
+        // (upsertEntry replaces by (trackerId, remoteId), so the old entries are replaced)
+        coVerify(exactly = 0) { trackRepository.deleteEntry(any(), any()) }
 
         // Verify old manga was deleted
         coVerify(exactly = 1) { mangaRepository.deleteManga(sourceMangaId) }
@@ -243,8 +243,9 @@ class MigrateMangaUseCaseTest {
         assertTrue(trackerIds.contains(TrackerType.MANGA_UPDATES))
         assertTrue(trackerIds.contains(TrackerType.SHIKIMORI))
 
-        // Verify all old entries were deleted in MOVE mode
-        coVerify(exactly = 5) { trackRepository.deleteEntry(any(), any()) }
+        // Verify old entries were NOT explicitly deleted in MOVE mode
+        // (upsertEntry replaces by (trackerId, remoteId), so the old entries are replaced)
+        coVerify(exactly = 0) { trackRepository.deleteEntry(any(), any()) }
     }
 
     @Test

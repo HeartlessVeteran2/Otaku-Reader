@@ -8,6 +8,7 @@ import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.repository.MangaRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -15,7 +16,8 @@ import javax.inject.Singleton
 @Singleton
 class MangaRepositoryImpl @Inject constructor(
     private val mangaDao: MangaDao,
-    private val chapterDao: ChapterDao
+    private val chapterDao: ChapterDao,
+    private val downloadRepository: dagger.Lazy<app.otakureader.domain.repository.DownloadRepository>
 ) : MangaRepository {
 
     override fun getLibraryManga(): Flow<List<Manga>> {
@@ -134,7 +136,24 @@ class MangaRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteDownloadsForManga(mangaId: Long) {
-        chapterDao.deleteDownloadedChaptersForManga(mangaId)
+        // Get manga details to obtain source ID and title
+        val manga = mangaDao.getMangaById(mangaId) ?: return
+
+        // Get all chapters for this manga
+        val chapters = chapterDao.getChaptersByMangaId(mangaId).first()
+
+        // Delete downloads for each chapter
+        val sourceName = manga.sourceId.toString()
+        val mangaTitle = manga.title
+
+        chapters.forEach { chapterEntity ->
+            downloadRepository.get().deleteChapterDownload(
+                chapterId = chapterEntity.id,
+                sourceName = sourceName,
+                mangaTitle = mangaTitle,
+                chapterTitle = chapterEntity.name
+            )
+        }
     }
 
     private fun MangaEntity.toDomain(unreadCount: Int = 0) = Manga(

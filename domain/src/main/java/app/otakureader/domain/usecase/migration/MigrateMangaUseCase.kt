@@ -130,7 +130,9 @@ class MigrateMangaUseCase @Inject constructor(
                             }
                         }
                     }
-                    // Tracker entries have already been moved via upsert; no deletion needed here.
+                    // Note: Tracker entries are NOT explicitly deleted here because upsertEntry()
+                    // replaces entries by (trackerId, remoteId), effectively migrating them.
+                    // The in-memory tracker repository doesn't use mangaId for keying.
                     mangaRepository.deleteManga(sourceManga.id)
                     // Chapters will be cascade deleted by foreign key
                 }
