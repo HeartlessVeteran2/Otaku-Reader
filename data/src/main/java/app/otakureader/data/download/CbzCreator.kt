@@ -151,7 +151,7 @@ object CbzCreator {
     // Internal helpers
     // -------------------------------------------------------------------------
 
-    internal fun buildComicInfoXml(metadata: ComicInfoMetadata): String = buildString {
+    fun buildComicInfoXml(metadata: ComicInfoMetadata): String = buildString {
         appendLine("""<?xml version="1.0" encoding="utf-8"?>""")
         appendLine("""<ComicInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">""")
         appendLine("""  <Title>${escapeXml(metadata.title)}</Title>""")

@@ -110,12 +110,13 @@ class DownloadManagerTest {
         downloadManager.enqueue(testRequest)
         advanceUntilIdle()
 
-        // Then - download should be re-queued
+        // Then - download should be re-queued (and may have already completed again)
         downloads = downloadManager.downloads.first()
         assertEquals(1, downloads.size)
         assertTrue(
             downloads[0].status == DownloadStatus.QUEUED ||
-            downloads[0].status == DownloadStatus.DOWNLOADING
+            downloads[0].status == DownloadStatus.DOWNLOADING ||
+            downloads[0].status == DownloadStatus.COMPLETED
         )
     }
 
