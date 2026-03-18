@@ -148,8 +148,16 @@ class ExtensionLoader(
             if (existingHash != null && newHash != existingHash) return false
         }
 
+        val privateDir = getPrivateExtensionDir(context)
+        if (!privateDir.exists() && !privateDir.mkdirs()) {
+            return false
+        }
+        if (!privateDir.isDirectory) {
+            return false
+        }
+
         val target = File(
-            getPrivateExtensionDir(context),
+            privateDir,
             "${extension.packageName}.$PRIVATE_EXTENSION_EXTENSION"
         )
         return try {

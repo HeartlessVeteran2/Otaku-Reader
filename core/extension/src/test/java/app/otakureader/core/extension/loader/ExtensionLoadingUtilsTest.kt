@@ -4,7 +4,6 @@ import io.mockk.mockk
 import org.junit.Assert.assertEquals
 import org.junit.Assert.fail
 import org.junit.Test
-import java.io.File
 
 /**
  * Unit tests for ExtensionLoadingUtils focusing on NPE prevention and error handling.

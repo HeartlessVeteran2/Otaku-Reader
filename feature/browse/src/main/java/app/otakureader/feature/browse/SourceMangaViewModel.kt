@@ -121,12 +121,24 @@ class SourceMangaViewModel @Inject constructor(
                 }
                 .onFailure { error ->
                     if (error is CancellationException) throw error
-                    _state.update {
-                        it.copy(
-                            isLoading = false,
-                            isLoadingMore = false,
-                            error = error.message ?: "Failed to load manga",
-                        )
+                    if (isFirstPage) {
+                        // First page failure: show error screen
+                        _state.update {
+                            it.copy(
+                                isLoading = false,
+                                isLoadingMore = false,
+                                error = error.message ?: "Failed to load manga",
+                            )
+                        }
+                    } else {
+                        // Pagination failure: keep existing results, show snackbar
+                        _state.update {
+                            it.copy(
+                                isLoading = false,
+                                isLoadingMore = false,
+                            )
+                        }
+                        _effect.send(SourceMangaEffect.ShowSnackbar(error.message ?: "Failed to load more manga"))
                     }
                 }
         }
@@ -211,6 +223,7 @@ class SourceMangaViewModel @Inject constructor(
                     .onFailure { error ->
                         if (error is CancellationException) throw error
                         _state.update { it.copy(isLoadingMore = false) }
+                        _effect.send(SourceMangaEffect.ShowSnackbar(error.message ?: "Failed to load more manga"))
                     }
             }
         } else {
