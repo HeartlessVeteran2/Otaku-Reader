@@ -276,7 +276,9 @@ object DownloadProvider {
         // Create destination directory
         toDir.mkdirs()
 
-        // Copy or move all files from source to destination
+        // Copy or move all files from source to destination.
+        // renameTo() can fail across different filesystems/volumes, so we fall
+        // back to copy-then-delete when a rename returns false.
         return try {
             files.forEach { file ->
                 if (file.isFile) {
@@ -284,7 +286,14 @@ object DownloadProvider {
                     if (copy) {
                         file.copyTo(destFile, overwrite = true)
                     } else {
-                        file.renameTo(destFile)
+                        if (!file.renameTo(destFile)) {
+                            // Fallback: copy then delete original
+                            file.copyTo(destFile, overwrite = true)
+                            if (!file.delete()) {
+                                // Delete failed; migration incomplete
+                                return false
+                            }
+                        }
                     }
                 } else if (file.isDirectory) {
                     // Handle subdirectories (e.g., .pages cache)
@@ -292,7 +301,14 @@ object DownloadProvider {
                     if (copy) {
                         file.copyRecursively(destSubdir, overwrite = true)
                     } else {
-                        file.renameTo(destSubdir)
+                        if (!file.renameTo(destSubdir)) {
+                            // Fallback: copy recursively then delete original
+                            file.copyRecursively(destSubdir, overwrite = true)
+                            if (!file.deleteRecursively()) {
+                                // Delete failed; migration incomplete
+                                return false
+                            }
+                        }
                     }
                 }
             }

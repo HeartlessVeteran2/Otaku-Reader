@@ -104,35 +104,53 @@ class MigrateMangaUseCase @Inject constructor(
                 sourceManga.categoryIds.forEach { categoryId ->
                     try {
                         categoryRepository.addMangaToCategory(targetMangaId, categoryId)
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        // Propagate cancellation immediately
+                        throw e
                     } catch (e: Exception) {
                         // Category might already be assigned, ignore
                     }
                 }
             }
 
-            // Migrate tracker links
+            // Migrate tracker links – per-entry error handling so a single
+            // tracker failure does not abort an otherwise-successful migration.
             val trackerEntries = trackRepository.observeEntriesForManga(sourceManga.id).first()
             trackerEntries.forEach { entry ->
-                val migratedEntry = entry.copy(mangaId = targetMangaId)
-                trackRepository.upsertEntry(migratedEntry)
+                try {
+                    val migratedEntry = entry.copy(mangaId = targetMangaId)
+                    trackRepository.upsertEntry(migratedEntry)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    // Propagate cancellation immediately
+                    throw e
+                } catch (e: Exception) {
+                    // Individual tracker migration failure is non-fatal; continue
+                    // with the remaining entries so partial progress is preserved.
+                }
             }
 
-            // Handle MOVE vs COPY mode
+            // Handle MOVE vs COPY mode.
+            // Destructive operations are performed last so that additive steps
+            // (chapters, categories, trackers) complete first. This ordering
+            // reduces the window for inconsistent state when a failure occurs.
             when (mode) {
                 MigrationMode.MOVE -> {
-                    // Remove old manga and its chapters
+                    // Remove category associations from old manga
                     if (sourceManga.categoryIds.isNotEmpty()) {
                         sourceManga.categoryIds.forEach { categoryId ->
                             try {
                                 categoryRepository.removeMangaFromCategory(sourceManga.id, categoryId)
+                            } catch (e: kotlinx.coroutines.CancellationException) {
+                                // Propagate cancellation immediately
+                                throw e
                             } catch (e: Exception) {
-                                // Ignore errors
+                                // Category removal is non-critical; continue
                             }
                         }
                     }
-                    // Note: Tracker entries are NOT explicitly deleted here because upsertEntry()
-                    // replaces entries by (trackerId, remoteId), effectively migrating them.
-                    // The in-memory tracker repository doesn't use mangaId for keying.
+                    // Tracker entries are migrated via upsertEntry() which replaces
+                    // by (trackerId, remoteId), so the old entries are effectively
+                    // moved to the target manga. No explicit deletion needed.
                     mangaRepository.deleteManga(sourceManga.id)
                     // Chapters will be cascade deleted by foreign key
                 }
