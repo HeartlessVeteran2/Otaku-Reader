@@ -202,7 +202,7 @@ class SecureApiKeyDataStore @Inject constructor(
             "API key is too short (minimum $MIN_KEY_LENGTH characters)"
         }
         // Check for common placeholder patterns
-        require(!apiKey.contains(PLACEHOLDER_PATTERN, ignoreCase = true)) {
+        require(!apiKey.contains(PLACEHOLDER_PATTERN)) {
             "API key appears to be a placeholder. Please provide a valid API key."
         }
     }

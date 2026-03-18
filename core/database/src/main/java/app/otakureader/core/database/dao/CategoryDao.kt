@@ -56,9 +56,9 @@ interface CategoryDao {
     @Query("SELECT * FROM categories WHERE (flags & 1) = 1 ORDER BY `order` ASC")
     fun getHiddenCategories(): Flow<List<CategoryEntity>>
 
-    @Query("UPDATE categories SET flags = flags ^ 1 WHERE id = :categoryId")
+    @Query("UPDATE categories SET flags = CASE WHEN (flags & 1) = 1 THEN flags - 1 ELSE flags + 1 END WHERE id = :categoryId")
     suspend fun toggleHiddenFlag(categoryId: Long)
 
-    @Query("UPDATE categories SET flags = flags ^ 2 WHERE id = :categoryId")
+    @Query("UPDATE categories SET flags = CASE WHEN (flags & 2) = 2 THEN flags - 2 ELSE flags + 2 END WHERE id = :categoryId")
     suspend fun toggleNsfwFlag(categoryId: Long)
 }

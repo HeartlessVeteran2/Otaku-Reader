@@ -142,7 +142,7 @@ fun PanelAwareReader(
 
     // Animate to current panel when it changes
     LaunchedEffect(validPanelIndex, containerSize) {
-        if (containerSize.width > 0 >&& containerSize.height > 0) {
+        if (containerSize.width > 0 && containerSize.height > 0) {
             animateToPanel(
                 panel = currentPanel.bounds,
                 containerSize = containerSize,
@@ -520,9 +520,9 @@ private fun PanelBorderOverlay(
                         }
                     )
                     .align(
-                        Alignment(
-                            horizontalBias = (bounds.centerX - 0.5f) * 2,
-                            verticalBias = (bounds.centerY - 0.5f) * 2
+                        androidx.compose.ui.BiasAlignment(
+                            (bounds.centerX - 0.5f) * 2,
+                            (bounds.centerY - 0.5f) * 2
                         )
                     )
                     .background(

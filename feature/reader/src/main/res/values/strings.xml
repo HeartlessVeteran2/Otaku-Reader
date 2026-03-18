@@ -95,4 +95,12 @@
         <item quantity="other">Page Gallery (%1$d pages)</item>
     </plurals>
     <string name="reader_gallery_columns">%1$d columns</string>
+
+    <!-- Panel-aware reader -->
+    <string name="reader_previous_panel">Previous panel</string>
+    <string name="reader_next_panel">Next panel</string>
+    <string name="reader_retry">Retry</string>
+    <string name="reader_continue_without_panels">Continue without panels</string>
+    <string name="panel_analysis_loading">Analyzing panels…</string>
+    <string name="panel_analysis_error_title">Panel analysis failed</string>
 </resources>

@@ -9,6 +9,7 @@ android {
 
 dependencies {
     implementation(projects.core.common)
+    implementation(projects.core.ai)
     implementation(projects.core.preferences)
     implementation(projects.core.ui)
     implementation(projects.core.discord)

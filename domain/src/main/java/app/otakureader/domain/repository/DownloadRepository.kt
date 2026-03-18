@@ -25,7 +25,7 @@ interface DownloadRepository {
         sourceName: String = "",
         mangaTitle: String,
         chapterTitle: String,
-        pageUrls: List<String>,
+        pageUrls: List<String> = emptyList(),
         priority: Int = app.otakureader.domain.model.DownloadPriority.NORMAL
     )
 

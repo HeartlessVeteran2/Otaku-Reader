@@ -22,13 +22,13 @@ private const val DEFAULT_GENERATE_CONTENT_TIMEOUT_MILLIS = 30_000L
  * transitive dependency) are excluded from FOSS builds entirely.
  *
  * @property geminiClient Client for Gemini AI operations
- * @property timeoutMillis Timeout for AI requests in milliseconds (default: 30s)
  */
 @Singleton
 class AiRepositoryImpl @Inject constructor(
-    private val geminiClient: GeminiClient,
-    private val timeoutMillis: Long = DEFAULT_GENERATE_CONTENT_TIMEOUT_MILLIS
+    private val geminiClient: GeminiClient
 ) : AiRepository {
+
+    private val timeoutMillis: Long = DEFAULT_GENERATE_CONTENT_TIMEOUT_MILLIS
 
     /**
      * Generate content using the Gemini AI model.

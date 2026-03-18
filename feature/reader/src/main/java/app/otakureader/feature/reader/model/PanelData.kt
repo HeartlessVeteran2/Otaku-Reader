@@ -1,8 +1,5 @@
-package app.otakureader.feature.reader.panel
+package app.otakureader.feature.reader.model
 
-import app.otakureader.feature.reader.model.ComicPanel
-import app.otakureader.feature.reader.model.PanelBounds
-import app.otakureader.feature.reader.model.ReadingDirection
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
