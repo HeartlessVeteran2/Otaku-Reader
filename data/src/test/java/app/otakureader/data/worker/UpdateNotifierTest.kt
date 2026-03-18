@@ -261,17 +261,16 @@ class UpdateNotifierTest {
 
     @Test
     fun `notify checks notification permission on Android 13+`() = runTest {
-        // Given - Robolectric SDK 34 (Android 13+)
+        // Given - Robolectric SDK 34 (Android 13+), permission granted in setUp
         val mangaList = listOf(testManga1)
         val notifier = UpdateNotifier(context)
 
         // When
         notifier.notify(mangaList, totalNewChapters = 3)
 
-        // Then - on SDK 34, POST_NOTIFICATIONS is not granted by default in Robolectric,
-        // so the notify method returns early. We verify no notifications were posted.
-        // This confirms the permission check works correctly.
-        assertTrue(shadowNotificationManager.size() == 0 || shadowNotificationManager.size() >= 1)
+        // Then - with POST_NOTIFICATIONS granted, notifications should be posted
+        // 1 individual + 1 summary = 2
+        assertEquals(2, shadowNotificationManager.size())
     }
 
     // -------------------------------------------------------------------------
@@ -302,9 +301,8 @@ class UpdateNotifierTest {
         // When
         notifier.notify(mangaList, totalNewChapters = 3)
 
-        // Then - notification is created (intent is built internally)
-        // The test verifies the code path executes without errors
-        assertTrue(shadowNotificationManager.size() >= 0)
+        // Then - notification is created with correct manga ID
+        assertNotNull(shadowNotificationManager.getNotification(UPDATE_NOTIFICATION_TAG, testManga1.id.hashCode()))
     }
 
     @Test
@@ -317,8 +315,8 @@ class UpdateNotifierTest {
         // When - should use fallback intent
         notifier.notify(mangaList, totalNewChapters = 3)
 
-        // Then - notification should still be created without crashing
-        assertTrue(shadowNotificationManager.size() >= 0)
+        // Then - notification should still be created (1 individual + 1 summary)
+        assertEquals(2, shadowNotificationManager.size())
     }
 
     // -------------------------------------------------------------------------
@@ -341,8 +339,8 @@ class UpdateNotifierTest {
         // When
         notifier.notify(mangaList, totalNewChapters = 100)
 
-        // Then - notifications should be posted (exact count depends on permission state)
-        assertTrue(shadowNotificationManager.size() >= 0)
+        // Then - 100 individual + 1 summary = 101 notifications
+        assertEquals(101, shadowNotificationManager.size())
     }
 
     @Test
@@ -355,8 +353,8 @@ class UpdateNotifierTest {
         // When - should not crash
         notifier.notify(listOf(manga), totalNewChapters = 3)
 
-        // Then - code path completes without error
-        assertTrue(shadowNotificationManager.size() >= 0)
+        // Then - 1 individual + 1 summary = 2
+        assertEquals(2, shadowNotificationManager.size())
     }
 
     @Test
@@ -368,7 +366,7 @@ class UpdateNotifierTest {
         // When
         notifier.notify(listOf(manga), totalNewChapters = 1)
 
-        // Then - should still create notifications without crashing
-        assertTrue(shadowNotificationManager.size() >= 0)
+        // Then - 1 individual + 1 summary = 2
+        assertEquals(2, shadowNotificationManager.size())
     }
 }
