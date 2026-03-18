@@ -2,6 +2,7 @@ package app.otakureader.core.database
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import androidx.room.TypeConverters
 import app.otakureader.core.database.dao.CategoryDao
 import app.otakureader.core.database.dao.ChapterDao
 import app.otakureader.core.database.dao.FeedDao
@@ -41,6 +42,7 @@ import app.otakureader.core.database.entity.TrackerSyncStateEntity
     version = 10,
     exportSchema = true
 )
+@TypeConverters(DatabaseConverters::class)
 abstract class OtakuReaderDatabase : RoomDatabase() {
     abstract fun mangaDao(): MangaDao
     abstract fun chapterDao(): ChapterDao

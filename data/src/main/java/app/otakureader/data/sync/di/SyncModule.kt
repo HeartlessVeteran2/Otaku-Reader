@@ -13,6 +13,8 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import kotlinx.serialization.json.Json
+import okhttp3.OkHttpClient
 import javax.inject.Singleton
 import kotlin.jvm.JvmSuppressWildcards
 
@@ -50,10 +52,14 @@ object SyncModule {
 
     /**
      * Provides the API factory for self-hosted sync.
+     * SelfHostedSyncApiFactory uses @Inject constructor, so Hilt can provide it
+     * automatically. We declare it here to ensure it's treated as a singleton.
      */
     @Provides
     @Singleton
     fun provideSelfHostedSyncApiFactory(
-        syncPreferences: SyncPreferences
-    ): SelfHostedSyncApiFactory = SelfHostedSyncApiFactory(syncPreferences)
+        syncPreferences: SyncPreferences,
+        okHttpClient: OkHttpClient,
+        json: Json
+    ): SelfHostedSyncApiFactory = SelfHostedSyncApiFactory(syncPreferences, okHttpClient, json)
 }

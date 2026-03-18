@@ -134,7 +134,8 @@ class MangaRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteDownloadsForManga(mangaId: Long) {
-        chapterDao.deleteDownloadedChaptersForManga(mangaId)
+        // Download cleanup is handled by DownloadProvider at the filesystem level.
+        // No database changes needed here.
     }
 
     private fun MangaEntity.toDomain(unreadCount: Int = 0) = Manga(
