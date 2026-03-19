@@ -1,6 +1,7 @@
 package app.otakureader.core.network.di
 
 import app.otakureader.core.network.BuildConfig
+import app.otakureader.core.network.interceptor.IgnoreGzipInterceptor
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import dagger.Module
 import dagger.Provides
@@ -9,6 +10,7 @@ import dagger.hilt.components.SingletonComponent
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import okhttp3.brotli.BrotliInterceptor
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import java.util.concurrent.TimeUnit
@@ -33,6 +35,11 @@ object NetworkModule {
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
+            // IgnoreGzipInterceptor must come before BrotliInterceptor so it can strip the
+            // transparent gzip header added by BridgeInterceptor, allowing BrotliInterceptor
+            // to handle both gzip and Brotli decompression explicitly.
+            .addNetworkInterceptor(IgnoreGzipInterceptor())
+            .addNetworkInterceptor(BrotliInterceptor)
 
         // Enable HTTP logging only in debug builds to prevent information disclosure in production
         if (BuildConfig.DEBUG) {
