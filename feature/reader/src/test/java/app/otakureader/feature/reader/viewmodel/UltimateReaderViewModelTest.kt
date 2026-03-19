@@ -1,6 +1,7 @@
 package app.otakureader.feature.reader.viewmodel
 
 import android.content.Context
+import android.os.SystemClock
 import androidx.lifecycle.SavedStateHandle
 import app.otakureader.data.loader.PageLoader
 import app.otakureader.domain.model.Chapter
@@ -24,7 +25,9 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
+import io.mockk.mockkStatic
 import io.mockk.runs
+import io.mockk.unmockkStatic
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
@@ -50,6 +53,7 @@ class UltimateReaderViewModelTest {
     private lateinit var context: Context
     private lateinit var mangaRepository: MangaRepository
     private lateinit var chapterRepository: ChapterRepository
+    private lateinit var sourceRepository: app.otakureader.domain.repository.SourceRepository
     private lateinit var settingsRepository: ReaderSettingsRepository
     private lateinit var pageLoader: PageLoader
     private lateinit var imageLoader: ImageLoader
@@ -62,9 +66,12 @@ class UltimateReaderViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
+        mockkStatic(SystemClock::class)
+        every { SystemClock.elapsedRealtime() } returns 0L
         context = mockk(relaxed = true)
         mangaRepository = mockk()
         chapterRepository = mockk()
+        sourceRepository = mockk(relaxed = true)
         settingsRepository = mockk()
         pageLoader = mockk()
         imageLoader = mockk(relaxed = true)
@@ -111,6 +118,7 @@ class UltimateReaderViewModelTest {
     @After
     fun tearDown() {
         Dispatchers.resetMain()
+        unmockkStatic(SystemClock::class)
     }
 
     private fun createViewModel(): UltimateReaderViewModel =
@@ -118,6 +126,7 @@ class UltimateReaderViewModelTest {
             context = context,
             mangaRepository = mangaRepository,
             chapterRepository = chapterRepository,
+            sourceRepository = sourceRepository,
             settingsRepository = settingsRepository,
             pageLoader = pageLoader,
             imageLoader = imageLoader,

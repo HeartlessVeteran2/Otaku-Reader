@@ -326,7 +326,7 @@ private fun MangaHeader(
             }
 
             Text(
-                text = stringResource(R.string.details_status, manga.status.displayText()),
+                text = stringResource(R.string.details_status, stringResource(manga.status.displayTextResId())),
                 style = MaterialTheme.typography.bodyMedium,
                 color = manga.status.colorValue()
             )

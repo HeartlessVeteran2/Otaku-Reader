@@ -40,7 +40,7 @@ object DownloadProvider {
     private const val PAGES_CACHE_SUBDIR = ".pages"
 
     /** The file extensions recognised as downloaded page images. */
-    internal val PAGE_EXTENSIONS = setOf("jpg", "jpeg", "png", "webp")
+    val PAGE_EXTENSIONS = setOf("jpg", "jpeg", "png", "webp")
 
     // -------------------------------------------------------------------------
     // Context-based public API
@@ -90,6 +90,17 @@ object DownloadProvider {
         mangaTitle: String,
         chapterName: String
     ): Boolean = isChapterDownloaded(rootFor(context), sourceName, mangaTitle, chapterName)
+
+    /**
+     * Returns `true` when the manga directory exists and contains at least one
+     * chapter subdirectory with downloaded pages. This is a coarse check suitable
+     * for library-level "downloaded" badges without per-chapter iteration.
+     */
+    fun hasMangaDownloads(
+        context: Context,
+        sourceName: String,
+        mangaTitle: String
+    ): Boolean = hasMangaDownloads(rootFor(context), sourceName, mangaTitle)
 
     /**
      * Returns an ordered list of `file://` URIs for every page that has been
@@ -156,7 +167,7 @@ object DownloadProvider {
     // Internal root-File overloads (used for testing without a real Context)
     // -------------------------------------------------------------------------
 
-    internal fun getChapterDir(
+    fun getChapterDir(
         root: File,
         sourceName: String,
         mangaTitle: String,
@@ -166,7 +177,7 @@ object DownloadProvider {
         "$ROOT_DIR/${sanitize(sourceName)}/${sanitize(mangaTitle)}/${sanitize(chapterName)}"
     )
 
-    internal fun getPageFile(
+    fun getPageFile(
         root: File,
         sourceName: String,
         mangaTitle: String,
@@ -174,14 +185,14 @@ object DownloadProvider {
         pageIndex: Int
     ): File = File(getChapterDir(root, sourceName, mangaTitle, chapterName), "$pageIndex.jpg")
 
-    internal fun getCbzFile(
+    fun getCbzFile(
         root: File,
         sourceName: String,
         mangaTitle: String,
         chapterName: String
     ): File = File(getChapterDir(root, sourceName, mangaTitle, chapterName), CbzCreator.CBZ_FILE_NAME)
 
-    internal fun isChapterDownloaded(
+    fun isChapterDownloaded(
         root: File,
         sourceName: String,
         mangaTitle: String,
@@ -198,7 +209,29 @@ object DownloadProvider {
         }
     }
 
-    internal fun getDownloadedPageUris(
+    /**
+     * Returns `true` when the manga directory contains at least one chapter subdirectory
+     * with at least one downloaded page file or CBZ archive.
+     */
+    fun hasMangaDownloads(
+        root: File,
+        sourceName: String,
+        mangaTitle: String
+    ): Boolean {
+        val mangaDir = File(root, "$ROOT_DIR/${sanitize(sourceName)}/${sanitize(mangaTitle)}")
+        if (!mangaDir.isDirectory) return false
+
+        val chapterDirs = mangaDir.listFiles { file -> file.isDirectory } ?: return false
+        return chapterDirs.any { chapterDir ->
+            val fileList = chapterDir.list() ?: return@any false
+            fileList.any { filename ->
+                filename == CbzCreator.CBZ_FILE_NAME ||
+                    filename.substringAfterLast('.', "").lowercase() in PAGE_EXTENSIONS
+            }
+        }
+    }
+
+    fun getDownloadedPageUris(
         root: File,
         sourceName: String,
         mangaTitle: String,
@@ -244,7 +277,7 @@ object DownloadProvider {
         return extracted.take(MAX_PAGE_FILES).map { "file://${it.absolutePath}" }
     }
 
-    internal fun deleteChapter(
+    fun deleteChapter(
         root: File,
         sourceName: String,
         mangaTitle: String,
@@ -255,7 +288,7 @@ object DownloadProvider {
         return dir.deleteRecursively()
     }
 
-    internal fun migrateChapterDownload(
+    fun migrateChapterDownload(
         root: File,
         fromSourceName: String,
         fromMangaTitle: String,
@@ -276,7 +309,9 @@ object DownloadProvider {
         // Create destination directory
         toDir.mkdirs()
 
-        // Copy or move all files from source to destination
+        // Copy or move all files from source to destination.
+        // renameTo() can fail across different filesystems/volumes, so we fall
+        // back to copy-then-delete when a rename returns false.
         return try {
             files.forEach { file ->
                 if (file.isFile) {
@@ -284,7 +319,21 @@ object DownloadProvider {
                     if (copy) {
                         file.copyTo(destFile, overwrite = true)
                     } else {
-                        file.renameTo(destFile)
+                        if (!file.renameTo(destFile)) {
+                            // Fallback: copy then delete original
+                            file.copyTo(destFile, overwrite = true)
+                            // Verify the copy succeeded before deleting
+                            if (!destFile.exists() || destFile.length() != file.length()) {
+                                // Copy verification failed; abort to avoid data loss
+                                // Clean up partial destination file best-effort
+                                destFile.delete()
+                                return false
+                            }
+                            if (!file.delete()) {
+                                // Delete failed; migration incomplete
+                                return false
+                            }
+                        }
                     }
                 } else if (file.isDirectory) {
                     // Handle subdirectories (e.g., .pages cache)
@@ -292,7 +341,29 @@ object DownloadProvider {
                     if (copy) {
                         file.copyRecursively(destSubdir, overwrite = true)
                     } else {
-                        file.renameTo(destSubdir)
+                        if (!file.renameTo(destSubdir)) {
+                            // Fallback: copy recursively then delete original
+                            // Use try-catch to detect partial copy failures
+                            try {
+                                file.copyRecursively(destSubdir, overwrite = true)
+                                // Verify destination directory was created with contents
+                                if (!destSubdir.isDirectory || destSubdir.listFiles().isNullOrEmpty()) {
+                                    // Copy verification failed; abort to avoid data loss
+                                    // Clean up partial copy
+                                    destSubdir.deleteRecursively()
+                                    return false
+                                }
+                            } catch (e: Exception) {
+                                // Copy failed; clean up partial copy and abort
+                                destSubdir.deleteRecursively()
+                                return false
+                            }
+                            // Copy verified; now safe to delete original
+                            if (!file.deleteRecursively()) {
+                                // Delete failed; migration incomplete
+                                return false
+                            }
+                        }
                     }
                 }
             }
@@ -317,7 +388,7 @@ object DownloadProvider {
      * Replaces characters that are illegal in filesystem paths with underscores and
      * trims surrounding whitespace.
      */
-    internal fun sanitize(name: String): String =
+    fun sanitize(name: String): String =
         name.replace(Regex("""[/\\:*?"<>|]"""), "_").trim()
 
     private fun rootFor(context: Context): File =

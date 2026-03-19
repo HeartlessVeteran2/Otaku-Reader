@@ -7,6 +7,13 @@ pluginManagement {
         maven("https://maven.google.com")
         gradlePluginPortal()
     }
+    resolutionStrategy {
+        eachPlugin {
+            if (requested.id.id == "org.jetbrains.kotlin.plugin.serialization") {
+                useVersion("2.3.20")
+            }
+        }
+    }
 }
 
 dependencyResolutionManagement {

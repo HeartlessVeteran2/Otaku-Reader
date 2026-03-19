@@ -10,6 +10,7 @@ import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.MangaRepository
+import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.feature.reader.model.ColorFilterMode
 import app.otakureader.feature.reader.model.ImageQuality
 import app.otakureader.feature.reader.model.ReaderMode
@@ -55,6 +56,7 @@ class UltimateReaderViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val mangaRepository: MangaRepository,
     private val chapterRepository: ChapterRepository,
+    private val sourceRepository: SourceRepository,
     private val settingsRepository: ReaderSettingsRepository,
     private val pageLoader: PageLoader,
     private val imageLoader: ImageLoader,
@@ -380,19 +382,29 @@ class UltimateReaderViewModel @Inject constructor(
         mangaTitle: String,
         chapterName: String
     ): List<ReaderPage> {
-        // TODO: Integrate with SourceManager to fetch actual page URLs.
-        // val source = sourceManager.get(manga.sourceId)
-        // val remotePages = source.fetchPageList(chapter.toSourceChapter())
-        //
-        // Once remotePages are available, resolve each URL through PageLoader:
-        // return remotePages.mapIndexed { index, page ->
-        //     ReaderPage(
-        //         index = index,
-        //         imageUrl = pageLoader.resolveUrl(page.imageUrl, sourceName, mangaTitle, chapterName, index),
-        //         chapterName = chapterName
-        //     )
-        // }
-        return emptyList()
+        val manga = currentManga ?: return emptyList()
+        val sourceChapter = app.otakureader.sourceapi.SourceChapter(
+            url = chapterUrl,
+            name = chapterName
+        )
+        val sourceId = manga.sourceId.toString()
+
+        val pages = sourceRepository.getPageList(sourceId, sourceChapter)
+            .getOrElse { return emptyList() }
+
+        return pages.mapIndexed { index, page ->
+            ReaderPage(
+                index = index,
+                imageUrl = pageLoader.resolveUrl(
+                    page.imageUrl.orEmpty(),
+                    sourceName,
+                    mangaTitle,
+                    chapterName,
+                    index
+                ),
+                chapterName = chapterName
+            )
+        }
     }
 
     /**
@@ -738,7 +750,8 @@ class UltimateReaderViewModel @Inject constructor(
                         totalPages = pages.size,
                         strategy = cachedPrefetchStrategy,
                         behavior = behavior,
-                        scope = viewModelScope
+                        scope = viewModelScope,
+                        sourceId = currentManga?.sourceId?.toString()
                     )
                 }
             } else {
@@ -868,10 +881,11 @@ class UltimateReaderViewModel @Inject constructor(
 
     /**
      * Performs the final persistence work when the reader is closed.
-     * Extracted to an `internal` suspend function so it can be tested directly without
+     * Extracted to a suspend function so it can be tested directly without
      * going through the protected [onCleared] / [cleanupScope] boundary.
      */
-    internal suspend fun cleanupOnExit(durationMs: Long, currentState: ReaderState) {
+    @androidx.annotation.VisibleForTesting
+    suspend fun cleanupOnExit(durationMs: Long, currentState: ReaderState) {
         val isIncognito = runCatching {
             settingsRepository.incognitoMode.first()
         }.getOrElse {

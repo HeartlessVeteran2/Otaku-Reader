@@ -11,11 +11,14 @@ import app.otakureader.core.preferences.LibraryPreferences
 import app.otakureader.core.preferences.LocalSourcePreferences
 import app.otakureader.core.preferences.ReaderPreferences
 import app.otakureader.core.preferences.ReadingGoalPreferences
+import app.otakureader.core.preferences.SyncPreferences
 import app.otakureader.core.discord.DiscordRpcService
 import app.otakureader.data.backup.BackupScheduler
 import app.otakureader.data.tracking.TrackManager
 import app.otakureader.data.worker.ReadingReminderScheduler
 import app.otakureader.domain.repository.AiRepository
+import app.otakureader.domain.sync.SyncManager
+import app.otakureader.domain.sync.SyncStatus as DomainSyncStatus
 import app.otakureader.feature.reader.model.ImageQuality
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
@@ -46,7 +49,9 @@ class SettingsViewModel @Inject constructor(
     private val aiRepository: AiRepository,
     private val readingGoalPreferences: ReadingGoalPreferences,
     private val readingReminderScheduler: ReadingReminderScheduler,
-    private val discordRpcService: DiscordRpcService
+    private val discordRpcService: DiscordRpcService,
+    private val syncPreferences: SyncPreferences,
+    private val syncManager: SyncManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SettingsState())
@@ -67,6 +72,7 @@ class SettingsViewModel @Inject constructor(
         observePreferences()
         observeAiPreferences()
         observeReadingGoalPreferences()
+        observeSyncPreferences()
         refreshTrackers()
     }
 
@@ -174,7 +180,17 @@ class SettingsViewModel @Inject constructor(
                         dailyChapterGoal = current.dailyChapterGoal,
                         weeklyChapterGoal = current.weeklyChapterGoal,
                         readingRemindersEnabled = current.readingRemindersEnabled,
-                        readingReminderHour = current.readingReminderHour
+                        readingReminderHour = current.readingReminderHour,
+                        // Preserve sync fields managed by observeSyncPreferences()
+                        syncEnabled = current.syncEnabled,
+                        syncProviderId = current.syncProviderId,
+                        syncProviderName = current.syncProviderName,
+                        lastSyncTime = current.lastSyncTime,
+                        syncStatus = current.syncStatus,
+                        autoSyncEnabled = current.autoSyncEnabled,
+                        syncIntervalHours = current.syncIntervalHours,
+                        syncOnlyOnWifi = current.syncOnlyOnWifi,
+                        conflictResolutionStrategy = current.conflictResolutionStrategy
                     )
                 }
             }
@@ -305,12 +321,12 @@ class SettingsViewModel @Inject constructor(
                     handleSetReadingRemindersEnabled(event.enabled)
                 is SettingsEvent.SetReadingReminderHour ->
                     handleSetReadingReminderHour(event.hour)
-                is SettingsEvent.SetSyncEnabled -> Unit // TODO: implement cloud sync
-                is SettingsEvent.TriggerManualSync -> Unit // TODO: implement cloud sync
-                is SettingsEvent.SetAutoSyncEnabled -> Unit // TODO: implement cloud sync
-                is SettingsEvent.SetSyncIntervalHours -> Unit // TODO: implement cloud sync
-                is SettingsEvent.SetSyncOnlyOnWifi -> Unit // TODO: implement cloud sync
-                is SettingsEvent.SetConflictResolutionStrategy -> Unit // TODO: implement cloud sync
+                is SettingsEvent.SetSyncEnabled -> handleSetSyncEnabled(event.enabled, event.providerId)
+                is SettingsEvent.TriggerManualSync -> handleTriggerManualSync()
+                is SettingsEvent.SetAutoSyncEnabled -> syncPreferences.setAutoSyncEnabled(event.enabled)
+                is SettingsEvent.SetSyncIntervalHours -> syncPreferences.setSyncIntervalHours(event.hours)
+                is SettingsEvent.SetSyncOnlyOnWifi -> syncPreferences.setSyncOnlyOnWifi(event.onlyWifi)
+                is SettingsEvent.SetConflictResolutionStrategy -> syncPreferences.setConflictResolutionStrategy(event.strategy)
             }
         }
     }
@@ -404,6 +420,85 @@ class SettingsViewModel @Inject constructor(
         if (enabled) {
             readingReminderScheduler.schedule(hour)
         }
+    }
+
+    private fun observeSyncPreferences() {
+        viewModelScope.launch {
+            combine(
+                syncPreferences.isSyncEnabled,
+                syncPreferences.providerId,
+                syncPreferences.lastSyncTime,
+                syncPreferences.autoSyncEnabled
+            ) { enabled, providerId, lastSync, autoSync ->
+                SyncPrefsState(
+                    enabled = enabled,
+                    providerId = providerId,
+                    lastSyncTime = lastSync,
+                    autoSyncEnabled = autoSync
+                )
+            }.combine(syncPreferences.syncIntervalHours) { state, hours ->
+                state.copy(syncIntervalHours = hours)
+            }.combine(syncPreferences.syncOnlyOnWifi) { state, onlyWifi ->
+                state.copy(syncOnlyOnWifi = onlyWifi)
+            }.combine(syncPreferences.conflictResolutionStrategy) { state, strategy ->
+                state.copy(conflictResolutionStrategy = strategy)
+            }.collect { syncState ->
+                _state.update { current ->
+                    current.copy(
+                        syncEnabled = syncState.enabled,
+                        syncProviderId = syncState.providerId,
+                        lastSyncTime = syncState.lastSyncTime,
+                        autoSyncEnabled = syncState.autoSyncEnabled,
+                        syncIntervalHours = syncState.syncIntervalHours,
+                        syncOnlyOnWifi = syncState.syncOnlyOnWifi,
+                        conflictResolutionStrategy = syncState.conflictResolutionStrategy
+                    )
+                }
+            }
+        }
+    }
+
+    /** Intermediate holder to avoid destructuring a large array. */
+    private data class SyncPrefsState(
+        val enabled: Boolean,
+        val providerId: String?,
+        val lastSyncTime: Long?,
+        val autoSyncEnabled: Boolean,
+        val syncIntervalHours: Int = 24,
+        val syncOnlyOnWifi: Boolean = true,
+        val conflictResolutionStrategy: String = "PREFER_NEWER"
+    )
+
+    private suspend fun handleSetSyncEnabled(enabled: Boolean, providerId: String?) {
+        if (enabled && providerId != null) {
+            syncManager.enableSync(providerId).fold(
+                onSuccess = {
+                    _effect.send(SettingsEffect.ShowSnackbar("Cloud sync enabled"))
+                },
+                onFailure = { e ->
+                    _effect.send(SettingsEffect.ShowSnackbar("Failed to enable sync: ${e.message}"))
+                }
+            )
+        } else {
+            syncManager.disableSync(clearMetadata = true)
+            _effect.send(SettingsEffect.ShowSnackbar("Cloud sync disabled"))
+        }
+    }
+
+    private suspend fun handleTriggerManualSync() {
+        _state.update { it.copy(syncStatus = SyncStatus.SYNCING) }
+        syncManager.sync().fold(
+            onSuccess = { result ->
+                _state.update { it.copy(syncStatus = SyncStatus.IDLE) }
+                _effect.send(SettingsEffect.ShowSnackbar(
+                    "Sync complete: ${result.mangaUpdated} manga, ${result.chaptersUpdated} chapters updated"
+                ))
+            },
+            onFailure = { e ->
+                _state.update { it.copy(syncStatus = SyncStatus.ERROR) }
+                _effect.send(SettingsEffect.ShowSnackbar("Sync failed: ${e.message}"))
+            }
+        )
     }
 
     private fun loginTracker(trackerId: Int, username: String, password: String) {

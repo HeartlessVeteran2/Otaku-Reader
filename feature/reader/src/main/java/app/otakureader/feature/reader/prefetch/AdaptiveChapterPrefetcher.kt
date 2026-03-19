@@ -27,7 +27,8 @@ import javax.inject.Singleton
 class AdaptiveChapterPrefetcher @Inject constructor(
     @ApplicationContext private val context: Context,
     private val imageLoader: ImageLoader,
-    private val chapterRepository: ChapterRepository
+    private val chapterRepository: ChapterRepository,
+    private val sourceRepository: app.otakureader.domain.repository.SourceRepository
 ) {
 
 
@@ -75,6 +76,7 @@ class AdaptiveChapterPrefetcher @Inject constructor(
      * @param strategy Prefetch strategy
      * @param behavior User reading behavior
      * @param scope Coroutine scope for launching prefetch jobs
+     * @param sourceId Source ID string for the manga (used to fetch page URLs)
      */
     fun prefetchAdjacentChapters(
         currentChapterId: Long,
@@ -83,28 +85,27 @@ class AdaptiveChapterPrefetcher @Inject constructor(
         totalPages: Int,
         strategy: PrefetchStrategy,
         behavior: ReadingBehavior,
-        scope: CoroutineScope
+        scope: CoroutineScope,
+        sourceId: String? = null
     ) {
         // Check if we should prefetch next chapter
         if (strategy.shouldPrefetchNextChapter(currentPage, totalPages, behavior)) {
-            prefetchNextChapter(currentChapterId, mangaId, scope)
+            prefetchNextChapter(currentChapterId, mangaId, scope, sourceId)
         }
 
         // Check if we should prefetch previous chapter
         if (strategy.shouldPrefetchPreviousChapter(currentPage, behavior)) {
-            prefetchPreviousChapter(currentChapterId, mangaId, scope)
+            prefetchPreviousChapter(currentChapterId, mangaId, scope, sourceId)
         }
     }
 
     /**
      * Prefetches the first few pages of the next chapter.
      */
-    private fun prefetchNextChapter(currentChapterId: Long, mangaId: Long, scope: CoroutineScope) {
+    private fun prefetchNextChapter(currentChapterId: Long, mangaId: Long, scope: CoroutineScope, sourceId: String?) {
         nextChapterPrefetchJob?.cancel()
 
-        // Adjacent-chapter prefetch is temporarily disabled while prefetchChapterPages()
-        // is a no-op, to avoid unnecessary DB work and marking chapters as prefetched.
-        return
+        if (sourceId == null) return
 
         nextChapterPrefetchJob = scope.launch {
             try {
@@ -126,7 +127,7 @@ class AdaptiveChapterPrefetcher @Inject constructor(
                 }
 
                 // Prefetch first N pages of next chapter
-                prefetchChapterPages(nextChapter, PREFETCH_PAGES_PER_CHAPTER)
+                prefetchChapterPages(nextChapter, PREFETCH_PAGES_PER_CHAPTER, sourceId = sourceId)
 
                 // Mark as prefetched
                 prefetchedChapters.add(nextChapter.id)
@@ -139,12 +140,10 @@ class AdaptiveChapterPrefetcher @Inject constructor(
     /**
      * Prefetches the last few pages of the previous chapter.
      */
-    private fun prefetchPreviousChapter(currentChapterId: Long, mangaId: Long, scope: CoroutineScope) {
+    private fun prefetchPreviousChapter(currentChapterId: Long, mangaId: Long, scope: CoroutineScope, sourceId: String?) {
         previousChapterPrefetchJob?.cancel()
 
-        // Adjacent-chapter prefetch is temporarily disabled while prefetchChapterPages()
-        // is a no-op, to avoid unnecessary DB work and marking chapters as prefetched.
-        return
+        if (sourceId == null) return
 
         previousChapterPrefetchJob = scope.launch {
             try {
@@ -166,7 +165,7 @@ class AdaptiveChapterPrefetcher @Inject constructor(
                 }
 
                 // Prefetch last N pages of previous chapter
-                prefetchChapterPages(previousChapter, PREFETCH_PAGES_PER_CHAPTER, fromEnd = true)
+                prefetchChapterPages(previousChapter, PREFETCH_PAGES_PER_CHAPTER, fromEnd = true, sourceId = sourceId)
 
                 // Mark as prefetched
                 prefetchedChapters.add(previousChapter.id)
@@ -186,31 +185,30 @@ class AdaptiveChapterPrefetcher @Inject constructor(
     private suspend fun prefetchChapterPages(
         chapter: Chapter,
         pageCount: Int,
-        fromEnd: Boolean = false
+        fromEnd: Boolean = false,
+        sourceId: String
     ) {
-        // TODO: This requires fetching page URLs from the source
-        // For now, this is a placeholder that would integrate with SourceManager
-        // when it's implemented.
+        val sourceChapter = app.otakureader.sourceapi.SourceChapter(
+            url = chapter.url,
+            name = chapter.name
+        )
 
-        // The actual implementation would:
-        // 1. Fetch chapter pages from source: sourceManager.getPageList(chapter)
-        // 2. Select first/last N pages based on fromEnd parameter
-        // 3. Prefetch those pages using imageLoader.enqueue()
+        val pages = sourceRepository.getPageList(sourceId, sourceChapter).getOrNull()
+        if (pages.isNullOrEmpty()) return
 
-        // Placeholder logic:
-        // val pages = sourceManager.getPageList(chapter)
-        // val pagesToPrefetch = if (fromEnd) {
-        //     pages.takeLast(pageCount)
-        // } else {
-        //     pages.take(pageCount)
-        // }
-        //
-        // pagesToPrefetch.forEach { page ->
-        //     val request = ImageRequest.Builder(context)
-        //         .data(page.imageUrl)
-        //         .build()
-        //     imageLoader.enqueue(request)
-        // }
+        val pagesToPrefetch = if (fromEnd) {
+            pages.takeLast(pageCount)
+        } else {
+            pages.take(pageCount)
+        }
+
+        pagesToPrefetch.forEach { page ->
+            val url = page.imageUrl ?: return@forEach
+            val request = ImageRequest.Builder(context)
+                .data(url)
+                .build()
+            imageLoader.enqueue(request)
+        }
     }
 
     /**

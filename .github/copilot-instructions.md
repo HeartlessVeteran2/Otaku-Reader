@@ -6,7 +6,7 @@ This file provides comprehensive instructions to optimize GitHub Copilot's code 
 
 Otaku Reader is a modern Android manga reader application built with Kotlin and Jetpack Compose, following Clean Architecture principles with MVI (Model-View-Intent) pattern.
 
-- **Language**: Kotlin 2.3.10
+- **Language**: Kotlin 2.3.20
 - **Min SDK**: 26 (Android 8.0)
 - **Target SDK**: 35 (Android 15)
 - **UI Framework**: Jetpack Compose + Material 3
@@ -44,7 +44,7 @@ The project is strictly organized into three layers:
 ### Core Modules (`/core/*`)
 
 - `core/common` - Shared utilities, extensions, helpers
-- `core/database` - Room database v5 with migrations, entities, DAOs
+- `core/database` - Room database v10 with migrations, entities, DAOs
 - `core/network` - Retrofit + OkHttp configuration
 - `core/preferences` - DataStore for type-safe preferences
 - `core/ui` - Shared Jetpack Compose components (Material 3)
@@ -273,7 +273,7 @@ object NetworkModule {
 
 ### Room Database
 
-**Current version**: 5 (with migrations from v2 → v3 → v4 → v5)
+**Current version**: 10 (with migrations from v2 → v3 → v4 → v5 → v6 → v7 → v8 → v9 → v10)
 
 **Entity example**:
 ```kotlin

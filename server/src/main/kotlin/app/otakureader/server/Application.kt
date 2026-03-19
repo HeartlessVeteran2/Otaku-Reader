@@ -1,6 +1,7 @@
 package app.otakureader.server
 
 import app.otakureader.server.config.AppConfig
+import app.otakureader.server.model.HealthResponse
 import app.otakureader.server.routes.syncRoutes
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
@@ -14,14 +15,14 @@ import io.ktor.server.netty.Netty
 import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.statuspages.StatusPages
-import io.ktor.server.response.respondText
+import io.ktor.server.response.respond
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import kotlinx.serialization.json.Json
 
 fun main() {
     val config = AppConfig.load()
-    
+
     embeddedServer(Netty, port = config.port, host = config.host) {
         module(config)
     }.start(wait = true)
@@ -29,26 +30,25 @@ fun main() {
 
 fun Application.module(config: AppConfig) {
     install(CallLogging)
-    
+
     install(ContentNegotiation) {
         json(Json {
             ignoreUnknownKeys = true
             prettyPrint = true
         })
     }
-    
+
     install(StatusPages) {
         exception<Throwable> { call, cause ->
             // Log detailed error server-side
             call.application.environment.log.error("Unhandled exception", cause)
-            // Return generic error to client to avoid leaking internal details
-            call.respondText(
-                text = "Internal Server Error",
-                status = HttpStatusCode.InternalServerError
+            call.respond(
+                HttpStatusCode.InternalServerError,
+                mapOf("error" to "Internal server error")
             )
         }
     }
-    
+
     install(Authentication) {
         bearer("auth-bearer") {
             realm = "Otaku Reader Sync Server"
@@ -61,13 +61,13 @@ fun Application.module(config: AppConfig) {
             }
         }
     }
-    
+
     routing {
         // Health check (no auth required)
         get("/health") {
-            call.respondText("OK")
+            call.respond(HealthResponse(status = "OK"))
         }
-        
+
         // Protected sync routes
         authenticate("auth-bearer") {
             syncRoutes(config)

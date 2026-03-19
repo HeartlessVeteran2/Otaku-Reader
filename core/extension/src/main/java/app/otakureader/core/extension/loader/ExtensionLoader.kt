@@ -8,7 +8,6 @@ import android.os.Build
 import app.otakureader.core.extension.domain.model.Extension
 import app.otakureader.core.extension.domain.model.ExtensionSource
 import app.otakureader.core.extension.domain.model.InstallStatus
-import dalvik.system.DexClassLoader
 import eu.kanade.tachiyomi.source.CatalogueSource
 import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.SourceFactory
@@ -16,6 +15,8 @@ import java.io.File
 
 /**
  * Result of loading an extension.
+ *
+ * Matches Komikku's LoadResult hierarchy: Success, Untrusted, and Error.
  */
 sealed class ExtensionLoadResult {
     data class Success(
@@ -23,18 +24,30 @@ sealed class ExtensionLoadResult {
         val sources: List<Source>
     ) : ExtensionLoadResult()
 
+    /**
+     * Extension loaded but its signature is not in the trusted set.
+     * The user must explicitly trust it before it can be used — matches Komikku.
+     */
+    data class Untrusted(val extension: Extension) : ExtensionLoadResult()
+
     data class Error(val message: String, val throwable: Throwable? = null) : ExtensionLoadResult()
 }
 
 /**
- * Loads APK extensions dynamically using DexClassLoader.
+ * Loads APK extensions using [ChildFirstPathClassLoader].
  * Extracts Source classes from the extension's APK.
  *
- * Compatible with legacy Tachiyomi/Komikku extensions — extensions are identified
+ * Compatible with Tachiyomi/Komikku extensions — extensions are identified
  * by the `tachiyomi.extension` uses-feature flag and their source class(es) are
  * declared in the `tachiyomi.extension.class` metadata entry (semicolon-separated).
  * Extensions that expose a SourceFactory via `tachiyomi.extension.factory` are also
  * supported.
+ *
+ * Supports two kinds of extensions (matching Komikku):
+ * 1. **Shared extensions** – installed via the system package installer and available
+ *    to all Tachiyomi-compatible apps.
+ * 2. **Private extensions** – stored in [getPrivateExtensionDir] (`filesDir/exts/`)
+ *    with the `.ext` file extension; only accessible by this app.
  */
 class ExtensionLoader(
     private val context: Context
@@ -53,19 +66,26 @@ class ExtensionLoader(
         /** Metadata key indicating NSFW content (1 = nsfw). */
         const val METADATA_NSFW = ExtensionLoadingUtils.METADATA_NSFW
 
-        /** Minimum supported extension library version. */
-        const val LIB_VERSION_MIN = 1.2
+        /**
+         * Minimum supported extension library version.
+         * Matches Komikku: 1.4 (was previously 1.2).
+         */
+        const val LIB_VERSION_MIN = 1.4
 
         /** Maximum supported extension library version. */
         const val LIB_VERSION_MAX = 1.5
 
-        private const val DEX_OUTPUT_DIR = "extension_dex"
+        /** File extension for private extensions stored in [getPrivateExtensionDir]. */
+        private const val PRIVATE_EXTENSION_EXTENSION = "ext"
 
         @Suppress("DEPRECATION")
         val PACKAGE_FLAGS: Int = PackageManager.GET_CONFIGURATIONS or
             PackageManager.GET_META_DATA or
             PackageManager.GET_SIGNATURES or
             (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) PackageManager.GET_SIGNING_CERTIFICATES else 0)
+
+        /** Directory where private extensions are stored (matches Komikku's `filesDir/exts`). */
+        fun getPrivateExtensionDir(context: Context) = File(context.filesDir, "exts")
     }
 
     private val packageManager: PackageManager = context.packageManager
@@ -89,41 +109,103 @@ class ExtensionLoader(
             // Fix base paths so assets/icon loading works on Android 13+
             packageInfo.applicationInfo?.let { ExtensionLoadingUtils.run { it.fixBasePaths(apkPath) } }
 
-            loadFromPackageInfo(packageInfo)
+            loadFromPackageInfo(packageInfo, isShared = false)
         } catch (e: Exception) {
             ExtensionLoadResult.Error("Failed to load extension: ${e.message}", e)
         }
     }
 
     /**
+     * Install an extension APK file to the private extension directory.
+     * Validates the extension and copies it to [getPrivateExtensionDir].
+     * @return true if successfully installed, false otherwise
+     */
+    fun installPrivateExtensionFile(file: File): Boolean {
+        val extension = packageManager.getPackageArchiveInfo(file.absolutePath, PACKAGE_FLAGS)
+            ?.takeIf { isPackageAnExtension(it) } ?: return false
+
+        extension.applicationInfo?.fixBasePaths(file.absolutePath)
+
+        val current = getPrivateExtensionPackageInfo(extension.packageName)
+        if (current != null) {
+            val currentVersion = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                current.longVersionCode
+            } else {
+                @Suppress("DEPRECATION")
+                current.versionCode.toLong()
+            }
+            val newVersion = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                extension.longVersionCode
+            } else {
+                @Suppress("DEPRECATION")
+                extension.versionCode.toLong()
+            }
+            if (newVersion < currentVersion) return false
+
+            // Signature must match existing private extension
+            val existingHash = getSignatureHash(current)
+            val newHash = getSignatureHash(extension)
+            if (existingHash != null && newHash != existingHash) return false
+        }
+
+        val privateDir = getPrivateExtensionDir(context)
+        if (!privateDir.exists() && !privateDir.mkdirs()) {
+            return false
+        }
+        if (!privateDir.isDirectory) {
+            return false
+        }
+
+        val target = File(
+            privateDir,
+            "${extension.packageName}.$PRIVATE_EXTENSION_EXTENSION"
+        )
+        return try {
+            target.delete()
+            file.copyTo(target, overwrite = true)
+            target.setReadOnly()
+            true
+        } catch (e: Exception) {
+            target.delete()
+            false
+        }
+    }
+
+    /**
+     * Remove a private extension by package name.
+     */
+    fun uninstallPrivateExtension(pkgName: String) {
+        File(
+            getPrivateExtensionDir(context),
+            "$pkgName.$PRIVATE_EXTENSION_EXTENSION"
+        ).delete()
+    }
+
+    /**
      * Load an already-installed extension by package name.
+     * Checks private extensions first; falls back to shared (system) extension.
      * @param pkgName Android package name of the installed extension
      * @return [ExtensionLoadResult] for the installed extension
      */
     fun loadExtensionFromPkgName(pkgName: String): ExtensionLoadResult {
         return try {
-            val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                packageManager.getPackageInfo(
-                    pkgName,
-                    PackageManager.PackageInfoFlags.of(PACKAGE_FLAGS.toLong()),
-                )
-            } else {
-                @Suppress("DEPRECATION")
-                packageManager.getPackageInfo(pkgName, PACKAGE_FLAGS)
-            }
-            loadFromPackageInfo(packageInfo)
-        } catch (e: PackageManager.NameNotFoundException) {
-            ExtensionLoadResult.Error("Package not found: $pkgName", e)
+            val extensionInfo = getExtensionInfoFromPkgName(pkgName)
+                ?: return ExtensionLoadResult.Error("Package not found: $pkgName")
+            loadFromPackageInfo(extensionInfo.packageInfo, extensionInfo.isShared)
         } catch (e: Exception) {
             ExtensionLoadResult.Error("Failed to load extension: ${e.message}", e)
         }
     }
 
     /**
-     * Load all installed packages that declare the Tachiyomi extension feature flag.
-     * @return List of successfully loaded extensions
+     * Load all installed extensions (shared + private).
+     *
+     * When both a shared and a private extension exist for the same package name,
+     * the one with the higher version code wins — matching Komikku's behaviour.
+     *
+     * @return List of all load results (success, untrusted, or error per extension)
      */
-    fun loadAllExtensions(): List<ExtensionLoadResult.Success> {
+    fun loadAllExtensions(): List<ExtensionLoadResult> {
         val installedPkgs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             packageManager.getInstalledPackages(
                 PackageManager.PackageInfoFlags.of(PACKAGE_FLAGS.toLong()),
@@ -133,19 +215,113 @@ class ExtensionLoader(
             packageManager.getInstalledPackages(PACKAGE_FLAGS)
         }
 
-        return installedPkgs
+        val sharedExtPkgs = installedPkgs
+            .asSequence()
             .filter { isPackageAnExtension(it) }
-            .mapNotNull { pkgInfo ->
-                loadFromPackageInfo(pkgInfo) as? ExtensionLoadResult.Success
+            .map { ExtensionInfo(it, isShared = true) }
+
+        val privateExtPkgs = getPrivateExtensionDir(context)
+            .listFiles()
+            .orEmpty()
+            .asSequence()
+            .filter { it.isFile && it.extension == PRIVATE_EXTENSION_EXTENSION }
+            .onEach { if (it.canWrite()) it.setReadOnly() }
+            .mapNotNull { file ->
+                packageManager.getPackageArchiveInfo(file.absolutePath, PACKAGE_FLAGS)
+                    ?.also { it.applicationInfo?.fixBasePaths(file.absolutePath) }
             }
+            .filter { isPackageAnExtension(it) }
+            .map { ExtensionInfo(it, isShared = false) }
+
+        // Merge: for duplicate package names pick the higher version code
+        val merged = (sharedExtPkgs + privateExtPkgs)
+            .groupBy { it.packageInfo.packageName }
+            .values
+            .mapNotNull { entries ->
+                entries.maxByOrNull {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        it.packageInfo.longVersionCode
+                    } else {
+                        @Suppress("DEPRECATION")
+                        it.packageInfo.versionCode.toLong()
+                    }
+                }
+            }
+
+        return merged.map { loadFromPackageInfo(it.packageInfo, it.isShared) }
     }
 
     // -------------------------------------------------------------------------
     // Internal helpers
     // -------------------------------------------------------------------------
 
+    private data class ExtensionInfo(val packageInfo: PackageInfo, val isShared: Boolean)
+
+    private fun getExtensionInfoFromPkgName(pkgName: String): ExtensionInfo? {
+        val privateFile = File(
+            getPrivateExtensionDir(context),
+            "$pkgName.$PRIVATE_EXTENSION_EXTENSION"
+        )
+        val privatePkg = if (privateFile.isFile) {
+            packageManager.getPackageArchiveInfo(privateFile.absolutePath, PACKAGE_FLAGS)
+                ?.takeIf { isPackageAnExtension(it) }
+                ?.also { it.applicationInfo?.fixBasePaths(privateFile.absolutePath) }
+                ?.let { ExtensionInfo(it, isShared = false) }
+        } else {
+            null
+        }
+
+        val sharedPkg = try {
+            val pi = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                packageManager.getPackageInfo(
+                    pkgName,
+                    PackageManager.PackageInfoFlags.of(PACKAGE_FLAGS.toLong()),
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                packageManager.getPackageInfo(pkgName, PACKAGE_FLAGS)
+            }
+            if (isPackageAnExtension(pi)) ExtensionInfo(pi, isShared = true) else null
+        } catch (e: PackageManager.NameNotFoundException) {
+            null
+        }
+
+        return when {
+            privatePkg == null -> sharedPkg
+            sharedPkg == null -> privatePkg
+            else -> {
+                val pv = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    privatePkg.packageInfo.longVersionCode
+                } else {
+                    @Suppress("DEPRECATION")
+                    privatePkg.packageInfo.versionCode.toLong()
+                }
+                val sv = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    sharedPkg.packageInfo.longVersionCode
+                } else {
+                    @Suppress("DEPRECATION")
+                    sharedPkg.packageInfo.versionCode.toLong()
+                }
+                if (pv >= sv) privatePkg else sharedPkg
+            }
+        }
+    }
+
+    private fun getPrivateExtensionPackageInfo(pkgName: String): PackageInfo? {
+        val file = File(
+            getPrivateExtensionDir(context),
+            "$pkgName.$PRIVATE_EXTENSION_EXTENSION"
+        )
+        return if (file.isFile) {
+            packageManager.getPackageArchiveInfo(file.absolutePath, PACKAGE_FLAGS)
+                ?.also { it.applicationInfo?.fixBasePaths(file.absolutePath) }
+        } else {
+            null
+        }
+    }
+
     /** Core loading logic shared between APK-path and package-name entry points. */
-    private fun loadFromPackageInfo(packageInfo: PackageInfo): ExtensionLoadResult {
+    private fun loadFromPackageInfo(packageInfo: PackageInfo, isShared: Boolean): ExtensionLoadResult {
         // Must declare the Tachiyomi extension feature flag
         if (!isPackageAnExtension(packageInfo)) {
             return ExtensionLoadResult.Error("Not a valid Tachiyomi-compatible extension (missing feature flag)")
@@ -170,21 +346,17 @@ class ExtensionLoader(
 
         val isNsfw = ExtensionLoadingUtils.isNsfw(appInfo)
 
-        // Build a DexClassLoader for dynamic class loading
+        // Build a ChildFirstPathClassLoader for dynamic class loading (matches Komikku)
         val apkPath = appInfo.sourceDir
             ?: return ExtensionLoadResult.Error("Application sourceDir is null for package $pkgName")
         val nativeLibDir = appInfo.nativeLibraryDir
-        val dexOutputDir = File(context.codeCacheDir, DEX_OUTPUT_DIR)
 
         val classLoader = try {
             ExtensionLoadingUtils.createClassLoader(
                 apkPath,
-                dexOutputDir,
-                nativeLibDir,
-                context.classLoader
+                nativeLibDir = nativeLibDir,
+                parentClassLoader = context.classLoader
             )
-        } catch (e: IllegalStateException) {
-            return ExtensionLoadResult.Error("Failed to create class loader: ${e.message}", e)
         } catch (e: IllegalArgumentException) {
             return ExtensionLoadResult.Error("Invalid parameters for class loader: ${e.message}", e)
         }
@@ -193,7 +365,7 @@ class ExtensionLoader(
         val sources = ExtensionLoadingUtils.resolveSourcesFromMetadata(appInfo, pkgName, classLoader)
             .ifEmpty { return ExtensionLoadResult.Error("No valid sources found in extension $pkgName") }
 
-        val extension = buildExtension(apkPath, packageInfo, sources, isNsfw)
+        val extension = buildExtension(apkPath, packageInfo, sources, isNsfw, isShared)
         return ExtensionLoadResult.Success(extension, sources)
     }
 
@@ -204,6 +376,11 @@ class ExtensionLoader(
         return ExtensionLoadingUtils.isPackageAnExtension(pkgInfo)
     }
 
+    private fun ApplicationInfo.fixBasePaths(apkPath: String) {
+        if (sourceDir == null) sourceDir = apkPath
+        if (publicSourceDir == null) publicSourceDir = apkPath
+    }
+
     /**
      * Build the [Extension] domain model from the loaded package data.
      */
@@ -212,6 +389,7 @@ class ExtensionLoader(
         packageInfo: PackageInfo,
         sources: List<Source>,
         isNsfw: Boolean,
+        isShared: Boolean,
     ): Extension {
         val appInfo = packageInfo.applicationInfo
         // lang comes from CatalogueSource; plain Sources have no lang field
@@ -243,6 +421,7 @@ class ExtensionLoader(
             isNsfw = isNsfw,
             installDate = System.currentTimeMillis(),
             signatureHash = getSignatureHash(packageInfo),
+            isShared = isShared,
         )
     }
 

@@ -1,8 +1,6 @@
 package app.otakureader.server
 
 import app.otakureader.server.config.AppConfig
-import app.otakureader.server.model.SnapshotResponse
-import io.ktor.client.call.body
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.header
@@ -17,10 +15,10 @@ import io.ktor.server.testing.testApplication
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import kotlin.test.assertFalse
 import java.io.File
 import kotlin.io.path.createTempDirectory
 import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
 
 class SyncRoutesTest {
 
@@ -28,9 +26,6 @@ class SyncRoutesTest {
     private val testToken = "test-auth-token"
 
     private fun ApplicationTestBuilder.setupTestApp() {
-        // Create unique temp directory for this test run
-        testStoragePath = createTempDirectory("otaku-reader-test-").toFile().absolutePath
-
         application {
             val config = AppConfig(
                 host = "localhost",
@@ -39,6 +34,16 @@ class SyncRoutesTest {
                 storagePath = testStoragePath
             )
             module(config)
+        }
+    }
+
+    @BeforeTest
+    fun setup() {
+        // Create a unique temp directory for each test
+        testStoragePath = File.createTempFile("otaku-reader-test-", "").run {
+            delete()
+            mkdirs()
+            absolutePath
         }
     }
 
@@ -57,7 +62,7 @@ class SyncRoutesTest {
         val response = client.get("/health")
 
         assertEquals(HttpStatusCode.OK, response.status)
-        assertEquals("OK", response.bodyAsText())
+        assertTrue(response.bodyAsText().contains("\"status\": \"OK\""))
     }
 
     @Test
@@ -117,12 +122,11 @@ class SyncRoutesTest {
 
         assertEquals(HttpStatusCode.OK, deleteResponse.status)
 
-        // Verify deleted by parsing JSON response
+        // Verify deleted
         val downloadResponse = client.get("/sync/download") {
             header("Authorization", "Bearer $testToken")
         }
 
-        val snapshotResponse = downloadResponse.body<SnapshotResponse>()
-        assertFalse(snapshotResponse.exists, "Snapshot should not exist after deletion")
+        assertTrue(downloadResponse.bodyAsText().contains("\"exists\": false"))
     }
 }

@@ -75,8 +75,7 @@ object TachiyomiTestUtils {
 
             // Load the extension
             val extensionLoader = TachiyomiExtensionLoader(
-                context.packageManager,
-                context.cacheDir
+                context.packageManager
             )
 
             val extension = extensionLoader.loadExtensionFromApk(tempFile.absolutePath)
@@ -109,8 +108,7 @@ object TachiyomiTestUtils {
             }
 
             val extensionLoader = TachiyomiExtensionLoader(
-                context.packageManager,
-                context.cacheDir
+                context.packageManager
             )
 
             val extension = extensionLoader.loadExtensionFromApk(apkPath)
@@ -157,8 +155,7 @@ object TachiyomiTestUtils {
      */
     fun listLoadedSources(context: Context): List<String> {
         val extensionLoader = TachiyomiExtensionLoader(
-            context.packageManager,
-            context.cacheDir
+            context.packageManager
         )
 
         return extensionLoader.getAllSources().map { source ->

@@ -41,6 +41,10 @@ interface Tracker {
 
     /**
      * Create or update a tracking entry on the remote service.
+     *
+     * Implementations must throw an exception on remote failure rather than
+     * silently returning the input entry, so callers can distinguish success
+     * from failure and avoid persisting stale data locally.
      */
     suspend fun update(entry: TrackEntry): TrackEntry
 
@@ -53,4 +57,22 @@ interface Tracker {
      * Map the internal [TrackStatus] enum to the value expected by the remote service.
      */
     fun toRemoteStatus(status: TrackStatus): Int
+
+    /**
+     * Build the full OAuth authorization URL for this tracker.
+     *
+     * Only meaningful for OAuth-based trackers (MAL, AniList, Shikimori).
+     * Credential-based trackers (Kitsu, MangaUpdates) should return `null`.
+     *
+     * The URL should include all required query parameters:
+     * - client_id
+     * - redirect_uri
+     * - response_type (typically "code")
+     * - state (CSRF protection)
+     * - code_challenge / code_challenge_method (PKCE, if supported)
+     *
+     * @param codeVerifier The PKCE code verifier to derive code_challenge from
+     * @return Fully-parameterized authorization URL, or `null` if not applicable
+     */
+    fun authorizationUrl(codeVerifier: String): String? = null
 }

@@ -12,6 +12,10 @@ android {
         create("full") { dimension = "distribution" }
         create("foss") { dimension = "distribution" }
     }
+
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
 }
 
 dependencies {
@@ -23,6 +27,7 @@ dependencies {
     implementation(projects.core.discord)
     implementation(projects.domain)
     implementation(projects.data)
+    implementation(projects.sourceApi)
     implementation(libs.paging.compose)
     implementation(libs.lifecycle.viewmodel.ktx)
     implementation(libs.kotlinx.serialization.json)
@@ -32,4 +37,5 @@ dependencies {
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.turbine)
+    testImplementation(libs.robolectric)
 }

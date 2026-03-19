@@ -15,6 +15,10 @@ android {
         create("full") { dimension = "distribution" }
         create("foss") { dimension = "distribution" }
     }
+
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
 }
 
 dependencies {

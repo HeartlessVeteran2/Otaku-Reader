@@ -22,6 +22,7 @@
     <!-- Accessibility: SourceMangaScreen -->
     <string name="browse_back">Back</string>
     <string name="browse_refresh">Refresh</string>
+    <string name="browse_clear_search">Clear search</string>
 
     <!-- Accessibility: ExtensionsBottomSheet -->
     <string name="extensions_close">Close</string>

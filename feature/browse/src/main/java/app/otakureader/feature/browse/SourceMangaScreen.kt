@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
@@ -25,6 +26,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SearchBar
+import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -65,7 +68,7 @@ fun SourceMangaScreen(
                     onMangaClick(effect.mangaUrl, effect.mangaTitle)
                 }
                 is SourceMangaEffect.ShowSnackbar -> {
-                    // Handle snackbar
+                    // Snackbar shown via Scaffold snackbar host in parent if needed
                 }
             }
         }
@@ -73,23 +76,58 @@ fun SourceMangaScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(state.sourceName ?: sourceId) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.browse_back))
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { viewModel.onEvent(SourceMangaEvent.Refresh) }) {
-                        Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.browse_refresh))
-                    }
-                    IconButton(onClick = { /* TODO: Search */ }) {
-                        Icon(Icons.Default.Search, contentDescription = stringResource(R.string.browse_search))
-                    }
-                }
-            )
-        }
+            if (state.isSearchMode) {
+                SearchBar(
+                    inputField = {
+                        SearchBarDefaults.InputField(
+                            query = state.searchQuery,
+                            onQueryChange = { viewModel.onEvent(SourceMangaEvent.OnSearchQueryChange(it)) },
+                            onSearch = { viewModel.onEvent(SourceMangaEvent.Search) },
+                            expanded = false,
+                            onExpandedChange = {},
+                            placeholder = { Text(stringResource(R.string.browse_search_placeholder)) },
+                            leadingIcon = {
+                                IconButton(onClick = { viewModel.onEvent(SourceMangaEvent.CloseSearch) }) {
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = stringResource(R.string.browse_back),
+                                    )
+                                }
+                            },
+                            trailingIcon = {
+                                if (state.searchQuery.isNotEmpty()) {
+                                    IconButton(onClick = {
+                                        viewModel.onEvent(SourceMangaEvent.OnSearchQueryChange(""))
+                                    }) {
+                                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.browse_clear_search))
+                                    }
+                                }
+                            },
+                        )
+                    },
+                    expanded = false,
+                    onExpandedChange = {},
+                    modifier = Modifier.fillMaxWidth(),
+                ) {}
+            } else {
+                TopAppBar(
+                    title = { Text(state.sourceName ?: sourceId) },
+                    navigationIcon = {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.browse_back))
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { viewModel.onEvent(SourceMangaEvent.Refresh) }) {
+                            Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.browse_refresh))
+                        }
+                        IconButton(onClick = { viewModel.onEvent(SourceMangaEvent.EnterSearchMode) }) {
+                            Icon(Icons.Default.Search, contentDescription = stringResource(R.string.browse_search))
+                        }
+                    },
+                )
+            }
+        },
     ) { paddingValues ->
         when {
             state.isLoading -> LoadingScreen(modifier = Modifier.padding(paddingValues))

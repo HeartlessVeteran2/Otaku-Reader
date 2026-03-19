@@ -143,28 +143,28 @@ class ExtensionInstaller(
                         loadResult.throwable
                     )
                     Result.failure(
-                        loadResult.throwable 
+                        loadResult.throwable
                             ?: IllegalStateException(loadResult.message)
                     )
                 }
                 is ExtensionLoadResult.Success -> {
                     val extension = loadResult.extension
-                    
+
                     _installationState.value = InstallationState.Installing
-                    
+
                     // Move APK to permanent location
                     val destFile = File(extensionsDir, "${extension.pkgName}.apk")
                     apkFile.copyTo(destFile, overwrite = true)
-                    
+
                     // Update extension with final path
                     val finalExtension = extension.copy(apkPath = destFile.absolutePath)
-                    
+
                     // Save to repository
                     val result = repository.installExtension(
                         finalExtension.pkgName,
                         destFile.absolutePath
                     )
-                    
+
                     result.onSuccess { ext ->
                         _installationState.value = InstallationState.Success(ext)
                         // Notify the receiver so private extensions appear in the catalogue
@@ -175,8 +175,17 @@ class ExtensionInstaller(
                             error
                         )
                     }
-                    
+
                     result
+                }
+                is ExtensionLoadResult.Untrusted -> {
+                    // Note: ExtensionLoader never returns Untrusted; this branch is currently unreachable.
+                    // Future: implement trust verification in ExtensionLoader.loadFromPackageInfo().
+                    _installationState.value = InstallationState.Error(
+                        "Extension is not trusted. Please verify its signature before installing.",
+                        null
+                    )
+                    Result.failure(IllegalStateException("Untrusted extension: ${loadResult.extension.pkgName}"))
                 }
             }
         } catch (e: Exception) {
@@ -211,13 +220,13 @@ class ExtensionInstaller(
                             loadResult.throwable
                         )
                         Result.failure(
-                            loadResult.throwable 
+                            loadResult.throwable
                                 ?: IllegalStateException(loadResult.message)
                         )
                     }
                     is ExtensionLoadResult.Success -> {
                         val extension = loadResult.extension
-                        
+
                         // Verify package name matches
                         if (extension.pkgName != pkgName) {
                             return@withContext Result.failure(
@@ -226,22 +235,22 @@ class ExtensionInstaller(
                                 )
                             )
                         }
-                        
+
                         _installationState.value = InstallationState.Installing
-                        
+
                         // Remove old APK
                         val oldExtension = repository.getExtension(pkgName)
                         oldExtension?.apkPath?.let { oldPath ->
                             File(oldPath).delete()
                         }
-                        
+
                         // Move new APK to permanent location
                         val destFile = File(extensionsDir, "$pkgName.apk")
                         newApkFile.copyTo(destFile, overwrite = true)
-                        
+
                         // Update repository
                         val result = repository.updateExtension(pkgName, destFile.absolutePath)
-                        
+
                         result.onSuccess { ext ->
                             _installationState.value = InstallationState.Success(ext)
                             // Notify the receiver so private extensions appear in the catalogue
@@ -252,8 +261,17 @@ class ExtensionInstaller(
                                 error
                             )
                         }
-                        
+
                         result
+                    }
+                    is ExtensionLoadResult.Untrusted -> {
+                        // Note: ExtensionLoader never returns Untrusted; this branch is currently unreachable.
+                        // Future: implement trust verification in ExtensionLoader.loadFromPackageInfo().
+                        _installationState.value = InstallationState.Error(
+                            "Extension is not trusted. Please verify its signature before updating.",
+                            null
+                        )
+                        Result.failure(IllegalStateException("Untrusted extension: ${loadResult.extension.pkgName}"))
                     }
                 }
             } catch (e: Exception) {

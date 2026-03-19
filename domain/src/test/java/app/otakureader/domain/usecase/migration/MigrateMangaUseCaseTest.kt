@@ -110,9 +110,9 @@ class MigrateMangaUseCaseTest {
         assertEquals(TrackerType.ANILIST, migratedEntrySlots[0].trackerId)
         assertEquals(TrackerType.MY_ANIME_LIST, migratedEntrySlots[1].trackerId)
 
-        // Verify old tracker entries were deleted in MOVE mode
-        coVerify(exactly = 1) { trackRepository.deleteEntry(TrackerType.ANILIST, 100L) }
-        coVerify(exactly = 1) { trackRepository.deleteEntry(TrackerType.MY_ANIME_LIST, 200L) }
+        // Verify old tracker entries were NOT explicitly deleted in MOVE mode
+        // (upsertEntry replaces by (trackerId, remoteId), so the old entries are replaced)
+        coVerify(exactly = 0) { trackRepository.deleteEntry(any(), any()) }
 
         // Verify old manga was deleted
         coVerify(exactly = 1) { mangaRepository.deleteManga(sourceMangaId) }
@@ -243,8 +243,9 @@ class MigrateMangaUseCaseTest {
         assertTrue(trackerIds.contains(TrackerType.MANGA_UPDATES))
         assertTrue(trackerIds.contains(TrackerType.SHIKIMORI))
 
-        // Verify all old entries were deleted in MOVE mode
-        coVerify(exactly = 5) { trackRepository.deleteEntry(any(), any()) }
+        // Verify old entries were NOT explicitly deleted in MOVE mode
+        // (upsertEntry replaces by (trackerId, remoteId), so the old entries are replaced)
+        coVerify(exactly = 0) { trackRepository.deleteEntry(any(), any()) }
     }
 
     @Test
@@ -329,6 +330,61 @@ class MigrateMangaUseCaseTest {
         assertEquals(originalEntry.score, migratedEntry.score)
         assertEquals(originalEntry.startDate, migratedEntry.startDate)
         assertEquals(originalEntry.finishDate, migratedEntry.finishDate)
+    }
+
+    @Test
+    fun `migration succeeds when individual tracker upsert fails`() = runTest {
+        // Given
+        val sourceMangaId = 1L
+        val targetMangaId = 2L
+
+        val sourceManga = createTestManga(id = sourceMangaId, title = "Test Manga")
+        val targetCandidate = createTestCandidate(title = "Test Manga (New)")
+
+        val anilistEntry = TrackEntry(
+            remoteId = 100L,
+            mangaId = sourceMangaId,
+            trackerId = TrackerType.ANILIST,
+            title = "Test Manga",
+            status = TrackStatus.READING,
+            lastChapterRead = 10f
+        )
+        val malEntry = TrackEntry(
+            remoteId = 200L,
+            mangaId = sourceMangaId,
+            trackerId = TrackerType.MY_ANIME_LIST,
+            title = "Test Manga",
+            status = TrackStatus.READING,
+            lastChapterRead = 10f
+        )
+        val trackerEntries = listOf(anilistEntry, malEntry)
+
+        // Mock setup - first upsert throws, second succeeds
+        coEvery { mangaRepository.getMangaBySourceAndUrl(any(), any()) } returns null
+        coEvery { mangaRepository.insertManga(any()) } returns targetMangaId
+        coEvery { sourceRepository.getMangaDetails(any(), any()) } returns Result.success(mockk())
+        coEvery { sourceRepository.getChapterList(any(), any()) } returns Result.success(emptyList())
+        coEvery { chapterRepository.getChaptersByMangaIdSync(sourceMangaId) } returns emptyList()
+        coEvery { trackRepository.observeEntriesForManga(sourceMangaId) } returns flowOf(trackerEntries)
+        coEvery {
+            trackRepository.upsertEntry(match { it.trackerId == TrackerType.ANILIST })
+        } throws RuntimeException("Network error")
+        coEvery {
+            trackRepository.upsertEntry(match { it.trackerId == TrackerType.MY_ANIME_LIST })
+        } returns Unit
+
+        // When
+        val result = useCase(sourceManga, targetCandidate, MigrationMode.MOVE)
+
+        // Then - migration should still succeed despite one tracker failure
+        assertTrue(result.isSuccess)
+        assertEquals(MigrationStatus.COMPLETED, result.getOrNull()?.status)
+
+        // Both upsert attempts should have been made
+        coVerify(exactly = 2) { trackRepository.upsertEntry(any()) }
+
+        // Old manga should still be deleted (migration completes)
+        coVerify(exactly = 1) { mangaRepository.deleteManga(sourceMangaId) }
     }
 
     // Helper functions

@@ -19,10 +19,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 
-internal const val UPDATE_CHANNEL_ID = "library_updates_channel"
-internal const val GROUP_KEY_UPDATES = "library_updates"
-internal const val UPDATE_NOTIFICATION_TAG = "library_update"
-internal const val SUMMARY_NOTIFICATION_ID = Int.MAX_VALUE
+const val UPDATE_CHANNEL_ID = "library_updates_channel"
+const val GROUP_KEY_UPDATES = "library_updates"
+const val UPDATE_NOTIFICATION_TAG = "library_update"
+const val SUMMARY_NOTIFICATION_ID = Int.MAX_VALUE
 
 private const val EXTRA_MANGA_ID = "mangaId"
 private const val EXTRA_DESTINATION = "destination"
@@ -42,7 +42,7 @@ data class NotificationManga(
  * Enhanced helper class for sending notifications when new chapters are found.
  * Supports manga covers, action buttons, and grouped notifications.
  */
-internal class UpdateNotifier(private val context: Context) {
+class UpdateNotifier(private val context: Context) {
 
     private val notificationManager = NotificationManagerCompat.from(context)
 

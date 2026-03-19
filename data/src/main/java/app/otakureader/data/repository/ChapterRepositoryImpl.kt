@@ -145,6 +145,7 @@ class ChapterRepositoryImpl @Inject constructor(
         favorite = favorite,
         initialized = initialized,
         autoDownload = autoDownload,
+        dateAdded = dateAdded,
         readerBackgroundColor = readerBackgroundColor
     )
 

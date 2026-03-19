@@ -470,7 +470,7 @@ fun ColorFilterControl(
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(ColorFilterMode.entries) { mode ->
+            items(ColorFilterMode.entries, key = { it.name }) { mode ->
                 FilterChip(
                     selected = currentMode == mode,
                     onClick = { onModeChange(mode) },
@@ -522,7 +522,7 @@ private fun CustomTintPicker(
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(TintPresets) { preset ->
+            items(TintPresets, key = { it.rgb }) { preset ->
                 val isSelected = (currentRgb == preset.rgb)
                 val presetName = stringResource(preset.nameResId)
                 Box(
@@ -584,8 +584,10 @@ private fun CustomTintPicker(
 /**
  * Named preset tint colors available in the custom tint picker.
  * Each entry holds the RGB portion (no alpha) – alpha is controlled separately.
- * 
- * TODO: Consider making these themable or user-configurable in future versions.
+ *
+ * Note: these presets are hardcoded for now. A future enhancement could make
+ * them themable or user-configurable (e.g., allowing custom color creation
+ * that persists to preferences).
  */
 private data class TintPreset(val rgb: Long, val nameResId: Int)
 

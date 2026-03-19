@@ -23,6 +23,7 @@ fun MangaEntity.toManga(): Manga = Manga(
     autoDownload = autoDownload,
     notes = notes,
     notifyNewChapters = notifyNewChapters,
+    dateAdded = dateAdded,
     // Per-manga reader settings (#260)
     readerDirection = readerDirection,
     readerMode = readerMode,
@@ -51,6 +52,7 @@ fun Manga.toEntity(): MangaEntity = MangaEntity(
     autoDownload = autoDownload,
     notes = notes,
     notifyNewChapters = notifyNewChapters,
+    dateAdded = dateAdded,
     // Per-manga reader settings (#260)
     readerDirection = readerDirection,
     readerMode = readerMode,

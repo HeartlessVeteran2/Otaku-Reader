@@ -51,6 +51,12 @@ data class Extension(
     /** Signature hash for verification */
     val signatureHash: String?,
 
+    /**
+     * Whether this is a shared extension (installed via the system package installer)
+     * or a private extension (stored in filesDir/exts/). Matches Komikku's isShared field.
+     */
+    val isShared: Boolean = true,
+
     /** Whether the extension is enabled without uninstalling */
     val isEnabled: Boolean = true
 ) : Parcelable {

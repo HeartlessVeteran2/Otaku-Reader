@@ -86,6 +86,13 @@ interface DownloadRepository {
     suspend fun isChapterDownloaded(sourceName: String, mangaTitle: String, chapterTitle: String): Boolean
 
     /**
+     * Returns true when the manga directory exists and contains at least one chapter
+     * with downloaded pages. This is a coarse check suitable for displaying a "downloaded"
+     * badge in the library list without iterating individual chapters.
+     */
+    suspend fun hasMangaDownloads(sourceName: String, mangaTitle: String): Boolean
+
+    /**
      * Creates a CBZ archive from the downloaded pages (if any) of the given chapter.
      *
      * The archive is placed inside the chapter's download directory. This operation

@@ -21,15 +21,45 @@ import androidx.glance.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.otakureader.R
+import app.otakureader.domain.repository.ChapterRepository
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.flow.first
 
 /**
  * Glance widget for displaying recent manga updates.
  */
 class RecentUpdatesWidget : GlanceAppWidget() {
 
+    @EntryPoint
+    @InstallIn(SingletonComponent::class)
+    interface WidgetEntryPoint {
+        fun chapterRepository(): ChapterRepository
+    }
+
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        // TODO: Load actual recent updates from repository
-        val updates = emptyList<MangaUpdate>()
+        val entryPoint = EntryPointAccessors.fromApplication(
+            context.applicationContext,
+            WidgetEntryPoint::class.java
+        )
+        val chapterRepository = entryPoint.chapterRepository()
+
+        val updates = try {
+            chapterRepository.getRecentUpdates()
+                .first()
+                .take(3)
+                .map { update ->
+                    MangaUpdate(
+                        title = update.manga.title,
+                        subtitle = update.chapter.name
+                    )
+                }
+        } catch (_: Exception) {
+            emptyList()
+        }
+
         val title = context.getString(R.string.widget_recent_updates_title)
         val emptyText = context.getString(R.string.widget_no_recent_updates)
 

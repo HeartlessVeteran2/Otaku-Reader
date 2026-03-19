@@ -3,11 +3,9 @@ package app.otakureader.core.tachiyomi.compat
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.os.Build
-import dalvik.system.DexClassLoader
 import eu.kanade.tachiyomi.source.CatalogueSource
 import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.SourceFactory
-import java.io.File
 
 /**
  * Loads Tachiyomi-compatible extension APKs and instantiates their Source classes.
@@ -18,8 +16,9 @@ import java.io.File
  * package name).  Extensions that expose a [SourceFactory] via the
  * `tachiyomi.extension.factory` metadata key are also fully supported.
  *
- * This matches the loading strategy used by the canonical Komikku / Tachiyomi
- * repositories.
+ * Uses [ChildFirstPathClassLoader] matching the exact strategy used by Komikku /
+ * Tachiyomi: the extension's own libraries take priority over the host app's
+ * libraries, preventing class-version conflicts.
  *
  * ## Code Duplication Note
  *
@@ -33,7 +32,6 @@ import java.io.File
  */
 class TachiyomiExtensionLoader(
     private val packageManager: PackageManager,
-    private val cacheDir: File
 ) {
 
     companion object {
@@ -64,7 +62,7 @@ class TachiyomiExtensionLoader(
         val isNsfw: Boolean,
         val sources: List<TachiyomiSourceAdapter>,
         val apkPath: String,
-        val classLoader: DexClassLoader,
+        val classLoader: ClassLoader,
     )
 
     /**
@@ -148,27 +146,13 @@ class TachiyomiExtensionLoader(
 
         val isNsfw = (metadata.getInt(METADATA_NSFW, 0)) == 1
 
-        // Build the class loader
+        // Build the class loader using ChildFirstPathClassLoader (matches Komikku's strategy)
         val nativeLibDir = appInfo.nativeLibraryDir
-        val optimizedDir = File(cacheDir, "tachiyomi-dex")
 
-        // Ensure the optimized directory exists and is usable
-        if (!optimizedDir.exists() && !optimizedDir.mkdirs()) {
-            // Failed to create directory - cannot proceed with class loading
-            return null
-        }
-
-        // Validate that the path is actually a directory and is writable
-        if (!optimizedDir.isDirectory || !optimizedDir.canWrite()) {
-            // Directory is not usable - cannot proceed with class loading
-            return null
-        }
-
-        val classLoader = DexClassLoader(
+        val classLoader = ChildFirstPathClassLoader(
             apkPath,
-            optimizedDir.absolutePath,
             nativeLibDir,
-            TachiyomiExtensionLoader::class.java.classLoader,
+            TachiyomiExtensionLoader::class.java.classLoader!!,
         )
 
         // Resolve source instances
@@ -217,7 +201,7 @@ class TachiyomiExtensionLoader(
     private fun resolveSourcesFromMetadata(
         metadata: android.os.Bundle,
         pkgName: String,
-        classLoader: DexClassLoader,
+        classLoader: ClassLoader,
     ): List<CatalogueSource> {
         // SourceFactory path
         val factoryClass = metadata.getString(METADATA_SOURCE_FACTORY)
@@ -254,7 +238,7 @@ class TachiyomiExtensionLoader(
     }
 
     /** Instantiate a class by name; returns null on any error. */
-    private fun instantiateClass(classLoader: DexClassLoader, className: String): Any? {
+    private fun instantiateClass(classLoader: ClassLoader, className: String): Any? {
         if (className.isBlank()) return null
 
         return try {
@@ -297,7 +281,7 @@ class TachiyomiExtensionLoader(
     /**
      * Unload an extension and release its class-loader resources.
      *
-     * Note: [DexClassLoader] does not implement [java.io.Closeable], so there is no
+     * Note: [ChildFirstPathClassLoader] does not implement [java.io.Closeable], so there is no
      * explicit close call here.  The GC will reclaim the loader when there are no more
      * references.
      */

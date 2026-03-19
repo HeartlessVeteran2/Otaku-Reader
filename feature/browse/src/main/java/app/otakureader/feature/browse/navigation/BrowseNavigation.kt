@@ -56,6 +56,7 @@ fun NavGraphBuilder.sourceDetailScreen(
 
 fun NavGraphBuilder.extensionsBottomSheet(
     onDismiss: () -> Unit,
+    onNavigateToSettings: () -> Unit = {},
 ) {
     composable<ExtensionsRoute>(
         enterTransition = { fadeIn(animationSpec = tween(200)) },
@@ -64,7 +65,8 @@ fun NavGraphBuilder.extensionsBottomSheet(
         popExitTransition = { fadeOut(animationSpec = tween(200)) }
     ) {
         ExtensionsBottomSheet(
-            onDismiss = onDismiss
+            onDismiss = onDismiss,
+            onNavigateToSettings = onNavigateToSettings,
         )
     }
 }

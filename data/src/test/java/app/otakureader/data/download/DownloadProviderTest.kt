@@ -467,4 +467,88 @@ class DownloadProviderTest {
             root.deleteRecursively()
         }
     }
+
+    // -------------------------------------------------------------------------
+    // migrateChapterDownload() - Copy verification tests
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun migrateChapterDownload_verifyFileSize_afterCopyFallback() {
+        val root = tempDir()
+        try {
+            // Create source chapter with files
+            val sourceDir = DownloadProvider.getChapterDir(root, "source1", "manga1", "ch1")
+            sourceDir.mkdirs()
+            val sourceFile = File(sourceDir, "0.jpg")
+            // Create file with specific content
+            val content = "This is test image data with specific size"
+            sourceFile.writeText(content)
+
+            // Simulate cross-filesystem scenario: create destination on different path
+            // that would cause renameTo to fail (we can't truly simulate this in tests,
+            // but the verification code would catch corrupted copies)
+            val result = DownloadProvider.migrateChapterDownload(
+                root, "source1", "manga1", "ch1",
+                "source2", "manga2", "ch2",
+                copy = false
+            )
+
+            assertTrue(result)
+
+            // Verify file was migrated and has correct size
+            val targetDir = DownloadProvider.getChapterDir(root, "source2", "manga2", "ch2")
+            val targetFile = File(targetDir, "0.jpg")
+            assertTrue(targetFile.exists())
+            assertEquals(content.length.toLong(), targetFile.length())
+            assertEquals(content, targetFile.readText())
+
+            // Source should be deleted
+            assertFalse(sourceFile.exists())
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun migrateChapterDownload_verifyDirectoryContents_afterRecursiveCopy() {
+        val root = tempDir()
+        try {
+            // Create source chapter with subdirectory containing multiple files
+            val sourceDir = DownloadProvider.getChapterDir(root, "source1", "manga1", "ch1")
+            sourceDir.mkdirs()
+            File(sourceDir, CbzCreator.CBZ_FILE_NAME).writeText("fake cbz")
+
+            val pagesCache = File(sourceDir, ".pages")
+            pagesCache.mkdirs()
+            File(pagesCache, "0.jpg").writeText("page 0 content")
+            File(pagesCache, "1.jpg").writeText("page 1 content")
+            File(pagesCache, "2.jpg").writeText("page 2 content")
+
+            val result = DownloadProvider.migrateChapterDownload(
+                root, "source1", "manga1", "ch1",
+                "source2", "manga2", "ch2",
+                copy = false
+            )
+
+            assertTrue(result)
+
+            // Verify all files were migrated
+            val targetPagesCache = File(
+                DownloadProvider.getChapterDir(root, "source2", "manga2", "ch2"),
+                ".pages"
+            )
+            assertTrue(targetPagesCache.isDirectory)
+            val targetFiles = targetPagesCache.listFiles()?.sortedBy { it.name } ?: emptyList()
+            assertEquals(3, targetFiles.size)
+            assertEquals("page 0 content", File(targetPagesCache, "0.jpg").readText())
+            assertEquals("page 1 content", File(targetPagesCache, "1.jpg").readText())
+            assertEquals("page 2 content", File(targetPagesCache, "2.jpg").readText())
+
+            // Source should be deleted
+            assertFalse(pagesCache.exists())
+            assertFalse(sourceDir.exists())
+        } finally {
+            root.deleteRecursively()
+        }
+    }
 }

@@ -28,12 +28,17 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
  * Integration tests for LibraryUpdateWorker.
  * Tests library update flow, auto-download logic, notification triggering, and WiFi checking.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34])
 class LibraryUpdateWorkerTest {
 
     private lateinit var context: Context

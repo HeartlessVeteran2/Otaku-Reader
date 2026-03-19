@@ -23,6 +23,8 @@ data class Manga(
     val autoDownload: Boolean = false,
     val notes: String? = null,
     val notifyNewChapters: Boolean = true,
+    /** Epoch millis when this manga was added to the library (favorited). */
+    val dateAdded: Long = 0L,
     // Per-manga reader settings (#260)
     val readerDirection: Int? = null, // 0=LTR, 1=RTL
     val readerMode: Int? = null, // 0=single, 1=dual, 2=webtoon, 3=smart panels

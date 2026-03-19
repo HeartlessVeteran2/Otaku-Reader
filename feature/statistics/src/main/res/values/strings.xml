@@ -2,4 +2,19 @@
 <resources>
     <string name="statistics_title">Statistics</string>
     <string name="statistics_back">Back</string>
+    <string name="statistics_unknown_error">Unknown error</string>
+    <string name="statistics_reading_goals">Reading Goals</string>
+    <string name="statistics_overview">Overview</string>
+    <string name="statistics_reading_streak">Reading Streak</string>
+    <string name="statistics_reading_activity">Reading Activity (last 90 days)</string>
+    <string name="statistics_top_genres">Top Genres</string>
+    <string name="statistics_manga">Manga</string>
+    <string name="statistics_chapters">Chapters</string>
+    <string name="statistics_reading_time">Reading Time</string>
+    <string name="statistics_current_streak">Current Streak</string>
+    <string name="statistics_best_streak">Best Streak</string>
+    <string name="statistics_daily_goal">Daily Goal</string>
+    <string name="statistics_weekly_goal">Weekly Goal</string>
+    <string name="statistics_goal_complete">✓ Complete!</string>
+    <string name="statistics_goal_progress">%1$d / %2$d chapters</string>
 </resources>

@@ -1,11 +1,9 @@
 package app.otakureader.core.extension.loader
 
-import dalvik.system.DexClassLoader
 import io.mockk.mockk
 import org.junit.Assert.assertEquals
 import org.junit.Assert.fail
 import org.junit.Test
-import java.io.File
 
 /**
  * Unit tests for ExtensionLoadingUtils focusing on NPE prevention and error handling.
@@ -17,7 +15,6 @@ class ExtensionLoadingUtilsTest {
         try {
             ExtensionLoadingUtils.createClassLoader(
                 apkPath = "",
-                optimizedDir = File("/tmp/test"),
                 nativeLibDir = null
             )
             fail("Expected IllegalArgumentException")
@@ -27,29 +24,8 @@ class ExtensionLoadingUtilsTest {
     }
 
     @Test
-    fun `createClassLoader throws IllegalStateException when mkdirs fails`() {
-        // Create a temporary file, then try to use it as a directory (will fail mkdirs)
-        val tempFile = File.createTempFile("test_", ".tmp")
-        tempFile.deleteOnExit()
-
-        try {
-            ExtensionLoadingUtils.createClassLoader(
-                apkPath = "/test/path.apk",
-                optimizedDir = File(tempFile, "impossible"),  // Cannot create dir under a file
-                nativeLibDir = null
-            )
-            fail("Expected IllegalStateException")
-        } catch (e: IllegalStateException) {
-            // Expected - directory creation should fail
-        } finally {
-            tempFile.delete()
-        }
-    }
-
-    @Test
     fun `instantiateClass throws IllegalArgumentException for blank className`() {
-        // className validation happens before classLoader is used
-        val mockClassLoader = mockk<DexClassLoader>(relaxed = true)
+        val mockClassLoader = mockk<ClassLoader>(relaxed = true)
 
         try {
             ExtensionLoadingUtils.instantiateClass(
@@ -62,7 +38,7 @@ class ExtensionLoadingUtilsTest {
         }
     }
 
-    // Note: Testing instantiateClass with a real DexClassLoader requires Android runtime
+    // Note: Testing instantiateClass with a real ChildFirstPathClassLoader requires Android runtime
     // The production code will properly return null for ClassNotFoundException, etc.
 
     @Test

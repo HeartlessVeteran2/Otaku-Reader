@@ -7,12 +7,8 @@ RUN apk add --no-cache bash
 # Set working directory
 WORKDIR /app
 
-# Copy Gradle wrapper and project files
-COPY gradle/ gradle/
-COPY gradlew .
-COPY build.gradle.kts settings.gradle.kts ./
-COPY build-logic/ build-logic/
-COPY server/ server/
+# Copy entire repository for build
+COPY . .
 
 # Build the server
 RUN ./gradlew :server:shadowJar --no-daemon

@@ -86,10 +86,7 @@ class SourceRepositoryImpl(
     private val initScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val extensionLoader by lazy {
-        TachiyomiExtensionLoader(
-            context.packageManager,
-            File(context.cacheDir, "tachiyomi-extensions")
-        )
+        TachiyomiExtensionLoader(context.packageManager)
     }
 
     init {
@@ -323,6 +320,34 @@ class SourceRepositoryImpl(
             } catch (e: Exception) {
                 // Don't record transient I/O interruptions (e.g. socket timeouts) as source failures
                 if (e !is InterruptedIOException) {
+                    healthMonitor.recordFailure(sourceId, e)
+                }
+                Result.failure(e)
+            }
+        }
+    }
+
+    override suspend fun getPageList(
+        sourceId: String,
+        chapter: SourceChapter
+    ): Result<List<app.otakureader.sourceapi.Page>> {
+        return withContext(Dispatchers.IO) {
+            failIfUnhealthy<List<app.otakureader.sourceapi.Page>>(sourceId)
+                ?.let { return@withContext it }
+
+            try {
+                val source = getSource(sourceId)
+                    ?: return@withContext Result.failure(
+                        IllegalArgumentException("Source not found: $sourceId")
+                    )
+
+                val pages = source.fetchPageList(chapter)
+                healthMonitor.recordSuccess(sourceId)
+                Result.success(pages)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (shouldRecordFailure(e)) {
                     healthMonitor.recordFailure(sourceId, e)
                 }
                 Result.failure(e)

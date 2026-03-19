@@ -87,7 +87,7 @@ fun StatisticsScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = state.error ?: "Unknown error",
+                    text = state.error ?: stringResource(R.string.statistics_unknown_error),
                     color = MaterialTheme.colorScheme.error
                 )
             }
@@ -118,7 +118,7 @@ private fun StatisticsContent(
         // Reading goals progress
         if (readingGoal.dailyGoal > 0 || readingGoal.weeklyGoal > 0) {
             item {
-                SectionTitle("Reading Goals")
+                SectionTitle(stringResource(R.string.statistics_reading_goals))
                 Spacer(modifier = Modifier.height(8.dp))
                 ReadingGoalsSection(readingGoal)
             }
@@ -130,7 +130,7 @@ private fun StatisticsContent(
                 HorizontalDivider()
                 Spacer(modifier = Modifier.height(4.dp))
             }
-            SectionTitle("Overview")
+            SectionTitle(stringResource(R.string.statistics_overview))
             Spacer(modifier = Modifier.height(8.dp))
             SummaryCards(stats)
         }
@@ -139,7 +139,7 @@ private fun StatisticsContent(
         item {
             HorizontalDivider()
             Spacer(modifier = Modifier.height(4.dp))
-            SectionTitle("Reading Streak")
+            SectionTitle(stringResource(R.string.statistics_reading_streak))
             Spacer(modifier = Modifier.height(8.dp))
             StreakRow(currentStreak = stats.currentStreak, bestStreak = stats.bestStreak)
         }
@@ -149,7 +149,7 @@ private fun StatisticsContent(
             item {
                 HorizontalDivider()
                 Spacer(modifier = Modifier.height(4.dp))
-                SectionTitle("Reading Activity (last 90 days)")
+                SectionTitle(stringResource(R.string.statistics_reading_activity))
                 Spacer(modifier = Modifier.height(8.dp))
                 ReadingActivityGrid(activityByDay = stats.readingActivityByDay)
             }
@@ -160,7 +160,7 @@ private fun StatisticsContent(
             item {
                 HorizontalDivider()
                 Spacer(modifier = Modifier.height(4.dp))
-                SectionTitle("Top Genres")
+                SectionTitle(stringResource(R.string.statistics_top_genres))
                 Spacer(modifier = Modifier.height(8.dp))
                 GenreDistributionBars(genres = stats.genreDistribution)
             }
@@ -186,17 +186,17 @@ private fun SummaryCards(stats: ReadingStats) {
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         StatCard(
-            label = "Manga",
+            label = stringResource(R.string.statistics_manga),
             value = stats.totalMangaInLibrary.toString(),
             modifier = Modifier.weight(1f)
         )
         StatCard(
-            label = "Chapters",
+            label = stringResource(R.string.statistics_chapters),
             value = stats.totalChaptersRead.toString(),
             modifier = Modifier.weight(1f)
         )
         StatCard(
-            label = "Reading Time",
+            label = stringResource(R.string.statistics_reading_time),
             value = formatReadingTime(stats.totalReadingTimeMs),
             modifier = Modifier.weight(1f)
         )
@@ -242,12 +242,12 @@ private fun StreakRow(currentStreak: Int, bestStreak: Int) {
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         StatCard(
-            label = "Current Streak",
+            label = stringResource(R.string.statistics_current_streak),
             value = "${currentStreak}d",
             modifier = Modifier.weight(1f)
         )
         StatCard(
-            label = "Best Streak",
+            label = stringResource(R.string.statistics_best_streak),
             value = "${bestStreak}d",
             modifier = Modifier.weight(1f)
         )
@@ -259,14 +259,14 @@ private fun ReadingGoalsSection(readingGoal: ReadingGoal) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (readingGoal.dailyGoal > 0) {
             GoalProgressCard(
-                label = "Daily Goal",
+                label = stringResource(R.string.statistics_daily_goal),
                 progress = readingGoal.dailyProgress,
                 goal = readingGoal.dailyGoal
             )
         }
         if (readingGoal.weeklyGoal > 0) {
             GoalProgressCard(
-                label = "Weekly Goal",
+                label = stringResource(R.string.statistics_weekly_goal),
                 progress = readingGoal.weeklyProgress,
                 goal = readingGoal.weeklyGoal
             )
@@ -304,7 +304,7 @@ private fun GoalProgressCard(
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    text = if (isComplete) "✓ Complete!" else "$progress / $goal chapters",
+                    text = if (isComplete) stringResource(R.string.statistics_goal_complete) else stringResource(R.string.statistics_goal_progress, progress, goal),
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (isComplete) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurfaceVariant

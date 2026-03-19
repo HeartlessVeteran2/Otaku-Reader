@@ -14,7 +14,7 @@ import retrofit2.http.POST
 interface SelfHostedSyncApi {
 
     @GET("health")
-    suspend fun healthCheck(): Response<String>
+    suspend fun healthCheck(): Response<HealthResponse>
 
     @POST("sync/upload")
     suspend fun uploadSnapshot(
@@ -37,6 +37,12 @@ interface SelfHostedSyncApi {
         @Header("Authorization") authHeader: String
     ): Response<DeleteResponse>
 }
+
+@Serializable
+data class HealthResponse(
+    val status: String,
+    val version: String? = null
+)
 
 @Serializable
 data class UploadRequest(

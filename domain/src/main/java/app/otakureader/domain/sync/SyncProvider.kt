@@ -23,7 +23,7 @@ interface SyncProvider {
     /**
      * Whether the user is currently authenticated with this provider.
      */
-    val isAuthenticated: Boolean
+    suspend fun isAuthenticated(): Boolean
 
     /**
      * Authenticate the user with this provider.

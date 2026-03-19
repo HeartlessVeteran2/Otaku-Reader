@@ -49,6 +49,7 @@ data class LibraryMangaItem(
     val hasTracking: Boolean = false,
     val isNsfw: Boolean = false,
     val lastRead: Long? = null,
+    val dateAdded: Long = 0L,
     val status: MangaStatus = MangaStatus.UNKNOWN
 )
 

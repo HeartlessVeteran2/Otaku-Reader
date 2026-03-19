@@ -3,6 +3,15 @@ package app.otakureader.server.model
 import kotlinx.serialization.Serializable
 
 /**
+ * Health check response.
+ */
+@Serializable
+data class HealthResponse(
+    val status: String,
+    val version: String = "1.0.0"
+)
+
+/**
  * Request to upload a sync snapshot.
  */
 @Serializable

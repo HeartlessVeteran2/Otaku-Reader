@@ -136,7 +136,7 @@ fun MigrationScreen(
                         .fillMaxWidth()
                         .weight(0.3f)
                 ) {
-                    items(state.availableSources) { source ->
+                    items(state.availableSources, key = { it.id }) { source ->
                         SourceSelectionItem(
                             source = source,
                             isSelected = source.id == state.selectedTargetSourceId,
@@ -216,7 +216,7 @@ fun MigrationScreen(
                     LazyColumn(
                         modifier = Modifier.weight(0.7f)
                     ) {
-                        items(state.migrationTasks) { task ->
+                        items(state.migrationTasks, key = { it.manga.id }) { task ->
                             MigrationTaskItem(task = task)
                         }
                     }
@@ -371,7 +371,7 @@ private fun MigrationConfirmationDialog(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 LazyColumn {
-                    items(candidates) { candidate ->
+                    items(candidates, key = { it.url }) { candidate ->
                         MigrationCandidateCard(
                             candidate = candidate,
                             onClick = { onSelect(candidate) }

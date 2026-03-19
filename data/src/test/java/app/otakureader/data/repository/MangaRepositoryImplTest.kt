@@ -5,7 +5,9 @@ import app.otakureader.core.database.dao.MangaDao
 import app.otakureader.core.database.entity.MangaEntity
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MangaStatus
+import app.otakureader.domain.repository.DownloadRepository
 import app.cash.turbine.test
+import dagger.Lazy
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -23,6 +25,7 @@ class MangaRepositoryImplTest {
 
     private lateinit var mangaDao: MangaDao
     private lateinit var chapterDao: ChapterDao
+    private lateinit var downloadRepository: Lazy<DownloadRepository>
     private lateinit var repository: MangaRepositoryImpl
 
     private fun makeEntity(
@@ -45,7 +48,8 @@ class MangaRepositoryImplTest {
     fun setUp() {
         mangaDao = mockk()
         chapterDao = mockk()
-        repository = MangaRepositoryImpl(mangaDao, chapterDao)
+        downloadRepository = mockk()
+        repository = MangaRepositoryImpl(mangaDao, chapterDao, downloadRepository)
     }
 
     // ---- getLibraryManga ----

@@ -27,6 +27,14 @@
     <string name="details_show_less">Show less</string>
     <string name="details_show_more">Show more</string>
 
+    <string name="details_status_unknown">Unknown</string>
+    <string name="details_status_ongoing">Ongoing</string>
+    <string name="details_status_completed">Completed</string>
+    <string name="details_status_licensed">Licensed</string>
+    <string name="details_status_publishing_finished">Publishing Finished</string>
+    <string name="details_status_cancelled">Cancelled</string>
+    <string name="details_status_on_hiatus">On Hiatus</string>
+
     <!-- Delete after read -->
     <string name="details_delete_after_read">Delete downloads after reading</string>
     <string name="details_delete_follow_global_on">Follow global (On)</string>

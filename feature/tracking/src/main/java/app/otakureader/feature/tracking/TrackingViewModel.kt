@@ -148,23 +148,32 @@ class TrackingViewModel @Inject constructor(
     /**
      * Determines the correct login flow:
      * - Credential-based trackers (Kitsu, MangaUpdates) show a username/password dialog.
-     * - OAuth-based trackers (MAL, AniList, Shikimori) open the provider's authorization URL.
-     *
-     * TODO: The OAuth flow is incomplete. A full implementation requires:
-     *   1. `Tracker` exposing `authorizationUrl(codeVerifier: String): String` so each
-     *      provider can build a URL with client_id, redirect_uri, response_type, state, and
-     *      PKCE parameters specific to that service.
-     *   2. A deep-link / intent-filter in the app's manifest to receive the OAuth redirect
-     *      callback and dispatch a ViewModel event (e.g., `OAuthCallback(code)`) that calls
-     *      `Tracker.login(codeVerifier, authCode)` to exchange the code for tokens.
+     * - OAuth-based trackers (MAL, AniList, Shikimori) open the provider's authorization URL
+     *   with PKCE parameters for security.
      */
     private fun initiateLogin(trackerId: Int) {
         if (isOAuthTracker(trackerId)) {
-            val oauthUrl = getOAuthUrl(trackerId)
+            val tracker = trackerMap[trackerId]
+            val codeVerifier = generateCodeVerifier()
+            val oauthUrl = tracker?.authorizationUrl(codeVerifier)
+                ?: getOAuthUrl(trackerId) // Fallback to base URL for trackers that haven't
+                                          // implemented authorizationUrl() yet
             _effect.trySend(TrackingEffect.OpenOAuth(trackerId, oauthUrl))
         } else {
             _state.update { it.copy(loginDialogTrackerId = trackerId) }
         }
+    }
+
+    /**
+     * Generates a random PKCE code verifier (43-128 characters, URL-safe).
+     */
+    private fun generateCodeVerifier(): String {
+        val bytes = ByteArray(32)
+        java.security.SecureRandom().nextBytes(bytes)
+        return android.util.Base64.encodeToString(
+            bytes,
+            android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP or android.util.Base64.NO_PADDING
+        )
     }
 
     private fun login(trackerId: Int, username: String, password: String) {
@@ -270,12 +279,8 @@ class TrackingViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                // TODO: Several tracker implementations (MAL, Shikimori, etc.) catch exceptions
-                //  internally and return the input entry on failure, making it impossible to
-                //  distinguish a successful remote update from a silent one here.
-                //  A future fix should have `Tracker.update` either throw on failure or return
-                //  a `Result<TrackEntry>` so we can only persist on confirmed success.
                 val updated = tracker.update(currentEntry.copy(status = status))
+                // Only persist on confirmed success (update() must throw on failure)
                 trackRepository.upsertEntry(updated)
             } catch (e: Exception) {
                 _effect.trySend(TrackingEffect.ShowError(
@@ -338,10 +343,10 @@ class TrackingViewModel @Inject constructor(
     /**
      * Returns the base authorization endpoint for OAuth-based trackers.
      *
-     * TODO: These URLs are incomplete — a full OAuth request also requires client_id,
-     *  redirect_uri, response_type, state, and PKCE (code_challenge) query parameters.
-     *  The proper fix is to add `fun authorizationUrl(codeVerifier: String): String` to the
-     *  [Tracker] interface so each implementation can build a fully-parameterized URL.
+     * This is used as a fallback when a [Tracker] implementation has not yet
+     * overridden [Tracker.authorizationUrl] to build a fully-parameterized URL.
+     * Individual tracker implementations should override [Tracker.authorizationUrl]
+     * to include client_id, redirect_uri, response_type, state, and PKCE parameters.
      */
     private fun getOAuthUrl(trackerId: Int): String = when (trackerId) {
         TrackerType.MY_ANIME_LIST -> "https://myanimelist.net/v1/oauth2/authorize"

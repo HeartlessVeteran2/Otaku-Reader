@@ -21,9 +21,9 @@ import io.ktor.server.routing.route
  */
 fun Route.syncRoutes(config: AppConfig) {
     val syncService = SyncService(config)
-    
+
     route("/sync") {
-        
+
         /**
          * POST /sync/upload
          * Upload a sync snapshot. Overwrites any existing snapshot.
@@ -32,27 +32,22 @@ fun Route.syncRoutes(config: AppConfig) {
             try {
                 val request = call.receive<UploadRequest>()
 
-                syncService.storeSnapshot(request.data, request.timestamp).fold(
-                    onSuccess = { size ->
-                        call.respond(
-                            HttpStatusCode.OK,
-                            UploadResponse(
-                                success = true,
-                                timestamp = request.timestamp,
-                                size = size
-                            )
+                val result = syncService.storeSnapshot(request.data, request.timestamp)
+                if (result.isSuccess) {
+                    call.respond(
+                        HttpStatusCode.OK,
+                        UploadResponse(
+                            success = true,
+                            timestamp = request.timestamp,
+                            size = result.getOrDefault(request.data.length)
                         )
-                    },
-                    onFailure = { error ->
-                        // Log detailed error server-side
-                        call.application.environment.log.error("Failed to store snapshot", error)
-                        // Return generic error to client
-                        call.respond(
-                            HttpStatusCode.InternalServerError,
-                            ErrorResponse("Failed to store snapshot")
-                        )
-                    }
-                )
+                    )
+                } else {
+                    call.respond(
+                        HttpStatusCode.InternalServerError,
+                        ErrorResponse("Failed to store snapshot: ${result.exceptionOrNull()?.message}")
+                    )
+                }
             } catch (e: Exception) {
                 call.respond(
                     HttpStatusCode.BadRequest,
@@ -60,14 +55,14 @@ fun Route.syncRoutes(config: AppConfig) {
                 )
             }
         }
-        
+
         /**
          * GET /sync/download
          * Download the latest sync snapshot.
          */
         get("/download") {
             val snapshot = syncService.getSnapshot()
-            
+
             if (snapshot != null) {
                 call.respond(
                     HttpStatusCode.OK,
@@ -88,14 +83,14 @@ fun Route.syncRoutes(config: AppConfig) {
                 )
             }
         }
-        
+
         /**
          * GET /sync/timestamp
          * Get the timestamp of the latest snapshot.
          */
         get("/timestamp") {
             val timestamp = syncService.getTimestamp()
-            
+
             call.respond(
                 HttpStatusCode.OK,
                 mapOf(
@@ -104,29 +99,24 @@ fun Route.syncRoutes(config: AppConfig) {
                 )
             )
         }
-        
+
         /**
          * DELETE /sync
          * Delete the stored snapshot.
          */
         delete {
-            syncService.deleteSnapshot().fold(
-                onSuccess = {
-                    call.respond(
-                        HttpStatusCode.OK,
-                        mapOf("success" to true)
-                    )
-                },
-                onFailure = { error ->
-                    // Log detailed error server-side
-                    call.application.environment.log.error("Failed to delete snapshot", error)
-                    // Return generic error to client
-                    call.respond(
-                        HttpStatusCode.InternalServerError,
-                        ErrorResponse("Failed to delete snapshot")
-                    )
-                }
-            )
+            val result = syncService.deleteSnapshot()
+            if (result.isSuccess) {
+                call.respond(
+                    HttpStatusCode.OK,
+                    mapOf("success" to true)
+                )
+            } else {
+                call.respond(
+                    HttpStatusCode.InternalServerError,
+                    ErrorResponse("Failed to delete snapshot: ${result.exceptionOrNull()?.message}")
+                )
+            }
         }
     }
 }

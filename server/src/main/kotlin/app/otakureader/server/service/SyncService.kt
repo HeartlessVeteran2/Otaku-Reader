@@ -8,18 +8,19 @@ import java.io.IOException
  * Service handling sync snapshot storage and retrieval.
  */
 class SyncService(private val config: AppConfig) {
-    
+
     private val snapshotFile = File(config.storagePath, "sync_snapshot.json")
     private val timestampFile = File(config.storagePath, "sync_timestamp.txt")
-    
+
     /**
      * Store a sync snapshot.
      * @return The size of stored data in bytes (UTF-8 encoded)
      */
     fun storeSnapshot(data: String, timestamp: Long): Result<Int> = try {
-        snapshotFile.writeText(data)
+        val bytes = data.toByteArray(Charsets.UTF_8)
+        snapshotFile.writeBytes(bytes)
         timestampFile.writeText(timestamp.toString())
-        Result.success(data.toByteArray(Charsets.UTF_8).size)
+        Result.success(bytes.size)
     } catch (e: IOException) {
         Result.failure(e)
     }
@@ -59,7 +60,7 @@ class SyncService(private val config: AppConfig) {
     } catch (e: Exception) {
         Result.failure(e)
     }
-    
+
     /**
      * Get the timestamp of the stored snapshot.
      */

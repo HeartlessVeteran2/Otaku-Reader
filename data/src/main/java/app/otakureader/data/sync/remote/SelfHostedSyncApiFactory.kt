@@ -1,14 +1,11 @@
 package app.otakureader.data.sync.remote
 
 import app.otakureader.core.preferences.SyncPreferences
-import app.otakureader.data.BuildConfig
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
-import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -18,41 +15,35 @@ import javax.inject.Singleton
  */
 @Singleton
 class SelfHostedSyncApiFactory @Inject constructor(
-    private val syncPreferences: SyncPreferences
+    private val syncPreferences: SyncPreferences,
+    private val okHttpClient: OkHttpClient,
+    private val json: Json
 ) {
-    private val json = Json { ignoreUnknownKeys = true }
-
-    // Thread-safe cache for Retrofit instances keyed by base URL
-    private val apiCache = ConcurrentHashMap<String, SelfHostedSyncApi>()
-
-    // Cached OkHttpClient (shared across all Retrofit instances)
-    private val okHttpClient: OkHttpClient by lazy {
-        OkHttpClient.Builder().apply {
-            // Only enable logging in debug builds
-            if (BuildConfig.DEBUG) {
-                addInterceptor(HttpLoggingInterceptor().apply {
-                    level = HttpLoggingInterceptor.Level.BASIC
-                })
-            }
-        }.build()
-    }
+    // Cache Retrofit instances by base URL to avoid rebuilding
+    private val retrofitCache = mutableMapOf<String, Retrofit>()
 
     suspend fun create(): SelfHostedSyncApi {
         val baseUrl = syncPreferences.getSelfHostedServerUrl().takeIf { it.isNotBlank() }
             ?: throw IllegalStateException("Server URL not configured")
 
+        // Validate URL has scheme
+        if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://")) {
+            throw IllegalArgumentException("Server URL must start with http:// or https://")
+        }
+
         // Ensure URL ends with /
         val normalizedUrl = if (baseUrl.endsWith("/")) baseUrl else "$baseUrl/"
 
-        // Return cached instance if available
-        return apiCache.getOrPut(normalizedUrl) {
+        // Get or create cached Retrofit instance
+        val retrofit = retrofitCache.getOrPut(normalizedUrl) {
             Retrofit.Builder()
                 .baseUrl(normalizedUrl)
                 .client(okHttpClient)
                 .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
                 .build()
-                .create(SelfHostedSyncApi::class.java)
         }
+
+        return retrofit.create(SelfHostedSyncApi::class.java)
     }
 
     /**
@@ -76,6 +67,6 @@ class SelfHostedSyncApiFactory @Inject constructor(
      * Call this when the user updates their server configuration.
      */
     fun clearCache() {
-        apiCache.clear()
+        retrofitCache.clear()
     }
 }

@@ -2,10 +2,8 @@ package app.otakureader.core.extension.loader
 
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
-import dalvik.system.DexClassLoader
 import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.SourceFactory
-import java.io.File
 
 /**
  * Shared utilities for loading Tachiyomi-compatible extension APKs.
@@ -35,41 +33,28 @@ object ExtensionLoadingUtils {
     }
 
     /**
-     * Create a DexClassLoader for the given APK.
+     * Create a [ChildFirstPathClassLoader] for the given APK.
+     *
+     * Uses [ChildFirstPathClassLoader] to match Komikku's extension loading strategy:
+     * the extension's own libraries are preferred over the host app's libraries,
+     * preventing class-version conflicts.
      *
      * @param apkPath Path to the APK file
-     * @param optimizedDir Directory for optimized DEX files
      * @param nativeLibDir Directory containing native libraries (optional)
      * @param parentClassLoader Parent class loader (defaults to current class loader)
-     * @return Configured DexClassLoader
-     * @throws IllegalStateException if optimized directory creation fails
+     * @return Configured [ChildFirstPathClassLoader]
      */
     fun createClassLoader(
         apkPath: String,
-        optimizedDir: File,
         nativeLibDir: String?,
         parentClassLoader: ClassLoader? = ExtensionLoadingUtils::class.java.classLoader
-    ): DexClassLoader {
+    ): ChildFirstPathClassLoader {
         require(apkPath.isNotBlank()) { "APK path must not be blank" }
 
-        // Ensure directory exists and is usable
-        if (!optimizedDir.exists() && !optimizedDir.mkdirs()) {
-            throw IllegalStateException("Failed to create optimized directory: ${optimizedDir.absolutePath}")
-        }
-
-        // Validate that the path is actually a directory and is writable
-        if (!optimizedDir.isDirectory) {
-            throw IllegalStateException("Optimized path exists but is not a directory: ${optimizedDir.absolutePath}")
-        }
-        if (!optimizedDir.canWrite()) {
-            throw IllegalStateException("Optimized directory is not writable: ${optimizedDir.absolutePath}")
-        }
-
-        return DexClassLoader(
+        return ChildFirstPathClassLoader(
             apkPath,
-            optimizedDir.absolutePath,
             nativeLibDir,
-            parentClassLoader
+            parentClassLoader ?: ClassLoader.getSystemClassLoader()
         )
     }
 
@@ -91,7 +76,7 @@ object ExtensionLoadingUtils {
      * @param className The fully-qualified class name to instantiate
      * @return Instance of the class, or null if instantiation fails
      */
-    fun instantiateClass(classLoader: DexClassLoader, className: String): Any? {
+    fun instantiateClass(classLoader: ClassLoader, className: String): Any? {
         require(className.isNotBlank()) { "Class name must not be blank" }
 
         return try {
@@ -141,7 +126,7 @@ object ExtensionLoadingUtils {
     fun resolveSourcesFromMetadata(
         metadata: android.os.Bundle,
         pkgName: String,
-        classLoader: DexClassLoader,
+        classLoader: ClassLoader,
         filterType: Class<*>? = null
     ): List<Source> {
         // Prefer SourceFactory when declared
@@ -204,7 +189,7 @@ object ExtensionLoadingUtils {
     fun resolveSourcesFromMetadata(
         appInfo: ApplicationInfo,
         pkgName: String,
-        classLoader: DexClassLoader,
+        classLoader: ClassLoader,
         filterType: Class<*>? = null
     ): List<Source> {
         val metadata = appInfo.metaData ?: return emptyList()

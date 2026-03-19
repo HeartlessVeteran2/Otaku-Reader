@@ -10,7 +10,6 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.runBlocking
 import java.util.UUID
 
 /**
@@ -129,47 +128,62 @@ class SyncPreferences(private val dataStore: DataStore<Preferences>) {
         }
     }
 
-    // Self-hosted server settings
+    // Self-hosted server settings (Flow-based for reactive access)
     val selfHostedServerUrlFlow: Flow<String?> = dataStore.data.map { it[Keys.SELF_HOSTED_URL] }
     val selfHostedAuthTokenFlow: Flow<String?> = dataStore.data.map { it[Keys.SELF_HOSTED_TOKEN] }
     val lastSyncTimestampFlow: Flow<Long> = dataStore.data.map { it[Keys.LAST_SYNC_TIMESTAMP] ?: 0L }
 
-    suspend fun setSelfHostedServerUrl(url: String) {
+    /**
+     * Get self-hosted server URL.
+     */
+    suspend fun getSelfHostedServerUrl(): String =
+        selfHostedServerUrlFlow.first() ?: ""
+
+    /**
+     * Set self-hosted server URL.
+     */
+    suspend fun setSelfHostedServerUrl(value: String) {
         dataStore.edit { prefs ->
-            if (url.isBlank()) {
+            if (value.isBlank()) {
                 prefs.remove(Keys.SELF_HOSTED_URL)
             } else {
-                prefs[Keys.SELF_HOSTED_URL] = url
+                prefs[Keys.SELF_HOSTED_URL] = value
             }
         }
     }
 
-    suspend fun setSelfHostedAuthToken(token: String) {
+    /**
+     * Get self-hosted auth token.
+     */
+    suspend fun getSelfHostedAuthToken(): String =
+        selfHostedAuthTokenFlow.first() ?: ""
+
+    /**
+     * Set self-hosted auth token.
+     */
+    suspend fun setSelfHostedAuthToken(value: String) {
         dataStore.edit { prefs ->
-            if (token.isBlank()) {
+            if (value.isBlank()) {
                 prefs.remove(Keys.SELF_HOSTED_TOKEN)
             } else {
-                prefs[Keys.SELF_HOSTED_TOKEN] = token
+                prefs[Keys.SELF_HOSTED_TOKEN] = value
             }
         }
     }
 
-    suspend fun getSelfHostedServerUrl(): String {
-        return selfHostedServerUrlFlow.first() ?: ""
-    }
+    /**
+     * Get last sync timestamp.
+     */
+    suspend fun getLastSyncTimestamp(): Long =
+        lastSyncTimestampFlow.first()
 
-    suspend fun getSelfHostedAuthToken(): String {
-        return selfHostedAuthTokenFlow.first() ?: ""
-    }
-
-    suspend fun setLastSyncTimestamp(timestamp: Long) {
+    /**
+     * Set last sync timestamp.
+     */
+    suspend fun setLastSyncTimestamp(value: Long) {
         dataStore.edit { prefs ->
-            prefs[Keys.LAST_SYNC_TIMESTAMP] = timestamp
+            prefs[Keys.LAST_SYNC_TIMESTAMP] = value
         }
-    }
-
-    suspend fun getLastSyncTimestamp(): Long {
-        return lastSyncTimestampFlow.first()
     }
 
     private object Keys {

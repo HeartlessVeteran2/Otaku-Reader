@@ -7,6 +7,7 @@ import app.otakureader.core.preferences.DeleteAfterReadMode
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MangaStatus
+import androidx.annotation.StringRes
 
 /**
  * Contract for MVI pattern in Details Screen
@@ -171,16 +172,17 @@ fun Chapter.toChapterItem(): DetailsContract.ChapterItem {
 }
 
 /**
- * Extension to get display status text
+ * Extension to get display status text resource ID
  */
-fun MangaStatus.displayText(): String = when (this) {
-    MangaStatus.UNKNOWN -> "Unknown"
-    MangaStatus.ONGOING -> "Ongoing"
-    MangaStatus.COMPLETED -> "Completed"
-    MangaStatus.LICENSED -> "Licensed"
-    MangaStatus.PUBLISHING_FINISHED -> "Publishing Finished"
-    MangaStatus.CANCELLED -> "Cancelled"
-    MangaStatus.ON_HIATUS -> "On Hiatus"
+@StringRes
+fun MangaStatus.displayTextResId(): Int = when (this) {
+    MangaStatus.UNKNOWN -> R.string.details_status_unknown
+    MangaStatus.ONGOING -> R.string.details_status_ongoing
+    MangaStatus.COMPLETED -> R.string.details_status_completed
+    MangaStatus.LICENSED -> R.string.details_status_licensed
+    MangaStatus.PUBLISHING_FINISHED -> R.string.details_status_publishing_finished
+    MangaStatus.CANCELLED -> R.string.details_status_cancelled
+    MangaStatus.ON_HIATUS -> R.string.details_status_on_hiatus
 }
 
 /**

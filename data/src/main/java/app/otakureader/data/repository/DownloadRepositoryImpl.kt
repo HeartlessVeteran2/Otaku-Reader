@@ -110,6 +110,13 @@ class DownloadRepositoryImpl @Inject constructor(
         DownloadProvider.isChapterDownloaded(context, sourceName, mangaTitle, chapterTitle)
     }
 
+    override suspend fun hasMangaDownloads(
+        sourceName: String,
+        mangaTitle: String
+    ): Boolean = withContext(Dispatchers.IO) {
+        DownloadProvider.hasMangaDownloads(context, sourceName, mangaTitle)
+    }
+
     override suspend fun exportChapterAsCbz(
         sourceName: String,
         mangaTitle: String,

@@ -1,48 +1,38 @@
 package app.otakureader.data.worker
 
 import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.Context
-import android.content.pm.PackageManager
-import android.os.Build
-import androidx.core.app.NotificationManagerCompat
+import androidx.test.core.app.ApplicationProvider
 import coil3.ImageLoader
-import coil3.imageLoader
-import coil3.request.ImageRequest
+import coil3.SingletonImageLoader
 import coil3.request.SuccessResult
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkStatic
-import io.mockk.unmockkAll
-import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.Assert.*
-
-/**
- * Fully-qualified class name for Coil's SingletonImageLoader extension file.
- * This is a generated Kotlin class name that maps to the file where `Context.imageLoader`
- * is defined. If Coil changes its internal structure, this may need updating.
- * Consider using a test utility or DI to avoid this brittleness.
- */
-private const val COIL_IMAGE_LOADER_CLASS = "coil3.SingletonImageLoader_androidKt"
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows
+import org.robolectric.annotation.Config
 
 /**
  * Unit tests for UpdateNotifier notification grouping and cover image loading.
- * Tests notification creation, grouping logic, and image timeout handling.
+ * Uses Robolectric's ShadowNotificationManager for notification verification
+ * to avoid MockK static mocking conflicts with Robolectric's class instrumentation.
  */
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, coil3.annotation.DelicateCoilApi::class)
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34])
 class UpdateNotifierTest {
 
     private lateinit var context: Context
-    private lateinit var notificationManager: NotificationManagerCompat
-    private lateinit var systemNotificationManager: NotificationManager
     private lateinit var imageLoader: ImageLoader
-    private lateinit var packageManager: PackageManager
+    private lateinit var shadowNotificationManager: org.robolectric.shadows.ShadowNotificationManager
 
     private val testManga1 = NotificationManga(
         id = 1L,
@@ -67,49 +57,24 @@ class UpdateNotifierTest {
 
     @Before
     fun setUp() {
-        context = mockk(relaxed = true)
-        notificationManager = mockk(relaxed = true)
-        systemNotificationManager = mockk(relaxed = true)
+        context = ApplicationProvider.getApplicationContext()
         imageLoader = mockk(relaxed = true)
-        packageManager = mockk(relaxed = true)
 
-        // Mock static NotificationManagerCompat.from()
-        mockkStatic(NotificationManagerCompat::class)
-        every { NotificationManagerCompat.from(context) } returns notificationManager
+        // Set Coil's singleton ImageLoader to our mock so context.imageLoader returns it.
+        SingletonImageLoader.setUnsafe(imageLoader)
 
-        // Mock static PendingIntent.getActivity() with specific flag matching for Android 12+ compatibility.
-        // Production code uses FLAG_UPDATE_CURRENT | FLAG_IMMUTABLE, so we match that exact combination.
-        mockkStatic(PendingIntent::class)
-        every { 
-            PendingIntent.getActivity(
-                any<Context>(), 
-                any<Int>(), 
-                any(), 
-                eq(PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-            ) 
-        } returns mockk(relaxed = true)
+        // Grant POST_NOTIFICATIONS permission for SDK 34 tests
+        val app = context as android.app.Application
+        Shadows.shadowOf(app).grantPermissions(android.Manifest.permission.POST_NOTIFICATIONS)
 
-        // Mock context services
-        every { context.packageName } returns "app.otakureader"
-        every { context.packageManager } returns packageManager
-
-        // Mock Coil's Context.imageLoader extension property.
-        // This mocks the file where the extension is defined (SingletonImageLoader.android.kt in Coil3).
-        // Note: This is a generated class name that could change with Coil library updates.
-        // If tests fail after updating Coil, verify the actual class name in the Coil artifact.
-        // Centralizing this in a test utility or using dependency injection would be more robust.
-        mockkStatic(COIL_IMAGE_LOADER_CLASS)
-        every { context.imageLoader } returns imageLoader
-
-        every { context.getSystemService(NotificationManager::class.java) } returns systemNotificationManager
-
-        // Mock package manager
-        every { packageManager.getLaunchIntentForPackage(any()) } returns mockk(relaxed = true)
+        // Access Robolectric's shadow for the system NotificationManager to verify posts.
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        shadowNotificationManager = Shadows.shadowOf(notificationManager)
     }
 
     @After
     fun tearDown() {
-        unmockkAll()
+        SingletonImageLoader.reset()
     }
 
     // -------------------------------------------------------------------------
@@ -125,23 +90,8 @@ class UpdateNotifierTest {
         // When
         notifier.notify(mangaList, totalNewChapters = 9)
 
-        // Then - verify notifications created with the update tag
-        verify(exactly = 4) {
-            notificationManager.notify(
-                eq(UPDATE_NOTIFICATION_TAG),
-                any(),
-                any()
-            )
-        }
-
-        // Verify summary notification
-        verify(exactly = 1) {
-            notificationManager.notify(
-                eq(UPDATE_NOTIFICATION_TAG),
-                eq(SUMMARY_NOTIFICATION_ID),
-                any()
-            )
-        }
+        // Then - 3 individual + 1 summary = 4 notifications
+        assertEquals(4, shadowNotificationManager.size())
     }
 
     @Test
@@ -153,9 +103,7 @@ class UpdateNotifierTest {
         notifier.notify(emptyList(), totalNewChapters = 0)
 
         // Then
-        verify(exactly = 0) {
-            notificationManager.notify(any<String>(), any(), any())
-        }
+        assertEquals(0, shadowNotificationManager.size())
     }
 
     @Test
@@ -167,9 +115,7 @@ class UpdateNotifierTest {
         notifier.notify(emptyList(), totalNewChapters = 5)
 
         // Then
-        verify(exactly = 0) {
-            notificationManager.notify(any<String>(), any(), any())
-        }
+        assertEquals(0, shadowNotificationManager.size())
     }
 
     @Test
@@ -181,14 +127,8 @@ class UpdateNotifierTest {
         // When
         notifier.notify(mangaList, totalNewChapters = 2)
 
-        // Then - summary should say "2 new chapters available"
-        verify(exactly = 1) {
-            notificationManager.notify(
-                eq(UPDATE_NOTIFICATION_TAG),
-                eq(SUMMARY_NOTIFICATION_ID),
-                any()
-            )
-        }
+        // Then - 1 individual + 1 summary = 2 notifications
+        assertEquals(2, shadowNotificationManager.size())
     }
 
     @Test
@@ -200,14 +140,8 @@ class UpdateNotifierTest {
         // When
         notifier.notify(mangaList, totalNewChapters = 4)
 
-        // Then - summary should say "4 new chapters in 2 manga"
-        verify(exactly = 1) {
-            notificationManager.notify(
-                eq(UPDATE_NOTIFICATION_TAG),
-                eq(SUMMARY_NOTIFICATION_ID),
-                any()
-            )
-        }
+        // Then - 2 individual + 1 summary = 3 notifications
+        assertEquals(3, shadowNotificationManager.size())
     }
 
     @Test
@@ -220,13 +154,8 @@ class UpdateNotifierTest {
         notifier.notify(mangaList, totalNewChapters = 3)
 
         // Then - manga notification should use hashCode of manga ID
-        verify(exactly = 1) {
-            notificationManager.notify(
-                eq(UPDATE_NOTIFICATION_TAG),
-                eq(testManga1.id.hashCode()),
-                any()
-            )
-        }
+        val notification = shadowNotificationManager.getNotification(UPDATE_NOTIFICATION_TAG, testManga1.id.hashCode())
+        assertNotNull(notification)
     }
 
     // -------------------------------------------------------------------------
@@ -243,13 +172,7 @@ class UpdateNotifierTest {
         notifier.notify(mangaList, totalNewChapters = 5)
 
         // Then - notification created without large icon
-        verify(exactly = 1) {
-            notificationManager.notify(
-                eq(UPDATE_NOTIFICATION_TAG),
-                eq(testManga3.id.hashCode()),
-                any()
-            )
-        }
+        assertNotNull(shadowNotificationManager.getNotification(UPDATE_NOTIFICATION_TAG, testManga3.id.hashCode()))
     }
 
     @Test
@@ -264,26 +187,12 @@ class UpdateNotifierTest {
         notifier.notify(mangaList, totalNewChapters = 3)
 
         // Then - notification created without large icon
-        verify(exactly = 1) {
-            notificationManager.notify(
-                eq(UPDATE_NOTIFICATION_TAG),
-                eq(testManga1.id.hashCode()),
-                any()
-            )
-        }
+        assertNotNull(shadowNotificationManager.getNotification(UPDATE_NOTIFICATION_TAG, testManga1.id.hashCode()))
     }
 
     @Test
     fun `notify continues when image loading times out`() = runTest {
-        // Given - image loading takes too long (simulated with timeout)
-        // We use TimeoutException instead of CancellationException because throwing
-        // CancellationException would cancel the test scope itself (runTest uses a
-        // TestScope that treats CancellationException specially).
-        // 
-        // PRODUCTION NOTE: The production code catches Exception, so TimeoutException
-        // is handled the same way as any other failure - the notification proceeds
-        // without the cover image. If production code specifically handles cancellation
-        // differently, that should be tested separately with a different mocking approach.
+        // Given - image loading takes too long
         coEvery { imageLoader.execute(any()) } throws java.util.concurrent.TimeoutException("simulated timeout")
 
         val mangaList = listOf(testManga1)
@@ -293,21 +202,13 @@ class UpdateNotifierTest {
         notifier.notify(mangaList, totalNewChapters = 3)
 
         // Then - notification created without large icon
-        verify(exactly = 1) {
-            notificationManager.notify(
-                eq(UPDATE_NOTIFICATION_TAG),
-                eq(testManga1.id.hashCode()),
-                any()
-            )
-        }
+        assertNotNull(shadowNotificationManager.getNotification(UPDATE_NOTIFICATION_TAG, testManga1.id.hashCode()))
     }
 
     @Test
     fun `notify posts notification even when image loading returns unsupported Image type`() = runTest {
         // Given - imageLoader returns a SuccessResult but the Image implementation is not
-        // bitmap-backed (e.g., a generic mock), so toBitmap() throws inside loadCoverImage.
-        // The exception is caught by loadCoverImage's try-catch, and the notification is
-        // still posted without a large icon.
+        // bitmap-backed, so toBitmap() throws inside loadCoverImage.
         val mockImage = mockk<coil3.Image>()
         val successResult = mockk<SuccessResult>()
         every { successResult.image } returns mockImage
@@ -321,13 +222,7 @@ class UpdateNotifierTest {
         notifier.notify(mangaList, totalNewChapters = 3)
 
         // Then - notification is still posted despite the missing large icon
-        verify(exactly = 1) {
-            notificationManager.notify(
-                eq(UPDATE_NOTIFICATION_TAG),
-                eq(testManga1.id.hashCode()),
-                any()
-            )
-        }
+        assertNotNull(shadowNotificationManager.getNotification(UPDATE_NOTIFICATION_TAG, testManga1.id.hashCode()))
     }
 
     // -------------------------------------------------------------------------
@@ -343,14 +238,8 @@ class UpdateNotifierTest {
         // When
         notifier.notify(listOf(manga), totalNewChapters = 1)
 
-        // Then - should use "1 new chapter" (singular)
-        verify(exactly = 2) {
-            notificationManager.notify(
-                eq(UPDATE_NOTIFICATION_TAG),
-                any(),
-                any()
-            )
-        }
+        // Then - 1 individual + 1 summary = 2
+        assertEquals(2, shadowNotificationManager.size())
     }
 
     @Test
@@ -362,14 +251,8 @@ class UpdateNotifierTest {
         // When
         notifier.notify(listOf(manga), totalNewChapters = 5)
 
-        // Then - should use "5 new chapters" (plural)
-        verify(exactly = 2) {
-            notificationManager.notify(
-                eq(UPDATE_NOTIFICATION_TAG),
-                any(),
-                any()
-            )
-        }
+        // Then - 1 individual + 1 summary = 2
+        assertEquals(2, shadowNotificationManager.size())
     }
 
     // -------------------------------------------------------------------------
@@ -378,19 +261,16 @@ class UpdateNotifierTest {
 
     @Test
     fun `notify checks notification permission on Android 13+`() = runTest {
-        // Given - Android 13+ (API 33)
-        // Note: Cannot easily mock Build.VERSION.SDK_INT, but we can verify behavior
+        // Given - Robolectric SDK 34 (Android 13+), permission granted in setUp
         val mangaList = listOf(testManga1)
         val notifier = UpdateNotifier(context)
 
         // When
         notifier.notify(mangaList, totalNewChapters = 3)
 
-        // Then - notification should be attempted
-        // (Permission check happens internally, we verify notification was called)
-        verify(atLeast = 1) {
-            notificationManager.notify(any<String>(), any(), any())
-        }
+        // Then - with POST_NOTIFICATIONS granted, notifications should be posted
+        // 1 individual + 1 summary = 2
+        assertEquals(2, shadowNotificationManager.size())
     }
 
     // -------------------------------------------------------------------------
@@ -402,9 +282,10 @@ class UpdateNotifierTest {
         // Given/When
         val notifier = UpdateNotifier(context)
 
-        // Then - channel should be created (Android O+)
-        // Note: Cannot easily verify without mocking Build.VERSION, but we ensure no crash
-        assertNotNull(notifier)
+        // Then - channel should be created
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val channel = manager.getNotificationChannel(UPDATE_CHANNEL_ID)
+        assertNotNull(channel)
     }
 
     // -------------------------------------------------------------------------
@@ -420,27 +301,22 @@ class UpdateNotifierTest {
         // When
         notifier.notify(mangaList, totalNewChapters = 3)
 
-        // Then - should call getLaunchIntentForPackage
-        verify(atLeast = 1) {
-            packageManager.getLaunchIntentForPackage(eq("app.otakureader"))
-        }
+        // Then - notification is created with correct manga ID
+        assertNotNull(shadowNotificationManager.getNotification(UPDATE_NOTIFICATION_TAG, testManga1.id.hashCode()))
     }
 
     @Test
     fun `createLauncherIntent falls back to ACTION_MAIN when getLaunchIntent returns null`() = runTest {
-        // Given - getLaunchIntentForPackage returns null
-        every { packageManager.getLaunchIntentForPackage(any()) } returns null
-
+        // Given - Robolectric's PackageManager returns null for getLaunchIntentForPackage
+        // by default for unregistered packages
         val mangaList = listOf(testManga1)
         val notifier = UpdateNotifier(context)
 
         // When - should use fallback intent
         notifier.notify(mangaList, totalNewChapters = 3)
 
-        // Then - notification should still be created
-        verify(atLeast = 1) {
-            notificationManager.notify(any<String>(), any(), any())
-        }
+        // Then - notification should still be created (1 individual + 1 summary)
+        assertEquals(2, shadowNotificationManager.size())
     }
 
     // -------------------------------------------------------------------------
@@ -464,9 +340,7 @@ class UpdateNotifierTest {
         notifier.notify(mangaList, totalNewChapters = 100)
 
         // Then - 100 individual + 1 summary = 101 notifications
-        verify(exactly = 101) {
-            notificationManager.notify(any<String>(), any(), any())
-        }
+        assertEquals(101, shadowNotificationManager.size())
     }
 
     @Test
@@ -479,10 +353,8 @@ class UpdateNotifierTest {
         // When - should not crash
         notifier.notify(listOf(manga), totalNewChapters = 3)
 
-        // Then
-        verify(exactly = 2) { // 1 individual + 1 summary
-            notificationManager.notify(any<String>(), any(), any())
-        }
+        // Then - 1 individual + 1 summary = 2
+        assertEquals(2, shadowNotificationManager.size())
     }
 
     @Test
@@ -494,9 +366,7 @@ class UpdateNotifierTest {
         // When
         notifier.notify(listOf(manga), totalNewChapters = 1)
 
-        // Then - should still create notifications
-        verify(exactly = 2) { // 1 individual + 1 summary
-            notificationManager.notify(any<String>(), any(), any())
-        }
+        // Then - 1 individual + 1 summary = 2
+        assertEquals(2, shadowNotificationManager.size())
     }
 }

@@ -104,33 +104,62 @@ class MigrateMangaUseCase @Inject constructor(
                 sourceManga.categoryIds.forEach { categoryId ->
                     try {
                         categoryRepository.addMangaToCategory(targetMangaId, categoryId)
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        // Propagate cancellation immediately
+                        throw e
                     } catch (e: Exception) {
                         // Category might already be assigned, ignore
                     }
                 }
             }
 
-            // Migrate tracker links
+            // Migrate tracker links – per-entry error handling so a single
+            // tracker failure does not abort an otherwise-successful migration.
             val trackerEntries = trackRepository.observeEntriesForManga(sourceManga.id).first()
+            var failedTrackers = 0
             trackerEntries.forEach { entry ->
-                val migratedEntry = entry.copy(mangaId = targetMangaId)
-                trackRepository.upsertEntry(migratedEntry)
+                try {
+                    val migratedEntry = entry.copy(mangaId = targetMangaId)
+                    trackRepository.upsertEntry(migratedEntry)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    // Propagate cancellation immediately
+                    throw e
+                } catch (e: Exception) {
+                    // Individual tracker migration failure is non-fatal; continue
+                    // with the remaining entries so partial progress is preserved.
+                    failedTrackers++
+                    System.err.println("MigrateMangaUseCase: Failed to migrate tracker entry for tracker ${entry.trackerId}: ${e.message}")
+                }
+            }
+            if (failedTrackers > 0) {
+                System.err.println("MigrateMangaUseCase: Migration completed with $failedTrackers tracker failure(s) out of ${trackerEntries.size} total")
             }
 
-            // Handle MOVE vs COPY mode
+            // Handle MOVE vs COPY mode.
+            // Destructive operations are performed last so that additive steps
+            // (chapters, categories, trackers) complete first. This ordering
+            // reduces the window for inconsistent state when a failure occurs.
+            // Note: These operations are not atomic. If a failure occurs between
+            // operations, manual cleanup may be required. Consider using database
+            // transactions if stronger consistency guarantees are needed.
             when (mode) {
                 MigrationMode.MOVE -> {
-                    // Remove old manga and its chapters
+                    // Remove category associations from old manga
                     if (sourceManga.categoryIds.isNotEmpty()) {
                         sourceManga.categoryIds.forEach { categoryId ->
                             try {
                                 categoryRepository.removeMangaFromCategory(sourceManga.id, categoryId)
+                            } catch (e: kotlinx.coroutines.CancellationException) {
+                                // Propagate cancellation immediately
+                                throw e
                             } catch (e: Exception) {
-                                // Ignore errors
+                                // Category removal is non-critical; continue
                             }
                         }
                     }
-                    // Tracker entries have already been moved via upsert; no deletion needed here.
+                    // Tracker entries are migrated via upsertEntry() which replaces
+                    // by (trackerId, remoteId), so the old entries are effectively
+                    // moved to the target manga. No explicit deletion needed.
                     mangaRepository.deleteManga(sourceManga.id)
                     // Chapters will be cascade deleted by foreign key
                 }
