@@ -31,21 +31,5 @@
 -dontwarn com.google.mlkit.**
 -dontwarn com.google.android.gms.internal.mlkit_vision_common.**
 
-# Firebase Firestore
-# Keep Firebase and Firestore classes for proper initialization and serialization
--keep class com.google.firebase.firestore.** { *; }
--keep class com.google.firebase.** { *; }
--keepnames class com.google.firebase.firestore.** { *; }
--dontwarn com.google.firebase.**
-
-# Keep Firestore model classes when they are created
-# Uncomment and replace with actual package when Firestore models are added:
-# -keep class app.otakureader.data.ai.model.** { *; }
-
-# Keep Firebase annotations
--keepclassmembers class * {
-    @com.google.android.gms.common.annotation.Keep *;
-}
--keepclassmembers class * {
-    @com.google.firebase.components.ComponentRegistrar <init>(...);
-}
+# NOTE: Firebase/Firestore rules were removed — Firebase is not a project dependency.
+# If Firebase is added in the future, re-add the appropriate keep rules.
