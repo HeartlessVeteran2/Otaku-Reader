@@ -347,7 +347,7 @@ object DownloadProvider {
                             try {
                                 file.copyRecursively(destSubdir, overwrite = true)
                                 // Verify destination directory was created with contents
-                                if (!destSubdir.isDirectory || destSubdir.listFiles()?.isEmpty() != false) {
+                                if (!destSubdir.isDirectory || destSubdir.listFiles().isNullOrEmpty()) {
                                     // Copy verification failed; abort to avoid data loss
                                     // Clean up partial copy
                                     destSubdir.deleteRecursively()
