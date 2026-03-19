@@ -111,7 +111,7 @@ class SelfHostedSyncProvider @Inject constructor(
             return Result.failure(IllegalStateException("Not authenticated"))
         }
 
-        val api = getApi() 
+        val api = getApi()
             ?: return Result.failure(IllegalStateException("Server URL not configured"))
 
         return try {
@@ -160,7 +160,7 @@ class SelfHostedSyncProvider @Inject constructor(
             return Result.failure(IllegalStateException("Not authenticated"))
         }
 
-        val api = getApi() 
+        val api = getApi()
             ?: return Result.failure(IllegalStateException("Server URL not configured"))
 
         return try {

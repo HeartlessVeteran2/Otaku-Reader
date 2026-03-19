@@ -40,7 +40,7 @@ docker run -d \
 ./gradlew :server:shadowJar
 
 # Run the JAR
-java -jar server/build/libs/server-1.0.0.jar
+java -jar server/build/libs/server.jar
 ```
 
 ## Configuration

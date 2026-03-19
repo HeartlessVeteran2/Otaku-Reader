@@ -14,7 +14,7 @@ class SyncService(private val config: AppConfig) {
 
     /**
      * Store a sync snapshot.
-     * @return The size of stored data in bytes
+     * @return The size of stored data in bytes (UTF-8 encoded)
      */
     fun storeSnapshot(data: String, timestamp: Long): Result<Int> = try {
         val bytes = data.toByteArray(Charsets.UTF_8)
@@ -47,10 +47,17 @@ class SyncService(private val config: AppConfig) {
      * Delete the stored snapshot.
      */
     fun deleteSnapshot(): Result<Unit> = try {
-        snapshotFile.delete()
-        timestampFile.delete()
-        Result.success(Unit)
-    } catch (e: IOException) {
+        val snapshotDeleted = if (snapshotFile.exists()) snapshotFile.delete() else true
+        val timestampDeleted = if (timestampFile.exists()) timestampFile.delete() else true
+
+        if (snapshotDeleted && timestampDeleted) {
+            Result.success(Unit)
+        } else {
+            Result.failure(IOException("Failed to delete snapshot files"))
+        }
+    } catch (e: SecurityException) {
+        Result.failure(e)
+    } catch (e: Exception) {
         Result.failure(e)
     }
 

@@ -16,8 +16,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import java.io.File
-import kotlin.test.BeforeTest
+import kotlin.io.path.createTempDirectory
 import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
 
 class SyncRoutesTest {
 
@@ -48,7 +49,10 @@ class SyncRoutesTest {
 
     @AfterTest
     fun cleanup() {
-        File(testStoragePath).deleteRecursively()
+        // Clean up temp directory after each test
+        if (::testStoragePath.isInitialized) {
+            File(testStoragePath).deleteRecursively()
+        }
     }
 
     @Test

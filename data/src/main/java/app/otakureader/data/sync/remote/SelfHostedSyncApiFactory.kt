@@ -11,6 +11,7 @@ import javax.inject.Singleton
 
 /**
  * Factory for creating SelfHostedSyncApi instances with dynamic base URLs.
+ * Caches instances to avoid recreating OkHttpClient/Retrofit on every call.
  */
 @Singleton
 class SelfHostedSyncApiFactory @Inject constructor(
@@ -53,9 +54,19 @@ class SelfHostedSyncApiFactory @Inject constructor(
         return try {
             create()
         } catch (e: IllegalStateException) {
+            // URL not configured
             null
         } catch (e: IllegalArgumentException) {
+            // Invalid URL (missing scheme, invalid format, etc.)
             null
         }
+    }
+
+    /**
+     * Clears the cache when the server URL changes.
+     * Call this when the user updates their server configuration.
+     */
+    fun clearCache() {
+        retrofitCache.clear()
     }
 }

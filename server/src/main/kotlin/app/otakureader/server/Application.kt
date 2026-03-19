@@ -40,6 +40,7 @@ fun Application.module(config: AppConfig) {
 
     install(StatusPages) {
         exception<Throwable> { call, cause ->
+            // Log detailed error server-side
             call.application.environment.log.error("Unhandled exception", cause)
             call.respond(
                 HttpStatusCode.InternalServerError,
