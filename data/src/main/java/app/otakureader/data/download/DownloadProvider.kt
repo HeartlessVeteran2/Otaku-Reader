@@ -325,6 +325,8 @@ object DownloadProvider {
                             // Verify the copy succeeded before deleting
                             if (!destFile.exists() || destFile.length() != file.length()) {
                                 // Copy verification failed; abort to avoid data loss
+                                // Clean up partial destination file best-effort
+                                destFile.delete()
                                 return false
                             }
                             if (!file.delete()) {
