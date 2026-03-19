@@ -10,7 +10,7 @@ pluginManagement {
     resolutionStrategy {
         eachPlugin {
             if (requested.id.id == "org.jetbrains.kotlin.plugin.serialization") {
-                useVersion("2.3.10")
+                useVersion("2.3.20")
             }
         }
     }
