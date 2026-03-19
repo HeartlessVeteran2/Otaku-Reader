@@ -322,6 +322,13 @@ object DownloadProvider {
                         if (!file.renameTo(destFile)) {
                             // Fallback: copy then delete original
                             file.copyTo(destFile, overwrite = true)
+                            // Verify the copy succeeded before deleting
+                            if (!destFile.exists() || destFile.length() != file.length()) {
+                                // Copy verification failed; abort to avoid data loss
+                                // Clean up partial destination file best-effort
+                                destFile.delete()
+                                return false
+                            }
                             if (!file.delete()) {
                                 // Delete failed; migration incomplete
                                 return false
@@ -336,7 +343,22 @@ object DownloadProvider {
                     } else {
                         if (!file.renameTo(destSubdir)) {
                             // Fallback: copy recursively then delete original
-                            file.copyRecursively(destSubdir, overwrite = true)
+                            // Use try-catch to detect partial copy failures
+                            try {
+                                file.copyRecursively(destSubdir, overwrite = true)
+                                // Verify destination directory was created with contents
+                                if (!destSubdir.isDirectory || destSubdir.listFiles().isNullOrEmpty()) {
+                                    // Copy verification failed; abort to avoid data loss
+                                    // Clean up partial copy
+                                    destSubdir.deleteRecursively()
+                                    return false
+                                }
+                            } catch (e: Exception) {
+                                // Copy failed; clean up partial copy and abort
+                                destSubdir.deleteRecursively()
+                                return false
+                            }
+                            // Copy verified; now safe to delete original
                             if (!file.deleteRecursively()) {
                                 // Delete failed; migration incomplete
                                 return false
