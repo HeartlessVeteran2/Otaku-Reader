@@ -11,6 +11,7 @@ import coil3.request.ImageRequest
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -27,7 +28,8 @@ import javax.inject.Singleton
 class AdaptiveChapterPrefetcher @Inject constructor(
     @ApplicationContext private val context: Context,
     private val imageLoader: ImageLoader,
-    private val chapterRepository: ChapterRepository
+    private val chapterRepository: ChapterRepository,
+    private val sourceRepository: app.otakureader.domain.repository.SourceRepository
 ) {
 
 
@@ -188,29 +190,36 @@ class AdaptiveChapterPrefetcher @Inject constructor(
         pageCount: Int,
         fromEnd: Boolean = false
     ) {
-        // TODO: This requires fetching page URLs from the source
-        // For now, this is a placeholder that would integrate with SourceManager
-        // when it's implemented.
+        // Fetch page list via SourceRepository using the first available source.
+        // The prefetcher doesn't have direct access to the manga's sourceId, so it
+        // uses a best-effort approach by trying all sources. Full integration would
+        // require the caller to pass sourceId.
+        val sourceChapter = app.otakureader.sourceapi.SourceChapter(
+            url = chapter.url,
+            name = chapter.name
+        )
 
-        // The actual implementation would:
-        // 1. Fetch chapter pages from source: sourceManager.getPageList(chapter)
-        // 2. Select first/last N pages based on fromEnd parameter
-        // 3. Prefetch those pages using imageLoader.enqueue()
+        val sources = sourceRepository.getSources().first()
+        var pages: List<app.otakureader.sourceapi.Page>? = null
+        for (source in sources) {
+            pages = sourceRepository.getPageList(source.id, sourceChapter).getOrNull()
+            if (!pages.isNullOrEmpty()) break
+        }
+        if (pages.isNullOrEmpty()) return
 
-        // Placeholder logic:
-        // val pages = sourceManager.getPageList(chapter)
-        // val pagesToPrefetch = if (fromEnd) {
-        //     pages.takeLast(pageCount)
-        // } else {
-        //     pages.take(pageCount)
-        // }
-        //
-        // pagesToPrefetch.forEach { page ->
-        //     val request = ImageRequest.Builder(context)
-        //         .data(page.imageUrl)
-        //         .build()
-        //     imageLoader.enqueue(request)
-        // }
+        val pagesToPrefetch = if (fromEnd) {
+            pages.takeLast(pageCount)
+        } else {
+            pages.take(pageCount)
+        }
+
+        pagesToPrefetch.forEach { page ->
+            val url = page.imageUrl ?: return@forEach
+            val request = ImageRequest.Builder(context)
+                .data(url)
+                .build()
+            imageLoader.enqueue(request)
+        }
     }
 
     /**

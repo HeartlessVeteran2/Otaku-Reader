@@ -19,5 +19,11 @@
     <string name="widget_chapter_progress_format">%1$s • %2$s</string>
     <!-- Format: Chapter X • time ago -->
     <string name="widget_chapter_time_format">%1$s • %2$s</string>
+    <!-- Continue Reading widget: chapters remaining -->
+    <string name="widget_chapters_remaining">%1$d chapters remaining</string>
+    <!-- Continue Reading widget: all caught up -->
+    <string name="widget_up_to_date">Up to date</string>
+    <!-- Recent Updates widget: new chapters count -->
+    <string name="widget_new_chapters">%1$d new chapter(s)</string>
     
 </resources>

@@ -584,8 +584,10 @@ private fun CustomTintPicker(
 /**
  * Named preset tint colors available in the custom tint picker.
  * Each entry holds the RGB portion (no alpha) – alpha is controlled separately.
- * 
- * TODO: Consider making these themable or user-configurable in future versions.
+ *
+ * Note: these presets are hardcoded for now. A future enhancement could make
+ * them themable or user-configurable (e.g., allowing custom color creation
+ * that persists to preferences).
  */
 private data class TintPreset(val rgb: Long, val nameResId: Int)
 

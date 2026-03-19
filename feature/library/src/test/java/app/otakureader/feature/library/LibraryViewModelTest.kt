@@ -5,6 +5,8 @@ import app.otakureader.core.preferences.LibraryPreferences
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.repository.ChapterRepository
+import app.otakureader.domain.repository.DownloadRepository
+import app.otakureader.domain.tracking.TrackRepository
 import app.otakureader.domain.usecase.GetLibraryMangaUseCase
 import app.otakureader.domain.usecase.ToggleFavoriteMangaUseCase
 import app.cash.turbine.test
@@ -36,6 +38,8 @@ class LibraryViewModelTest {
     private lateinit var libraryPreferences: LibraryPreferences
     private lateinit var generalPreferences: GeneralPreferences
     private lateinit var chapterRepository: ChapterRepository
+    private lateinit var downloadRepository: DownloadRepository
+    private lateinit var trackRepository: TrackRepository
 
     private val sampleMangas = listOf(
         Manga(id = 1L, sourceId = 10L, url = "/m/1", title = "Naruto", favorite = true, unreadCount = 3, lastRead = 1000L, status = MangaStatus.ONGOING),
@@ -62,6 +66,12 @@ class LibraryViewModelTest {
         chapterRepository = mockk {
             every { countNewUpdatesSince(any()) } returns flowOf(0)
         }
+        downloadRepository = mockk {
+            coEvery { hasMangaDownloads(any(), any()) } returns false
+        }
+        trackRepository = mockk {
+            every { observeEntriesForManga(any()) } returns flowOf(emptyList())
+        }
     }
 
     @After
@@ -70,7 +80,7 @@ class LibraryViewModelTest {
     }
 
     private fun createViewModel(): LibraryViewModel {
-        return LibraryViewModel(getLibraryManga, toggleFavoriteManga, libraryPreferences, generalPreferences, chapterRepository)
+        return LibraryViewModel(getLibraryManga, toggleFavoriteManga, libraryPreferences, generalPreferences, chapterRepository, downloadRepository, trackRepository)
     }
 
     @Test
@@ -358,10 +368,11 @@ class LibraryViewModelTest {
 
     @Test
     fun nsfw_filterAppliedWithoutCrash_whenShowNsfwFalse() = runTest {
-        // NOTE: isNsfw is always false in toLibraryItem() until source/extension metadata is
-        // wired, so no items are actually hidden yet. This test verifies the NSFW filter
+        // NOTE: isNsfw is always false in toLibraryItem() because source/extension NSFW metadata
+        // is not yet exposed through the Manga domain model. This test verifies the NSFW filter
         // code path runs without errors and state remains consistent.
-        // TODO: Once isNsfw is populated from source metadata, assert that NSFW items are hidden.
+        // When source NSFW metadata is wired into the Manga model, update this test to assert
+        // that NSFW items are hidden (expected size would drop from 4 to 3).
         every { generalPreferences.showNsfwContent } returns flowOf(false)
         val nsfwManga = Manga(id = 99L, sourceId = 5L, url = "/m/99", title = "Adult Title", favorite = true)
         every { getLibraryManga() } returns flowOf(sampleMangas + nsfwManga)

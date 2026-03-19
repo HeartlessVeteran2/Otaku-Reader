@@ -63,6 +63,11 @@ interface SourceRepository {
     suspend fun getChapterList(sourceId: String, manga: SourceManga): Result<List<SourceChapter>>
 
     /**
+     * Get page list for a chapter from a source
+     */
+    suspend fun getPageList(sourceId: String, chapter: SourceChapter): Result<List<app.otakureader.sourceapi.Page>>
+
+    /**
      * Load Tachiyomi extension from APK
      */
     suspend fun loadExtension(apkPath: String): Result<Unit>

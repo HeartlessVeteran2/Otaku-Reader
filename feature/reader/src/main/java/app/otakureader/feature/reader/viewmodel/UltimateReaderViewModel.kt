@@ -10,6 +10,7 @@ import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.MangaRepository
+import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.feature.reader.model.ColorFilterMode
 import app.otakureader.feature.reader.model.ImageQuality
 import app.otakureader.feature.reader.model.ReaderMode
@@ -55,6 +56,7 @@ class UltimateReaderViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val mangaRepository: MangaRepository,
     private val chapterRepository: ChapterRepository,
+    private val sourceRepository: SourceRepository,
     private val settingsRepository: ReaderSettingsRepository,
     private val pageLoader: PageLoader,
     private val imageLoader: ImageLoader,
@@ -380,19 +382,29 @@ class UltimateReaderViewModel @Inject constructor(
         mangaTitle: String,
         chapterName: String
     ): List<ReaderPage> {
-        // TODO: Integrate with SourceManager to fetch actual page URLs.
-        // val source = sourceManager.get(manga.sourceId)
-        // val remotePages = source.fetchPageList(chapter.toSourceChapter())
-        //
-        // Once remotePages are available, resolve each URL through PageLoader:
-        // return remotePages.mapIndexed { index, page ->
-        //     ReaderPage(
-        //         index = index,
-        //         imageUrl = pageLoader.resolveUrl(page.imageUrl, sourceName, mangaTitle, chapterName, index),
-        //         chapterName = chapterName
-        //     )
-        // }
-        return emptyList()
+        val manga = currentManga ?: return emptyList()
+        val sourceChapter = app.otakureader.sourceapi.SourceChapter(
+            url = chapterUrl,
+            name = chapterName
+        )
+        val sourceId = manga.sourceId.toString()
+
+        val pages = sourceRepository.getPageList(sourceId, sourceChapter)
+            .getOrElse { return emptyList() }
+
+        return pages.mapIndexed { index, page ->
+            ReaderPage(
+                index = index,
+                imageUrl = pageLoader.resolveUrl(
+                    page.imageUrl.orEmpty(),
+                    sourceName,
+                    mangaTitle,
+                    chapterName,
+                    index
+                ),
+                chapterName = chapterName
+            )
+        }
     }
 
     /**

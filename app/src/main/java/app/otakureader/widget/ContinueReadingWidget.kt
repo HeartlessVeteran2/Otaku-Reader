@@ -21,15 +21,51 @@ import androidx.glance.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.otakureader.R
+import app.otakureader.domain.repository.MangaRepository
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.flow.first
 
 /**
  * Glance widget for displaying "Continue Reading" manga.
  */
 class ContinueReadingWidget : GlanceAppWidget() {
 
+    @EntryPoint
+    @InstallIn(SingletonComponent::class)
+    interface WidgetEntryPoint {
+        fun mangaRepository(): MangaRepository
+    }
+
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        // TODO: Load actual reading data from repository
-        val readingItems = emptyList<ReadingItem>()
+        val entryPoint = EntryPointAccessors.fromApplication(
+            context.applicationContext,
+            WidgetEntryPoint::class.java
+        )
+        val mangaRepository = entryPoint.mangaRepository()
+
+        val readingItems = try {
+            mangaRepository.getLibraryManga()
+                .first()
+                .filter { it.favorite && it.lastRead != null }
+                .sortedByDescending { it.lastRead }
+                .take(3)
+                .map { manga ->
+                    ReadingItem(
+                        title = manga.title,
+                        subtitle = if (manga.unreadCount > 0) {
+                            context.getString(R.string.widget_chapters_remaining, manga.unreadCount)
+                        } else {
+                            context.getString(R.string.widget_up_to_date)
+                        }
+                    )
+                }
+        } catch (_: Exception) {
+            emptyList()
+        }
+
         val title = context.getString(R.string.widget_continue_reading_title)
         val emptyText = context.getString(R.string.widget_no_manga_in_progress)
 

@@ -327,6 +327,34 @@ class SourceRepositoryImpl(
         }
     }
 
+    override suspend fun getPageList(
+        sourceId: String,
+        chapter: SourceChapter
+    ): Result<List<app.otakureader.sourceapi.Page>> {
+        return withContext(Dispatchers.IO) {
+            failIfUnhealthy<List<app.otakureader.sourceapi.Page>>(sourceId)
+                ?.let { return@withContext it }
+
+            try {
+                val source = getSource(sourceId)
+                    ?: return@withContext Result.failure(
+                        IllegalArgumentException("Source not found: $sourceId")
+                    )
+
+                val pages = source.fetchPageList(chapter)
+                healthMonitor.recordSuccess(sourceId)
+                Result.success(pages)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (shouldRecordFailure(e)) {
+                    healthMonitor.recordFailure(sourceId, e)
+                }
+                Result.failure(e)
+            }
+        }
+    }
+
     override suspend fun loadExtension(apkPath: String): Result<Unit> {
         return withContext(Dispatchers.IO) {
             try {

@@ -53,6 +53,7 @@ class UltimateReaderViewModelTest {
     private lateinit var context: Context
     private lateinit var mangaRepository: MangaRepository
     private lateinit var chapterRepository: ChapterRepository
+    private lateinit var sourceRepository: app.otakureader.domain.repository.SourceRepository
     private lateinit var settingsRepository: ReaderSettingsRepository
     private lateinit var pageLoader: PageLoader
     private lateinit var imageLoader: ImageLoader
@@ -70,6 +71,7 @@ class UltimateReaderViewModelTest {
         context = mockk(relaxed = true)
         mangaRepository = mockk()
         chapterRepository = mockk()
+        sourceRepository = mockk(relaxed = true)
         settingsRepository = mockk()
         pageLoader = mockk()
         imageLoader = mockk(relaxed = true)
@@ -124,6 +126,7 @@ class UltimateReaderViewModelTest {
             context = context,
             mangaRepository = mangaRepository,
             chapterRepository = chapterRepository,
+            sourceRepository = sourceRepository,
             settingsRepository = settingsRepository,
             pageLoader = pageLoader,
             imageLoader = imageLoader,
