@@ -18,7 +18,7 @@ import app.otakureader.data.tracking.TrackManager
 import app.otakureader.data.worker.ReadingReminderScheduler
 import app.otakureader.domain.repository.AiRepository
 import app.otakureader.domain.sync.SyncManager
-import app.otakureader.domain.sync.SyncStatus
+import app.otakureader.domain.sync.SyncStatus as DomainSyncStatus
 import app.otakureader.feature.reader.model.ImageQuality
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
@@ -486,16 +486,16 @@ class SettingsViewModel @Inject constructor(
     }
 
     private suspend fun handleTriggerManualSync() {
-        _state.update { it.copy(syncStatus = app.otakureader.feature.settings.SyncStatus.SYNCING) }
+        _state.update { it.copy(syncStatus = SyncStatus.SYNCING) }
         syncManager.sync().fold(
             onSuccess = { result ->
-                _state.update { it.copy(syncStatus = app.otakureader.feature.settings.SyncStatus.IDLE) }
+                _state.update { it.copy(syncStatus = SyncStatus.IDLE) }
                 _effect.send(SettingsEffect.ShowSnackbar(
                     "Sync complete: ${result.mangaUpdated} manga, ${result.chaptersUpdated} chapters updated"
                 ))
             },
             onFailure = { e ->
-                _state.update { it.copy(syncStatus = app.otakureader.feature.settings.SyncStatus.ERROR) }
+                _state.update { it.copy(syncStatus = SyncStatus.ERROR) }
                 _effect.send(SettingsEffect.ShowSnackbar("Sync failed: ${e.message}"))
             }
         )

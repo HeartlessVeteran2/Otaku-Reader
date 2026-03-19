@@ -750,7 +750,8 @@ class UltimateReaderViewModel @Inject constructor(
                         totalPages = pages.size,
                         strategy = cachedPrefetchStrategy,
                         behavior = behavior,
-                        scope = viewModelScope
+                        scope = viewModelScope,
+                        sourceId = currentManga?.sourceId?.toString()
                     )
                 }
             } else {

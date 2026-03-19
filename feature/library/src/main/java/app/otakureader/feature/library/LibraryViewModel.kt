@@ -18,6 +18,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -121,28 +124,36 @@ class LibraryViewModel @Inject constructor(
 
         getLibraryManga()
             .map { mangaList ->
-                // Build tracking lookup: set of manga IDs that have at least one tracking entry
-                val trackedMangaIds = mangaList.mapNotNull { manga ->
-                    val entries = trackRepository.observeEntriesForManga(manga.id)
-                    // Use first() to snapshot the current tracking state
-                    val hasEntries = entries.first().isNotEmpty()
-                    if (hasEntries) manga.id else null
-                }.toSet()
+                coroutineScope {
+                    // Build tracking lookup in parallel
+                    val trackingDeferred = mangaList.map { manga ->
+                        async {
+                            val hasEntries = trackRepository.observeEntriesForManga(manga.id)
+                                .first().isNotEmpty()
+                            if (hasEntries) manga.id else null
+                        }
+                    }
 
-                // Build download lookup: set of manga IDs that have downloaded chapters
-                val downloadedMangaIds = mangaList.mapNotNull { manga ->
-                    val hasDownloads = downloadRepository.hasMangaDownloads(
-                        sourceName = manga.sourceId.toString(),
-                        mangaTitle = manga.title
-                    )
-                    if (hasDownloads) manga.id else null
-                }.toSet()
+                    // Build download lookup in parallel
+                    val downloadDeferred = mangaList.map { manga ->
+                        async {
+                            val hasDownloads = downloadRepository.hasMangaDownloads(
+                                sourceName = manga.sourceId.toString(),
+                                mangaTitle = manga.title
+                            )
+                            if (hasDownloads) manga.id else null
+                        }
+                    }
 
-                mangaList.map { manga ->
-                    manga.toLibraryItem(
-                        isDownloaded = manga.id in downloadedMangaIds,
-                        hasTracking = manga.id in trackedMangaIds
-                    )
+                    val trackedMangaIds = trackingDeferred.awaitAll().filterNotNull().toSet()
+                    val downloadedMangaIds = downloadDeferred.awaitAll().filterNotNull().toSet()
+
+                    mangaList.map { manga ->
+                        manga.toLibraryItem(
+                            isDownloaded = manga.id in downloadedMangaIds,
+                            hasTracking = manga.id in trackedMangaIds
+                        )
+                    }
                 }
             }
             .onEach { items ->

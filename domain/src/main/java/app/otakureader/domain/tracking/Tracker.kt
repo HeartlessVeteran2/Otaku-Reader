@@ -62,7 +62,7 @@ interface Tracker {
      * Build the full OAuth authorization URL for this tracker.
      *
      * Only meaningful for OAuth-based trackers (MAL, AniList, Shikimori).
-     * Credential-based trackers (Kitsu, MangaUpdates) should return an empty string.
+     * Credential-based trackers (Kitsu, MangaUpdates) should return `null`.
      *
      * The URL should include all required query parameters:
      * - client_id
@@ -72,7 +72,7 @@ interface Tracker {
      * - code_challenge / code_challenge_method (PKCE, if supported)
      *
      * @param codeVerifier The PKCE code verifier to derive code_challenge from
-     * @return Fully-parameterized authorization URL, or empty string if not applicable
+     * @return Fully-parameterized authorization URL, or `null` if not applicable
      */
-    fun authorizationUrl(codeVerifier: String): String = ""
+    fun authorizationUrl(codeVerifier: String): String? = null
 }

@@ -156,7 +156,6 @@ class TrackingViewModel @Inject constructor(
             val tracker = trackerMap[trackerId]
             val codeVerifier = generateCodeVerifier()
             val oauthUrl = tracker?.authorizationUrl(codeVerifier)
-                ?.takeIf { it.isNotBlank() }
                 ?: getOAuthUrl(trackerId) // Fallback to base URL for trackers that haven't
                                           // implemented authorizationUrl() yet
             _effect.trySend(TrackingEffect.OpenOAuth(trackerId, oauthUrl))
