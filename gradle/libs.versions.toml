@@ -163,7 +163,6 @@ mlkit-image-labeling = { group = "com.google.mlkit", name = "image-labeling", ve
 
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }
-kotlin-test = { group = "org.jetbrains.kotlin", name = "kotlin-test", version.ref = "kotlin" }
 androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxTest" }
 androidx-test-espresso = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
