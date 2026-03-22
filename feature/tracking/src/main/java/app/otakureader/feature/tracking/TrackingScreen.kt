@@ -84,12 +84,22 @@ fun TrackingScreen(
                 is TrackingEffect.ShowError -> snackbarHostState.showSnackbar(effect.message)
                 is TrackingEffect.OpenOAuth -> {
                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(effect.url))
-                    runCatching { context.startActivity(intent) }
-                        .onFailure {
-                            snackbarHostState.showSnackbar(
-                                context.getString(R.string.tracking_oauth_browser_error)
-                            )
-                        }
+                    // L-8: Check that a browser is available before calling startActivity.
+                    // On devices with no browser installed, startActivity would throw
+                    // ActivityNotFoundException and crash the app.
+                    @Suppress("DEPRECATION") // resolveActivity is the correct pre-API-33 approach
+                    if (intent.resolveActivity(context.packageManager) != null) {
+                        runCatching { context.startActivity(intent) }
+                            .onFailure {
+                                snackbarHostState.showSnackbar(
+                                    context.getString(R.string.tracking_oauth_browser_error)
+                                )
+                            }
+                    } else {
+                        snackbarHostState.showSnackbar(
+                            context.getString(R.string.tracking_oauth_browser_error)
+                        )
+                    }
                 }
             }
         }

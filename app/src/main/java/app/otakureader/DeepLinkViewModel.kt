@@ -31,14 +31,15 @@ class DeepLinkViewModel @Inject constructor(
         return withTimeoutOrNull(5_000L) {
             getSourcesUseCase()
                 .first { sources -> sources.isNotEmpty() }
-                .find { source ->
-                    val sourceHost = Uri.parse(source.baseUrl).host?.lowercase()
-                        ?: return@find false
-                    // Match exact host, or either being a subdomain of the other
-                    sourceHost == targetHost ||
-                        targetHost.endsWith(".$sourceHost") ||
-                        sourceHost.endsWith(".$targetHost")
-                }?.id
+                // L-12: Pre-compute the host for each source outside the find predicate
+                // to avoid repeated Uri.parse() calls inside the hot path.
+                .map { source -> source to (Uri.parse(source.baseUrl).host?.lowercase()) }
+                .find { (_, sourceHost) ->
+                    sourceHost != null &&
+                        (sourceHost == targetHost ||
+                            targetHost.endsWith(".$sourceHost") ||
+                            sourceHost.endsWith(".$targetHost"))
+                }?.first?.id
         }
     }
 }

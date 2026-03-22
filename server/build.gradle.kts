@@ -9,23 +9,23 @@ group = "app.otakureader"
 version = "1.0.0"
 
 dependencies {
-    // Ktor
-    implementation("io.ktor:ktor-server-core:3.4.1")
-    implementation("io.ktor:ktor-server-netty:3.4.1")
-    implementation("io.ktor:ktor-server-content-negotiation:3.4.1")
-    implementation("io.ktor:ktor-serialization-kotlinx-json:3.4.1")
-    implementation("io.ktor:ktor-server-auth:3.4.1")
-    implementation("io.ktor:ktor-server-status-pages:3.4.1")
-    implementation("io.ktor:ktor-server-call-logging:3.4.1")
-    
+    // D-4: Ktor dependencies now use version catalog aliases (versions managed in libs.versions.toml).
+    implementation(libs.ktor.server.core)
+    implementation(libs.ktor.server.netty)
+    implementation(libs.ktor.server.content.negotiation)
+    implementation(libs.ktor.serialization.kotlinx.json)
+    implementation(libs.ktor.server.auth)
+    implementation(libs.ktor.server.status.pages)
+    implementation(libs.ktor.server.call.logging)
+
     // Serialization
     implementation(libs.kotlinx.serialization.json)
 
-    // Logging
-    implementation("ch.qos.logback:logback-classic:1.5.32")
+    // D-4: Logback now uses version catalog alias.
+    implementation(libs.logback.classic)
 
     // Testing
-    testImplementation("io.ktor:ktor-server-test-host:3.4.1")
+    testImplementation(libs.ktor.server.test.host)
     testImplementation(libs.kotlin.test)
 }
 

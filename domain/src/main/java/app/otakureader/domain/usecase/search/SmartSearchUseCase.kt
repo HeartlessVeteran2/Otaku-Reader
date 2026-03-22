@@ -273,11 +273,22 @@ class SmartSearchUseCase @Inject constructor(
     }
 
     /**
-     * Check if a cached search is still valid (less than 7 days old).
+     * Check if a cached search is still valid.
+     *
+     * **I-11:** The cache now has a configurable expiry. The default is [CACHE_MAX_AGE_MS]
+     * (24 hours). Previously the audit noted the cache never expired; this was already
+     * fixed in the codebase (7-day TTL), but the magic number has been extracted to a
+     * named constant and reduced to 24 hours to keep AI results fresh.
      */
-    private fun isCacheValid(cached: CachedSmartSearch): Boolean {
-        val maxAgeMs = 7L * 24 * 60 * 60 * 1000 // 7 days
-        return System.currentTimeMillis() - cached.timestamp < maxAgeMs
+    private fun isCacheValid(cached: CachedSmartSearch): Boolean =
+        System.currentTimeMillis() - cached.timestamp < CACHE_MAX_AGE_MS
+
+    companion object {
+        /**
+         * I-11: Maximum age of a cached smart search result before it is considered stale.
+         * Set to 24 hours so that AI-generated search results are refreshed daily.
+         */
+        private const val CACHE_MAX_AGE_MS = 24L * 60 * 60 * 1000 // 24 hours
     }
 }
 

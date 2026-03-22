@@ -2,7 +2,9 @@
 # Core
 kotlin = "2.3.20"
 agp = "9.1.0"
-ksp = "2.3.6"
+# D-3: KSP version must match the Kotlin version prefix. Updated from 2.3.6 to 2.3.20-1.0.32
+# (the latest KSP release for Kotlin 2.3.20 at time of writing).
+ksp = "2.3.20-1.0.32"
 
 # AndroidX
 core-ktx = "1.18.0"
@@ -37,8 +39,10 @@ datastore = "1.2.1"
 security-crypto = "1.1.0"
 
 # Network
+# D-2: OkHttp 4.x is in maintenance mode. Upgrade to 5.x is tracked separately (see issue #495 D-2).
 okhttp = "4.12.0"
-netty = "4.1.124.Final"
+# D-1: Updated from 4.1.124.Final to match the force resolution in build.gradle.kts.
+netty = "4.2.10.Final"
 retrofit = "3.0.0"
 kotlinx-serialization = "1.10.0"
 
@@ -61,6 +65,10 @@ glance = "1.1.1"
 generativeai = "0.9.0"
 mlkit-text-recognition = "16.0.1"
 mlkit-image-labeling = "17.0.9"
+
+# Server (D-4: moved from hardcoded strings in server/build.gradle.kts)
+ktor = "3.4.1"
+logback = "1.5.32"
 
 # Testing
 junit = "4.13.2"
@@ -177,6 +185,17 @@ ksp-gradlePlugin = { group = "com.google.devtools.ksp", name = "com.google.devto
 hilt-gradlePlugin = { group = "com.google.dagger", name = "hilt-android-gradle-plugin", version.ref = "hilt" }
 room-gradlePlugin = { group = "androidx.room", name = "room-gradle-plugin", version.ref = "room" }
 compose-gradlePlugin = { group = "org.jetbrains.kotlin", name = "compose-compiler-gradle-plugin", version.ref = "kotlin" }
+
+# Server (D-4)
+ktor-server-core = { group = "io.ktor", name = "ktor-server-core", version.ref = "ktor" }
+ktor-server-netty = { group = "io.ktor", name = "ktor-server-netty", version.ref = "ktor" }
+ktor-server-content-negotiation = { group = "io.ktor", name = "ktor-server-content-negotiation", version.ref = "ktor" }
+ktor-serialization-kotlinx-json = { group = "io.ktor", name = "ktor-serialization-kotlinx-json", version.ref = "ktor" }
+ktor-server-auth = { group = "io.ktor", name = "ktor-server-auth", version.ref = "ktor" }
+ktor-server-status-pages = { group = "io.ktor", name = "ktor-server-status-pages", version.ref = "ktor" }
+ktor-server-call-logging = { group = "io.ktor", name = "ktor-server-call-logging", version.ref = "ktor" }
+ktor-server-test-host = { group = "io.ktor", name = "ktor-server-test-host", version.ref = "ktor" }
+logback-classic = { group = "ch.qos.logback", name = "logback-classic", version.ref = "logback" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
