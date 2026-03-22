@@ -3,6 +3,18 @@ package app.otakureader.domain.model.search
 import app.otakureader.domain.model.MangaStatus
 
 /**
+ * M-19: Shared MatchMode enum extracted from [SearchIntent.GenreSearch] and
+ * [SearchIntent.DescriptionSearch] where it was duplicated. Both classes now
+ * reference this single definition.
+ */
+enum class MatchMode {
+    /** Match any of the provided values (logical OR). */
+    ANY,
+    /** Match all of the provided values (logical AND). */
+    ALL
+}
+
+/**
  * Sealed class representing different search intents extracted from natural language queries.
  */
 sealed interface SearchIntent {
@@ -19,13 +31,9 @@ sealed interface SearchIntent {
      */
     data class GenreSearch(
         val genres: List<String>,
+        // M-19: References the shared top-level MatchMode instead of a duplicate inner enum.
         val matchMode: MatchMode = MatchMode.ANY
-    ) : SearchIntent {
-        enum class MatchMode {
-            ANY,    // Match any of the genres
-            ALL     // Match all of the genres
-        }
-    }
+    ) : SearchIntent
 
     /**
      * Search by author name.
@@ -40,13 +48,9 @@ sealed interface SearchIntent {
      */
     data class DescriptionSearch(
         val keywords: List<String>,
+        // M-19: References the shared top-level MatchMode instead of a duplicate inner enum.
         val matchMode: MatchMode = MatchMode.ANY
-    ) : SearchIntent {
-        enum class MatchMode {
-            ANY,
-            ALL
-        }
-    }
+    ) : SearchIntent
 
     /**
      * Search by mood/atmosphere.

@@ -79,25 +79,42 @@ object TitleNormalizer {
     }
 
     /**
+     * M-17: Pre-processed bidirectional lookup map.
+     *
+     * The original [romanizationMap] was iterated on every call to [areRomanizationVariants],
+     * normalising each key/value pair on every invocation (O(N) per call). This map is built
+     * once at class initialisation time and maps each normalised form to its canonical group
+     * key, enabling O(1) lookup per title.
+     *
+     * Both directions are stored: romanization → group key AND english → group key.
+     */
+    private val normalizedRomanizationLookup: Map<String, String> by lazy {
+        buildMap {
+            romanizationMap.entries.forEachIndexed { index, (romanization, english) ->
+                val groupKey = "group_$index"
+                put(normalize(romanization), groupKey)
+                put(normalize(english), groupKey)
+            }
+        }
+    }
+
+    /**
      * Check if two titles might be romanization variants of the same title.
-     * Uses a mapping of common romanization patterns.
+     *
+     * **M-17:** Replaced the O(N·log N) per-call iteration with a pre-built bidirectional
+     * lookup map. Each title is looked up in O(1) and the two group keys are compared.
      */
     fun areRomanizationVariants(title1: String, title2: String): Boolean {
         val normalized1 = normalize(title1)
         val normalized2 = normalize(title2)
 
-        // Check if either title contains a known romanization mapping
-        for ((romanization, english) in romanizationMap) {
-            val romanizationNorm = normalize(romanization)
-            val englishNorm = normalize(english)
+        // Find the group key for each title fragment.
+        val group1 = normalizedRomanizationLookup.entries
+            .firstOrNull { (key, _) -> normalized1.contains(key) }?.value
+        val group2 = normalizedRomanizationLookup.entries
+            .firstOrNull { (key, _) -> normalized2.contains(key) }?.value
 
-            if ((normalized1.contains(romanizationNorm) && normalized2.contains(englishNorm)) ||
-                (normalized2.contains(romanizationNorm) && normalized1.contains(englishNorm))) {
-                return true
-            }
-        }
-
-        return false
+        return group1 != null && group1 == group2
     }
 
     /**

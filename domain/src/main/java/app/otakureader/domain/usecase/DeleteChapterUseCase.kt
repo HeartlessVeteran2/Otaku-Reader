@@ -5,7 +5,7 @@ import app.otakureader.domain.repository.DownloadRepository
 /**
  * Removes a downloaded chapter from local storage and updates download state.
  */
-class DeleteChapterUseCase(
+class DeleteChapterUseCase @Inject constructor(
     private val downloadRepository: DownloadRepository
 ) {
     suspend operator fun invoke(

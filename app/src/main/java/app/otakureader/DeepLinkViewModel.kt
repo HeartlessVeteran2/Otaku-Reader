@@ -22,13 +22,14 @@ class DeepLinkViewModel @Inject constructor(
 
     /**
      * Resolves the installed source ID whose [MangaSource.baseUrl] host matches the given
-     * [deepLinkBaseUrl]. Returns `null` if no matching source is found within 5 seconds or if
-     * the URL cannot be parsed. The [withTimeoutOrNull] ensures [first] does not hang indefinitely
-     * if the source list never becomes non-empty (e.g. extensions not yet loaded).
+     * [deepLinkBaseUrl]. Returns `null` if no matching source is found within
+     * [SOURCE_RESOLVE_TIMEOUT_MS] or if the URL cannot be parsed. The [withTimeoutOrNull]
+     * ensures [first] does not hang indefinitely if the source list never becomes non-empty
+     * (e.g. extensions not yet loaded).
      */
     suspend fun resolveSourceId(deepLinkBaseUrl: String): String? {
         val targetHost = Uri.parse(deepLinkBaseUrl).host?.lowercase() ?: return null
-        return withTimeoutOrNull(5_000L) {
+        return withTimeoutOrNull(SOURCE_RESOLVE_TIMEOUT_MS) {
             getSourcesUseCase()
                 .first { sources -> sources.isNotEmpty() }
                 .find { source ->
@@ -40,5 +41,13 @@ class DeepLinkViewModel @Inject constructor(
                         sourceHost.endsWith(".$targetHost")
                 }?.id
         }
+    }
+
+    companion object {
+        /**
+         * Maximum time to wait for the source list to become non-empty when resolving a
+         * deep link. M-20: Named constant instead of a magic number.
+         */
+        private const val SOURCE_RESOLVE_TIMEOUT_MS = 5_000L
     }
 }

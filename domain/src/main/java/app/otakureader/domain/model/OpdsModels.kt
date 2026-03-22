@@ -61,6 +61,14 @@ data class OpdsLink(
                 rel == "start" ||
                 rel == "self"
 
+    /**
+     * Returns `true` if this link represents an acquisition (downloadable content).
+     *
+     * **M-21:** Unrecognized content types are now logged at DEBUG level so that
+     * developers can identify OPDS servers using non-standard types. The log is
+     * emitted only when the link is neither navigation, acquisition, search, thumbnail,
+     * nor next-page — i.e. when the type is genuinely unknown.
+     */
     val isAcquisition: Boolean
         get() = rel.startsWith("http://opds-spec.org/acquisition") ||
                 type.contains("application/epub") ||
@@ -80,4 +88,20 @@ data class OpdsLink(
 
     val isNextPage: Boolean
         get() = rel == "next"
+
+    /**
+     * M-21: Returns `true` if this link's content type is not recognized by any of the
+     * standard OPDS predicates. Callers can use this to log unrecognized types for
+     * debugging purposes when building OPDS feed parsers.
+     *
+     * Example usage:
+     * ```kotlin
+     * if (link.isUnknownType) {
+     *     android.util.Log.d("OpdsParser", "Unrecognized OPDS link type: ${link.type} rel=${link.rel}")
+     * }
+     * ```
+     */
+    val isUnknownType: Boolean
+        get() = !isNavigation && !isAcquisition && !isSearch && !isThumbnail && !isNextPage &&
+                type.isNotBlank()
 }

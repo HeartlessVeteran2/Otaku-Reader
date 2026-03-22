@@ -3,6 +3,7 @@ package app.otakureader.domain.usecase.search
 import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.model.search.CachedSmartSearch
 import app.otakureader.domain.model.search.ParsedSearchQuery
+import app.otakureader.domain.model.search.MatchMode
 import app.otakureader.domain.model.search.SearchIntent
 import app.otakureader.domain.repository.AiRepository
 import app.otakureader.domain.repository.SmartSearchCacheRepository
@@ -214,26 +215,30 @@ class SmartSearchUseCase @Inject constructor(
                     fuzzyMatch = obj["fuzzyMatch"]?.jsonPrimitive?.boolean ?: true
                 )
                 "genre" -> {
-                    val genres = obj["genres"]!!.jsonArray.map { it.jsonPrimitive.content }
-                    SearchIntent.GenreSearch(
-                        genres = genres,
-                        matchMode = SearchIntent.GenreSearch.MatchMode.valueOf(
-                            (obj["matchMode"]?.jsonPrimitive?.content ?: "ANY").uppercase()
-                        )
-                    )
+                    // M-15: Validate that genres is a non-empty array before mapping.
+                    val genreArray = obj["genres"]?.jsonArray
+                        ?: throw SmartSearchException.ParsingError("genre intent missing 'genres' array")
+                    val genres = genreArray.map { it.jsonPrimitive.content }.filter { it.isNotBlank() }
+                    if (genres.isEmpty()) return@try null
+                    // M-19: Use top-level MatchMode enum (inner enum was removed).
+                    val matchModeStr = obj["matchMode"]?.jsonPrimitive?.content?.uppercase() ?: "ANY"
+                    val matchMode = runCatching { MatchMode.valueOf(matchModeStr) }.getOrDefault(MatchMode.ANY)
+                    SearchIntent.GenreSearch(genres = genres, matchMode = matchMode)
                 }
                 "author" -> SearchIntent.AuthorSearch(
                     author = obj["author"]!!.jsonPrimitive.content,
                     includeArtist = obj["includeArtist"]?.jsonPrimitive?.boolean ?: true
                 )
                 "description" -> {
-                    val keywords = obj["keywords"]!!.jsonArray.map { it.jsonPrimitive.content }
-                    SearchIntent.DescriptionSearch(
-                        keywords = keywords,
-                        matchMode = SearchIntent.DescriptionSearch.MatchMode.valueOf(
-                            (obj["matchMode"]?.jsonPrimitive?.content ?: "ANY").uppercase()
-                        )
-                    )
+                    // M-15: Validate that keywords is a non-empty array before mapping.
+                    val keywordsArray = obj["keywords"]?.jsonArray
+                        ?: throw SmartSearchException.ParsingError("description intent missing 'keywords' array")
+                    val keywords = keywordsArray.map { it.jsonPrimitive.content }.filter { it.isNotBlank() }
+                    if (keywords.isEmpty()) return@try null
+                    // M-19: Use top-level MatchMode enum (inner enum was removed).
+                    val matchModeStr = obj["matchMode"]?.jsonPrimitive?.content?.uppercase() ?: "ANY"
+                    val matchMode = runCatching { MatchMode.valueOf(matchModeStr) }.getOrDefault(MatchMode.ANY)
+                    SearchIntent.DescriptionSearch(keywords = keywords, matchMode = matchMode)
                 }
                 "mood" -> SearchIntent.MoodSearch(
                     mood = SearchIntent.MoodSearch.Mood.valueOf(
