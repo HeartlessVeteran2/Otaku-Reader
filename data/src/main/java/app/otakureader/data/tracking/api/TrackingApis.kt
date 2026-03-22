@@ -166,6 +166,16 @@ data class AniListMediaList(
 // Kitsu
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Kitsu OAuth 2.0 token endpoint.
+ *
+ * **Security note (C-7):** The Resource Owner Password Credentials (ROPC) grant
+ * passes the user's raw password to our server, which then forwards it to Kitsu.
+ * This is a legacy OAuth 2.0 flow that is deprecated in OAuth 2.1.
+ *
+ * TODO(security/C-7): Migrate to the Authorization Code + PKCE flow so the app
+ * never handles the raw password. See https://kitsu.docs.apiary.io/#reference/authentication
+ */
 interface KitsuOAuthApi {
     @FormUrlEncoded
     @POST("oauth/token")
@@ -347,6 +357,18 @@ interface MangaUpdatesApi {
     ): MangaUpdatesListEntry
 }
 
+/**
+ * Login request body for the MangaUpdates v1 API.
+ *
+ * **Security note (C-7):** The MangaUpdates API requires the raw password in the
+ * JSON body. This is an API-level constraint that cannot be changed client-side.
+ * Mitigations already in place:
+ * - All traffic goes over HTTPS (enforced by OkHttp's CleartextTrafficPermitted=false).
+ * - The password is never logged (confirmed: no Timber/Log calls on this object).
+ * - The password is never cached to disk.
+ *
+ * TODO(security/C-7): Migrate to MangaUpdates OAuth 2.0 once the API supports it.
+ */
 @Serializable
 data class MangaUpdatesLoginRequest(
     val login: String,

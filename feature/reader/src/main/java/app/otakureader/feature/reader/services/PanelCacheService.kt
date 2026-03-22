@@ -65,6 +65,7 @@ class PanelCacheService @Inject constructor(
      */
     suspend fun getCachedResult(imageHash: String): PageAnalysisResult? = withContext(Dispatchers.IO) {
         try {
+            requireSafeHash(imageHash)
             // Check if we have metadata for this hash
             val metadata = getMetadata(imageHash)
             if (metadata == null) {
@@ -111,6 +112,7 @@ class PanelCacheService @Inject constructor(
         result: PageAnalysisResult
     ): Boolean = withContext(Dispatchers.IO) {
         try {
+            requireSafeHash(imageHash)
             // Check cache size and evict if needed
             ensureCacheSpace()
 
@@ -141,6 +143,7 @@ class PanelCacheService @Inject constructor(
      */
     suspend fun deleteCachedResult(imageHash: String) = withContext(Dispatchers.IO) {
         try {
+            requireSafeHash(imageHash)
             // Delete result file
             val resultFile = File(resultsDir, "${imageHash}.json")
             if (resultFile.exists()) {
@@ -293,6 +296,22 @@ class PanelCacheService @Inject constructor(
         private const val CACHE_DIR_NAME = "panel_analysis"
         private const val DEFAULT_MAX_AGE_DAYS = 30
         private const val MAX_CACHE_SIZE_BYTES = 50 * 1024 * 1024L  // 50 MB
+
+        /**
+         * Validates that [imageHash] contains only hex characters (0-9, a-f, A-F) and
+         * hyphens, which is the expected format for a SHA-256 hash. Rejects any value
+         * containing path separators or "..", preventing path-traversal attacks where a
+         * crafted hash like "../../../../sensitive/file" could read or overwrite arbitrary
+         * files on the device.
+         *
+         * @throws IllegalArgumentException if the hash contains unsafe characters.
+         */
+        internal fun requireSafeHash(imageHash: String) {
+            require(imageHash.isNotBlank()) { "imageHash must not be blank" }
+            require(imageHash.matches(Regex("[0-9a-fA-F\\-]+"))) {
+                "imageHash contains unsafe characters: $imageHash"
+            }
+        }
 
         private val Context.panelCacheDataStore: DataStore<Preferences> by preferencesDataStore(
             name = "panel_cache_metadata"
