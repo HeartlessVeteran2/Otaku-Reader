@@ -40,6 +40,9 @@ data class TrackerSyncState(
     val syncError: String? = null
 )
 
+/** L-13: Named constant for the default auto-sync interval (5 minutes in milliseconds). */
+const val DEFAULT_AUTO_SYNC_INTERVAL_MS = 300_000L
+
 /**
  * Configuration for 2-way sync behavior.
  */
@@ -48,7 +51,8 @@ data class SyncConfiguration(
     val enabled: Boolean = true,
     val syncDirection: SyncDirection = SyncDirection.TWO_WAY,
     val conflictResolution: ConflictResolution = ConflictResolution.ASK,
-    val autoSyncInterval: Long = 300_000, // 5 minutes in ms
+    // L-13: Use named constant instead of a magic number.
+    val autoSyncInterval: Long = DEFAULT_AUTO_SYNC_INTERVAL_MS,
     val syncOnChapterRead: Boolean = true,
     val syncOnMarkComplete: Boolean = true
 )

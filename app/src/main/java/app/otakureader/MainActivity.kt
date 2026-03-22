@@ -36,6 +36,14 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
+    companion object {
+        // I-2: Named constants for theme mode integers stored in GeneralPreferences.
+        const val THEME_MODE_SYSTEM = 0
+        const val THEME_MODE_LIGHT = 1
+        const val THEME_MODE_DARK = 2
+    }
+
+
     @Inject lateinit var generalPreferences: GeneralPreferences
     
     // Hold deep link result across recompositions for the current Activity instance
@@ -66,10 +74,11 @@ class MainActivity : ComponentActivity() {
             val customAccentColor by generalPreferences.customAccentColor
                 .collectAsStateWithLifecycle(initialValue = 0xFF1976D2L)
 
+            // I-2: Use named constants instead of magic numbers for theme mode.
             val darkTheme = when (themeMode) {
-                1 -> false              // light
-                2 -> true               // dark
-                else -> isSystemInDarkTheme() // system default
+                THEME_MODE_LIGHT -> false
+                THEME_MODE_DARK -> true
+                else -> isSystemInDarkTheme() // THEME_MODE_SYSTEM (0) = follow system
             }
 
             OtakuReaderTheme(

@@ -211,7 +211,8 @@ class MigrateMangaUseCase @Inject constructor(
         val toMangaTitle = targetManga.title
 
         // Insert target chapters with matched reading progress
-        val chaptersToInsert = targetChapters.mapIndexed { index, targetChapter ->
+        // L-19: index parameter was unused; replaced with _ and changed to map{}.
+        val chaptersToInsert = targetChapters.map { targetChapter ->
             val sourceChapter = sourceChapterMap[targetChapter.chapterNumber]
 
             if (sourceChapter != null) {

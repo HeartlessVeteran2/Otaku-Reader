@@ -108,7 +108,8 @@ private fun RecentUpdatesContent(
 
             Spacer(modifier = GlanceModifier.height(12.dp))
 
-            updates.take(3).forEach { update ->
+            // L-11: take(3) removed — the list is already limited to 3 items at the data layer.
+            updates.forEach { update ->
                 UpdateItemWidget(update)
                 Spacer(modifier = GlanceModifier.height(8.dp))
             }

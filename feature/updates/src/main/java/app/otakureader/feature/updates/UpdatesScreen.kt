@@ -189,8 +189,10 @@ private fun UpdateItem(
 
 private val dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
 
+// L-9: Return a descriptive fallback instead of an empty string so that the UI
+// never shows a blank date field when formatting fails.
 private fun formatFetchDate(epochMs: Long): String = runCatching {
     Instant.ofEpochMilli(epochMs)
         .atZone(ZoneId.systemDefault())
         .format(dateFormatter)
-}.getOrDefault("")
+}.getOrDefault("Unknown date")

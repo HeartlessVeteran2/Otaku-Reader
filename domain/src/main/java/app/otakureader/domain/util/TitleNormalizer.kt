@@ -34,8 +34,9 @@ object TitleNormalizer {
         // Do this before suffix removal so we don't have leftover special chars
         normalized = normalized.replace(Regex("""[^\p{L}\p{N}\p{M}\s]"""), " ")
 
+        // L-20: Intermediate trim() removed — the final trim() below is sufficient.
         // Normalize whitespace before suffix removal
-        normalized = normalized.replace(Regex("""\s+"""), " ").trim()
+        normalized = normalized.replace(Regex("""\s+"""), " ")
 
         // Remove common suffixes (after whitespace normalization)
         normalized = removeCommonSuffixes(normalized)
