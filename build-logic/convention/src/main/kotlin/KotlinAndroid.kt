@@ -14,6 +14,11 @@ internal fun Project.configureKotlinAndroid(
         compileSdk = 36
 
         defaultConfig.minSdk = 26
+        // H-10: Explicitly declare targetSdk so the app does not inherit an outdated
+        // default, which would cause Play Store rejection and missing behavioral changes.
+        // Keep this in sync with compileSdk unless there is a specific reason to target
+        // an older API level (e.g. a breaking behavior change in the new SDK).
+        defaultConfig.targetSdk = 35
 
         compileOptions.apply {
             sourceCompatibility = JavaVersion.VERSION_17

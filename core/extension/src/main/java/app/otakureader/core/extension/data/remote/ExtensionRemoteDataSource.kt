@@ -239,6 +239,11 @@ class ExtensionRemoteDataSourceImpl(
 
     /**
      * Fetch extensions from index.min.json (Keiyoushi/Komikku/Suwayomi format).
+     *
+     * H-1: Replaced `error()` (throws [IllegalStateException]) with
+     * [ExtensionFetchException], a domain-specific exception that is caught by the
+     * [Result] wrapper in [fetchAvailableExtensions] and surfaced to the UI layer
+     * instead of crashing the app.
      */
     private suspend fun fetchMinifiedIndex(baseUrl: String): List<Extension> {
         return withContext(Dispatchers.IO) {
@@ -247,8 +252,11 @@ class ExtensionRemoteDataSourceImpl(
                 .build()
 
             val responseBody = httpClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) error("HTTP ${response.code}")
-                response.body?.string() ?: error("Empty body")
+                if (!response.isSuccessful) {
+                    throw ExtensionFetchException("HTTP ${response.code} fetching $baseUrl$REPO_INDEX_MIN_PATH")
+                }
+                response.body?.string()
+                    ?: throw ExtensionFetchException("Empty response body from $baseUrl$REPO_INDEX_MIN_PATH")
             }
 
             val minifiedExtensions = json.decodeFromString<List<MinifiedExtensionDto>>(responseBody)
@@ -258,6 +266,8 @@ class ExtensionRemoteDataSourceImpl(
 
     /**
      * Fetch extensions from index.json (standard format).
+     *
+     * H-1: Same fix as [fetchMinifiedIndex] — domain exception instead of `error()`.
      */
     private suspend fun fetchStandardIndex(baseUrl: String): List<Extension> {
         return withContext(Dispatchers.IO) {
@@ -266,8 +276,11 @@ class ExtensionRemoteDataSourceImpl(
                 .build()
 
             val responseBody = httpClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) error("HTTP ${response.code}")
-                response.body?.string() ?: error("Empty body")
+                if (!response.isSuccessful) {
+                    throw ExtensionFetchException("HTTP ${response.code} fetching $baseUrl$REPO_INDEX_PATH")
+                }
+                response.body?.string()
+                    ?: throw ExtensionFetchException("Empty response body from $baseUrl$REPO_INDEX_PATH")
             }
 
             val repoResponse = json.decodeFromString(ExtensionRepoResponse.serializer(), responseBody)
@@ -284,8 +297,12 @@ class ExtensionRemoteDataSourceImpl(
                     .build()
 
                 httpClient.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) error("HTTP ${response.code}")
-                    val body = response.body ?: error("Empty body")
+                    // H-1: Domain exception instead of error() so the outer Result catches it.
+                    if (!response.isSuccessful) {
+                        throw ExtensionFetchException("HTTP ${response.code} downloading APK from $apkUrl")
+                    }
+                    val body = response.body
+                        ?: throw ExtensionFetchException("Empty APK response body from $apkUrl")
                     body.byteStream().use { input ->
                         destination.outputStream().use { output ->
                             input.copyTo(output)
@@ -300,6 +317,17 @@ class ExtensionRemoteDataSourceImpl(
     }
 
 }
+
+/**
+ * Thrown when fetching extension metadata or downloading an APK fails due to an
+ * HTTP error or an empty/malformed response body.
+ *
+ * This is a domain-specific exception that is caught by the [Result] wrappers in
+ * [ExtensionRemoteDataSourceImpl] and surfaced to callers as a [Result.failure],
+ * preventing unhandled [IllegalStateException] crashes (audit finding H-1).
+ */
+class ExtensionFetchException(message: String, cause: Throwable? = null) :
+    RuntimeException(message, cause)
 
 /** Convert [ExtensionDto] to the [Extension] domain model. */
 private fun ExtensionDto.toDomain(): Extension {

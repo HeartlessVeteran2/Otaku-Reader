@@ -39,7 +39,7 @@ class ReaderSettingsRepository @Inject constructor(
     }
     
     suspend fun setReaderMode(mode: ReaderMode) {
-        dataStore.edit { it[Keys.READER_MODE] = mode.ordinal }
+        safeEdit { it[Keys.READER_MODE] = mode.ordinal }
     }
     
     // ==================== Brightness ====================
@@ -49,7 +49,7 @@ class ReaderSettingsRepository @Inject constructor(
     }
     
     suspend fun setBrightness(brightness: Float) {
-        dataStore.edit { it[Keys.BRIGHTNESS] = brightness.coerceIn(0.1f, 1.5f) }
+        safeEdit { it[Keys.BRIGHTNESS] = brightness.coerceIn(0.1f, 1.5f) }
     }
     
     // ==================== Zoom Settings ====================
@@ -59,7 +59,7 @@ class ReaderSettingsRepository @Inject constructor(
     }
     
     suspend fun setDefaultZoom(zoom: Float) {
-        dataStore.edit { it[Keys.ZOOM_LEVEL] = zoom.coerceIn(MIN_ZOOM, MAX_ZOOM) }
+        safeEdit { it[Keys.ZOOM_LEVEL] = zoom.coerceIn(MIN_ZOOM, MAX_ZOOM) }
     }
     
     // ==================== Double Tap Zoom ====================
@@ -69,7 +69,7 @@ class ReaderSettingsRepository @Inject constructor(
     }
     
     suspend fun setDoubleTapZoomEnabled(enabled: Boolean) {
-        dataStore.edit { it[Keys.DOUBLE_TAP_ZOOM] = enabled }
+        safeEdit { it[Keys.DOUBLE_TAP_ZOOM] = enabled }
     }
     
     // ==================== Keep Screen On ====================
@@ -79,7 +79,7 @@ class ReaderSettingsRepository @Inject constructor(
     }
     
     suspend fun setKeepScreenOn(enabled: Boolean) {
-        dataStore.edit { it[Keys.KEEP_SCREEN_ON] = enabled }
+        safeEdit { it[Keys.KEEP_SCREEN_ON] = enabled }
     }
     
     // ==================== Show Page Number ====================
@@ -89,7 +89,7 @@ class ReaderSettingsRepository @Inject constructor(
     }
     
     suspend fun setShowPageNumber(enabled: Boolean) {
-        dataStore.edit { it[Keys.SHOW_PAGE_NUMBER] = enabled }
+        safeEdit { it[Keys.SHOW_PAGE_NUMBER] = enabled }
     }
     
     // ==================== Reading Direction ====================
@@ -100,7 +100,7 @@ class ReaderSettingsRepository @Inject constructor(
     }
     
     suspend fun setReadingDirection(direction: ReadingDirection) {
-        dataStore.edit { it[Keys.READING_DIRECTION] = direction.ordinal }
+        safeEdit { it[Keys.READING_DIRECTION] = direction.ordinal }
     }
     
     // ==================== Volume Key Navigation ====================
@@ -110,7 +110,7 @@ class ReaderSettingsRepository @Inject constructor(
     }
     
     suspend fun setVolumeKeysEnabled(enabled: Boolean) {
-        dataStore.edit { it[Keys.VOLUME_KEYS_ENABLED] = enabled }
+        safeEdit { it[Keys.VOLUME_KEYS_ENABLED] = enabled }
     }
 
     val volumeKeysInverted: Flow<Boolean> = dataStore.data.map { prefs ->
@@ -118,7 +118,7 @@ class ReaderSettingsRepository @Inject constructor(
     }
 
     suspend fun setVolumeKeysInverted(inverted: Boolean) {
-        dataStore.edit { it[Keys.VOLUME_KEYS_INVERTED] = inverted }
+        safeEdit { it[Keys.VOLUME_KEYS_INVERTED] = inverted }
     }
     
     // ==================== Fullscreen ====================
@@ -128,7 +128,7 @@ class ReaderSettingsRepository @Inject constructor(
     }
     
     suspend fun setFullscreen(enabled: Boolean) {
-        dataStore.edit { it[Keys.FULLSCREEN] = enabled }
+        safeEdit { it[Keys.FULLSCREEN] = enabled }
     }
     
     // ==================== Auto-Scroll Speed ====================
@@ -138,7 +138,7 @@ class ReaderSettingsRepository @Inject constructor(
     }
     
     suspend fun setAutoScrollSpeed(speed: Float) {
-        dataStore.edit { it[Keys.AUTO_SCROLL_SPEED] = speed.coerceIn(10f, 500f) }
+        safeEdit { it[Keys.AUTO_SCROLL_SPEED] = speed.coerceIn(10f, 500f) }
     }
     
     // ==================== Tap Zone Configuration ====================
@@ -152,7 +152,7 @@ class ReaderSettingsRepository @Inject constructor(
     }
 
     suspend fun setTapZoneConfig(config: TapZoneConfig) {
-        dataStore.edit { prefs ->
+        safeEdit { prefs ->
             prefs[Keys.TAP_ZONE_LEFT] = config.leftZoneWidth
             prefs[Keys.TAP_ZONE_CENTER] = config.centerZoneWidth
             prefs[Keys.TAP_ZONE_RIGHT] = config.rightZoneWidth
@@ -166,7 +166,7 @@ class ReaderSettingsRepository @Inject constructor(
     }
 
     suspend fun setIncognitoMode(enabled: Boolean) {
-        dataStore.edit { it[Keys.INCOGNITO_MODE] = enabled }
+        safeEdit { it[Keys.INCOGNITO_MODE] = enabled }
     }
 
     val colorFilterMode: Flow<ColorFilterMode> = dataStore.data.map { prefs ->
@@ -175,7 +175,7 @@ class ReaderSettingsRepository @Inject constructor(
     }
 
     suspend fun setColorFilterMode(mode: ColorFilterMode) {
-        dataStore.edit { it[Keys.COLOR_FILTER_MODE] = mode.ordinal }
+        safeEdit { it[Keys.COLOR_FILTER_MODE] = mode.ordinal }
     }
 
     val customTintColor: Flow<Long> = dataStore.data.map { prefs ->
@@ -183,7 +183,7 @@ class ReaderSettingsRepository @Inject constructor(
     }
 
     suspend fun setCustomTintColor(color: Long) {
-        dataStore.edit { it[Keys.CUSTOM_TINT_COLOR] = color }
+        safeEdit { it[Keys.CUSTOM_TINT_COLOR] = color }
     }
 
     // ==================== Page Preloading (#264) ====================
@@ -194,7 +194,7 @@ class ReaderSettingsRepository @Inject constructor(
     }
 
     suspend fun setPreloadPagesBefore(count: Int) {
-        dataStore.edit { it[Keys.PRELOAD_PAGES_BEFORE] = count.coerceIn(0, MAX_PRELOAD_PAGES) }
+        safeEdit { it[Keys.PRELOAD_PAGES_BEFORE] = count.coerceIn(0, MAX_PRELOAD_PAGES) }
     }
 
     /** Number of pages to preload after the current page (0–10). */
@@ -203,7 +203,7 @@ class ReaderSettingsRepository @Inject constructor(
     }
 
     suspend fun setPreloadPagesAfter(count: Int) {
-        dataStore.edit { it[Keys.PRELOAD_PAGES_AFTER] = count.coerceIn(0, MAX_PRELOAD_PAGES) }
+        safeEdit { it[Keys.PRELOAD_PAGES_AFTER] = count.coerceIn(0, MAX_PRELOAD_PAGES) }
     }
 
     // ==================== Smart Prefetch Settings ====================
@@ -214,7 +214,7 @@ class ReaderSettingsRepository @Inject constructor(
     }
 
     suspend fun setSmartPrefetchEnabled(enabled: Boolean) {
-        dataStore.edit { it[Keys.SMART_PREFETCH_ENABLED] = enabled }
+        safeEdit { it[Keys.SMART_PREFETCH_ENABLED] = enabled }
     }
 
     /** Prefetch strategy ordinal (0=Conservative, 1=Balanced, 2=Aggressive, 3=Adaptive). */
@@ -223,7 +223,7 @@ class ReaderSettingsRepository @Inject constructor(
     }
 
     suspend fun setPrefetchStrategy(strategyOrdinal: Int) {
-        dataStore.edit { it[Keys.PREFETCH_STRATEGY] = strategyOrdinal.coerceIn(0, 3) }
+        safeEdit { it[Keys.PREFETCH_STRATEGY] = strategyOrdinal.coerceIn(0, 3) }
     }
 
     /** Whether adaptive learning is enabled for prefetch optimization. */
@@ -232,7 +232,7 @@ class ReaderSettingsRepository @Inject constructor(
     }
 
     suspend fun setAdaptiveLearningEnabled(enabled: Boolean) {
-        dataStore.edit { it[Keys.ADAPTIVE_LEARNING_ENABLED] = enabled }
+        safeEdit { it[Keys.ADAPTIVE_LEARNING_ENABLED] = enabled }
     }
 
     /** Whether to prefetch adjacent chapters. */
@@ -241,7 +241,7 @@ class ReaderSettingsRepository @Inject constructor(
     }
 
     suspend fun setPrefetchAdjacentChapters(enabled: Boolean) {
-        dataStore.edit { it[Keys.PREFETCH_ADJACENT_CHAPTERS] = enabled }
+        safeEdit { it[Keys.PREFETCH_ADJACENT_CHAPTERS] = enabled }
     }
 
     /** Whether to only prefetch on WiFi (disable on mobile data). */
@@ -250,7 +250,7 @@ class ReaderSettingsRepository @Inject constructor(
     }
 
     suspend fun setPrefetchOnlyOnWiFi(enabled: Boolean) {
-        dataStore.edit { it[Keys.PREFETCH_ONLY_ON_WIFI] = enabled }
+        safeEdit { it[Keys.PREFETCH_ONLY_ON_WIFI] = enabled }
     }
 
     // ==================== Crop Borders ====================
@@ -261,7 +261,7 @@ class ReaderSettingsRepository @Inject constructor(
     }
 
     suspend fun setCropBordersEnabled(enabled: Boolean) {
-        dataStore.edit { it[Keys.CROP_BORDERS_ENABLED] = enabled }
+        safeEdit { it[Keys.CROP_BORDERS_ENABLED] = enabled }
     }
 
     // ==================== Image Quality ====================
@@ -289,7 +289,7 @@ class ReaderSettingsRepository @Inject constructor(
             // Proactively persist the migrated value (fire-and-forget)
             CoroutineScope(Dispatchers.IO).launch {
                 try {
-                    dataStore.edit { editPrefs ->
+                    safeEdit { editPrefs ->
                         editPrefs[Keys.IMAGE_QUALITY] = migratedQuality.name
                         editPrefs.remove(Keys.IMAGE_QUALITY_LEGACY)
                     }
@@ -303,7 +303,7 @@ class ReaderSettingsRepository @Inject constructor(
     }
 
     suspend fun setImageQuality(quality: ImageQuality) {
-        dataStore.edit { prefs ->
+        safeEdit { prefs ->
             prefs[Keys.IMAGE_QUALITY] = quality.name
             // Remove the legacy int key so future reads always take the new path.
             prefs.remove(Keys.IMAGE_QUALITY_LEGACY)
@@ -318,7 +318,7 @@ class ReaderSettingsRepository @Inject constructor(
     }
 
     suspend fun setDataSaverEnabled(enabled: Boolean) {
-        dataStore.edit { it[Keys.DATA_SAVER_ENABLED] = enabled }
+        safeEdit { it[Keys.DATA_SAVER_ENABLED] = enabled }
     }
 
     // ==================== Overlay Settings ====================
@@ -329,7 +329,7 @@ class ReaderSettingsRepository @Inject constructor(
     }
 
     suspend fun setShowReadingTimer(enabled: Boolean) {
-        dataStore.edit { it[Keys.SHOW_READING_TIMER] = enabled }
+        safeEdit { it[Keys.SHOW_READING_TIMER] = enabled }
     }
 
     /** Whether the battery/time overlay is shown in the reader. */
@@ -338,7 +338,26 @@ class ReaderSettingsRepository @Inject constructor(
     }
 
     suspend fun setShowBatteryTime(enabled: Boolean) {
-        dataStore.edit { it[Keys.SHOW_BATTERY_TIME] = enabled }
+        safeEdit { it[Keys.SHOW_BATTERY_TIME] = enabled }
+    }
+
+    /**
+     * Wrapper around [DataStore.edit] that catches [java.io.IOException] so that a
+     * transient disk write failure does not propagate as an unhandled exception and
+     * crash the app (audit finding H-6).
+     *
+     * On failure the error is silently swallowed — the in-memory preference value
+     * remains correct for the current session even though the change was not persisted.
+     * A more robust implementation could expose a [Result] or emit a side-effect to
+     * the UI layer, but that requires a larger refactor tracked by TODO(H-6).
+     */
+    private suspend inline fun safeEdit(crossinline block: (MutablePreferences) -> Unit) {
+        try {
+            safeEdit { block(it) }
+        } catch (_: java.io.IOException) {
+            // Disk write failure — preference change is lost for this session.
+            // TODO(H-6): Surface this failure to the UI layer.
+        }
     }
 
     private object Keys {

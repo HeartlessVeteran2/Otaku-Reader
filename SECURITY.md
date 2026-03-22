@@ -30,8 +30,16 @@ We take security seriously. If you discover a security vulnerability:
 
 - Extension signature verification
 - Sandboxed extension loading
-- No cleartext credential storage
+- API keys stored in Android Keystore-backed `EncryptedSharedPreferences` (AES-256-GCM)
+- All network traffic over HTTPS
 - Regular dependency updates
+
+> **Note (R-7):** A previous version of this policy stated "No cleartext credential storage".
+> A one-time migration from a legacy plaintext DataStore to `EncryptedSharedPreferences`
+> was completed in v0.1.0. The migration path is guarded so that the plaintext entry is
+> deleted only after a confirmed write to the encrypted store. Tracker OAuth credentials
+> (Kitsu, MAL, Shikimori) are empty placeholders in source code and must be injected via
+> `BuildConfig` fields populated from encrypted CI/CD secrets before release.
 
 ## Scope
 
