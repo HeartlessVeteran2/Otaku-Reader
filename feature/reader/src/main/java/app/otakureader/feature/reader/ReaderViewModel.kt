@@ -54,30 +54,56 @@ class ReaderViewModel @Inject constructor(
         cacheDiscordPreference()
     }
 
+    /**
+     * Loads the chapter and manga data for the current reader session.
+     *
+     * **H-12 — Silent page fetch failure:** Previously, failures in this function
+     * would leave the reader in a blank state with no error message. The error is now
+     * propagated to [ReaderState.error] so the UI can display an informative error state
+     * (e.g., "Failed to load chapter. Please try again.") instead of a blank reader.
+     */
     private fun loadChapter() {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true) }
+            _state.update { it.copy(isLoading = true, error = null) }
             try {
                 val manga = mangaRepository.getMangaByIdFlow(mangaId)
                 val chapter = chapterRepository.getChapterById(chapterId)
+
+                if (chapter == null) {
+                    // H-12: Explicitly surface a missing chapter as an error rather than
+                    // silently showing a blank reader.
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            error = "Chapter not found. It may have been deleted or is unavailable."
+                        )
+                    }
+                    return@launch
+                }
+
                 _state.update { current ->
                     current.copy(
                         isLoading = false,
                         chapter = chapter,
-                        currentPage = chapter?.lastPageRead ?: 0
+                        currentPage = chapter.lastPageRead
                     )
                 }
-                // Record history only after confirming the chapter exists.
-                if (chapter != null) recordHistoryOpen()
+                recordHistoryOpen()
                 manga.collect { m ->
                     _state.update { it.copy(manga = m) }
                     // Update Discord Rich Presence when manga data is available
-                    if (m != null && chapter != null) {
+                    if (m != null) {
                         updateDiscordPresence(m.title, chapter.name)
                     }
                 }
             } catch (e: Exception) {
-                _state.update { it.copy(isLoading = false, error = e.message) }
+                // H-12: Propagate the error message to the UI state.
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        error = "Failed to load chapter. Please go back and try again."
+                    )
+                }
             }
         }
     }
@@ -133,6 +159,19 @@ class ReaderViewModel @Inject constructor(
         viewModelScope.launch { _effect.send(ReaderEffect.ShowSnackbar("End of available chapters")) }
     }
 
+    /**
+     * Saves reading history when the ViewModel is cleared.
+     *
+     * **H-5 — Unsafe coroutine scope for critical cleanup:**
+     * [cleanupScope] survives [viewModelScope] cancellation, which means the history
+     * write will complete as long as the *process* stays alive. However, if the OS
+     * kills the process (e.g., low-memory kill while the app is in the background),
+     * the coroutine will not complete and the reading duration will be lost.
+     *
+     * TODO(H-5): Replace this coroutine with a [androidx.work.WorkManager] one-shot
+     * task so that the history write is guaranteed to complete even after a process
+     * death. The WorkManager task should be enqueued here and the coroutine removed.
+     */
     override fun onCleared() {
         super.onCleared()
         val durationMs = System.currentTimeMillis() - sessionStartMs

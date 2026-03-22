@@ -1,4 +1,7 @@
-version: '3.8'
+# R-8: Removed deprecated `version` key (no longer required in modern Docker Compose).
+# R-9: Removed insecure AUTH_TOKEN default fallback. AUTH_TOKEN must now be set
+#       explicitly in the environment or a .env file before starting the service.
+#       Example: AUTH_TOKEN=$(openssl rand -hex 32) docker compose up -d
 
 services:
   otaku-reader-sync:
@@ -9,8 +12,10 @@ services:
     ports:
       - "${PORT:-8080}:8080"
     environment:
-      # Required: Authentication token (change this!)
-      - AUTH_TOKEN=${AUTH_TOKEN:-your-secure-token-here}
+      # Required: Authentication token.
+      # Set AUTH_TOKEN in your environment or .env file before running.
+      # Generate a secure value with: openssl rand -hex 32
+      - AUTH_TOKEN=${AUTH_TOKEN:?AUTH_TOKEN must be set in the environment or .env file}
       # Optional: Host and port configuration
       - HOST=0.0.0.0
       - PORT=8080

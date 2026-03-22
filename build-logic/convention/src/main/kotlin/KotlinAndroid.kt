@@ -1,3 +1,4 @@
+import com.android.build.api.dsl.ApplicationExtension
 import com.android.build.api.dsl.CommonExtension
 import org.gradle.api.JavaVersion
 import org.gradle.api.Project
@@ -14,6 +15,15 @@ internal fun Project.configureKotlinAndroid(
         compileSdk = 36
 
         defaultConfig.minSdk = 26
+        
+        // H-10: Explicitly declare targetSdk for application modules so the app does not 
+        // inherit an outdated default, which would cause Play Store rejection and missing 
+        // behavioral changes. Library modules don't have targetSdk in their defaultConfig.
+        // Keep this in sync with compileSdk unless there is a specific reason to target
+        // an older API level (e.g. a breaking behavior change in the new SDK).
+        if (commonExtension is ApplicationExtension) {
+            defaultConfig.targetSdk = 35
+        }
 
         compileOptions.apply {
             sourceCompatibility = JavaVersion.VERSION_17
