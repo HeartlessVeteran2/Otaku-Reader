@@ -65,11 +65,16 @@ class SecureApiKeyDataStore @Inject constructor(
     /**
      * Get the stored API key for a specific provider.
      *
+     * **C-10 fix:** Keys are read exclusively from [EncryptedSharedPreferences]. The
+     * plaintext DataStore is checked only during a one-time migration window so that
+     * existing users are not locked out. Once the migration key is absent from DataStore
+     * the fallback path is never reached.
+     *
      * @param provider The AI provider identifier (e.g., "gemini", "openai")
      * @return Flow emitting the API key or null if not set
      */
     fun getApiKey(provider: String): Flow<String?> {
-        val key = stringPreferencesKey("${KEY_API_KEY_PREFIX}$provider")
+        val legacyKey = stringPreferencesKey("${KEY_API_KEY_PREFIX}$provider")
         return dataStore.data
             .catch { exception ->
                 if (exception is IOException) {
@@ -79,8 +84,13 @@ class SecureApiKeyDataStore @Inject constructor(
                 }
             }
             .map { preferences ->
-                // Try DataStore first, fall back to EncryptedSharedPreferences for migration
-                preferences[key] ?: encryptedSharedPreferences.getString("${KEY_API_KEY_PREFIX}$provider", null)
+                // Primary source: EncryptedSharedPreferences (never plaintext on disk).
+                val encrypted = encryptedSharedPreferences.getString("${KEY_API_KEY_PREFIX}$provider", null)
+                if (!encrypted.isNullOrBlank()) return@map encrypted
+
+                // One-time migration fallback: read from legacy plaintext DataStore.
+                // This path is only reachable before migrateLegacyKeys() has run.
+                preferences[legacyKey]
             }
     }
 
@@ -105,16 +115,24 @@ class SecureApiKeyDataStore @Inject constructor(
      * @throws IllegalArgumentException if the API key is blank or invalid
      * @throws SecureStorageException if encryption or storage fails
      */
+    // (KDoc above is the original stub; the full doc is in the block below.)
+    /**
+     * Save an API key securely.
+     *
+     * **C-10 fix:** The key is written *exclusively* to [EncryptedSharedPreferences].
+     * The previous implementation also wrote to the plaintext DataStore, doubling the
+     * attack surface. The DataStore write has been removed.
+     *
+     * @param provider The AI provider identifier
+     * @param apiKey The API key to store
+     * @throws IllegalArgumentException if the API key is blank or invalid
+     * @throws SecureStorageException if encryption or storage fails
+     */
     suspend fun saveApiKey(provider: String, apiKey: String) {
         validateApiKey(apiKey)
 
         try {
-            val key = stringPreferencesKey("${KEY_API_KEY_PREFIX}$provider")
-            dataStore.edit { preferences ->
-                preferences[key] = apiKey
-            }
-
-            // Also save to EncryptedSharedPreferences for redundancy
+            // C-10: Write exclusively to EncryptedSharedPreferences — never to plaintext DataStore.
             encryptedSharedPreferences.edit()
                 .putString("${KEY_API_KEY_PREFIX}$provider", apiKey)
                 .apply()
@@ -126,18 +144,21 @@ class SecureApiKeyDataStore @Inject constructor(
     /**
      * Remove a stored API key.
      *
+     * Also removes any legacy plaintext entry from DataStore so that the migration
+     * path does not resurrect a deleted key on the next app start.
+     *
      * @param provider The AI provider identifier
      */
     suspend fun removeApiKey(provider: String) {
         try {
-            val key = stringPreferencesKey("${KEY_API_KEY_PREFIX}$provider")
-            dataStore.edit { preferences ->
-                preferences.remove(key)
-            }
-
+            // Primary store: EncryptedSharedPreferences.
             encryptedSharedPreferences.edit()
                 .remove("${KEY_API_KEY_PREFIX}$provider")
                 .apply()
+
+            // Also remove any legacy plaintext DataStore entry (migration cleanup).
+            val legacyKey = stringPreferencesKey("${KEY_API_KEY_PREFIX}$provider")
+            dataStore.edit { preferences -> preferences.remove(legacyKey) }
         } catch (e: Exception) {
             throw SecureStorageException("Failed to remove API key for provider: $provider", e)
         }
@@ -146,17 +167,22 @@ class SecureApiKeyDataStore @Inject constructor(
     /**
      * Clear all stored API keys.
      *
-     * Use with caution - this removes all API keys from storage.
+     * Removes keys from both [EncryptedSharedPreferences] and any legacy plaintext
+     * DataStore entries.
+     *
+     * Use with caution — this removes all API keys from storage.
      */
     suspend fun clearAllApiKeys() {
         try {
+            // Primary store.
+            encryptedSharedPreferences.edit().clear().apply()
+
+            // Legacy plaintext DataStore cleanup.
             dataStore.edit { preferences ->
                 preferences.asMap().keys
                     .filter { it.name.startsWith(KEY_API_KEY_PREFIX) }
                     .forEach { preferences.remove(it) }
             }
-
-            encryptedSharedPreferences.edit().clear().apply()
         } catch (e: Exception) {
             throw SecureStorageException("Failed to clear all API keys", e)
         }

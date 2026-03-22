@@ -234,10 +234,21 @@ fun ExtensionInstallScreen(
 
 /**
  * Sample extension URLs for testing.
+ *
+ * **SECURITY WARNING (C-4):** Hardcoded APK URLs pointing to a third-party GitHub
+ * repository have been removed. If that repository were ever compromised, users
+ * would silently download malicious APKs.
+ *
+ * Extension sources should be fetched from a secure, signed, and updatable remote
+ * repository configuration (e.g. a JSON index served over HTTPS from a domain you
+ * control, with a pinned certificate or signed payload). Do NOT re-add hardcoded
+ * APK URLs here.
+ *
+ * For development and testing, supply URLs via the UI input field at runtime.
  */
-object SampleExtensionUrls {
-    // These are example URLs - replace with actual extension URLs
-    const val MANGADEX = "https://github.com/tachiyomiorg/tachiyomi-extensions/raw/apk/repo/eu.kanade.tachiyomi.extension.all.mangadex.apk"
-    const val MANGAPLUS = "https://github.com/tachiyomiorg/tachiyomi-extensions/raw/apk/repo/eu.kanade.tachiyomi.extension.all.mangaplus.apk"
-    const val COMICK = "https://github.com/tachiyomiorg/tachiyomi-extensions/raw/apk/repo/eu.kanade.tachiyomi.extension.all.comick.apk"
-}
+@Deprecated(
+    message = "Hardcoded APK URLs are a security risk (audit finding C-4). " +
+        "Fetch extension sources from a signed remote configuration instead.",
+    level = DeprecationLevel.ERROR
+)
+object SampleExtensionUrls

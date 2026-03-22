@@ -64,6 +64,13 @@ class ExtensionInstaller(
 
     /**
      * Download and install an extension from its APK URL.
+     *
+     * **Security contract**: Only HTTPS URLs are accepted. The caller is responsible for
+     * displaying a user-facing confirmation dialog before invoking this method when the
+     * extension originates from an untrusted or user-supplied URL (i.e.
+     * [extension.signatureHash] is null). This method enforces HTTPS at the transport
+     * layer but cannot verify the trustworthiness of the remote host.
+     *
      * @param extension The extension to install (must have apkUrl)
      * @return Result containing the installed Extension
      */
@@ -73,6 +80,15 @@ class ExtensionInstaller(
                 ?: return@withContext Result.failure(
                     IllegalArgumentException("Extension has no APK URL")
                 )
+
+            // C-3: Reject non-HTTPS URLs to prevent man-in-the-middle attacks.
+            if (!apkUrl.startsWith("https://")) {
+                return@withContext Result.failure(
+                    SecurityException(
+                        "Extension APK URL must use HTTPS. Insecure URL rejected: $apkUrl"
+                    )
+                )
+            }
 
             _installationState.value = InstallationState.Downloading(0)
 

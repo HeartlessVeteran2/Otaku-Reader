@@ -315,24 +315,38 @@ class AiPreferences(
 
     /**
      * One-time migration: reads any legacy plaintext Gemini API key stored in DataStore,
-     * copies it into the encrypted store (if encrypted store has no key yet), then removes
-     * the plaintext entry. Safe to call on every app start — it is a no-op after the first
-     * successful run. The legacy key is only removed after a confirmed successful write to
-     * encrypted storage, preventing data loss if the encrypted write fails.
+     * copies it into the encrypted store (if the encrypted store has no key yet), then
+     * removes the plaintext entry.
+     *
+     * **Atomicity (C-6):** The legacy key is only removed *after* a confirmed successful
+     * read-back from encrypted storage. If the process is killed between the write and
+     * the delete, the migration will safely re-run on the next app start and succeed.
+     * This prevents both data loss (key not migrated) and double-exposure (key left in
+     * plaintext after migration).
+     *
+     * Safe to call on every app start — it is a no-op once the legacy key has been
+     * removed from DataStore.
      */
-    suspend fun migrateLegacyApiKeyIfNeeded() {
-        val legacyKey = dataStore.data.map { it[Keys.LEGACY_GEMINI_API_KEY] }.first()
-        if (!legacyKey.isNullOrBlank()) {
+    suspend fun migrateLegacyApiKeyIfNeeded() = withContext(Dispatchers.IO) {
+        try {
+            val legacyKey = dataStore.data.map { it[Keys.LEGACY_GEMINI_API_KEY] }.first()
+            if (legacyKey.isNullOrBlank()) return@withContext
+
             if (getGeminiApiKey().isBlank()) {
+                // Write to encrypted storage first.
                 setGeminiApiKey(legacyKey)
-                // Only remove the legacy key once the encrypted write has confirmed success.
+                // Only remove the plaintext entry once the encrypted write is confirmed.
                 if (getGeminiApiKey().isNotBlank()) {
                     dataStore.edit { it.remove(Keys.LEGACY_GEMINI_API_KEY) }
                 }
+                // If the read-back is still blank (e.g. Keystore unavailable), we leave
+                // the legacy key in place so the user is not silently locked out.
             } else {
                 // Encrypted prefs already has a key — just clean up the legacy entry.
                 dataStore.edit { it.remove(Keys.LEGACY_GEMINI_API_KEY) }
             }
+        } catch (_: java.io.IOException) {
+            // DataStore IO failure — skip migration this run; it will retry on next start.
         }
     }
 

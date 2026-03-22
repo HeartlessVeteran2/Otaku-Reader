@@ -513,8 +513,11 @@ class LocalSource(
                 sortedEntries.mapIndexed { index, entry ->
                     val ext = entry.name.substringAfterLast('.').lowercase()
                     val outFile = File(cacheDir, "page_${index.toString().padStart(4, '0')}.$ext")
-                    // Guard: outFile must stay inside cacheDir
-                    if (!outFile.canonicalPath.startsWith(cacheDir.canonicalPath)) {
+                    // Guard: outFile must stay inside cacheDir.
+                    // We append File.separator so that a crafted name like
+                    // "page_0000.jpg/../../../etc/passwd" cannot bypass the prefix
+                    // check by matching a sibling directory that shares the same prefix.
+                    if (!outFile.canonicalPath.startsWith(cacheDir.canonicalPath + File.separator)) {
                         return@mapIndexed null
                     }
                     if (!outFile.exists()) {

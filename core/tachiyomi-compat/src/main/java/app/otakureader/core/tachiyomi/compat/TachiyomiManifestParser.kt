@@ -123,42 +123,75 @@ class TachiyomiManifestParser {
     }
 
     /**
-     * Parse sources JSON array
+     * Parse sources JSON array with strict validation (C-9).
+     *
      * Expected format: [{"name": "SourceName", "class": "ClassName", "lang": "en"}]
+     *
+     * **Security hardening:**
+     * - Input is capped at [MAX_SOURCES_JSON_BYTES] to prevent DoS via huge payloads.
+     * - The number of parsed source objects is capped at [MAX_SOURCE_COUNT].
+     * - Each field is validated for expected types and lengths before use.
+     * - The `className` field is validated to contain only valid Java identifier
+     *   characters, preventing class-injection attacks.
      */
     private fun parseSourcesJson(json: String): List<SourceInfo> {
         val sources = mutableListOf<SourceInfo>()
 
         try {
-            // Simple JSON parsing - in production, use a proper JSON library like Gson or Moshi
+            // C-9: Reject payloads that are unreasonably large to prevent DoS.
+            if (json.length > MAX_SOURCES_JSON_BYTES) return sources
+
             val jsonArray = json.trim()
             if (!jsonArray.startsWith("[") || !jsonArray.endsWith("]")) {
                 return sources
             }
 
-            // Remove outer brackets and split by object boundaries
             val content = jsonArray.substring(1, jsonArray.length - 1)
             val objects = splitJsonObjects(content)
 
             for (obj in objects) {
+                // C-9: Cap the number of sources to prevent memory exhaustion.
+                if (sources.size >= MAX_SOURCE_COUNT) break
+
                 val map = parseJsonObject(obj)
-                if (map.containsKey("class")) {
-                    sources.add(
-                        SourceInfo(
-                            name = map["name"] ?: "Unknown",
-                            className = map["class"]!!,
-                            sourceId = map["id"]?.toLongOrNull(),
-                            lang = map["lang"],
-                            baseUrl = map["baseUrl"]
-                        )
+                val className = map["class"] ?: continue
+
+                // C-9: Validate className contains only safe Java identifier characters.
+                if (!className.matches(Regex("[a-zA-Z0-9_.\$]+"))) continue
+                // C-9: Validate className length is reasonable.
+                if (className.length > MAX_CLASS_NAME_LENGTH) continue
+
+                val name = (map["name"] ?: "Unknown").take(MAX_FIELD_LENGTH)
+                val lang = map["lang"]?.takeIf { it.matches(Regex("[a-zA-Z\\-]{2,10}")) }
+                val baseUrl = map["baseUrl"]?.takeIf { it.startsWith("http") }?.take(MAX_FIELD_LENGTH)
+                val sourceId = map["id"]?.toLongOrNull()
+
+                sources.add(
+                    SourceInfo(
+                        name = name,
+                        className = className,
+                        sourceId = sourceId,
+                        lang = lang,
+                        baseUrl = baseUrl
                     )
-                }
+                )
             }
-        } catch (e: Exception) {
-            // Return empty list on parse error
+        } catch (_: Exception) {
+            // Return whatever was successfully parsed on any error.
         }
 
         return sources
+    }
+
+    companion object ValidationLimits {
+        /** Maximum accepted byte length for the sources JSON payload (64 KB). */
+        private const val MAX_SOURCES_JSON_BYTES = 65_536
+        /** Maximum number of sources a single extension may declare. */
+        private const val MAX_SOURCE_COUNT = 100
+        /** Maximum length for a fully-qualified class name. */
+        private const val MAX_CLASS_NAME_LENGTH = 256
+        /** Maximum length for freeform string fields (name, baseUrl). */
+        private const val MAX_FIELD_LENGTH = 512
     }
 
     /**
