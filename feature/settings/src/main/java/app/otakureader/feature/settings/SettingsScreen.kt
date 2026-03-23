@@ -413,6 +413,57 @@ private fun LibrarySection(state: SettingsState, onEvent: (SettingsEvent) -> Uni
                     )
                 }
             )
+
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            SectionHeader(title = stringResource(R.string.settings_library_updates))
+
+            // Update only on Wi-Fi
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_update_wifi_only)) },
+                supportingContent = { Text(stringResource(R.string.settings_update_wifi_only_description)) },
+                trailingContent = {
+                    Switch(
+                        checked = state.updateOnlyOnWifi,
+                        onCheckedChange = { onEvent(SettingsEvent.SetUpdateOnlyOnWifi(it)) }
+                    )
+                }
+            )
+
+            // Update only pinned categories
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_update_pinned_only)) },
+                supportingContent = { Text(stringResource(R.string.settings_update_pinned_only_description)) },
+                trailingContent = {
+                    Switch(
+                        checked = state.updateOnlyPinnedCategories,
+                        onCheckedChange = { onEvent(SettingsEvent.SetUpdateOnlyPinnedCategories(it)) }
+                    )
+                }
+            )
+
+            // Auto refresh on start
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_auto_refresh)) },
+                supportingContent = { Text(stringResource(R.string.settings_auto_refresh_description)) },
+                trailingContent = {
+                    Switch(
+                        checked = state.autoRefreshOnStart,
+                        onCheckedChange = { onEvent(SettingsEvent.SetAutoRefreshOnStart(it)) }
+                    )
+                }
+            )
+
+            // Show update progress
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_show_update_progress)) },
+                supportingContent = { Text(stringResource(R.string.settings_show_update_progress_description)) },
+                trailingContent = {
+                    Switch(
+                        checked = state.showUpdateProgress,
+                        onCheckedChange = { onEvent(SettingsEvent.SetShowUpdateProgress(it)) }
+                    )
+                }
+            )
 }
 
 @Composable
@@ -647,6 +698,456 @@ private fun ReaderSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit
                     )
                 }
             )
+
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            SectionHeader(title = stringResource(R.string.settings_reader_display))
+
+            // Fullscreen
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_fullscreen)) },
+                supportingContent = { Text(stringResource(R.string.settings_fullscreen_description)) },
+                trailingContent = {
+                    Switch(
+                        checked = state.fullscreen,
+                        onCheckedChange = { onEvent(SettingsEvent.SetFullscreen(it)) }
+                    )
+                }
+            )
+
+            // Show content in cutout
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_show_cutout)) },
+                supportingContent = { Text(stringResource(R.string.settings_show_cutout_description)) },
+                trailingContent = {
+                    Switch(
+                        checked = state.showContentInCutout,
+                        onCheckedChange = { onEvent(SettingsEvent.SetShowContentInCutout(it)) }
+                    )
+                }
+            )
+
+            // Show page number
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_show_page_number)) },
+                supportingContent = { Text(stringResource(R.string.settings_show_page_number_description)) },
+                trailingContent = {
+                    Switch(
+                        checked = state.showPageNumber,
+                        onCheckedChange = { onEvent(SettingsEvent.SetShowPageNumber(it)) }
+                    )
+                }
+            )
+
+            // Background color
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_background_color)) },
+                supportingContent = {
+                    Column(modifier = Modifier.selectableGroup()) {
+                        val colors = listOf(
+                            stringResource(R.string.settings_bg_black) to 0,
+                            stringResource(R.string.settings_bg_white) to 1,
+                            stringResource(R.string.settings_bg_gray) to 2,
+                            stringResource(R.string.settings_bg_auto) to 3
+                        )
+                        colors.forEach { (label, value) ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .selectable(
+                                        selected = state.backgroundColor == value,
+                                        onClick = { onEvent(SettingsEvent.SetBackgroundColor(value)) },
+                                        role = Role.RadioButton
+                                    )
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                RadioButton(selected = state.backgroundColor == value, onClick = null)
+                                Text(text = label, modifier = Modifier.padding(start = 8.dp))
+                            }
+                        }
+                    }
+                }
+            )
+
+            // Animate page transitions
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_animate_transitions)) },
+                supportingContent = { Text(stringResource(R.string.settings_animate_transitions_description)) },
+                trailingContent = {
+                    Switch(
+                        checked = state.animatePageTransitions,
+                        onCheckedChange = { onEvent(SettingsEvent.SetAnimatePageTransitions(it)) }
+                    )
+                }
+            )
+
+            // Show reading mode overlay
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_show_mode_overlay)) },
+                supportingContent = { Text(stringResource(R.string.settings_show_mode_overlay_description)) },
+                trailingContent = {
+                    Switch(
+                        checked = state.showReadingModeOverlay,
+                        onCheckedChange = { onEvent(SettingsEvent.SetShowReadingModeOverlay(it)) }
+                    )
+                }
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            SectionHeader(title = stringResource(R.string.settings_reader_scale))
+
+            // Reader scale type
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_scale_type)) },
+                supportingContent = {
+                    Column(modifier = Modifier.selectableGroup()) {
+                        val scales = listOf(
+                            stringResource(R.string.settings_scale_fit_screen) to 0,
+                            stringResource(R.string.settings_scale_fit_width) to 1,
+                            stringResource(R.string.settings_scale_fit_height) to 2,
+                            stringResource(R.string.settings_scale_original) to 3,
+                            stringResource(R.string.settings_scale_smart_fit) to 4
+                        )
+                        scales.forEach { (label, value) ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .selectable(
+                                        selected = state.readerScale == value,
+                                        onClick = { onEvent(SettingsEvent.SetReaderScale(value)) },
+                                        role = Role.RadioButton
+                                    )
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                RadioButton(selected = state.readerScale == value, onClick = null)
+                                Text(text = label, modifier = Modifier.padding(start = 8.dp))
+                            }
+                        }
+                    }
+                }
+            )
+
+            // Auto zoom wide images
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_auto_zoom_wide)) },
+                supportingContent = { Text(stringResource(R.string.settings_auto_zoom_wide_description)) },
+                trailingContent = {
+                    Switch(
+                        checked = state.autoZoomWideImages,
+                        onCheckedChange = { onEvent(SettingsEvent.SetAutoZoomWideImages(it)) }
+                    )
+                }
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            SectionHeader(title = stringResource(R.string.settings_tap_zones))
+
+            // Tap zone configuration
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_tap_zone_config)) },
+                supportingContent = {
+                    Column(modifier = Modifier.selectableGroup()) {
+                        val configs = listOf(
+                            stringResource(R.string.settings_tap_default) to 0,
+                            stringResource(R.string.settings_tap_left_handed) to 1,
+                            stringResource(R.string.settings_tap_kindle) to 2,
+                            stringResource(R.string.settings_tap_edge) to 3
+                        )
+                        configs.forEach { (label, value) ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .selectable(
+                                        selected = state.tapZoneConfig == value,
+                                        onClick = { onEvent(SettingsEvent.SetTapZoneConfig(value)) },
+                                        role = Role.RadioButton
+                                    )
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                RadioButton(selected = state.tapZoneConfig == value, onClick = null)
+                                Text(text = label, modifier = Modifier.padding(start = 8.dp))
+                            }
+                        }
+                    }
+                }
+            )
+
+            // Invert tap zones
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_invert_tap_zones)) },
+                supportingContent = { Text(stringResource(R.string.settings_invert_tap_zones_description)) },
+                trailingContent = {
+                    Switch(
+                        checked = state.invertTapZones,
+                        onCheckedChange = { onEvent(SettingsEvent.SetInvertTapZones(it)) }
+                    )
+                }
+            )
+
+            // Show tap zones overlay
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_show_tap_zones)) },
+                supportingContent = { Text(stringResource(R.string.settings_show_tap_zones_description)) },
+                trailingContent = {
+                    Switch(
+                        checked = state.showTapZonesOverlay,
+                        onCheckedChange = { onEvent(SettingsEvent.SetShowTapZonesOverlay(it)) }
+                    )
+                }
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            SectionHeader(title = stringResource(R.string.settings_volume_keys))
+
+            // Volume keys enabled
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_volume_keys_paging)) },
+                supportingContent = { Text(stringResource(R.string.settings_volume_keys_paging_description)) },
+                trailingContent = {
+                    Switch(
+                        checked = state.volumeKeysEnabled,
+                        onCheckedChange = { onEvent(SettingsEvent.SetVolumeKeysEnabled(it)) }
+                    )
+                }
+            )
+
+            // Volume keys inverted
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_volume_keys_inverted)) },
+                supportingContent = { Text(stringResource(R.string.settings_volume_keys_inverted_description)) },
+                trailingContent = {
+                    Switch(
+                        checked = state.volumeKeysInverted,
+                        onCheckedChange = { onEvent(SettingsEvent.SetVolumeKeysInverted(it)) },
+                        enabled = state.volumeKeysEnabled
+                    )
+                }
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            SectionHeader(title = stringResource(R.string.settings_reader_interaction))
+
+            // Double tap animation speed
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_double_tap_speed)) },
+                supportingContent = {
+                    Column(modifier = Modifier.selectableGroup()) {
+                        val speeds = listOf(
+                            stringResource(R.string.settings_speed_slow) to 0,
+                            stringResource(R.string.settings_speed_normal) to 1,
+                            stringResource(R.string.settings_speed_fast) to 2
+                        )
+                        speeds.forEach { (label, value) ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .selectable(
+                                        selected = state.doubleTapAnimationSpeed == value,
+                                        onClick = { onEvent(SettingsEvent.SetDoubleTapAnimationSpeed(value)) },
+                                        role = Role.RadioButton
+                                    )
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                RadioButton(selected = state.doubleTapAnimationSpeed == value, onClick = null)
+                                Text(text = label, modifier = Modifier.padding(start = 8.dp))
+                            }
+                        }
+                    }
+                }
+            )
+
+            // Show actions on long tap
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_long_tap_actions)) },
+                supportingContent = { Text(stringResource(R.string.settings_long_tap_actions_description)) },
+                trailingContent = {
+                    Switch(
+                        checked = state.showActionsOnLongTap,
+                        onCheckedChange = { onEvent(SettingsEvent.SetShowActionsOnLongTap(it)) }
+                    )
+                }
+            )
+
+            // Save pages to separate folders
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_save_separate_folders)) },
+                supportingContent = { Text(stringResource(R.string.settings_save_separate_folders_description)) },
+                trailingContent = {
+                    Switch(
+                        checked = state.savePagesToSeparateFolders,
+                        onCheckedChange = { onEvent(SettingsEvent.SetSavePagesToSeparateFolders(it)) }
+                    )
+                }
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            SectionHeader(title = stringResource(R.string.settings_webtoon))
+
+            // Webtoon side padding
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_webtoon_padding)) },
+                supportingContent = {
+                    Column(modifier = Modifier.selectableGroup()) {
+                        val paddings = listOf(
+                            stringResource(R.string.settings_padding_none) to 0,
+                            stringResource(R.string.settings_padding_small) to 1,
+                            stringResource(R.string.settings_padding_medium) to 2,
+                            stringResource(R.string.settings_padding_large) to 3
+                        )
+                        paddings.forEach { (label, value) ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .selectable(
+                                        selected = state.webtoonSidePadding == value,
+                                        onClick = { onEvent(SettingsEvent.SetWebtoonSidePadding(value)) },
+                                        role = Role.RadioButton
+                                    )
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                RadioButton(selected = state.webtoonSidePadding == value, onClick = null)
+                                Text(text = label, modifier = Modifier.padding(start = 8.dp))
+                            }
+                        }
+                    }
+                }
+            )
+
+            // Menu hide sensitivity
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_menu_sensitivity)) },
+                supportingContent = {
+                    Column(modifier = Modifier.selectableGroup()) {
+                        val sensitivities = listOf(
+                            stringResource(R.string.settings_sensitivity_low) to 0,
+                            stringResource(R.string.settings_sensitivity_medium) to 1,
+                            stringResource(R.string.settings_sensitivity_high) to 2
+                        )
+                        sensitivities.forEach { (label, value) ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .selectable(
+                                        selected = state.webtoonMenuHideSensitivity == value,
+                                        onClick = { onEvent(SettingsEvent.SetWebtoonMenuHideSensitivity(value)) },
+                                        role = Role.RadioButton
+                                    )
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                RadioButton(selected = state.webtoonMenuHideSensitivity == value, onClick = null)
+                                Text(text = label, modifier = Modifier.padding(start = 8.dp))
+                            }
+                        }
+                    }
+                }
+            )
+
+            // Double tap zoom
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_webtoon_double_tap)) },
+                supportingContent = { Text(stringResource(R.string.settings_webtoon_double_tap_description)) },
+                trailingContent = {
+                    Switch(
+                        checked = state.webtoonDoubleTapZoom,
+                        onCheckedChange = { onEvent(SettingsEvent.SetWebtoonDoubleTapZoom(it)) }
+                    )
+                }
+            )
+
+            // Disable zoom out
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_disable_zoom_out)) },
+                supportingContent = { Text(stringResource(R.string.settings_disable_zoom_out_description)) },
+                trailingContent = {
+                    Switch(
+                        checked = state.webtoonDisableZoomOut,
+                        onCheckedChange = { onEvent(SettingsEvent.SetWebtoonDisableZoomOut(it)) }
+                    )
+                }
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            SectionHeader(title = stringResource(R.string.settings_eink))
+
+            // Flash on page change
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_eink_flash)) },
+                supportingContent = { Text(stringResource(R.string.settings_eink_flash_description)) },
+                trailingContent = {
+                    Switch(
+                        checked = state.einkFlashOnPageChange,
+                        onCheckedChange = { onEvent(SettingsEvent.SetEinkFlashOnPageChange(it)) }
+                    )
+                }
+            )
+
+            // Black and white mode
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_eink_bw)) },
+                supportingContent = { Text(stringResource(R.string.settings_eink_bw_description)) },
+                trailingContent = {
+                    Switch(
+                        checked = state.einkBlackAndWhite,
+                        onCheckedChange = { onEvent(SettingsEvent.SetEinkBlackAndWhite(it)) }
+                    )
+                }
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            SectionHeader(title = stringResource(R.string.settings_reader_behavior))
+
+            // Skip read chapters
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_skip_read)) },
+                supportingContent = { Text(stringResource(R.string.settings_skip_read_description)) },
+                trailingContent = {
+                    Switch(
+                        checked = state.skipReadChapters,
+                        onCheckedChange = { onEvent(SettingsEvent.SetSkipReadChapters(it)) }
+                    )
+                }
+            )
+
+            // Skip filtered chapters
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_skip_filtered)) },
+                supportingContent = { Text(stringResource(R.string.settings_skip_filtered_description)) },
+                trailingContent = {
+                    Switch(
+                        checked = state.skipFilteredChapters,
+                        onCheckedChange = { onEvent(SettingsEvent.SetSkipFilteredChapters(it)) }
+                    )
+                }
+            )
+
+            // Skip duplicate chapters
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_skip_duplicates)) },
+                supportingContent = { Text(stringResource(R.string.settings_skip_duplicates_description)) },
+                trailingContent = {
+                    Switch(
+                        checked = state.skipDuplicateChapters,
+                        onCheckedChange = { onEvent(SettingsEvent.SetSkipDuplicateChapters(it)) }
+                    )
+                }
+            )
+
+            // Always show chapter transition
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_show_chapter_transition)) },
+                supportingContent = { Text(stringResource(R.string.settings_show_chapter_transition_description)) },
+                trailingContent = {
+                    Switch(
+                        checked = state.alwaysShowChapterTransition,
+                        onCheckedChange = { onEvent(SettingsEvent.SetAlwaysShowChapterTransition(it)) }
+                    )
+                }
+            )
 }
 
 @Composable
@@ -700,6 +1201,111 @@ private fun DownloadSection(state: SettingsState, onEvent: (SettingsEvent) -> Un
                         valueRange = 1f..10f,
                         steps = 8,
                         modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            SectionHeader(title = stringResource(R.string.settings_download_location))
+
+            // Download location
+            val locationText = state.downloadLocation?.let { 
+                it.substringAfterLast("/") 
+            } ?: stringResource(R.string.settings_download_location_default)
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_download_location)) },
+                supportingContent = { Text(locationText) },
+                trailingContent = {
+                    OutlinedButton(onClick = { onEvent(SettingsEvent.SetDownloadLocation(null)) }) {
+                        Text(stringResource(R.string.settings_change))
+                    }
+                },
+                modifier = Modifier.clickable {
+                    onEvent(SettingsEvent.SetDownloadLocation(null))
+                }
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            SectionHeader(title = stringResource(R.string.settings_download_performance))
+
+            // Concurrent downloads
+            var concurrentSlider by remember(state.concurrentDownloads) {
+                mutableFloatStateOf(state.concurrentDownloads.toFloat())
+            }
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_concurrent_downloads, concurrentSlider.roundToInt())) },
+                supportingContent = {
+                    Slider(
+                        value = concurrentSlider,
+                        onValueChange = { concurrentSlider = it },
+                        onValueChangeFinished = {
+                            onEvent(SettingsEvent.SetConcurrentDownloads(concurrentSlider.roundToInt()))
+                        },
+                        valueRange = 1f..5f,
+                        steps = 3,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            SectionHeader(title = stringResource(R.string.settings_download_ahead))
+
+            // Download ahead while reading
+            var aheadSlider by remember(state.downloadAheadWhileReading) {
+                mutableFloatStateOf(state.downloadAheadWhileReading.toFloat())
+            }
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_download_ahead_count, aheadSlider.roundToInt())) },
+                supportingContent = {
+                    Column {
+                        Text(stringResource(R.string.settings_download_ahead_description))
+                        Slider(
+                            value = aheadSlider,
+                            onValueChange = { aheadSlider = it },
+                            onValueChangeFinished = {
+                                onEvent(SettingsEvent.SetDownloadAheadWhileReading(aheadSlider.roundToInt()))
+                            },
+                            valueRange = 0f..5f,
+                            steps = 4,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            )
+
+            // Download ahead only on Wi-Fi
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_download_ahead_wifi_only)) },
+                supportingContent = { Text(stringResource(R.string.settings_download_ahead_wifi_only_description)) },
+                trailingContent = {
+                    Switch(
+                        checked = state.downloadAheadOnlyOnWifi,
+                        onCheckedChange = { onEvent(SettingsEvent.SetDownloadAheadOnlyOnWifi(it)) }
+                    )
+                }
+            )
+
+            // Delete after reading
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_delete_after_reading)) },
+                supportingContent = { Text(stringResource(R.string.settings_delete_after_reading_description)) },
+                trailingContent = {
+                    Switch(
+                        checked = state.deleteAfterReading,
+                        onCheckedChange = { onEvent(SettingsEvent.SetDeleteAfterReading(it)) }
+                    )
+                }
+            )
+
+            // Save as CBZ
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_save_as_cbz)) },
+                supportingContent = { Text(stringResource(R.string.settings_save_as_cbz_description)) },
+                trailingContent = {
+                    Switch(
+                        checked = state.saveAsCbz,
+                        onCheckedChange = { onEvent(SettingsEvent.SetSaveAsCbz(it)) }
                     )
                 }
             )
