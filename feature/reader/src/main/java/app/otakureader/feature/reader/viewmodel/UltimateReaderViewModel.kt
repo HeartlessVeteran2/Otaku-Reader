@@ -25,6 +25,9 @@ import app.otakureader.domain.model.PrefetchStrategy
 import app.otakureader.core.discord.DiscordRpcService
 import app.otakureader.core.discord.ReadingStatus
 import app.otakureader.core.preferences.GeneralPreferences
+import app.otakureader.core.preferences.DownloadPreferences
+import app.otakureader.data.download.ChapterDownloadRequest
+import app.otakureader.data.download.DownloadManager
 import coil3.ImageLoader
 import coil3.request.ImageRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -60,6 +63,8 @@ class UltimateReaderViewModel @Inject constructor(
     private val settingsRepository: ReaderSettingsRepository,
     private val pageLoader: PageLoader,
     private val imageLoader: ImageLoader,
+    private val downloadManager: DownloadManager,
+    private val downloadPreferences: DownloadPreferences,
     private val discordRpcService: DiscordRpcService,
     private val generalPreferences: GeneralPreferences,
     private val behaviorTracker: ReadingBehaviorTracker,
@@ -568,6 +573,9 @@ class UltimateReaderViewModel @Inject constructor(
             if (pages.isNotEmpty() && validPage == pages.lastIndex) {
                 maybeDeleteAfterReading()
             }
+
+            // Trigger download-ahead when user is near end of chapter
+            maybeDownloadNextChapter(validPage, pages.size)
         }
     }
 
@@ -903,6 +911,74 @@ class UltimateReaderViewModel @Inject constructor(
         // for potential future implementation but currently does nothing.
         if (hasTriggeredDeletion) return
         hasTriggeredDeletion = true
+    }
+
+    /**
+     * Downloads the next chapter when the user is near the end of the current chapter
+     * and download-ahead preference is enabled.
+     */
+    private fun maybeDownloadNextChapter(currentPage: Int, totalPages: Int) {
+        if (totalPages == 0) return
+
+        // Only trigger when user is in the last 20% of the chapter
+        val progressThreshold = 0.8
+        val currentProgress = currentPage.toFloat() / totalPages
+        if (currentProgress < progressThreshold) return
+
+        viewModelScope.launch {
+            val downloadAheadEnabled = downloadPreferences.downloadAheadWhileReading.first()
+            if (!downloadAheadEnabled) return@launch
+
+            // Check WiFi requirement if set
+            val onlyOnWifi = downloadPreferences.downloadAheadOnlyOnWifi.first()
+            if (onlyOnWifi) {
+                val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) 
+                    as android.net.ConnectivityManager
+                val networkInfo = connectivityManager.activeNetworkInfo
+                val isWifi = networkInfo?.type == android.net.ConnectivityManager.TYPE_WIFI
+                if (!isWifi) return@launch
+            }
+
+            // Get all chapters to find the next one
+            val chapters = chapterRepository.getChaptersByMangaId(mangaId).first()
+            val currentChapterIndex = chapters.indexOfFirst { it.id == chapterId }
+            if (currentChapterIndex == -1 || currentChapterIndex >= chapters.size - 1) return@launch
+            
+            val nextChapter = chapters[currentChapterIndex + 1]
+
+            // Check if already downloaded or queued
+            val existingDownload = downloadManager.downloads.first()
+                .find { it.chapterId == nextChapter.id }
+            if (existingDownload != null) return@launch
+
+            // Check if already downloaded to storage
+            val manga = currentManga ?: mangaRepository.getMangaById(mangaId).first() ?: return@launch
+            val source = sourceRepository.getSourceById(manga.sourceId) ?: return@launch
+            
+            val isDownloaded = DownloadProvider.isChapterDownloaded(
+                context, source.name, manga.title, nextChapter.name
+            )
+            if (isDownloaded) return@launch
+
+            // Get pages for the chapter
+            val pages = runCatching {
+                pageLoader.loadPages(nextChapter.id, nextChapter.url)
+            }.getOrNull() ?: return@launch
+
+            val pageUrls = pages.mapNotNull { it.imageUrl }
+            if (pageUrls.isEmpty()) return@launch
+
+            // Queue the download
+            val request = ChapterDownloadRequest(
+                chapterId = nextChapter.id,
+                mangaId = mangaId,
+                chapterTitle = nextChapter.name,
+                mangaTitle = manga.title,
+                sourceName = source.name,
+                pageUrls = pageUrls
+            )
+            downloadManager.enqueue(request)
+        }
     }
 
     override fun onCleared() {
