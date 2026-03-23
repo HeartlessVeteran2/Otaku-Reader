@@ -3,4 +3,31 @@
     <string name="core_ui_retry">Retry</string>
     <string name="core_ui_error_title">Something went wrong</string>
     <string name="manga_cover_content_description">Cover image for %1$s</string>
+
+    <!-- Empty State Titles -->
+    <string name="empty_library_title">Your library is empty</string>
+    <string name="empty_library_message">Discover your next favorite manga</string>
+    <string name="empty_library_action">Browse Sources</string>
+
+    <string name="empty_search_title">No results found</string>
+    <string name="empty_search_message">Try adjusting your search terms</string>
+    <string name="empty_search_action">Clear Search</string>
+
+    <string name="empty_history_title">No reading history</string>
+    <string name="empty_history_message">Start reading to see your history</string>
+    <string name="empty_history_action">Browse Library</string>
+
+    <string name="empty_updates_title">No new updates</string>
+    <string name="empty_updates_message">Check back later for new chapters</string>
+
+    <string name="empty_favorites_title">No favorites yet</string>
+    <string name="empty_favorites_message">Save your favorite manga here</string>
+    <string name="empty_favorites_action">Browse Library</string>
+
+    <string name="empty_downloads_title">No downloads</string>
+    <string name="empty_downloads_message">Download chapters to read offline</string>
+
+    <string name="offline_title">No connection</string>
+    <string name="offline_message">Check your internet connection and try again</string>
+    <string name="offline_action">Retry</string>
 </resources>

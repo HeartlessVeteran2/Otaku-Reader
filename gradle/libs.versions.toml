@@ -24,6 +24,7 @@ lifecycle = "2.10.0"
 
 # Navigation
 navigation = "2.9.7"
+accompanist-navigation = "0.37.3"
 
 # Hilt
 hilt = "2.59.2"
@@ -120,6 +121,7 @@ lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-ru
 
 # Navigation
 navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigation" }
+accompanist-navigation-animation = { group = "com.google.accompanist", name = "accompanist-navigation-animation", version.ref = "accompanist-navigation" }
 
 # Hilt
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }

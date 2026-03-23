@@ -18,6 +18,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -25,11 +27,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import coil3.compose.SubcomposeAsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import app.otakureader.core.ui.R
+import app.otakureader.core.ui.modifiers.bottomGradientScrim
 
 /**
  * Enhanced manga card with loading states, error handling, and improved visuals.
@@ -71,7 +73,7 @@ fun MangaCard(
                     .fillMaxWidth()
                     .aspectRatio(2f / 3f),
                 loading = {
-                    MangaCardPlaceholder()
+                    MangaCardShimmer()
                 },
                 error = {
                     imageLoadFailed = true
@@ -87,15 +89,11 @@ fun MangaCard(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(64.dp)
-                        .align(Alignment.BottomCenter)
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.Transparent,
-                                    Color.Black.copy(alpha = 0.7f)
-                                )
-                            )
+                        .aspectRatio(2f / 3f)
+                        .bottomGradientScrim(
+                            heightPercent = 0.35f,
+                            startAlpha = 0.0f,
+                            endAlpha = 0.75f
                         )
                 )
             }

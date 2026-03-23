@@ -25,5 +25,8 @@ dependencies {
     api(libs.coil.compose)
     api(libs.coil.okhttp)
 
+    // Navigation animations for shared element transitions
+    api(libs.accompanist.navigation.animation)
+
     debugImplementation(libs.compose.ui.tooling)
 }
