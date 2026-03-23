@@ -208,5 +208,123 @@
     <string name="settings_ai_remove_key_dialog_text">This will clear your saved Gemini API key. AI features will be disabled until a new key is added.</string>
     <string name="settings_ai_remove_key_confirm">Remove</string>
     <string name="settings_ai_remove_key_cancel">Cancel</string>
-    <string name="settings_ai_api_key_invalid_format">Invalid key format. Gemini API keys should start with \"AIza\" and be at least 20 characters.</string>
+    <string name="settings_ai_api_key_invalid_format">Invalid key format. Gemini API keys should start with "AIza" and be at least 20 characters.</string>
+
+    <!-- Reader Display -->
+    <string name="settings_reader_display">Reader Display</string>
+    <string name="settings_fullscreen">Fullscreen</string>
+    <string name="settings_fullscreen_description">Hide system UI while reading</string>
+    <string name="settings_show_cutout">Show in Cutout Area</string>
+    <string name="settings_show_cutout_description">Extend content into display cutout/notch area</string>
+    <string name="settings_show_page_number">Show Page Number</string>
+    <string name="settings_show_page_number_description">Display current page number overlay</string>
+    <string name="settings_background_color">Background Color</string>
+    <string name="settings_bg_black">Black</string>
+    <string name="settings_bg_white">White</string>
+    <string name="settings_bg_gray">Gray</string>
+    <string name="settings_bg_auto">Auto (Match Theme)</string>
+    <string name="settings_animate_transitions">Animate Page Transitions</string>
+    <string name="settings_animate_transitions_description">Smooth animation when changing pages</string>
+    <string name="settings_show_mode_overlay">Show Reading Mode Overlay</string>
+    <string name="settings_show_mode_overlay_description">Briefly display current mode when switching</string>
+    <string name="settings_show_tap_zones">Show Tap Zones Overlay</string>
+    <string name="settings_show_tap_zones_description">Display tap zone boundaries for learning</string>
+
+    <!-- Reader Scale -->
+    <string name="settings_reader_scale">Reader Scale</string>
+    <string name="settings_scale_type">Scale Type</string>
+    <string name="settings_scale_fit_screen">Fit Screen</string>
+    <string name="settings_scale_fit_width">Fit Width</string>
+    <string name="settings_scale_fit_height">Fit Height</string>
+    <string name="settings_scale_original">Original Size</string>
+    <string name="settings_scale_smart_fit">Smart Fit</string>
+    <string name="settings_auto_zoom_wide">Auto-Zoom Wide Images</string>
+    <string name="settings_auto_zoom_wide_description">Automatically zoom to fit double-page spreads</string>
+
+    <!-- Tap Zones -->
+    <string name="settings_tap_zones">Tap Zones</string>
+    <string name="settings_tap_zone_config">Tap Zone Layout</string>
+    <string name="settings_tap_default">Default (Right Next)</string>
+    <string name="settings_tap_left_handed">Left-Handed (Left Next)</string>
+    <string name="settings_tap_kindle">Kindle Style (Edges)</string>
+    <string name="settings_tap_edge">Edge Paging Only</string>
+    <string name="settings_invert_tap_zones">Invert Tap Zones</string>
+    <string name="settings_invert_tap_zones_description">Swap previous/next page actions</string>
+
+    <!-- Volume Keys -->
+    <string name="settings_volume_keys">Volume Keys</string>
+    <string name="settings_volume_keys_paging">Volume Keys for Paging</string>
+    <string name="settings_volume_keys_paging_description">Use volume buttons to turn pages</string>
+    <string name="settings_volume_keys_inverted">Invert Volume Keys</string>
+    <string name="settings_volume_keys_inverted_description">Volume up goes to next page</string>
+
+    <!-- Reader Interaction -->
+    <string name="settings_reader_interaction">Interaction</string>
+    <string name="settings_double_tap_speed">Double-Tap Animation Speed</string>
+    <string name="settings_speed_slow">Slow</string>
+    <string name="settings_speed_normal">Normal</string>
+    <string name="settings_speed_fast">Fast</string>
+    <string name="settings_long_tap_actions">Long-Tap Actions</string>
+    <string name="settings_long_tap_actions_description">Show menu on long press</string>
+    <string name="settings_save_separate_folders">Save Pages to Separate Folders</string>
+    <string name="settings_save_separate_folders_description">Organize saved pages by manga title</string>
+
+    <!-- Webtoon -->
+    <string name="settings_webtoon">Webtoon Reader</string>
+    <string name="settings_webtoon_padding">Side Padding</string>
+    <string name="settings_padding_none">None</string>
+    <string name="settings_padding_small">Small</string>
+    <string name="settings_padding_medium">Medium</string>
+    <string name="settings_padding_large">Large</string>
+    <string name="settings_menu_sensitivity">Menu Hide Sensitivity</string>
+    <string name="settings_sensitivity_low">Low</string>
+    <string name="settings_sensitivity_medium">Medium</string>
+    <string name="settings_sensitivity_high">High</string>
+    <string name="settings_webtoon_double_tap">Double-Tap to Zoom</string>
+    <string name="settings_webtoon_double_tap_description">Enable double-tap zoom gesture</string>
+    <string name="settings_disable_zoom_out">Disable Zoom Out</string>
+    <string name="settings_disable_zoom_out_description">Prevent zooming smaller than fit-width</string>
+
+    <!-- E-ink -->
+    <string name="settings_eink">E-Ink Display</string>
+    <string name="settings_eink_flash">Flash on Page Change</string>
+    <string name="settings_eink_flash_description">Full refresh on every page turn (reduces ghosting)</string>
+    <string name="settings_eink_bw">Black &amp; White Mode</string>
+    <string name="settings_eink_bw_description">Disable color rendering for e-ink displays</string>
+
+    <!-- Reader Behavior -->
+    <string name="settings_reader_behavior">Reading Behavior</string>
+    <string name="settings_skip_read">Skip Read Chapters</string>
+    <string name="settings_skip_read_description">Jump past chapters already marked as read</string>
+    <string name="settings_skip_filtered">Skip Filtered Chapters</string>
+    <string name="settings_skip_filtered_description">Skip chapters hidden by filters</string>
+    <string name="settings_skip_duplicates">Skip Duplicate Chapters</string>
+    <string name="settings_skip_duplicates_description">Skip chapters with identical names</string>
+    <string name="settings_show_chapter_transition">Show Chapter Transition</string>
+    <string name="settings_show_chapter_transition_description">Display chapter info between chapters</string>
+
+    <!-- Library Updates -->
+    <string name="settings_library_updates">Library Updates</string>
+    <string name="settings_update_wifi_only">Update Only on Wi-Fi</string>
+    <string name="settings_update_wifi_only_description">Restrict automatic updates to Wi-Fi connections</string>
+    <string name="settings_update_pinned_only">Update Pinned Categories Only</string>
+    <string name="settings_update_pinned_only_description">Only update manga in pinned categories</string>
+    <string name="settings_auto_refresh">Auto-Refresh on Start</string>
+    <string name="settings_auto_refresh_description">Check for updates when app opens</string>
+    <string name="settings_show_update_progress">Show Update Progress</string>
+    <string name="settings_show_update_progress_description">Display notification during library update</string>
+
+    <!-- Download Settings -->
+    <string name="settings_download_location">Download Location</string>
+    <string name="settings_download_location_default">Default location</string>
+    <string name="settings_change">Change</string>
+    <string name="settings_download_performance">Performance</string>
+    <string name="settings_concurrent_downloads">Concurrent Downloads: %1$d</string>
+    <string name="settings_download_ahead">Download Ahead</string>
+    <string name="settings_download_ahead_count">Download Ahead: %1$d chapter(s)</string>
+    <string name="settings_download_ahead_description">Automatically download next chapters while reading</string>
+    <string name="settings_download_ahead_wifi_only">Download Ahead on Wi-Fi Only</string>
+    <string name="settings_download_ahead_wifi_only_description">Restrict ahead downloads to Wi-Fi</string>
+    <string name="settings_delete_after_reading">Delete After Reading</string>
+    <string name="settings_delete_after_reading_description">Remove downloaded chapters once finished</string>
 </resources>
