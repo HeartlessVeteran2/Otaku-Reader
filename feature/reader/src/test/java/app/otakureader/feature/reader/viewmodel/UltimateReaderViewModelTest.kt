@@ -15,6 +15,9 @@ import app.otakureader.feature.reader.model.ImageQuality
 import app.otakureader.feature.reader.model.ReaderMode
 import app.otakureader.feature.reader.model.ReaderPage
 import app.otakureader.feature.reader.model.ReadingDirection
+import app.otakureader.feature.reader.model.ComicPanel
+import app.otakureader.feature.reader.model.PanelBounds
+import app.otakureader.feature.reader.panel.PanelDetectionService
 import app.otakureader.feature.reader.prefetch.AdaptiveChapterPrefetcher
 import app.otakureader.feature.reader.prefetch.ReadingBehaviorTracker
 import app.otakureader.feature.reader.prefetch.SmartPrefetchManager
@@ -62,6 +65,7 @@ class UltimateReaderViewModelTest {
     private lateinit var behaviorTracker: ReadingBehaviorTracker
     private lateinit var smartPrefetchManager: SmartPrefetchManager
     private lateinit var chapterPrefetcher: AdaptiveChapterPrefetcher
+    private lateinit var panelDetectionService: PanelDetectionService
 
     @Before
     fun setUp() {
@@ -80,6 +84,8 @@ class UltimateReaderViewModelTest {
         behaviorTracker = mockk(relaxed = true)
         smartPrefetchManager = mockk(relaxed = true)
         chapterPrefetcher = mockk(relaxed = true)
+        panelDetectionService = mockk()
+        coEvery { panelDetectionService.detectPanelsFromUrl(any(), any()) } returns emptyList()
         every { generalPreferences.discordRpcEnabled } returns flowOf(false)
 
         // Default settings stubs so loadSettings() succeeds.
@@ -135,6 +141,7 @@ class UltimateReaderViewModelTest {
             behaviorTracker = behaviorTracker,
             smartPrefetchManager = smartPrefetchManager,
             chapterPrefetcher = chapterPrefetcher,
+            panelDetectionService = panelDetectionService,
             savedStateHandle = SavedStateHandle(
                 mapOf("mangaId" to mangaId, "chapterId" to chapterId)
             )
@@ -514,5 +521,103 @@ class UltimateReaderViewModelTest {
 
         vm.onEvent(ReaderEvent.ResetRotation)
         assertEquals(PageRotation.NONE, vm.state.value.pageRotation)
+    }
+
+    // ---- Smart Panels mode: panel detection ----
+
+    @Test
+    fun `switching to SMART_PANELS triggers panel detection for existing pages`() = runTest {
+        val fakePanels = listOf(
+            ComicPanel(
+                id = 0,
+                bounds = PanelBounds(left = 0f, top = 0f, right = 0.5f, bottom = 0.5f),
+                confidence = 0.9f
+            )
+        )
+        coEvery { panelDetectionService.detectPanelsFromUrl(any(), any()) } returns fakePanels
+        coEvery { settingsRepository.setReaderMode(any()) } just runs
+
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val pages = List(3) { ReaderPage(index = it, imageUrl = "https://example.com/page$it.jpg") }
+        vm.setPages(pages)
+
+        vm.onEvent(ReaderEvent.OnModeChange(ReaderMode.SMART_PANELS))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Panel detection should have been called once for each page
+        coVerify(exactly = 3) { panelDetectionService.detectPanelsFromUrl(any(), any()) }
+        // All pages should now have panels populated
+        assertTrue(vm.state.value.pages.all { it.panels.isNotEmpty() })
+    }
+
+    @Test
+    fun `switching to SINGLE_PAGE does not trigger panel detection`() = runTest {
+        coEvery { settingsRepository.setReaderMode(any()) } just runs
+
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        vm.setPages(List(3) { ReaderPage(index = it) })
+
+        // Switch directly to SINGLE_PAGE (no SMART_PANELS in between)
+        vm.onEvent(ReaderEvent.OnModeChange(ReaderMode.SINGLE_PAGE))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // No panel detection should occur when switching to a non-Smart-Panels mode
+        coVerify(exactly = 0) { panelDetectionService.detectPanelsFromUrl(any(), any()) }
+        assertEquals(ReaderMode.SINGLE_PAGE, vm.state.value.mode)
+    }
+
+    @Test
+    fun `currentPanel resets to 0 when page changes in SMART_PANELS mode`() = runTest {
+        coEvery { settingsRepository.setReaderMode(any()) } just runs
+
+        val fakePanels = listOf(
+            ComicPanel(0, PanelBounds(0f, 0f, 0.5f, 0.5f), 0.9f),
+            ComicPanel(1, PanelBounds(0.5f, 0f, 1f, 0.5f), 0.9f)
+        )
+        coEvery { panelDetectionService.detectPanelsFromUrl(any(), any()) } returns fakePanels
+
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        vm.setPages(List(5) { ReaderPage(index = it) })
+        vm.onEvent(ReaderEvent.OnModeChange(ReaderMode.SMART_PANELS))
+
+        // Navigate to panel 1 on page 0
+        vm.onEvent(ReaderEvent.OnPanelChange(1))
+        assertEquals(1, vm.state.value.currentPanel)
+
+        // Navigate to page 2 - currentPanel should reset to 0
+        vm.onEvent(ReaderEvent.OnPageChange(2))
+        assertEquals(0, vm.state.value.currentPanel)
+    }
+
+    @Test
+    fun `panel detection skips pages that already have panels`() = runTest {
+        val existingPanels = listOf(
+            ComicPanel(0, PanelBounds(0f, 0f, 1f, 1f), 0.95f)
+        )
+        coEvery { settingsRepository.setReaderMode(any()) } just runs
+        // Only the page without existing panels should be detected
+        coEvery { panelDetectionService.detectPanelsFromUrl(eq("https://example.com/page1.jpg"), any()) } returns emptyList()
+
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val pages = listOf(
+            ReaderPage(index = 0, imageUrl = "https://example.com/page0.jpg", panels = existingPanels),
+            ReaderPage(index = 1, imageUrl = "https://example.com/page1.jpg", panels = emptyList())
+        )
+        vm.setPages(pages)
+
+        vm.onEvent(ReaderEvent.OnModeChange(ReaderMode.SMART_PANELS))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Only page 1 should have been processed (page 0 already had panels)
+        coVerify(exactly = 0) { panelDetectionService.detectPanelsFromUrl(eq("https://example.com/page0.jpg"), any()) }
+        coVerify(exactly = 1) { panelDetectionService.detectPanelsFromUrl(eq("https://example.com/page1.jpg"), any()) }
     }
 }
