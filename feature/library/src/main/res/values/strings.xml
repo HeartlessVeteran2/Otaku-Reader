@@ -18,4 +18,13 @@
     <string name="library_nav_settings">Settings</string>
     <!-- Accessibility -->
     <string name="library_empty_icon_description">Empty library</string>
+    <!-- Recommendations -->
+    <string name="library_for_you_title">For You</string>
+    <string name="library_recommendations_refresh">Refresh recommendations</string>
+    <string name="library_recommendations_loading">Loading recommendations…</string>
+    <string name="library_recommendations_not_enough_manga">Add at least 3 manga to your library to get AI-powered recommendations</string>
+    <string name="library_recommendations_error_retry">Retry</string>
+    <string name="library_recommendations_dismiss">Dismiss recommendation</string>
+    <string name="library_recommendations_thumbnail">Recommendation thumbnail for %1$s</string>
+    <string name="library_recommendations_reason_prefix">Why: %1$s</string>
 </resources>

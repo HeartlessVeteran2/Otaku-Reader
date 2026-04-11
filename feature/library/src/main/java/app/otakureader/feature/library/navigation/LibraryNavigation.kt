@@ -13,7 +13,8 @@ fun NavGraphBuilder.libraryScreen(
     onNavigateToStatistics: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToDownloads: () -> Unit,
-    onNavigateToMigration: (List<Long>) -> Unit = {}
+    onNavigateToMigration: (List<Long>) -> Unit = {},
+    onRecommendationClick: (String) -> Unit = { onNavigateToBrowse() }
 ) {
     composable<LibraryRoute> {
         LibraryScreen(
@@ -24,7 +25,8 @@ fun NavGraphBuilder.libraryScreen(
             onNavigateToStatistics = onNavigateToStatistics,
             onNavigateToSettings = onNavigateToSettings,
             onNavigateToDownloads = onNavigateToDownloads,
-            onNavigateToMigration = onNavigateToMigration
+            onNavigateToMigration = onNavigateToMigration,
+            onRecommendationClick = onRecommendationClick
         )
     }
 }
