@@ -201,7 +201,9 @@ class TrackerSyncRepositoryImpl @Inject constructor(
                         val remoteTime = syncState.remoteLastModified
                         remoteTime == null || syncState.localLastModified >= remoteTime
                     }
-                    ConflictResolution.ASK -> true // unreachable; handled above
+                    ConflictResolution.ASK -> throw IllegalStateException(
+                        "ASK conflict resolution should have been handled before reaching this branch"
+                    )
                 }
                 localChanged && direction != SyncDirection.REMOTE_TO_LOCAL -> true
                 remoteChanged && direction != SyncDirection.LOCAL_TO_REMOTE -> false
@@ -305,8 +307,14 @@ class TrackerSyncRepositoryImpl @Inject constructor(
                         syncError = null
                     )
                 )
-            } catch (_: Exception) {
-                trackerSyncDao.updateSyncAttempt(syncState.id, SyncStatus.ERROR.ordinal, now)
+            } catch (e: Exception) {
+                trackerSyncDao.updateSyncState(
+                    syncState.copy(
+                        syncStatus = SyncStatus.ERROR.ordinal,
+                        lastSyncAttempt = now,
+                        syncError = e.message
+                    )
+                )
             }
         } else {
             try {
@@ -333,8 +341,14 @@ class TrackerSyncRepositoryImpl @Inject constructor(
                         syncError = null
                     )
                 )
-            } catch (_: Exception) {
-                trackerSyncDao.updateSyncAttempt(syncState.id, SyncStatus.ERROR.ordinal, now)
+            } catch (e: Exception) {
+                trackerSyncDao.updateSyncState(
+                    syncState.copy(
+                        syncStatus = SyncStatus.ERROR.ordinal,
+                        lastSyncAttempt = now,
+                        syncError = e.message
+                    )
+                )
             }
         }
     }
