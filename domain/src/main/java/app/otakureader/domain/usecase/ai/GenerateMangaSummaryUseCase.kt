@@ -1,6 +1,7 @@
 package app.otakureader.domain.usecase.ai
 
 import app.otakureader.domain.repository.AiRepository
+import javax.inject.Inject
 
 /**
  * Use case for generating manga summaries using AI.
@@ -10,7 +11,7 @@ import app.otakureader.domain.repository.AiRepository
  *
  * @property aiRepository Repository for AI operations
  */
-class GenerateMangaSummaryUseCase(
+class GenerateMangaSummaryUseCase @Inject constructor(
     private val aiRepository: AiRepository
 ) {
     /**

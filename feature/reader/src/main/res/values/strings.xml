@@ -103,4 +103,14 @@
     <string name="reader_continue_without_panels">Continue without panels</string>
     <string name="panel_analysis_loading">Analyzing panels…</string>
     <string name="panel_analysis_error_title">Panel analysis failed</string>
+
+    <!-- SFX Translation -->
+    <string name="reader_sfx_translate">Translate SFX</string>
+    <string name="reader_sfx_dialog_title">✨ SFX Translator</string>
+    <string name="reader_sfx_input_label">Sound Effect</string>
+    <string name="reader_sfx_input_placeholder">e.g. ドカン, バン, BOOM</string>
+    <string name="reader_sfx_translating">Translating…</string>
+    <string name="reader_sfx_history_label">Previous translations</string>
+    <string name="reader_sfx_translate_action">Translate</string>
+    <string name="reader_sfx_close">Close</string>
 </resources>

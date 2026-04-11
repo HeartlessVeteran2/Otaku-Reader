@@ -37,13 +37,19 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import app.otakureader.core.preferences.AiPreferences
+import app.otakureader.domain.repository.AiRepository
+import app.otakureader.domain.usecase.ai.TranslateSfxUseCase
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -73,6 +79,9 @@ class UltimateReaderViewModel @Inject constructor(
     private val smartPrefetchManager: SmartPrefetchManager,
     private val chapterPrefetcher: AdaptiveChapterPrefetcher,
     private val panelDetectionService: PanelDetectionService,
+    private val aiRepository: AiRepository,
+    private val aiPreferences: AiPreferences,
+    private val translateSfxUseCase: TranslateSfxUseCase,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -132,6 +141,7 @@ class UltimateReaderViewModel @Inject constructor(
         loadSettings()
         loadChapter()
         cacheDiscordPreference()
+        observeSfxSettings()
     }
 
     private fun recordHistoryOpen() {
@@ -527,6 +537,11 @@ class UltimateReaderViewModel @Inject constructor(
             }
             ReaderEvent.RotateCW -> cyclePageRotation()
             ReaderEvent.ResetRotation -> _state.update { it.copy(pageRotation = PageRotation.NONE) }
+
+            // SFX Translation
+            ReaderEvent.OpenSfxDialog -> _state.update { it.copy(showSfxDialog = true) }
+            ReaderEvent.CloseSfxDialog -> _state.update { it.copy(showSfxDialog = false) }
+            is ReaderEvent.TranslateSfx -> translateSfx(event.sfxText)
         }
     }
 
@@ -1156,6 +1171,49 @@ class UltimateReaderViewModel @Inject constructor(
         const val ZOOM_INCREMENT = 0.25f
         const val BRIGHTNESS_INCREMENT = 0.1f
         const val AUTO_SCROLL_INCREMENT = 50f
+    }
+
+    // --- SFX Translation ---
+
+    private fun observeSfxSettings() {
+        combine(
+            aiPreferences.aiEnabled,
+            aiPreferences.aiSfxTranslation
+        ) { aiEnabled, sfxEnabled ->
+            aiEnabled && sfxEnabled
+        }.onEach { enabled ->
+            _state.update { it.copy(sfxTranslationEnabled = enabled) }
+        }.launchIn(viewModelScope)
+    }
+
+    private fun translateSfx(sfxText: String) {
+        if (sfxText.isBlank()) return
+        // Return cached result immediately if available
+        val cached = _state.value.sfxTranslations[sfxText]
+        if (cached != null) return
+
+        viewModelScope.launch {
+            if (!aiRepository.isAvailable()) {
+                _effect.send(ReaderEffect.ShowSnackbar("AI is not available. Please configure an API key in Settings."))
+                return@launch
+            }
+            _state.update { it.copy(isSfxTranslating = true) }
+            translateSfxUseCase(sfxText)
+                .onSuccess { translation ->
+                    _state.update { state ->
+                        state.copy(
+                            isSfxTranslating = false,
+                            sfxTranslations = state.sfxTranslations + (sfxText to translation)
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _state.update { it.copy(isSfxTranslating = false) }
+                    _effect.send(
+                        ReaderEffect.ShowSnackbar("Translation failed: ${error.message ?: "Unknown error"}")
+                    )
+                }
+        }
     }
 }
 

@@ -80,4 +80,8 @@
     <string name="extensions_set_active">Set Active</string>
     <string name="extensions_repo_url_placeholder">https://.../repo</string>
     <string name="extensions_add_repository">Add repository</string>
+
+    <!-- Source Intelligence -->
+    <string name="browse_source_intel_label">✨ Source Intelligence</string>
+    <string name="browse_source_intel_analyzing">Analyzing source…</string>
 </resources>
