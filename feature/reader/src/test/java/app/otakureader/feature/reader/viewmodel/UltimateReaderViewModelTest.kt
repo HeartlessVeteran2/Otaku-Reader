@@ -540,19 +540,20 @@ class UltimateReaderViewModelTest {
         val vm = createViewModel()
         testDispatcher.scheduler.advanceUntilIdle()
 
-        vm.setPages(List(3) { ReaderPage(index = it, imageUrl = "https://example.com/page$it.jpg") })
+        val pages = List(3) { ReaderPage(index = it, imageUrl = "https://example.com/page$it.jpg") }
+        vm.setPages(pages)
 
         vm.onEvent(ReaderEvent.OnModeChange(ReaderMode.SMART_PANELS))
         testDispatcher.scheduler.advanceUntilIdle()
 
-        // Panel detection should have been called for all pages
-        coVerify(atLeast = 1) { panelDetectionService.detectPanelsFromUrl(any(), any()) }
-        // Pages should now have panels populated
-        assertTrue(vm.state.value.pages.any { it.panels.isNotEmpty() })
+        // Panel detection should have been called once for each page
+        coVerify(exactly = 3) { panelDetectionService.detectPanelsFromUrl(any(), any()) }
+        // All pages should now have panels populated
+        assertTrue(vm.state.value.pages.all { it.panels.isNotEmpty() })
     }
 
     @Test
-    fun `switching away from SMART_PANELS does not trigger panel detection`() = runTest {
+    fun `switching to SINGLE_PAGE does not trigger panel detection`() = runTest {
         coEvery { settingsRepository.setReaderMode(any()) } just runs
 
         val vm = createViewModel()
@@ -560,12 +561,12 @@ class UltimateReaderViewModelTest {
 
         vm.setPages(List(3) { ReaderPage(index = it) })
 
-        // Switch to SMART_PANELS then to SINGLE_PAGE
-        vm.onEvent(ReaderEvent.OnModeChange(ReaderMode.SMART_PANELS))
+        // Switch directly to SINGLE_PAGE (no SMART_PANELS in between)
         vm.onEvent(ReaderEvent.OnModeChange(ReaderMode.SINGLE_PAGE))
         testDispatcher.scheduler.advanceUntilIdle()
 
-        // Verify mode was set to SINGLE_PAGE
+        // No panel detection should occur when switching to a non-Smart-Panels mode
+        coVerify(exactly = 0) { panelDetectionService.detectPanelsFromUrl(any(), any()) }
         assertEquals(ReaderMode.SINGLE_PAGE, vm.state.value.mode)
     }
 

@@ -49,6 +49,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.math.abs
 
 /**
  * Ultimate ViewModel for the Reader feature.
@@ -806,15 +807,15 @@ class UltimateReaderViewModel @Inject constructor(
 
             // Process pages nearest to the current page first for a fast first result
             val currentPageIndex = _state.value.currentPage
-            val sortedIndices = pages.indices.sortedBy { kotlin.math.abs(it - currentPageIndex) }
+            val sortedIndices = pages.indices.sortedBy { abs(it - currentPageIndex) }
 
             for (index in sortedIndices) {
                 // Stop if the user has left Smart Panels mode
                 if (_state.value.mode != ReaderMode.SMART_PANELS) break
 
                 val page = _state.value.pages.getOrNull(index) ?: continue
-                // Skip pages that already have panels detected
-                if (page.panels.isNotEmpty()) continue
+                // Skip pages that already have panels detected or lack an image URL
+                if (page.panels.isNotEmpty() || page.imageUrl == null) continue
 
                 val detectedPanels = panelDetectionService.detectPanelsFromUrl(
                     imageUrl = page.imageUrl,
@@ -823,11 +824,12 @@ class UltimateReaderViewModel @Inject constructor(
 
                 if (detectedPanels.isNotEmpty()) {
                     _state.update { currentState ->
-                        val updatedPages = currentState.pages.toMutableList()
-                        if (index < updatedPages.size) {
-                            updatedPages[index] = updatedPages[index].copy(panels = detectedPanels)
-                        }
-                        currentState.copy(pages = updatedPages)
+                        if (index >= currentState.pages.size) return@update currentState
+                        currentState.copy(
+                            pages = currentState.pages.mapIndexed { i, p ->
+                                if (i == index) p.copy(panels = detectedPanels) else p
+                            }
+                        )
                     }
                 }
             }
