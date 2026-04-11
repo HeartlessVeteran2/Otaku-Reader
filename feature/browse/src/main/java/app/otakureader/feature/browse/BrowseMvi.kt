@@ -19,7 +19,13 @@ data class BrowseState(
     val currentPage: Int = 1,
     val availableFilters: FilterList = FilterList(),
     val activeFilters: FilterList = FilterList(),
-    val showFilterSheet: Boolean = false
+    val showFilterSheet: Boolean = false,
+    /** AI-generated quality analysis for sources: sourceId → summary text. */
+    val sourceIntelligence: Map<String, String> = emptyMap(),
+    /** True while AI is analyzing a source. */
+    val isAnalyzingSource: Boolean = false,
+    /** Whether the Source Intelligence feature is enabled in settings. */
+    val sourceIntelligenceEnabled: Boolean = false
 ) : UiState
 
 sealed interface BrowseEvent : UiEvent {
