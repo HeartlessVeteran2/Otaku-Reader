@@ -171,7 +171,17 @@ data class ReaderState(
     /** Show actions menu on long tap */
     val showActionsOnLongTap: Boolean = true,
     /** Save pages to separate folders by manga title */
-    val savePagesToSeparateFolders: Boolean = false
+    val savePagesToSeparateFolders: Boolean = false,
+
+    // --- SFX Translation ---
+    /** Whether the SFX translation feature is enabled in settings. */
+    val sfxTranslationEnabled: Boolean = false,
+    /** Cached SFX translations: raw SFX text → translated result. */
+    val sfxTranslations: Map<String, String> = emptyMap(),
+    /** True while an SFX translation request is in progress. */
+    val isSfxTranslating: Boolean = false,
+    /** Whether the SFX translation dialog is visible. */
+    val showSfxDialog: Boolean = false
 ) {
     /** Total pages in chapter (derived from pages.size) */
     val totalPages: Int get() = pages.size

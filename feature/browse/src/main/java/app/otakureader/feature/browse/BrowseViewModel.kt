@@ -2,7 +2,10 @@ package app.otakureader.feature.browse
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.otakureader.core.preferences.AiPreferences
 import app.otakureader.core.preferences.GeneralPreferences
+import app.otakureader.domain.repository.AiRepository
+import app.otakureader.domain.usecase.ai.AnalyzeSourceUseCase
 import app.otakureader.domain.usecase.source.GetLatestUpdatesUseCase
 import app.otakureader.domain.usecase.source.GetPopularMangaUseCase
 import app.otakureader.domain.usecase.source.GetSourceFiltersUseCase
@@ -16,6 +19,8 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -29,7 +34,10 @@ class BrowseViewModel @Inject constructor(
     private val getLatestUpdatesUseCase: GetLatestUpdatesUseCase,
     private val searchMangaUseCase: SearchMangaUseCase,
     private val getSourceFiltersUseCase: GetSourceFiltersUseCase,
-    private val generalPreferences: GeneralPreferences
+    private val generalPreferences: GeneralPreferences,
+    private val aiRepository: AiRepository,
+    private val aiPreferences: AiPreferences,
+    private val analyzeSourceUseCase: AnalyzeSourceUseCase
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(BrowseState())
@@ -61,6 +69,7 @@ class BrowseViewModel @Inject constructor(
                 _state.update { it.copy(sources = filteredSources.map { s -> s.id }) }
             }
         }
+        observeSourceIntelligenceSettings()
     }
 
     fun onEvent(event: BrowseEvent) {
@@ -75,6 +84,12 @@ class BrowseViewModel @Inject constructor(
                 }
                 loadPopularManga(event.sourceId)
                 loadSourceFilters(event.sourceId)
+                // Analyze source intelligence if enabled and not yet cached
+                if (_state.value.sourceIntelligenceEnabled &&
+                    !_state.value.sourceIntelligence.containsKey(event.sourceId)
+                ) {
+                    analyzeSource(event.sourceId)
+                }
             }
             is BrowseEvent.OnMangaClick -> {
                 val sourceId = _state.value.currentSourceId ?: return
@@ -282,4 +297,41 @@ class BrowseViewModel @Inject constructor(
         val sourceId = _state.value.currentSourceId ?: return null
         return _sources.value.find { it.id == sourceId }
     }
+
+    // --- Source Intelligence ---
+
+    private fun observeSourceIntelligenceSettings() {
+        combine(
+            aiPreferences.aiEnabled,
+            aiPreferences.aiSourceIntelligence
+        ) { aiEnabled, sourceIntelEnabled ->
+            aiEnabled && sourceIntelEnabled
+        }.onEach { enabled ->
+            _state.update { it.copy(sourceIntelligenceEnabled = enabled) }
+        }.launchIn(viewModelScope)
+    }
+
+    private fun analyzeSource(sourceId: String) {
+        val source = _sources.value.find { it.id == sourceId } ?: return
+
+        viewModelScope.launch {
+            if (!aiRepository.isAvailable()) return@launch
+            _state.update { it.copy(isAnalyzingSource = true) }
+            analyzeSourceUseCase(
+                sourceName = source.name,
+                sourceLanguage = source.lang,
+                isNsfw = source.isNsfw
+            ).onSuccess { summary ->
+                _state.update { state ->
+                    state.copy(
+                        isAnalyzingSource = false,
+                        sourceIntelligence = state.sourceIntelligence + (sourceId to summary)
+                    )
+                }
+            }.onFailure {
+                _state.update { it.copy(isAnalyzingSource = false) }
+            }
+        }
+    }
 }
+

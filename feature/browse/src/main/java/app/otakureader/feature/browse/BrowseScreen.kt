@@ -1,5 +1,6 @@
 package app.otakureader.feature.browse
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -46,6 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -188,7 +191,10 @@ private fun BrowseContent(
                     onMangaClick = { onEvent(BrowseEvent.OnMangaClick(it)) },
                     onLoadMore = { onEvent(BrowseEvent.LoadNextPage) },
                     hasNextPage = state.hasNextPage,
-                    isLoading = state.isLoading
+                    isLoading = state.isLoading,
+                    sourceIntelligenceEnabled = state.sourceIntelligenceEnabled,
+                    sourceIntelligence = state.sourceIntelligence,
+                    isAnalyzingSource = state.isAnalyzingSource
                 )
             }
         }
@@ -240,7 +246,10 @@ private fun SourcesContent(
     onMangaClick: (SourceManga) -> Unit,
     onLoadMore: () -> Unit,
     hasNextPage: Boolean,
-    isLoading: Boolean
+    isLoading: Boolean,
+    sourceIntelligenceEnabled: Boolean = false,
+    sourceIntelligence: Map<String, String> = emptyMap(),
+    isAnalyzingSource: Boolean = false
 ) {
     Column {
         // Source filter chips
@@ -254,6 +263,33 @@ private fun SourcesContent(
                     onClick = { onSourceSelect(sourceId) },
                     label = { Text(sourceId.substringAfterLast(".").take(20)) }
                 )
+            }
+        }
+
+        // Source Intelligence card for the selected source
+        if (sourceIntelligenceEnabled && currentSourceId != null) {
+            val intelligence = sourceIntelligence[currentSourceId]
+            when {
+                intelligence != null -> {
+                    SourceIntelligenceCard(
+                        summary = intelligence,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                    )
+                }
+                isAnalyzingSource -> {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = stringResource(R.string.browse_source_intel_analyzing),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
         }
 
@@ -411,6 +447,45 @@ private fun EmptySourcesContent() {
             Text(
                 text = stringResource(R.string.browse_no_sources_message),
                 style = MaterialTheme.typography.bodyMedium
+            )
+        }
+    }
+}
+
+/**
+ * Card that shows the AI-generated quality analysis for the currently selected source.
+ */
+@Composable
+private fun SourceIntelligenceCard(
+    summary: String,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(
+                MaterialTheme.colorScheme.tertiaryContainer,
+                shape = MaterialTheme.shapes.small
+            )
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Text(
+            text = "✨",
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Column {
+            Text(
+                text = stringResource(R.string.browse_source_intel_label),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = summary,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onTertiaryContainer
             )
         }
     }

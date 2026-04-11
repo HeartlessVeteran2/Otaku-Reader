@@ -3,6 +3,7 @@ package app.otakureader.domain.usecase
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.repository.ChapterRepository
 import kotlinx.coroutines.flow.Flow
+import javax.inject.Inject
 
 /**
  * Use case for getting chapters of a manga, ordered for display.

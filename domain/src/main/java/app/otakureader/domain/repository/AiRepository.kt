@@ -24,14 +24,12 @@ interface AiRepository {
     suspend fun isAvailable(): Boolean
 
     /**
-     * Initialize the AI service.
+     * Initialize the AI service with an API key.
      *
-     * The API key is read internally from secure storage rather than passed as a
-     * parameter (H-8: prevents key exposure in logs/memory dumps).
-     *
-     * @throws IllegalStateException if no API key is configured
+     * @param apiKey The Gemini API key for authentication
+     * @throws IllegalStateException if the API key is blank
      */
-    suspend fun initialize()
+    suspend fun initialize(apiKey: String)
 
     /**
      * Clear the active API key and reset the AI client to an uninitialized state.

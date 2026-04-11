@@ -118,4 +118,9 @@
     <string name="details_stepper_increment">+</string>
     <string name="details_stepper_decrement_description">Decrease</string>
     <string name="details_stepper_increment_description">Increase</string>
+
+    <!-- AI Summary Translation -->
+    <string name="details_ai_summary_label">✨ AI Summary</string>
+    <string name="details_ai_summary_generate">✨ Generate AI Summary</string>
+    <string name="details_ai_summary_generating">Generating summary…</string>
 </resources>

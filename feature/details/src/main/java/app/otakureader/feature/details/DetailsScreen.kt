@@ -215,7 +215,11 @@ private fun DetailsContent(
             MangaDescription(
                 description = manga.description,
                 expanded = state.descriptionExpanded,
-                onToggle = { onEvent(DetailsContract.Event.ToggleDescription) }
+                onToggle = { onEvent(DetailsContract.Event.ToggleDescription) },
+                aiSummary = state.aiSummary,
+                isGeneratingSummary = state.isGeneratingSummary,
+                aiSummaryEnabled = state.aiSummaryEnabled,
+                onGenerateAiSummary = { onEvent(DetailsContract.Event.GenerateAiSummary) }
             )
         }
 
@@ -475,6 +479,10 @@ private fun MangaDescription(
     description: String?,
     expanded: Boolean,
     onToggle: () -> Unit,
+    aiSummary: String? = null,
+    isGeneratingSummary: Boolean = false,
+    aiSummaryEnabled: Boolean = false,
+    onGenerateAiSummary: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     if (description.isNullOrBlank()) return
@@ -490,6 +498,51 @@ private fun MangaDescription(
         if (description.length > 100) {
             TextButton(onClick = onToggle) {
                 Text(if (expanded) stringResource(R.string.details_show_less) else stringResource(R.string.details_show_more))
+            }
+        }
+
+        // AI Summary section – only shown when the feature toggle is on
+        if (aiSummaryEnabled) {
+            Spacer(modifier = Modifier.height(8.dp))
+            if (aiSummary != null) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            MaterialTheme.colorScheme.secondaryContainer,
+                            shape = MaterialTheme.shapes.small
+                        )
+                        .padding(12.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.details_ai_summary_label),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = aiSummary,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+            } else {
+                TextButton(
+                    onClick = onGenerateAiSummary,
+                    enabled = !isGeneratingSummary
+                ) {
+                    if (isGeneratingSummary) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(stringResource(R.string.details_ai_summary_generating))
+                    } else {
+                        Text(stringResource(R.string.details_ai_summary_generate))
+                    }
+                }
             }
         }
     }

@@ -11,8 +11,11 @@ import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.core.preferences.DeleteAfterReadMode
 import app.otakureader.core.preferences.DownloadPreferences
+import app.otakureader.core.preferences.AiPreferences
+import app.otakureader.domain.repository.AiRepository
 import app.otakureader.domain.usecase.UpdateMangaNoteUseCase
 import app.otakureader.domain.usecase.SetMangaNotificationsUseCase
+import app.otakureader.domain.usecase.ai.GenerateMangaSummaryUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -21,6 +24,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
@@ -44,7 +48,10 @@ class DetailsViewModel @Inject constructor(
     private val sourceRepository: SourceRepository,
     private val downloadPreferences: DownloadPreferences,
     private val updateMangaNote: UpdateMangaNoteUseCase,
-    private val setMangaNotifications: SetMangaNotificationsUseCase
+    private val setMangaNotifications: SetMangaNotificationsUseCase,
+    private val aiRepository: AiRepository,
+    private val aiPreferences: AiPreferences,
+    private val generateMangaSummary: GenerateMangaSummaryUseCase
 ) : ViewModel() {
 
     private val mangaId: Long = savedStateHandle.get<Long>(MANGA_ID_ARG) 
@@ -66,6 +73,7 @@ class DetailsViewModel @Inject constructor(
         loadNextUnreadChapter()
         observeDownloads()
         observeDeleteAfterReadSetting()
+        observeAiSettings()
     }
 
     fun onEvent(event: DetailsContract.Event) {
@@ -112,6 +120,9 @@ class DetailsViewModel @Inject constructor(
             
             // Chapter thumbnail loading
             is DetailsContract.Event.LoadChapterThumbnail -> loadChapterThumbnail(event.chapterId)
+
+            // AI Summary Translation
+            is DetailsContract.Event.GenerateAiSummary -> generateAiSummary()
         }
     }
 
@@ -828,5 +839,48 @@ class DetailsViewModel @Inject constructor(
 
     companion object {
         const val MANGA_ID_ARG = "mangaId"
+    }
+
+    // --- AI Settings Observation ---
+
+    private fun observeAiSettings() {
+        combine(
+            aiPreferences.aiEnabled,
+            aiPreferences.aiSummaryTranslation
+        ) { aiEnabled, summaryEnabled ->
+            aiEnabled && summaryEnabled
+        }.onEach { enabled ->
+            _state.update { it.copy(aiSummaryEnabled = enabled) }
+        }.launchIn(viewModelScope)
+    }
+
+    // --- AI Summary Translation ---
+
+    private fun generateAiSummary() {
+        val manga = _state.value.manga ?: return
+        val description = manga.description ?: return
+
+        viewModelScope.launch {
+            if (!aiRepository.isAvailable()) {
+                _effect.send(
+                    DetailsContract.Effect.ShowError("AI is not available. Please configure an API key in Settings.")
+                )
+                return@launch
+            }
+
+            _state.update { it.copy(isGeneratingSummary = true) }
+            generateMangaSummary(title = manga.title, description = description)
+                .onSuccess { summary ->
+                    _state.update { it.copy(aiSummary = summary, isGeneratingSummary = false) }
+                }
+                .onFailure { error ->
+                    _state.update { it.copy(isGeneratingSummary = false) }
+                    _effect.send(
+                        DetailsContract.Effect.ShowError(
+                            "Failed to generate summary: ${error.message ?: "Unknown error"}"
+                        )
+                    )
+                }
+        }
     }
 }

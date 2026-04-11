@@ -16,13 +16,13 @@ internal fun Project.configureKotlinAndroid(
 
         defaultConfig.minSdk = 26
         
-        // H-10: Explicitly declare targetSdk for application modules so the app does not 
-        // inherit an outdated default, which would cause Play Store rejection and missing 
+        // H-10: Explicitly declare targetSdk for application modules so the app does not
+        // inherit an outdated default, which would cause Play Store rejection and missing
         // behavioral changes. Library modules don't have targetSdk in their defaultConfig.
         // Keep this in sync with compileSdk unless there is a specific reason to target
         // an older API level (e.g. a breaking behavior change in the new SDK).
         if (commonExtension is ApplicationExtension) {
-            defaultConfig.targetSdk = 35
+            (commonExtension as ApplicationExtension).defaultConfig.targetSdk = 35
         }
 
         compileOptions.apply {

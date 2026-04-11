@@ -70,6 +70,9 @@ class ArchitectureTest {
             "import androidx.",
             "import com.google.android."
         )
+        val allowedImports = listOf(
+            "import androidx.compose.runtime.Immutable" // Allowed: compile-only annotation for immutable data classes
+        )
 
         domainSourceDir.walkTopDown()
             .filter { it.extension == "kt" }
@@ -77,7 +80,7 @@ class ArchitectureTest {
                 file.readLines().forEachIndexed { lineNumber, line ->
                     val trimmed = line.trim()
                     bannedPrefixes.forEach { bannedPrefix ->
-                        if (trimmed.startsWith(bannedPrefix)) {
+                        if (trimmed.startsWith(bannedPrefix) && !allowedImports.contains(trimmed)) {
                             androidImports.add(
                                 "${file.relativeTo(domainSourceDir).path}:${lineNumber + 1} - $trimmed"
                             )

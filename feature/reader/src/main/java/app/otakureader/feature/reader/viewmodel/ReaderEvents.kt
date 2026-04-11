@@ -225,6 +225,20 @@ sealed interface ReaderEvent {
         /** Auto-scroll speed increment (pixels per second) */
         const val AUTO_SCROLL_INCREMENT = 50f
     }
+
+    // ==================== SFX Translation Events ====================
+
+    /** Open the SFX translation dialog. */
+    data object OpenSfxDialog : ReaderEvent
+
+    /** Dismiss the SFX translation dialog. */
+    data object CloseSfxDialog : ReaderEvent
+
+    /**
+     * Request a translation for a sound effect text.
+     * @param sfxText The raw sound effect (e.g. "ドカン")
+     */
+    data class TranslateSfx(val sfxText: String) : ReaderEvent
 }
 
 /**

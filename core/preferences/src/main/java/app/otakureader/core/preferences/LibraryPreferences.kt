@@ -73,8 +73,8 @@ class LibraryPreferences(private val dataStore: DataStore<Preferences>) {
     suspend fun setSkipUpdateCategoryIds(value: Set<String>) = dataStore.edit { it[Keys.SKIP_UPDATE_CATEGORY_IDS] = value }
 
     /** Category to jump to when opening library (null = default/first) */
-    val jumpToCategoryOnOpen: Flow<String?> = dataStore.data.map { it[Keys.JUMP_TO_CATEGORY_ON_OPEN] }
-    suspend fun setJumpToCategoryOnOpen(value: String?) = dataStore.edit { 
+    val jumpToCategoryOnOpen: Flow<Int?> = dataStore.data.map { it[Keys.JUMP_TO_CATEGORY_ON_OPEN] }
+    suspend fun setJumpToCategoryOnOpen(value: Int?) = dataStore.edit {
         if (value != null) it[Keys.JUMP_TO_CATEGORY_ON_OPEN] = value else it.remove(Keys.JUMP_TO_CATEGORY_ON_OPEN)
     }
 
