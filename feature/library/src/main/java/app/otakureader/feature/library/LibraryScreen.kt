@@ -449,7 +449,7 @@ private fun RecommendationCard(
                     .padding(4.dp)
                     .size(24.dp)
                     .background(
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f),
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = DISMISS_BUTTON_BACKGROUND_ALPHA),
                         shape = CircleShape
                     )
             ) {
@@ -560,3 +560,6 @@ private fun EmptyLibraryMessage(
         )
     }
 }
+
+private const val DISMISS_BUTTON_BACKGROUND_ALPHA = 0.72f
+

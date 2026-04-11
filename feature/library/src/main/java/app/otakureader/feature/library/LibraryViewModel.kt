@@ -351,7 +351,7 @@ class LibraryViewModel @Inject constructor(
 
         viewModelScope.launch {
             _state.update { it.copy(isLoadingRecommendations = true, recommendationsError = null) }
-            val result: Result<List<MangaRecommendation>> = if (forceRefresh) {
+            val result = if (forceRefresh) {
                 refreshRecommendations().map { it.recommendations }
             } else {
                 getForYouRecommendations()
