@@ -1,106 +1,198 @@
 <div align="center">
-  <img src="./media/logo/v1-oto-monogram.png" alt="Otaku Reader" width="200"/>
+  <img src="./.github/banner.svg" alt="Otaku Reader" width="100%"/>
 
-  <h1>Otaku Reader</h1>
+  <p><em>🌸 The ultimate manga reader. Better than Perfect Viewer.</em></p>
 
-  <p>🌸 The ultimate manga reader. Blazing-fast, beautiful, and packed with 2000+ sources.</p>
+  [![Kotlin](https://img.shields.io/badge/Kotlin-2.3-7F52FF?style=flat&logo=kotlin&logoColor=white)](https://kotlinlang.org/)
+  [![Android](https://img.shields.io/badge/Android-8.0+-3DDC84?style=flat&logo=android&logoColor=white)](https://developer.android.com/)
+  [![License](https://img.shields.io/badge/License-Apache%202.0-0877d2?style=flat)](LICENSE)
+  [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-4285F4?style=flat&logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
 
-  [![Kotlin](https://img.shields.io/badge/Kotlin-2.3.20-7F52FF?style=flat-square&logo=kotlin&logoColor=white&labelColor=27303D)](https://kotlinlang.org/)
-  [![Android](https://img.shields.io/badge/Android-26+-3DDC84?style=flat-square&logo=android&logoColor=white&labelColor=27303D)](https://developer.android.com/)
-  [![License](https://img.shields.io/badge/License-Apache%202.0-blue?style=flat-square&labelColor=27303D)](LICENSE)
-  [![CI](https://github.com/Heartless-Veteran/Otaku-Reader/actions/workflows/ci.yml/badge.svg)](https://github.com/Heartless-Veteran/Otaku-Reader/actions/workflows/ci.yml)
-
-  <sub><i>Requires Android 8.0 (API 26) or higher.</i></sub>
 </div>
 
 ---
 
-## 🚀 Quick Start
-
-```bash
-git clone https://github.com/Heartless-Veteran/otaku-reader.git
-cd otaku-reader
-./gradlew assembleDebug
-adb install app/build/outputs/apk/debug/app-debug.apk
-```
-
----
+**🚀 Feature-complete Beta** — Core functionality ready for daily use
 
 ## ✨ Features
 
-| Category | Features |
-|----------|----------|
-| **📚 Library** | Grid/column views, categories, drag-and-drop, batch operations, NSFW toggle |
-| **🔍 Browse** | 2000+ sources, global search, extension catalog with repository management |
-| **📖 Reader** | 4 reading modes (Single, Dual, Webtoon, Smart Panels), color filters, 3×3 tap zones, pinch zoom, gallery view |
-| **🤖 Smart Panels** | Automatic panel detection, guided panel-by-panel navigation with smooth animations |
-| **⚡ Smart Prefetch** | Adaptive page/chapter prefetching based on reading behavior, 4 prefetch strategies |
-| **⬇️ Downloads** | Background queue, CBZ export, auto-download on Wi-Fi, pause/resume |
-| **📊 Tracking** | MyAnimeList, AniList, Kitsu, MangaUpdates, Shikimori |
-| **🔔 Notifications** | Rich new chapter alerts with covers, grouped by series |
-| **☁️ Backup** | Scheduled backups, JSON export/import |
-| **🔄 Cloud Sync** | Self-hosted Docker server for personal sync; manual backup/restore with conflict resolution |
-| **📡 OPDS** | Self-hosted catalog support (Komga, Kavita), add/browse/search OPDS servers |
-| **🤖 AI Recommendations** | Gemini API integration complete; recommendation engine implementation pending |
-| **🎮 Discord RPC** | Rich Presence showing currently reading manga |
-| **📈 Statistics** | Reading analytics, charts, reading streaks, and insights |
-| **🔄 Migration** | Migrate manga between sources with progress and chapter mapping |
+- 📚 **Library Management** — Grid view, categories, sorting, filtering, NSFW toggle, unread badges
+- 🔍 **Browse & Discovery** — 2000+ sources, global search, extension catalog
+- 📖 **Ultimate Reader** — 4 reading modes, color filters, gallery view, tap zones, zoom
+- ⬇️ **Downloads & Offline** — Background downloads, queue management, CBZ export
+- 📊 **Tracking** — MAL, AniList, Kitsu, MangaUpdates, Shikimori
+- 🔌 **Extension System** — Full Tachiyomi ecosystem (Keiyoushi, Komikku repos)
+- 🔔 **Smart Notifications** — New chapter alerts with covers, grouped by manga
+- ☁️ **Cloud Sync** — Cross-device library sync (in progress)
 
-**See [Full Features Guide](docs/features/) for details.**
+<details>
+<summary>📖 Reader Details</summary>
 
----
+### Reading Modes
+- **Single Page** — Classic manga reading
+- **Dual Page** — Spread view for tablets
+- **Webtoon** — Vertical scrolling
+- **Smart Panels** — Navigate by detected panels
 
-## 🔌 Extensions
+### Navigation & Controls
+- **Gallery View** — Thumbnail strip for quick navigation
+- **3x3 Tap Zones** — Fully configurable
+- **Pinch Zoom** — Smooth scaling
+- **Brightness Control** — In-reader overlay
+- **Incognito Mode** — Private reading session
+- **Volume Key Navigation** — Turn pages with hardware keys
 
-Compatible with the entire **Tachiyomi extension ecosystem**:
+### Color Filters
+Sepia · Grayscale · Invert · Custom tint
 
-| Repository | Sources |
-|------------|---------|
-| [Keiyoushi](https://github.com/keiyoushi/extensions) | 1000+ |
-| [Komikku](https://github.com/komikku-app/komikku-extensions) | 1000+ |
+</details>
 
----
+<details>
+<summary>🔌 Extension System</summary>
 
-## 📐 Architecture
+Access the entire Tachiyomi ecosystem:
 
-Clean Architecture + MVI with modular feature structure.
+| Repository | Extensions |
+|------------|------------|
+| Keiyoushi  | 1000+      |
+| Komikku    | 1000+      |
 
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│     UI      │────▶│   Domain    │────▶│    Data     │
-│  (Compose)  │     │  (Use Cases)│     │ (Room/Api)  │
-└─────────────┘     └─────────────┘     └─────────────┘
-```
+Browse extensions by language, install/update/uninstall, manage repositories, and filter NSFW content.
 
-**See [Architecture Docs](docs/architecture/) for the full picture.**
+</details>
 
----
+## 📸 Screenshots
 
-## 📚 Documentation
+<div align="center">
 
-| Topic | Link |
-|-------|------|
-| **Features** | [docs/features/](docs/features/) |
-| **Architecture** | [docs/architecture/](docs/architecture/) |
-| **API Reference** | [docs/architecture/api.md](docs/architecture/api.md) |
-| **Cloud Sync** | [docs/architecture/self-hosted-sync.md](docs/architecture/self-hosted-sync.md) |
-| **Contributing** | [docs/contributing/contributing.md](docs/contributing/contributing.md) |
-| **Changelog** | [CHANGELOG.md](CHANGELOG.md) |
+<!-- Screenshots will be added here -->
+<em>Screenshots coming soon</em>
 
----
+</div>
 
 ## 🗺️ Roadmap
 
-- **✅ Shipped:** Smart Panels (panel-by-panel navigation), Smart Prefetch, OPDS Catalog, Discord Rich Presence, Statistics, Migration, Self-Hosted Cloud Sync
-- **🚧 In Progress:** AI Recommendations (API integration complete, recommendation engine pending), Smart Panels ML model (TensorFlow Lite)
-- **🔮 Future:** Cloud Sync provider expansion (Dropbox, WebDAV), Widget improvements, KMP expansion, Macrobenchmark baseline profiles
+- ⏳ **Cloud Sync** — Google Drive integration for library sync
+- ⏳ **OPDS Support** — Komga/Kavita catalog browsing
+- 🔮 **AI Features** — Recommendations, auto-categorization
+- 🔮 **Widgets** — Home screen continue reading
+- 🔮 **SFX Translation** — Sound effect detection/translation
+- 🔮 **Panel-by-Panel** — Advanced panel navigation
+
+## 🛠️ Tech Stack & Architecture
+
+<details>
+<summary>Tech Stack</summary>
+
+| Layer | Technology |
+|-------|------------|
+| Language | Kotlin 2.3 |
+| UI | Jetpack Compose + Material 3 |
+| Architecture | Clean Architecture + MVI |
+| DI | Hilt |
+| Database | Room (v8 with migrations) |
+| Preferences | DataStore |
+| Network | Retrofit + OkHttp |
+| Images | Coil 3 |
+| Background Work | WorkManager |
+| Paging | Paging 3 |
+
+</details>
+
+<details>
+<summary>Architecture Diagram</summary>
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  UI Layer (Jetpack Compose)                             │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐   │
+│  │  Library │ │  Browse  │ │  Reader  │ │ Settings │   │
+│  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘   │
+└───────┼────────────┼────────────┼────────────┼─────────┘
+        │            │            │            │
+        └────────────┴────────────┴────────────┘
+                          │
+┌─────────────────────────┼───────────────────────────────┐
+│  Domain Layer           │                               │
+│  ┌──────────────────────┴──────────────────────┐       │
+│  │  Use Cases (GetLibrary, BrowseSource, etc.)  │       │
+│  └──────────────────────┬──────────────────────┘       │
+└─────────────────────────┼───────────────────────────────┘
+                          │
+┌─────────────────────────┼───────────────────────────────┐
+│  Data Layer             │                               │
+│  ┌──────────┐ ┌─────────┴┐ ┌──────────┐ ┌──────────┐  │
+│  │  Room    │ │DataStore │ │  APIs    │ │Extension │  │
+│  │ Database │ │  Prefs   │ │(Sources) │ │  Loader  │  │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────┘  │
+└─────────────────────────────────────────────────────────┘
+```
+
+</details>
+
+<details>
+<summary>Module Structure</summary>
+
+| Module | Purpose |
+|--------|---------|
+| `app` | Main application entry |
+| `source-api` | Extension API contracts |
+| `domain` | Use cases and domain models |
+| `data` | Repository, downloads, backup, sync |
+| `core/common` | Shared utilities |
+| `core/database` | Room database (v8) |
+| `core/network` | Retrofit + OkHttp |
+| `core/preferences` | DataStore preferences |
+| `core/ui` | Shared Compose components |
+| `core/navigation` | Navigation routing |
+| `core/extension` | Extension loading & install |
+| `core/tachiyomi-compat` | Tachiyomi compatibility |
+| `core/discord` | Discord Rich Presence |
+| `feature/library` | Library screen |
+| `feature/browse` | Browse & search |
+| `feature/details` | Manga details |
+| `feature/reader` | Ultimate reader |
+| `feature/history` | Reading history |
+| `feature/settings` | Settings & backup |
+| `feature/statistics` | Reading stats |
+| `feature/updates` | Updates & downloads |
+| `feature/tracking` | Tracker integration |
+| `feature/migration` | Source migration |
+
+</details>
+
+<details>
+<summary>🚀 Getting Started</summary>
+
+```bash
+# Clone
+git clone https://github.com/Heartless-Veteran/otaku-reader.git
+cd otaku-reader
+
+# Build
+./gradlew assembleDebug
+
+# Install
+adb install app/build/outputs/apk/debug/app-debug.apk
+```
+
+</details>
 
 ---
 
 <div align="center">
 
-**[Contributing](docs/contributing/contributing.md)** · **[Issues](https://github.com/Heartless-Veteran/Otaku-Reader/issues)** · **[License](LICENSE)**
+### Contributing
+
+Pull requests are welcome! For major changes, please open an issue first.
+
+---
 
 <sub>Built with ❤️‍🔥 by manga lovers, for manga lovers</sub>
 
+<br/>
+
+Apache 2.0 © 2026 Otaku Reader Contributors
+
 </div>
+

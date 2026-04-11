@@ -1,7 +1,9 @@
 package app.otakureader.core.ainoop.di
 
 import app.otakureader.core.ainoop.NoOpAiRepository
+import app.otakureader.core.ainoop.NoOpRecommendationRepository
 import app.otakureader.domain.repository.AiRepository
+import app.otakureader.domain.repository.RecommendationRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -9,7 +11,8 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
 /**
- * Hilt module for FOSS builds that provides the no-op [AiRepository].
+ * Hilt module for FOSS builds that provides no-op [AiRepository] and
+ * [RecommendationRepository] implementations.
  *
  * In a FOSS product flavor, include `:core:ai-noop` and install this module
  * instead of the real `AiModule` + `RepositoryModule`'s `bindAiRepository`.
@@ -31,4 +34,10 @@ abstract class NoOpAiModule {
     abstract fun bindAiRepository(
         impl: NoOpAiRepository
     ): AiRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindRecommendationRepository(
+        impl: NoOpRecommendationRepository
+    ): RecommendationRepository
 }

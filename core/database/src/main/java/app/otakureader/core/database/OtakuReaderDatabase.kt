@@ -3,6 +3,7 @@ package app.otakureader.core.database
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import app.otakureader.core.database.dao.CategorizationResultDao
 import app.otakureader.core.database.dao.CategoryDao
 import app.otakureader.core.database.dao.ChapterDao
 import app.otakureader.core.database.dao.FeedDao
@@ -11,6 +12,7 @@ import app.otakureader.core.database.dao.MangaDao
 import app.otakureader.core.database.dao.OpdsServerDao
 import app.otakureader.core.database.dao.ReadingHistoryDao
 import app.otakureader.core.database.dao.TrackerSyncDao
+import app.otakureader.core.database.entity.CategorizationResultEntity
 import app.otakureader.core.database.entity.CategoryEntity
 import app.otakureader.core.database.entity.ChapterEntity
 import app.otakureader.core.database.entity.FeedItemEntity
@@ -37,9 +39,11 @@ import app.otakureader.core.database.entity.TrackerSyncStateEntity
         FeedSavedSearchEntity::class,
         // Tracker sync feature
         TrackerSyncStateEntity::class,
-        SyncConfigurationEntity::class
+        SyncConfigurationEntity::class,
+        // AI categorization feature
+        CategorizationResultEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = true
 )
 @TypeConverters(DatabaseConverters::class)
@@ -54,6 +58,7 @@ abstract class OtakuReaderDatabase : RoomDatabase() {
     // New DAOs
     abstract fun feedDao(): FeedDao
     abstract fun trackerSyncDao(): TrackerSyncDao
+    abstract fun categorizationResultDao(): CategorizationResultDao
     
     companion object {
         const val DATABASE_NAME = "otakureader.db"

@@ -1,5 +1,6 @@
 package app.otakureader.data.di
 
+import app.otakureader.domain.repository.CategorizationRepository
 import app.otakureader.domain.repository.CategoryRepository
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
@@ -8,6 +9,7 @@ import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.domain.repository.OpdsRepository
 import app.otakureader.domain.repository.StatisticsRepository
 import app.otakureader.data.opds.OpdsRepositoryImpl
+import app.otakureader.data.repository.CategorizationRepositoryImpl
 import app.otakureader.data.repository.CategoryRepositoryImpl
 import app.otakureader.data.repository.ChapterRepositoryImpl
 import app.otakureader.data.repository.DownloadRepositoryImpl
@@ -66,4 +68,9 @@ abstract class RepositoryModule {
     abstract fun bindFeedRepository(
         impl: FeedRepositoryImpl
     ): FeedRepository
+
+    @Binds
+    abstract fun bindCategorizationRepository(
+        impl: CategorizationRepositoryImpl
+    ): CategorizationRepository
 }

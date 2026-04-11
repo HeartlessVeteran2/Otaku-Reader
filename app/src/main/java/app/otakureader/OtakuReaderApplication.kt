@@ -10,7 +10,6 @@ import coil3.SingletonImageLoader
 import coil3.disk.DiskCache
 import coil3.memory.MemoryCache
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
-import coil3.request.crossfade
 import com.google.android.material.color.DynamicColors
 import dagger.hilt.android.HiltAndroidApp
 import okhttp3.OkHttpClient
@@ -20,7 +19,7 @@ import javax.inject.Inject
 /**
  * Application class for Otaku Reader.
  * Initializes Hilt dependency injection, WorkManager with Hilt integration,
- * Material You dynamic colors for Android 12+, and the global Coil ImageLoader
+ * Material You dynamic colors for Android 12+, launcher shortcuts, and the global Coil ImageLoader
  * with memory/disk cache limits and OkHttp networking.
  */
 @HiltAndroidApp
