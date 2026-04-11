@@ -14,7 +14,7 @@ material = "1.13.0"
 palette = "1.0.0"
 
 # Compose
-compose-bom = "2026.03.00"
+compose-bom = "2026.03.01"
 
 # Coroutines
 coroutines = "1.10.2"
@@ -41,11 +41,11 @@ security-crypto = "1.1.0"
 
 # Network
 # D-2: OkHttp 4.x is in maintenance mode. Upgrade to 5.x is tracked separately (see issue #495 D-2).
-okhttp = "5.0.0-alpha.14"  # D-2: Migrated from 4.12.0
+okhttp = "5.3.2"  # D-2: Migrated from 4.12.0
 # D-1: Updated from 4.2.10.Final to 4.2.12.Final for security patches (CVE-2025-59419, CVE-2025-67735)
 netty = "4.2.12.Final"
 retrofit = "3.0.0"
-kotlinx-serialization = "1.10.0"
+kotlinx-serialization = "1.11.0"
 
 # Image Loading
 coil = "3.4.0"
@@ -54,7 +54,7 @@ coil = "3.4.0"
 paging = "3.4.2"
 
 # WorkManager
-workmanager = "2.11.1"
+workmanager = "2.11.2"
 
 # Glance (widgets)
 glance = "1.1.1"
@@ -68,7 +68,7 @@ mlkit-text-recognition = "16.0.1"
 mlkit-image-labeling = "17.0.9"
 
 # Server (D-4: moved from hardcoded strings in server/build.gradle.kts)
-ktor = "3.4.1"
+ktor = "3.4.2"
 logback = "1.5.32"
 
 # Static Analysis (R-4)
@@ -160,7 +160,7 @@ paging-runtime = { group = "androidx.paging", name = "paging-runtime", version.r
 paging-compose = { group = "androidx.paging", name = "paging-compose", version.ref = "paging" }
 
 # Browser (Custom Tabs)
-browser = { group = "androidx.browser", name = "browser", version = "1.9.0" }
+browser = { group = "androidx.browser", name = "browser", version = "1.10.0" }
 
 # WorkManager
 workmanager-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workmanager" }
