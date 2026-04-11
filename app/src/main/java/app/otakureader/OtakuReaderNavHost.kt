@@ -13,6 +13,7 @@ import androidx.navigation.compose.NavHost
 import app.otakureader.core.navigation.BrowseRoute
 import app.otakureader.core.navigation.DownloadsRoute
 import app.otakureader.core.navigation.ExtensionsRoute
+import app.otakureader.core.navigation.FeedRoute
 import app.otakureader.core.navigation.GlobalSearchRoute
 import app.otakureader.core.navigation.HistoryRoute
 import app.otakureader.core.navigation.LibraryRoute
@@ -31,6 +32,7 @@ import app.otakureader.feature.browse.navigation.extensionsBottomSheet
 import app.otakureader.feature.browse.navigation.globalSearchScreen
 import app.otakureader.feature.browse.navigation.sourceDetailScreen
 import app.otakureader.feature.details.navigation.detailsScreen
+import app.otakureader.feature.feed.navigation.feedScreen
 import app.otakureader.feature.history.navigation.historyScreen
 import app.otakureader.feature.library.navigation.libraryScreen
 import app.otakureader.feature.migration.navigation.migrationEntryScreen
@@ -287,6 +289,16 @@ fun OtakuReaderNavHost(
         trackingScreen(
             onNavigateBack = {
                 navController.popBackStack()
+            }
+        )
+
+        // Feed
+        feedScreen(
+            onNavigateBack = {
+                navController.popBackStack()
+            },
+            onNavigateToReader = { mangaId, chapterId ->
+                navController.navigate(ReaderRoute(mangaId, chapterId))
             }
         )
     }

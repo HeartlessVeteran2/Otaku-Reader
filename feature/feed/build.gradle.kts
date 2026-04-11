@@ -1,0 +1,21 @@
+plugins {
+    alias(libs.plugins.otakureader.android.feature)
+    alias(libs.plugins.kotlin.serialization)
+}
+
+android {
+    namespace = "app.otakureader.feature.feed"
+}
+
+dependencies {
+    implementation(projects.core.common)
+    implementation(projects.core.preferences)
+    implementation(libs.lifecycle.viewmodel.ktx)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.workmanager.ktx)
+
+    testImplementation(libs.junit)
+    testImplementation(libs.mockk)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.turbine)
+}

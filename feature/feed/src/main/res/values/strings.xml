@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Feed screen -->
+    <string name="feed_title">Feed</string>
+    <string name="feed_back">Back</string>
+    <string name="feed_refresh">Refresh</string>
+    <string name="feed_clear">Clear history</string>
+    <string name="feed_empty">No feed items yet. Add sources to see the latest chapters here.</string>
+    <string name="feed_error_unknown">An unknown error occurred.</string>
+    <string name="feed_mark_as_read">Mark as read</string>
+</resources>

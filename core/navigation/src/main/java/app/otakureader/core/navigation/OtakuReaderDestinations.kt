@@ -85,3 +85,7 @@ object AboutRoute : OtakuReaderDestination
 /** OPDS catalog browser screen. */
 @Serializable
 object OpdsRoute : OtakuReaderDestination
+
+/** Feed screen – latest updates across all configured sources. */
+@Serializable
+object FeedRoute : OtakuReaderDestination
