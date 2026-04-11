@@ -28,6 +28,7 @@ import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.DownloadPreferences
 import app.otakureader.data.download.ChapterDownloadRequest
 import app.otakureader.data.download.DownloadManager
+import app.otakureader.feature.reader.panel.PanelDetectionService
 import coil3.ImageLoader
 import coil3.request.ImageRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -70,6 +71,7 @@ class UltimateReaderViewModel @Inject constructor(
     private val behaviorTracker: ReadingBehaviorTracker,
     private val smartPrefetchManager: SmartPrefetchManager,
     private val chapterPrefetcher: AdaptiveChapterPrefetcher,
+    private val panelDetectionService: PanelDetectionService,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -102,6 +104,7 @@ class UltimateReaderViewModel @Inject constructor(
 
     private var autoSaveJob: Job? = null
     private var preloadJob: Job? = null
+    private var panelDetectionJob: Job? = null
 
     /** Timestamp when last page change occurred, for tracking page duration. */
     private var lastPageChangeMs: Long = SystemClock.elapsedRealtime()
@@ -402,6 +405,11 @@ class UltimateReaderViewModel @Inject constructor(
                     preloadPages(_state.value.currentPage)
                 }
 
+                // Start panel detection when in Smart Panels mode
+                if (_state.value.mode == ReaderMode.SMART_PANELS && pages.isNotEmpty()) {
+                    detectPanelsForPages(pages)
+                }
+
             } catch (e: Exception) {
                 _state.update {
                     it.copy(
@@ -556,7 +564,11 @@ class UltimateReaderViewModel @Inject constructor(
                 }
             }
 
-            _state.update { it.copy(currentPage = validPage) }
+            _state.update { state ->
+                // Reset current panel to 0 when navigating to a new page in Smart Panels mode
+                val newPanel = if (state.mode == ReaderMode.SMART_PANELS) 0 else state.currentPanel
+                state.copy(currentPage = validPage, currentPanel = newPanel)
+            }
             preloadPages(validPage)
             scheduleProgressSave()
 
@@ -659,6 +671,17 @@ class UltimateReaderViewModel @Inject constructor(
         // Adjust current page for dual page mode
         if (mode == ReaderMode.DUAL_PAGE && _state.value.currentPage % 2 != 0) {
             _state.update { it.copy(currentPage = it.currentPage - 1) }
+        }
+
+        // Trigger panel detection when switching to Smart Panels mode
+        if (mode == ReaderMode.SMART_PANELS) {
+            val pages = _state.value.pages
+            if (pages.isNotEmpty()) {
+                detectPanelsForPages(pages)
+            }
+        } else {
+            // Cancel any in-progress panel detection when leaving Smart Panels mode
+            panelDetectionJob?.cancel()
         }
         
         // Save mode setting
@@ -766,6 +789,49 @@ class UltimateReaderViewModel @Inject constructor(
 
     private fun sharePage() {
         // Implementation for sharing current page
+    }
+
+    /**
+     * Detect panels for a list of pages when Smart Panels mode is active.
+     *
+     * Pages are processed in order of proximity to the current page so the user
+     * sees panel navigation as soon as possible. Detection continues in the
+     * background for the remaining pages until the mode changes or the ViewModel
+     * is cleared.
+     */
+    private fun detectPanelsForPages(pages: List<ReaderPage>) {
+        panelDetectionJob?.cancel()
+        panelDetectionJob = viewModelScope.launch {
+            val readingDirection = _state.value.readingDirection
+
+            // Process pages nearest to the current page first for a fast first result
+            val currentPageIndex = _state.value.currentPage
+            val sortedIndices = pages.indices.sortedBy { kotlin.math.abs(it - currentPageIndex) }
+
+            for (index in sortedIndices) {
+                // Stop if the user has left Smart Panels mode
+                if (_state.value.mode != ReaderMode.SMART_PANELS) break
+
+                val page = _state.value.pages.getOrNull(index) ?: continue
+                // Skip pages that already have panels detected
+                if (page.panels.isNotEmpty()) continue
+
+                val detectedPanels = panelDetectionService.detectPanelsFromUrl(
+                    imageUrl = page.imageUrl,
+                    readingDirection = readingDirection
+                )
+
+                if (detectedPanels.isNotEmpty()) {
+                    _state.update { currentState ->
+                        val updatedPages = currentState.pages.toMutableList()
+                        if (index < updatedPages.size) {
+                            updatedPages[index] = updatedPages[index].copy(panels = detectedPanels)
+                        }
+                        currentState.copy(pages = updatedPages)
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -995,6 +1061,7 @@ class UltimateReaderViewModel @Inject constructor(
         discordRpcService.clearReadingPresence(showBrowsing = true)
         autoSaveJob?.cancel()
         preloadJob?.cancel()
+        panelDetectionJob?.cancel()
     }
 
     /**
