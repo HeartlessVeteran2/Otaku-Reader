@@ -3,6 +3,7 @@ package app.otakureader.domain.usecase
 import app.otakureader.domain.model.ChapterWithHistory
 import app.otakureader.domain.repository.ChapterRepository
 import kotlinx.coroutines.flow.Flow
+import javax.inject.Inject
 
 /**
  * Use case for getting the user's reading history.

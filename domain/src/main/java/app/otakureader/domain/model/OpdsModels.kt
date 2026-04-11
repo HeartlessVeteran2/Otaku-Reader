@@ -97,7 +97,7 @@ data class OpdsLink(
      * Example usage:
      * ```kotlin
      * if (link.isUnknownType) {
-     *     android.util.Log.d("OpdsParser", "Unrecognized OPDS link type: ${link.type} rel=${link.rel}")
+     *     System.err.println("OpdsParser: Unrecognized OPDS link type: ${link.type} rel=${link.rel}")
      * }
      * ```
      */

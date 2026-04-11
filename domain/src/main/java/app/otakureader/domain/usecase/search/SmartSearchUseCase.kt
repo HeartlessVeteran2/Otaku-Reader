@@ -184,11 +184,13 @@ class SmartSearchUseCase @Inject constructor(
                     val genreArray = obj["genres"]?.jsonArray
                         ?: throw SmartSearchException.ParsingError("genre intent missing 'genres' array")
                     val genres = genreArray.map { it.jsonPrimitive.content }.filter { it.isNotBlank() }
-                    if (genres.isEmpty()) return@try null
-                    // M-19: Use top-level MatchMode enum (inner enum was removed).
-                    val matchModeStr = obj["matchMode"]?.jsonPrimitive?.content?.uppercase() ?: "ANY"
-                    val matchMode = runCatching { MatchMode.valueOf(matchModeStr) }.getOrDefault(MatchMode.ANY)
-                    SearchIntent.GenreSearch(genres = genres, matchMode = matchMode)
+                    if (genres.isEmpty()) null
+                    else {
+                        // M-19: Use top-level MatchMode enum (inner enum was removed).
+                        val matchModeStr = obj["matchMode"]?.jsonPrimitive?.content?.uppercase() ?: "ANY"
+                        val matchMode = runCatching { MatchMode.valueOf(matchModeStr) }.getOrDefault(MatchMode.ANY)
+                        SearchIntent.GenreSearch(genres = genres, matchMode = matchMode)
+                    }
                 }
                 "author" -> SearchIntent.AuthorSearch(
                     author = obj["author"]!!.jsonPrimitive.content,
@@ -199,11 +201,13 @@ class SmartSearchUseCase @Inject constructor(
                     val keywordsArray = obj["keywords"]?.jsonArray
                         ?: throw SmartSearchException.ParsingError("description intent missing 'keywords' array")
                     val keywords = keywordsArray.map { it.jsonPrimitive.content }.filter { it.isNotBlank() }
-                    if (keywords.isEmpty()) return@try null
-                    // M-19: Use top-level MatchMode enum (inner enum was removed).
-                    val matchModeStr = obj["matchMode"]?.jsonPrimitive?.content?.uppercase() ?: "ANY"
-                    val matchMode = runCatching { MatchMode.valueOf(matchModeStr) }.getOrDefault(MatchMode.ANY)
-                    SearchIntent.DescriptionSearch(keywords = keywords, matchMode = matchMode)
+                    if (keywords.isEmpty()) null
+                    else {
+                        // M-19: Use top-level MatchMode enum (inner enum was removed).
+                        val matchModeStr = obj["matchMode"]?.jsonPrimitive?.content?.uppercase() ?: "ANY"
+                        val matchMode = runCatching { MatchMode.valueOf(matchModeStr) }.getOrDefault(MatchMode.ANY)
+                        SearchIntent.DescriptionSearch(keywords = keywords, matchMode = matchMode)
+                    }
                 }
                 "mood" -> SearchIntent.MoodSearch(
                     mood = SearchIntent.MoodSearch.Mood.valueOf(

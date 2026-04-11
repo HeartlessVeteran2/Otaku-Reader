@@ -31,7 +31,13 @@ object DetailsContract {
         val deleteAfterReadOverride: DeleteAfterReadMode = DeleteAfterReadMode.INHERIT,
         val globalDeleteAfterRead: Boolean = false,
         val noteEditorVisible: Boolean = false,
-        val noteEditorText: String = ""
+        val noteEditorText: String = "",
+        /** AI-generated summary of the manga description; null when not yet generated. */
+        val aiSummary: String? = null,
+        /** True while the AI summary is being generated. */
+        val isGeneratingSummary: Boolean = false,
+        /** Whether the AI summary translation feature is enabled in settings. */
+        val aiSummaryEnabled: Boolean = false
     ) : UiState {
         
         val canStartReading: Boolean
@@ -139,6 +145,9 @@ object DetailsContract {
         
         // Chapter thumbnail loading
         data class LoadChapterThumbnail(val chapterId: Long) : Event
+
+        // AI Summary Translation
+        data object GenerateAiSummary : Event
     }
 
     /**

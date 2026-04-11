@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.security.crypto.EncryptedSharedPreferences
@@ -27,15 +28,24 @@ import javax.inject.Singleton
  * - MasterKey for key management (Android Keystore on API 23+)
  *
  * **Security Features:**
- * - API keys are encrypted at rest using AES-256
+ * - API keys are encrypted at rest using AES-256-GCM (values) and AES-256-SIV (keys)
  * - Keys are never included in auto-backup (android:allowBackup="false")
- * - MasterKey is stored in Android Keystore when available
+ * - MasterKey is stored in Android Keystore; raw key material never leaves the Keystore
  * - In-memory caching is avoided to prevent memory dumps from leaking keys
+ * - Key creation timestamps are stored (in plaintext DataStore; timestamps are not sensitive)
+ *   to enable age-based rotation recommendations
  *
  * **BYOK (Bring Your Own Key) Support:**
  * - Runtime API key updates via [saveApiKey]
  * - Key validation before storage
  * - Support for multiple AI providers
+ *
+ * **Key Rotation:**
+ * - Use [rotateApiKey] to replace an existing key with a new one; the stored-at timestamp
+ *   is updated automatically so the rotation age clock resets.
+ * - [isKeyRotationRecommended] returns `true` when a key is older than [DEFAULT_KEY_MAX_AGE_DAYS]
+ *   (default 90 days).  Surface this in the settings UI as a non-blocking recommendation.
+ * - [getKeyStoredAt] returns the epoch-millisecond timestamp of the last save/rotation.
  *
  * @param context The application context for DataStore and encryption
  */
@@ -107,21 +117,13 @@ class SecureApiKeyDataStore @Inject constructor(
     /**
      * Save an API key securely.
      *
-     * The key is validated before storage to ensure it's not blank.
-     * Any existing key for the same provider is overwritten.
-     *
-     * @param provider The AI provider identifier
-     * @param apiKey The API key to store
-     * @throws IllegalArgumentException if the API key is blank or invalid
-     * @throws SecureStorageException if encryption or storage fails
-     */
-    // (KDoc above is the original stub; the full doc is in the block below.)
-    /**
-     * Save an API key securely.
-     *
      * **C-10 fix:** The key is written *exclusively* to [EncryptedSharedPreferences].
      * The previous implementation also wrote to the plaintext DataStore, doubling the
      * attack surface. The DataStore write has been removed.
+     *
+     * The epoch-millisecond timestamp is recorded in the plaintext DataStore under
+     * `key_stored_at_{provider}`. Timestamps are not sensitive and are used only for
+     * key-rotation age checks.
      *
      * @param provider The AI provider identifier
      * @param apiKey The API key to store
@@ -136,6 +138,14 @@ class SecureApiKeyDataStore @Inject constructor(
             encryptedSharedPreferences.edit()
                 .putString("${KEY_API_KEY_PREFIX}$provider", apiKey)
                 .apply()
+            // Record when the key was stored (timestamp is not sensitive).
+            // Note: apply() above is asynchronous — the timestamp DataStore write below
+            // may complete before the encrypted write is flushed to disk.  If the process
+            // is killed between the two writes the timestamp will be absent on next start,
+            // causing isKeyRotationRecommended to return false (a safe/conservative default).
+            dataStore.edit { preferences ->
+                preferences[keyStoredAtKey(provider)] = System.currentTimeMillis()
+            }
         } catch (e: Exception) {
             throw SecureStorageException("Failed to save API key for provider: $provider", e)
         }
@@ -146,6 +156,7 @@ class SecureApiKeyDataStore @Inject constructor(
      *
      * Also removes any legacy plaintext entry from DataStore so that the migration
      * path does not resurrect a deleted key on the next app start.
+     * The stored-at timestamp for the provider is also removed.
      *
      * @param provider The AI provider identifier
      */
@@ -156,9 +167,13 @@ class SecureApiKeyDataStore @Inject constructor(
                 .remove("${KEY_API_KEY_PREFIX}$provider")
                 .apply()
 
-            // Also remove any legacy plaintext DataStore entry (migration cleanup).
+            // Also remove any legacy plaintext DataStore entry (migration cleanup)
+            // and the stored-at timestamp.
             val legacyKey = stringPreferencesKey("${KEY_API_KEY_PREFIX}$provider")
-            dataStore.edit { preferences -> preferences.remove(legacyKey) }
+            dataStore.edit { preferences ->
+                preferences.remove(legacyKey)
+                preferences.remove(keyStoredAtKey(provider))
+            }
         } catch (e: Exception) {
             throw SecureStorageException("Failed to remove API key for provider: $provider", e)
         }
@@ -168,7 +183,7 @@ class SecureApiKeyDataStore @Inject constructor(
      * Clear all stored API keys.
      *
      * Removes keys from both [EncryptedSharedPreferences] and any legacy plaintext
-     * DataStore entries.
+     * DataStore entries, as well as all stored-at timestamps.
      *
      * Use with caution — this removes all API keys from storage.
      */
@@ -177,10 +192,13 @@ class SecureApiKeyDataStore @Inject constructor(
             // Primary store.
             encryptedSharedPreferences.edit().clear().apply()
 
-            // Legacy plaintext DataStore cleanup.
+            // Legacy plaintext DataStore cleanup and timestamp removal.
             dataStore.edit { preferences ->
                 preferences.asMap().keys
-                    .filter { it.name.startsWith(KEY_API_KEY_PREFIX) }
+                    .filter {
+                        it.name.startsWith(KEY_API_KEY_PREFIX) ||
+                            it.name.startsWith(KEY_STORED_AT_PREFIX)
+                    }
                     .forEach { preferences.remove(it) }
             }
         } catch (e: Exception) {
@@ -196,6 +214,56 @@ class SecureApiKeyDataStore @Inject constructor(
      */
     suspend fun hasApiKey(provider: String): Boolean {
         return getApiKeyOnce(provider) != null
+    }
+
+    // ── Key rotation ──────────────────────────────────────────────────────────
+
+    /**
+     * Rotate an API key by replacing it with a new key value.
+     *
+     * The stored-at timestamp is updated so the rotation age clock resets.
+     * This is functionally equivalent to [saveApiKey] but makes the intent
+     * explicit at call sites.
+     *
+     * @param provider The AI provider identifier
+     * @param newApiKey The replacement API key
+     * @throws IllegalArgumentException if the new key is invalid
+     * @throws SecureStorageException if the write fails
+     */
+    suspend fun rotateApiKey(provider: String, newApiKey: String) {
+        saveApiKey(provider, newApiKey)
+    }
+
+    /**
+     * Return the epoch-millisecond timestamp recorded when the key for [provider]
+     * was last saved or rotated, or `null` if no key has been stored yet.
+     */
+    suspend fun getKeyStoredAt(provider: String): Long? {
+        return dataStore.data
+            .catch { exception ->
+                if (exception is IOException) emit(emptyPreferences()) else throw exception
+            }
+            .map { it[keyStoredAtKey(provider)] }
+            .first()
+    }
+
+    /**
+     * Return `true` if the stored key for [provider] is older than [maxAgeDays] days.
+     *
+     * Returns `false` when no key has been stored (no timestamp available).
+     * The default threshold is [DEFAULT_KEY_MAX_AGE_DAYS] (90 days) — a key older than
+     * that should be rotated as a precautionary measure.
+     *
+     * @param provider The AI provider identifier
+     * @param maxAgeDays Maximum acceptable key age in days (default: 90)
+     */
+    suspend fun isKeyRotationRecommended(
+        provider: String,
+        maxAgeDays: Long = DEFAULT_KEY_MAX_AGE_DAYS,
+    ): Boolean {
+        val storedAt = getKeyStoredAt(provider) ?: return false
+        val ageMs = System.currentTimeMillis() - storedAt
+        return (ageMs / MILLIS_PER_DAY) >= maxAgeDays
     }
 
     /**
@@ -237,8 +305,13 @@ class SecureApiKeyDataStore @Inject constructor(
         private const val DATA_STORE_NAME = "secure_api_keys"
         private const val ENCRYPTED_PREFS_FILE_NAME = "secure_api_keys_encrypted"
         private const val KEY_API_KEY_PREFIX = "api_key_"
+        private const val KEY_STORED_AT_PREFIX = "key_stored_at_"
         private const val MIN_KEY_LENGTH = 10
+        private const val MILLIS_PER_DAY = 24 * 60 * 60 * 1000L
         private val PLACEHOLDER_PATTERN = Regex("YOUR_|PLACEHOLDER|EXAMPLE|TEST_|DEMO_|FAKE_", RegexOption.IGNORE_CASE)
+
+        /** Default maximum key age in days before rotation is recommended. */
+        const val DEFAULT_KEY_MAX_AGE_DAYS = 90L
 
         // Provider identifiers
         const val PROVIDER_GEMINI = "gemini"
@@ -250,6 +323,9 @@ class SecureApiKeyDataStore @Inject constructor(
             name = DATA_STORE_NAME
         )
     }
+
+    private fun keyStoredAtKey(provider: String) =
+        longPreferencesKey("${KEY_STORED_AT_PREFIX}$provider")
 }
 
 /**
