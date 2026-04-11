@@ -86,7 +86,7 @@ class SourceRepositoryImpl(
     private val initScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val extensionLoader by lazy {
-        TachiyomiExtensionLoader(context.packageManager)
+        TachiyomiExtensionLoader(context.packageManager, context.cacheDir)
     }
 
     init {
@@ -112,13 +112,13 @@ class SourceRepositoryImpl(
     }
 
     /**
-     * Determines if an exception should be recorded as a source failure.
-     * Cancellation and interruption exceptions are expected and should not
-     * mark a source as unhealthy.
+     * Determines if a failure should be recorded in the health monitor.
+     * Filters out cancellation and interruption exceptions which are normal
+     * lifecycle events rather than source health issues.
      */
-    private fun shouldRecordFailure(e: Throwable): Boolean {
-        return e !is CancellationException &&
-               e !is InterruptedIOException
+    private fun shouldRecordFailure(error: Throwable): Boolean {
+        return error !is CancellationException &&
+               error !is InterruptedIOException
     }
 
     override suspend fun getPopularManga(sourceId: String, page: Int): Result<MangaPage> {
@@ -153,7 +153,7 @@ class SourceRepositoryImpl(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                // Record failure for health monitoring (but not for cancellations/interruptions)
+                // Record failure for health monitoring
                 if (shouldRecordFailure(e)) {
                     healthMonitor.recordFailure(sourceId, e)
                 }
@@ -194,7 +194,7 @@ class SourceRepositoryImpl(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                // Record failure for health monitoring (but not for cancellations/interruptions)
+                // Record failure for health monitoring
                 if (shouldRecordFailure(e)) {
                     healthMonitor.recordFailure(sourceId, e)
                 }
@@ -253,7 +253,7 @@ class SourceRepositoryImpl(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                // Record failure for health monitoring (but not for cancellations/interruptions)
+                // Record failure for health monitoring
                 if (shouldRecordFailure(e)) {
                     healthMonitor.recordFailure(sourceId, e)
                 }
@@ -288,7 +288,7 @@ class SourceRepositoryImpl(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                // Record failure for health monitoring (but not for cancellations/interruptions)
+                // Record failure for health monitoring
                 if (shouldRecordFailure(e)) {
                     healthMonitor.recordFailure(sourceId, e)
                 }
