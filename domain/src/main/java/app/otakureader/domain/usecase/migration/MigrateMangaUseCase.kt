@@ -128,14 +128,14 @@ class MigrateMangaUseCase @Inject constructor(
                     // Individual tracker migration failure is non-fatal; continue
                     // with the remaining entries so partial progress is preserved.
                     failedTrackers++
-                    // M-18: Use android.util.Log instead of System.err.println.
-                    android.util.Log.w(TAG, "Failed to migrate tracker entry for tracker " +
+                    // Domain layer uses System.err.println (not android.util.Log) as it's pure Kotlin
+                    System.err.println("Failed to migrate tracker entry for tracker " +
                         "${entry.trackerId}: ${e.message}")
                 }
             }
             if (failedTrackers > 0) {
-                // M-18: Use android.util.Log instead of System.err.println.
-                android.util.Log.w(TAG, "Migration completed with $failedTrackers tracker " +
+                // Domain layer uses System.err.println (not android.util.Log) as it's pure Kotlin
+                System.err.println("Migration completed with $failedTrackers tracker " +
                     "failure(s) out of ${trackerEntries.size} total")
             }
 
@@ -256,11 +256,6 @@ class MigrateMangaUseCase @Inject constructor(
         chapterRepository.insertChapters(chaptersToInsert)
 
         return matchedCount
-    }
-
-    companion object {
-        // M-18: Log tag for android.util.Log calls.
-        private const val TAG = "MigrateMangaUseCase"
     }
 
     private fun MigrationCandidate.toManga(

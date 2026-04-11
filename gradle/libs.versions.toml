@@ -2,9 +2,8 @@
 # Core
 kotlin = "2.3.20"
 agp = "9.1.0"
-# D-3: KSP version must match the Kotlin version prefix. Updated from 2.3.6 to 2.3.20-1.0.32
-# (the latest KSP release for Kotlin 2.3.20 at time of writing).
-ksp = "2.3.20-1.0.32"
+# D-3: KSP version must match the Kotlin version prefix. Using 2.3.6 (latest available)
+ksp = "2.3.6"
 
 # AndroidX
 core-ktx = "1.18.0"
@@ -24,7 +23,7 @@ lifecycle = "2.10.0"
 
 # Navigation
 navigation = "2.9.7"
-accompanist-navigation = "0.37.3"
+accompanist-navigation = "0.36.0"
 
 # Hilt
 hilt = "2.59.2"

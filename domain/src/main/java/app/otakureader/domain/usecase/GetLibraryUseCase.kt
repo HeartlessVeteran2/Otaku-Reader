@@ -4,6 +4,7 @@ import app.otakureader.domain.model.LibraryManga
 import app.otakureader.domain.repository.MangaRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import javax.inject.Inject
 
 /**
  * Use case that provides a filtered and searched library stream.

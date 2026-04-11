@@ -1,6 +1,7 @@
 package app.otakureader.domain.usecase
 
 import app.otakureader.domain.repository.DownloadRepository
+import javax.inject.Inject
 
 /**
  * Removes a downloaded chapter from local storage and updates download state.
