@@ -81,6 +81,9 @@ class EncryptedApiKeyStore(private val context: Context) {
      *
      * The current epoch-millisecond timestamp is also recorded in the meta-preferences
      * file so that [isGeminiKeyRotationRecommended] can report accurate key age.
+     * The timestamp is written with [apply] (async) because missing a timestamp on
+     * a process kill is acceptable — the next successful [setGeminiApiKey] call will
+     * record a fresh timestamp.
      */
     suspend fun setGeminiApiKey(value: String) {
         val commitSucceeded = withContext(Dispatchers.IO) {
@@ -89,11 +92,10 @@ class EncryptedApiKeyStore(private val context: Context) {
                 .commit()
         }
         if (commitSucceeded) {
-            withContext(Dispatchers.IO) {
-                metaPrefs.edit()
-                    .putLong(KEY_GEMINI_STORED_AT, System.currentTimeMillis())
-                    .apply()
-            }
+            // Timestamp is non-sensitive metadata; apply() is fine here (async write is acceptable).
+            metaPrefs.edit()
+                .putLong(KEY_GEMINI_STORED_AT, System.currentTimeMillis())
+                .apply()
             _geminiApiKey.value = value
             // Mark as initialized so a concurrent init() won't overwrite with the stale value.
             initialized.set(true)

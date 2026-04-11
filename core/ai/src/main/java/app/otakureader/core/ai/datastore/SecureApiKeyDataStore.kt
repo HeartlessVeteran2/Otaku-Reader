@@ -139,6 +139,10 @@ class SecureApiKeyDataStore @Inject constructor(
                 .putString("${KEY_API_KEY_PREFIX}$provider", apiKey)
                 .apply()
             // Record when the key was stored (timestamp is not sensitive).
+            // Note: apply() above is asynchronous — the timestamp DataStore write below
+            // may complete before the encrypted write is flushed to disk.  If the process
+            // is killed between the two writes the timestamp will be absent on next start,
+            // causing isKeyRotationRecommended to return false (a safe/conservative default).
             dataStore.edit { preferences ->
                 preferences[keyStoredAtKey(provider)] = System.currentTimeMillis()
             }
