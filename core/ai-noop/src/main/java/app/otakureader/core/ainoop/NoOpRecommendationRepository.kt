@@ -23,9 +23,6 @@ class NoOpRecommendationRepository @Inject constructor() : RecommendationReposit
 
     private val _flow = MutableStateFlow<RecommendationResult?>(null)
 
-    private fun unavailable(): Nothing =
-        throw UnsupportedOperationException("AI recommendations are not available in this build.")
-
     override suspend fun getRecommendations(forceRefresh: Boolean): Result<RecommendationResult> =
         Result.failure(UnsupportedOperationException("AI recommendations are not available in this build."))
 

@@ -438,17 +438,23 @@ private fun RecommendationCard(
                     }
                 }
             }
-            // Dismiss button
-            IconButton(
-                onClick = onDismiss,
+            // Dismiss button with semi-transparent background for visibility over thumbnails
+            Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .size(32.dp)
+                    .padding(4.dp)
+                    .size(24.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f),
+                        shape = CircleShape
+                    )
+                    .clickable(onClick = onDismiss),
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = stringResource(R.string.library_recommendations_dismiss),
-                    modifier = Modifier.size(16.dp),
+                    modifier = Modifier.size(14.dp),
                     tint = MaterialTheme.colorScheme.onSurface
                 )
             }

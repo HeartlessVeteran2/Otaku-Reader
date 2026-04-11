@@ -338,7 +338,7 @@ class LibraryViewModel @Inject constructor(
             .distinctUntilChanged()
             .onEach { hasEnough ->
                 _state.update { it.copy(hasEnoughMangaForRecommendations = hasEnough) }
-                if (hasEnough && _state.value.recommendations.isEmpty()) {
+                if (hasEnough) {
                     loadRecommendations()
                 }
             }
@@ -346,6 +346,9 @@ class LibraryViewModel @Inject constructor(
     }
 
     private fun loadRecommendations(forceRefresh: Boolean = false) {
+        // Guard against duplicate concurrent loads
+        if (!forceRefresh && _state.value.isLoadingRecommendations) return
+
         viewModelScope.launch {
             _state.update { it.copy(isLoadingRecommendations = true, recommendationsError = null) }
             val result = if (forceRefresh) {
