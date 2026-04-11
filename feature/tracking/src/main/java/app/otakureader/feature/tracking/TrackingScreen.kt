@@ -21,12 +21,20 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Login
 import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -58,6 +66,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.otakureader.domain.model.SyncStatus
 import app.otakureader.domain.model.TrackEntry
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -115,6 +124,21 @@ fun TrackingScreen(
                 viewModel.onEvent(TrackingEvent.Login(loginDialogTrackerId, username, password))
             },
             onDismiss = { viewModel.onEvent(TrackingEvent.DismissLoginDialog) }
+        )
+    }
+
+    // Show conflict resolution dialog when a sync conflict is detected
+    val conflictState = state.conflictState
+    if (conflictState != null) {
+        ConflictResolutionDialog(
+            conflict = conflictState,
+            onKeepLocal = {
+                viewModel.onEvent(TrackingEvent.ResolveConflict(conflictState.trackerId, useLocal = true))
+            },
+            onKeepRemote = {
+                viewModel.onEvent(TrackingEvent.ResolveConflict(conflictState.trackerId, useLocal = false))
+            },
+            onDismiss = { viewModel.onEvent(TrackingEvent.DismissConflict) }
         )
     }
 
@@ -184,7 +208,10 @@ fun TrackingScreen(
                             onLogin = { viewModel.onEvent(TrackingEvent.InitiateLogin(tracker.id)) },
                             onLogout = { viewModel.onEvent(TrackingEvent.Logout(tracker.id)) },
                             onSearch = { viewModel.onEvent(TrackingEvent.OpenSearchDialog(tracker.id)) },
-                            onUnlink = { viewModel.onEvent(TrackingEvent.UnlinkManga(tracker.id)) }
+                            onUnlink = { viewModel.onEvent(TrackingEvent.UnlinkManga(tracker.id)) },
+                            onSync = { viewModel.onEvent(TrackingEvent.SyncTracker(tracker.id)) },
+                            onPush = { viewModel.onEvent(TrackingEvent.PushToTracker(tracker.id)) },
+                            onPull = { viewModel.onEvent(TrackingEvent.PullFromTracker(tracker.id)) }
                         )
                     }
                 }
@@ -200,8 +227,13 @@ private fun TrackerCard(
     onLogout: () -> Unit,
     onSearch: () -> Unit,
     onUnlink: () -> Unit,
+    onSync: () -> Unit,
+    onPush: () -> Unit,
+    onPull: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var showSyncMenu by remember { mutableStateOf(false) }
+
     Card(
         modifier = modifier.fillMaxWidth()
     ) {
@@ -235,20 +267,77 @@ private fun TrackerCard(
                         text = tracker.name,
                         style = MaterialTheme.typography.titleMedium
                     )
-                    Text(
-                        text = if (tracker.isLoggedIn)
-                            stringResource(R.string.tracking_logged_in)
-                        else
-                            stringResource(R.string.tracking_not_logged_in),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = if (tracker.isLoggedIn)
-                            MaterialTheme.colorScheme.primary
-                        else
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = if (tracker.isLoggedIn)
+                                stringResource(R.string.tracking_logged_in)
+                            else
+                                stringResource(R.string.tracking_not_logged_in),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (tracker.isLoggedIn)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (tracker.syncStatus != null && tracker.isLoggedIn) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            SyncStatusIndicator(syncStatus = tracker.syncStatus)
+                        }
+                    }
                 }
 
                 if (tracker.isLoggedIn) {
+                    // Sync menu button
+                    if (tracker.entry != null) {
+                        Box {
+                            IconButton(onClick = { showSyncMenu = true }) {
+                                Icon(
+                                    imageVector = when (tracker.syncStatus) {
+                                        SyncStatus.SYNCING -> Icons.Default.Sync
+                                        SyncStatus.CONFLICT -> Icons.Default.Warning
+                                        SyncStatus.ERROR -> Icons.Default.Error
+                                        else -> Icons.Default.Sync
+                                    },
+                                    contentDescription = stringResource(R.string.tracking_sync),
+                                    tint = when (tracker.syncStatus) {
+                                        SyncStatus.CONFLICT -> MaterialTheme.colorScheme.error
+                                        SyncStatus.ERROR -> MaterialTheme.colorScheme.error
+                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    }
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = showSyncMenu,
+                                onDismissRequest = { showSyncMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.tracking_sync)) },
+                                    leadingIcon = { Icon(Icons.Default.Sync, contentDescription = null) },
+                                    onClick = {
+                                        showSyncMenu = false
+                                        onSync()
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.tracking_push)) },
+                                    leadingIcon = { Icon(Icons.Default.CloudUpload, contentDescription = null) },
+                                    onClick = {
+                                        showSyncMenu = false
+                                        onPush()
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.tracking_pull)) },
+                                    leadingIcon = { Icon(Icons.Default.CloudDownload, contentDescription = null) },
+                                    onClick = {
+                                        showSyncMenu = false
+                                        onPull()
+                                    }
+                                )
+                            }
+                        }
+                    }
+
                     IconButton(onClick = onLogout) {
                         Icon(
                             imageVector = Icons.Default.Logout,
@@ -288,6 +377,49 @@ private fun TrackerCard(
             }
         }
     }
+}
+
+/**
+ * Small icon that reflects the current sync status of a tracker entry.
+ */
+@Composable
+private fun SyncStatusIndicator(
+    syncStatus: SyncStatus,
+    modifier: Modifier = Modifier
+) {
+    val (icon, tint, description) = when (syncStatus) {
+        SyncStatus.SYNCED -> Triple(
+            Icons.Default.Check,
+            MaterialTheme.colorScheme.primary,
+            stringResource(R.string.tracking_sync_status_synced)
+        )
+        SyncStatus.PENDING -> Triple(
+            Icons.Default.Sync,
+            MaterialTheme.colorScheme.onSurfaceVariant,
+            stringResource(R.string.tracking_sync_status_pending)
+        )
+        SyncStatus.SYNCING -> Triple(
+            Icons.Default.Sync,
+            MaterialTheme.colorScheme.primary,
+            stringResource(R.string.tracking_sync_status_syncing)
+        )
+        SyncStatus.CONFLICT -> Triple(
+            Icons.Default.Warning,
+            MaterialTheme.colorScheme.error,
+            stringResource(R.string.tracking_sync_status_conflict)
+        )
+        SyncStatus.ERROR -> Triple(
+            Icons.Default.Error,
+            MaterialTheme.colorScheme.error,
+            stringResource(R.string.tracking_sync_status_error)
+        )
+    }
+    Icon(
+        imageVector = icon,
+        contentDescription = description,
+        tint = tint,
+        modifier = modifier.size(16.dp)
+    )
 }
 
 @Composable
@@ -390,6 +522,76 @@ private fun CredentialLoginDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(stringResource(R.string.tracking_cancel))
+            }
+        }
+    )
+}
+
+/**
+ * Dialog displayed when a 2-way sync detects conflicting changes on both the local
+ * device and the remote tracker. Offers the user a choice between keeping local or
+ * remote progress.
+ */
+@Composable
+private fun ConflictResolutionDialog(
+    conflict: ConflictUiState,
+    onKeepLocal: () -> Unit,
+    onKeepRemote: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                imageVector = Icons.Default.Warning,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error
+            )
+        },
+        title = {
+            Text(stringResource(R.string.tracking_conflict_title, conflict.trackerName))
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.tracking_conflict_description))
+                Spacer(modifier = Modifier.height(4.dp))
+                Surface(
+                    shape = MaterialTheme.shapes.small,
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = stringResource(
+                                R.string.tracking_conflict_local_chapter,
+                                conflict.localChapter.toInt()
+                            ),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            text = stringResource(
+                                R.string.tracking_conflict_remote_chapter,
+                                conflict.remoteChapter.toInt()
+                            ),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onKeepLocal) {
+                Text(stringResource(R.string.tracking_conflict_keep_local))
+            }
+        },
+        dismissButton = {
+            Row {
+                TextButton(onClick = onKeepRemote) {
+                    Text(stringResource(R.string.tracking_conflict_keep_remote))
+                }
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.tracking_cancel))
+                }
             }
         }
     )

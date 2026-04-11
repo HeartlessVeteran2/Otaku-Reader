@@ -6,9 +6,12 @@ import androidx.lifecycle.viewModelScope
 import app.otakureader.core.common.mvi.UiEffect
 import app.otakureader.core.common.mvi.UiEvent
 import app.otakureader.core.common.mvi.UiState
+import app.otakureader.domain.model.SyncStatus
 import app.otakureader.domain.model.TrackEntry
 import app.otakureader.domain.model.TrackStatus
+import app.otakureader.domain.model.TrackerSyncState
 import app.otakureader.domain.model.TrackerType
+import app.otakureader.domain.repository.TrackerSyncRepository
 import app.otakureader.domain.tracking.TrackRepository
 import app.otakureader.domain.tracking.Tracker
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -37,8 +40,23 @@ data class TrackingState(
     val mangaTitle: String = "",
     val currentEntry: TrackEntry? = null,
     /** Tracker ID for which the credential login dialog should be shown. */
-    val loginDialogTrackerId: Int? = null
+    val loginDialogTrackerId: Int? = null,
+    /** Non-null when a sync conflict needs manual resolution. */
+    val conflictState: ConflictUiState? = null,
+    /** Per-tracker sync states keyed by tracker ID. */
+    val syncStates: Map<Int, TrackerSyncState> = emptyMap()
 ) : UiState
+
+/**
+ * Holds information about an unresolved sync conflict shown to the user.
+ */
+data class ConflictUiState(
+    val trackerId: Int,
+    val trackerName: String,
+    val localChapter: Float,
+    val remoteChapter: Float,
+    val message: String
+)
 
 data class TrackerUiModel(
     val id: Int,
@@ -46,7 +64,9 @@ data class TrackerUiModel(
     /** Brand color (ARGB) used to render the tracker badge locally. */
     val brandColor: Long,
     val isLoggedIn: Boolean,
-    val entry: TrackEntry? = null
+    val entry: TrackEntry? = null,
+    /** Current sync status for this tracker, or null if no sync state exists. */
+    val syncStatus: SyncStatus? = null
 )
 
 sealed interface TrackingEvent : UiEvent {
@@ -67,6 +87,16 @@ sealed interface TrackingEvent : UiEvent {
     data class UpdateScore(val trackerId: Int, val score: Float) : TrackingEvent
     data class OnSearchQueryChange(val query: String) : TrackingEvent
     data object ClearSearch : TrackingEvent
+    /** Triggers a manual bidirectional sync for a specific tracker. */
+    data class SyncTracker(val trackerId: Int) : TrackingEvent
+    /** Manually push local changes to a specific tracker. */
+    data class PushToTracker(val trackerId: Int) : TrackingEvent
+    /** Manually pull remote changes from a specific tracker. */
+    data class PullFromTracker(val trackerId: Int) : TrackingEvent
+    /** Resolves a detected conflict; [useLocal] = true keeps local, false keeps remote. */
+    data class ResolveConflict(val trackerId: Int, val useLocal: Boolean) : TrackingEvent
+    /** Dismisses the conflict dialog without resolving. */
+    data object DismissConflict : TrackingEvent
 }
 
 sealed interface TrackingEffect : UiEffect {
@@ -79,6 +109,7 @@ sealed interface TrackingEffect : UiEffect {
 class TrackingViewModel @Inject constructor(
     trackers: Set<@JvmSuppressWildcards Tracker>,
     private val trackRepository: TrackRepository,
+    private val trackerSyncRepository: TrackerSyncRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -118,6 +149,11 @@ class TrackingViewModel @Inject constructor(
             TrackingEvent.ClearSearch -> _state.update {
                 it.copy(searchQuery = "", searchResults = emptyList(), selectedTracker = null)
             }
+            is TrackingEvent.SyncTracker -> syncTracker(event.trackerId)
+            is TrackingEvent.PushToTracker -> pushToTracker(event.trackerId)
+            is TrackingEvent.PullFromTracker -> pullFromTracker(event.trackerId)
+            is TrackingEvent.ResolveConflict -> resolveConflict(event.trackerId, event.useLocal)
+            TrackingEvent.DismissConflict -> _state.update { it.copy(conflictState = null) }
         }
     }
 
@@ -127,8 +163,10 @@ class TrackingViewModel @Inject constructor(
         // Cancel any previous observation to avoid leaking collectors when mangaId changes.
         observeEntriesJob?.cancel()
         observeEntriesJob = viewModelScope.launch {
+            // Combine track entries and sync states into a single update
             trackRepository.observeEntriesForManga(mangaId).collect { entries ->
                 val entryMap = entries.associateBy { it.trackerId }
+                val currentSyncStates = _state.value.syncStates
                 val trackerModels = trackerMap.values
                     .sortedBy { it.id }
                     .map { tracker ->
@@ -137,10 +175,24 @@ class TrackingViewModel @Inject constructor(
                             name = tracker.name,
                             brandColor = getTrackerBrandColor(tracker.id),
                             isLoggedIn = tracker.isLoggedIn,
-                            entry = entryMap[tracker.id]
+                            entry = entryMap[tracker.id],
+                            syncStatus = currentSyncStates[tracker.id]?.syncStatus
                         )
                     }
                 _state.update { it.copy(trackers = trackerModels, isLoading = false) }
+            }
+        }
+
+        // Observe sync states separately and merge into tracker models
+        viewModelScope.launch {
+            trackerSyncRepository.getSyncStateForManga(mangaId).collect { syncStateList ->
+                val syncMap = syncStateList.associateBy { it.trackerId }
+                _state.update { state ->
+                    val updatedTrackers = state.trackers.map { model ->
+                        model.copy(syncStatus = syncMap[model.id]?.syncStatus)
+                    }
+                    state.copy(trackers = updatedTrackers, syncStates = syncMap)
+                }
             }
         }
     }
@@ -331,6 +383,86 @@ class TrackingViewModel @Inject constructor(
                 if (model.id == trackerId) model.copy(isLoggedIn = tracker.isLoggedIn) else model
             }
             state.copy(trackers = updatedList)
+        }
+    }
+
+    private fun syncTracker(trackerId: Int) {
+        val mangaId = _state.value.mangaId
+        viewModelScope.launch {
+            _state.update { state ->
+                state.copy(trackers = state.trackers.map { model ->
+                    if (model.id == trackerId) model.copy(syncStatus = SyncStatus.SYNCING) else model
+                })
+            }
+            val result = trackerSyncRepository.syncManga(mangaId, trackerId)
+            when {
+                result.hasConflict -> {
+                    val syncState = _state.value.syncStates[trackerId]
+                    val trackerName = _state.value.trackers.find { it.id == trackerId }?.name ?: ""
+                    _state.update { state ->
+                        state.copy(
+                            conflictState = ConflictUiState(
+                                trackerId = trackerId,
+                                trackerName = trackerName,
+                                localChapter = syncState?.localLastChapterRead ?: 0f,
+                                remoteChapter = syncState?.remoteLastChapterRead ?: 0f,
+                                message = result.message
+                            )
+                        )
+                    }
+                }
+                result.success ->
+                    _effect.trySend(TrackingEffect.ShowMessage(
+                        context.getString(R.string.tracking_sync_success)
+                    ))
+                else ->
+                    _effect.trySend(TrackingEffect.ShowError(
+                        context.getString(R.string.tracking_sync_error, result.message)
+                    ))
+            }
+        }
+    }
+
+    private fun pushToTracker(trackerId: Int) {
+        val mangaId = _state.value.mangaId
+        viewModelScope.launch {
+            val result = trackerSyncRepository.pushToTracker(mangaId, trackerId)
+            if (result.success) {
+                _effect.trySend(TrackingEffect.ShowMessage(
+                    context.getString(R.string.tracking_push_success)
+                ))
+            } else {
+                _effect.trySend(TrackingEffect.ShowError(
+                    context.getString(R.string.tracking_sync_error, result.message)
+                ))
+            }
+        }
+    }
+
+    private fun pullFromTracker(trackerId: Int) {
+        val mangaId = _state.value.mangaId
+        viewModelScope.launch {
+            val result = trackerSyncRepository.pullFromTracker(mangaId, trackerId)
+            if (result.success) {
+                _effect.trySend(TrackingEffect.ShowMessage(
+                    context.getString(R.string.tracking_pull_success)
+                ))
+            } else {
+                _effect.trySend(TrackingEffect.ShowError(
+                    context.getString(R.string.tracking_sync_error, result.message)
+                ))
+            }
+        }
+    }
+
+    private fun resolveConflict(trackerId: Int, useLocal: Boolean) {
+        val mangaId = _state.value.mangaId
+        _state.update { it.copy(conflictState = null) }
+        viewModelScope.launch {
+            trackerSyncRepository.resolveConflict(mangaId, trackerId, useLocal)
+            _effect.trySend(TrackingEffect.ShowMessage(
+                context.getString(R.string.tracking_conflict_resolved)
+            ))
         }
     }
 
