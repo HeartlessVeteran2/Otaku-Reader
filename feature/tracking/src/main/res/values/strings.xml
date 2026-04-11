@@ -30,4 +30,26 @@
     <string name="tracking_status_dropped">Dropped</string>
     <string name="tracking_status_plan_to_read">Plan to Read</string>
     <string name="tracking_status_re_reading">Re-reading</string>
+    <!-- 2-way sync -->
+    <string name="tracking_sync">Sync</string>
+    <string name="tracking_push">Push to tracker</string>
+    <string name="tracking_pull">Pull from tracker</string>
+    <string name="tracking_sync_success">Sync completed successfully</string>
+    <string name="tracking_push_success">Pushed to tracker successfully</string>
+    <string name="tracking_pull_success">Pulled from tracker successfully</string>
+    <string name="tracking_sync_error">Sync failed: %s</string>
+    <string name="tracking_conflict_resolved">Conflict resolved</string>
+    <!-- Sync status indicators -->
+    <string name="tracking_sync_status_synced">Synced</string>
+    <string name="tracking_sync_status_pending">Pending sync</string>
+    <string name="tracking_sync_status_syncing">Syncing…</string>
+    <string name="tracking_sync_status_conflict">Sync conflict</string>
+    <string name="tracking_sync_status_error">Sync error</string>
+    <!-- Conflict resolution dialog -->
+    <string name="tracking_conflict_title">Sync conflict – %s</string>
+    <string name="tracking_conflict_description">Both local and remote progress have changed. Choose which version to keep.</string>
+    <string name="tracking_conflict_local_chapter">Local: Chapter %d</string>
+    <string name="tracking_conflict_remote_chapter">Remote: Chapter %d</string>
+    <string name="tracking_conflict_keep_local">Keep local</string>
+    <string name="tracking_conflict_keep_remote">Keep remote</string>
 </resources>
