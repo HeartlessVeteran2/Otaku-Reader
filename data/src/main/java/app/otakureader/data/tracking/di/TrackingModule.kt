@@ -9,6 +9,7 @@ import app.otakureader.data.tracking.api.MyAnimeListOAuthApi
 import app.otakureader.data.tracking.api.ShikimoriApi
 import app.otakureader.data.tracking.api.ShikimoriOAuthApi
 import app.otakureader.data.tracking.repository.TrackRepositoryImpl
+import app.otakureader.data.tracking.repository.TrackerSyncRepositoryImpl
 import app.otakureader.data.tracking.tracker.AniListTracker
 import app.otakureader.data.tracking.tracker.KitsuTracker
 import app.otakureader.data.tracking.tracker.MangaUpdatesTracker
@@ -16,6 +17,7 @@ import app.otakureader.data.tracking.tracker.MyAnimeListTracker
 import app.otakureader.data.tracking.tracker.ShikimoriTracker
 import app.otakureader.domain.tracking.Tracker
 import app.otakureader.domain.tracking.TrackRepository
+import app.otakureader.domain.repository.TrackerSyncRepository
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -252,4 +254,8 @@ abstract class TrackingBindingsModule {
     @Binds
     @Singleton
     abstract fun bindTrackRepository(impl: TrackRepositoryImpl): TrackRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindTrackerSyncRepository(impl: TrackerSyncRepositoryImpl): TrackerSyncRepository
 }
