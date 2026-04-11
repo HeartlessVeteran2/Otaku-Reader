@@ -429,7 +429,10 @@ private fun RecommendationCard(
                     if (recommendation.reasonExplanation.isNotBlank()) {
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = recommendation.reasonExplanation,
+                            text = stringResource(
+                                R.string.library_recommendations_reason_prefix,
+                                recommendation.reasonExplanation
+                            ),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 2,
@@ -439,7 +442,8 @@ private fun RecommendationCard(
                 }
             }
             // Dismiss button with semi-transparent background for visibility over thumbnails
-            Box(
+            IconButton(
+                onClick = onDismiss,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(4.dp)
@@ -448,8 +452,6 @@ private fun RecommendationCard(
                         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f),
                         shape = CircleShape
                     )
-                    .clickable(onClick = onDismiss),
-                contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,
