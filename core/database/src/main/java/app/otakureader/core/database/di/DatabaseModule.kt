@@ -218,6 +218,27 @@ object DatabaseModule {
         }
     }
 
+    /**
+     * Adds categorization_results table for AI auto-categorization feature in database version 11.
+     */
+    private val MIGRATION_10_11 = object : Migration(10, 11) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `categorization_results` (
+                    `mangaId` INTEGER PRIMARY KEY NOT NULL,
+                    `suggestionsJson` TEXT NOT NULL,
+                    `appliedCategoriesJson` TEXT NOT NULL,
+                    `wasAutoApplied` INTEGER NOT NULL,
+                    `wasReviewed` INTEGER NOT NULL DEFAULT 0,
+                    `timestamp` INTEGER NOT NULL
+                )
+                """.trimIndent()
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_categorization_results_timestamp` ON `categorization_results` (`timestamp`)")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(
@@ -228,7 +249,7 @@ object DatabaseModule {
             OtakuReaderDatabase::class.java,
             OtakuReaderDatabase.DATABASE_NAME
         )
-            .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
+            .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
         // Only allow destructive migration in debug builds to avoid silently wiping
         // user data (including notes) in production if a migration is missing.
         if (BuildConfig.DEBUG) {
@@ -260,4 +281,7 @@ object DatabaseModule {
 
     @Provides
     fun provideTrackerSyncDao(database: OtakuReaderDatabase) = database.trackerSyncDao()
+
+    @Provides
+    fun provideCategorizationResultDao(database: OtakuReaderDatabase) = database.categorizationResultDao()
 }

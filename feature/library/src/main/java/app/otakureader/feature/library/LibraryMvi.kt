@@ -1,5 +1,6 @@
 package app.otakureader.feature.library
 
+import app.otakureader.domain.model.MangaRecommendation
 import app.otakureader.domain.model.MangaStatus
 
 enum class LibrarySortMode {
@@ -34,7 +35,12 @@ data class LibraryState(
     val filterMode: LibraryFilterMode = LibraryFilterMode.ALL,
     val filterSourceId: Long? = null,
     val showNsfw: Boolean = false,
-    val newUpdatesCount: Int = 0
+    val newUpdatesCount: Int = 0,
+    // Recommendations
+    val recommendations: List<MangaRecommendation> = emptyList(),
+    val isLoadingRecommendations: Boolean = false,
+    val recommendationsError: String? = null,
+    val hasEnoughMangaForRecommendations: Boolean = false
 )
 
 data class LibraryMangaItem(
@@ -72,6 +78,11 @@ sealed class LibraryEvent {
     data class SetFilterMode(val mode: LibraryFilterMode) : LibraryEvent()
     data class SetFilterSource(val sourceId: Long?) : LibraryEvent()
     data class ToggleNsfw(val show: Boolean) : LibraryEvent()
+    // Recommendations
+    data object LoadRecommendations : LibraryEvent()
+    data object RefreshRecommendations : LibraryEvent()
+    data class DismissRecommendation(val recommendationTitle: String) : LibraryEvent()
+    data class OnRecommendationClick(val recommendation: MangaRecommendation) : LibraryEvent()
 }
 
 sealed class LibraryEffect {
@@ -79,4 +90,5 @@ sealed class LibraryEffect {
     data class NavigateToReader(val mangaId: Long, val chapterId: Long?) : LibraryEffect()
     data class ShowError(val message: String) : LibraryEffect()
     data class NavigateToMigration(val selectedMangaIds: List<Long>) : LibraryEffect()
+    data class NavigateToRecommendationSearch(val title: String) : LibraryEffect()
 }

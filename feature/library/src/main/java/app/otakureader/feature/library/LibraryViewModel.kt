@@ -5,11 +5,15 @@ import androidx.lifecycle.viewModelScope
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.LibraryPreferences
 import app.otakureader.domain.model.Manga
+import app.otakureader.domain.model.MangaRecommendation
 import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.tracking.TrackRepository
+import app.otakureader.domain.usecase.DismissRecommendationUseCase
+import app.otakureader.domain.usecase.GetForYouRecommendationsUseCase
 import app.otakureader.domain.usecase.GetLibraryMangaUseCase
+import app.otakureader.domain.usecase.RefreshRecommendationsUseCase
 import app.otakureader.domain.usecase.ToggleFavoriteMangaUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
@@ -41,7 +45,10 @@ class LibraryViewModel @Inject constructor(
     private val generalPreferences: GeneralPreferences,
     private val chapterRepository: ChapterRepository,
     private val downloadRepository: DownloadRepository,
-    private val trackRepository: TrackRepository
+    private val trackRepository: TrackRepository,
+    private val getForYouRecommendations: GetForYouRecommendationsUseCase,
+    private val refreshRecommendations: RefreshRecommendationsUseCase,
+    private val dismissRecommendation: DismissRecommendationUseCase
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(LibraryState())
@@ -58,6 +65,7 @@ class LibraryViewModel @Inject constructor(
         observeLibraryPreferences()
         observeFilteredItems()
         observeNewUpdatesCount()
+        observeLibraryForRecommendations()
     }
 
     fun onEvent(event: LibraryEvent) {
@@ -74,6 +82,10 @@ class LibraryViewModel @Inject constructor(
             is LibraryEvent.SetFilterMode -> onSetFilterMode(event.mode)
             is LibraryEvent.SetFilterSource -> onSetFilterSource(event.sourceId)
             is LibraryEvent.ToggleNsfw -> onToggleNsfw(event.show)
+            is LibraryEvent.LoadRecommendations -> loadRecommendations()
+            is LibraryEvent.RefreshRecommendations -> loadRecommendations(forceRefresh = true)
+            is LibraryEvent.DismissRecommendation -> onDismissRecommendation(event.recommendationTitle)
+            is LibraryEvent.OnRecommendationClick -> onRecommendationClick(event.recommendation)
         }
     }
 
@@ -312,6 +324,83 @@ class LibraryViewModel @Inject constructor(
         viewModelScope.launch {
             generalPreferences.setShowNsfwContent(show)
         }
+    }
+
+    // ---- Recommendations ----
+
+    /**
+     * Observes the library items count and automatically triggers recommendation loading
+     * whenever the library grows to the minimum required size (>=3 items).
+     */
+    private fun observeLibraryForRecommendations() {
+        _allItems
+            .map { it.size >= MIN_LIBRARY_SIZE_FOR_RECOMMENDATIONS }
+            .distinctUntilChanged()
+            .onEach { hasEnough ->
+                _state.update { it.copy(hasEnoughMangaForRecommendations = hasEnough) }
+                if (hasEnough) {
+                    loadRecommendations()
+                }
+            }
+            .launchIn(viewModelScope)
+    }
+
+    private fun loadRecommendations(forceRefresh: Boolean = false) {
+        // Guard against duplicate concurrent loads
+        if (!forceRefresh && _state.value.isLoadingRecommendations) return
+
+        viewModelScope.launch {
+            _state.update { it.copy(isLoadingRecommendations = true, recommendationsError = null) }
+            val result = if (forceRefresh) {
+                refreshRecommendations().map { it.recommendations }
+            } else {
+                getForYouRecommendations()
+            }
+            result
+                .onSuccess { recommendations ->
+                    _state.update {
+                        it.copy(
+                            recommendations = recommendations,
+                            isLoadingRecommendations = false,
+                            recommendationsError = null
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _state.update {
+                        it.copy(
+                            isLoadingRecommendations = false,
+                            recommendationsError = error.message
+                        )
+                    }
+                }
+        }
+    }
+
+    private fun onDismissRecommendation(recommendationTitle: String) {
+        // Optimistically remove from UI immediately
+        _state.update { state ->
+            state.copy(
+                recommendations = state.recommendations.filterNot { it.title == recommendationTitle }
+            )
+        }
+        viewModelScope.launch {
+            dismissRecommendation(recommendationTitle)
+        }
+    }
+
+    private fun onRecommendationClick(recommendation: MangaRecommendation) {
+        viewModelScope.launch {
+            if (recommendation.mangaId != null) {
+                _effect.send(LibraryEffect.NavigateToManga(recommendation.mangaId))
+            } else {
+                _effect.send(LibraryEffect.NavigateToRecommendationSearch(recommendation.title))
+            }
+        }
+    }
+
+    companion object {
+        private const val MIN_LIBRARY_SIZE_FOR_RECOMMENDATIONS = 3
     }
 
     private fun Manga.toLibraryItem(
