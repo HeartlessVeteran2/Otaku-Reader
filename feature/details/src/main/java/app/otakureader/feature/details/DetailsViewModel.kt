@@ -25,6 +25,11 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import app.otakureader.domain.repository.SourceRepository
+import app.otakureader.sourceapi.SourceChapter
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.supervisorScope
 import javax.inject.Inject
 
 /**
@@ -36,6 +41,7 @@ class DetailsViewModel @Inject constructor(
     private val mangaRepository: MangaRepository,
     private val chapterRepository: ChapterRepository,
     private val downloadRepository: DownloadRepository,
+    private val sourceRepository: SourceRepository,
     private val downloadPreferences: DownloadPreferences,
     private val updateMangaNote: UpdateMangaNoteUseCase,
     private val setMangaNotifications: SetMangaNotificationsUseCase
@@ -49,6 +55,9 @@ class DetailsViewModel @Inject constructor(
 
     private val _effect = Channel<DetailsContract.Effect>(Channel.BUFFERED)
     val effect: Flow<DetailsContract.Effect> = _effect.receiveAsFlow()
+
+    // Thumbnail cache: chapterId -> Pair(thumbnailUrl, totalPages)
+    private val thumbnailCache = mutableMapOf<Long, Pair<String?, Int>>()
 
     init {
         loadMangaDetails()
@@ -114,14 +123,89 @@ class DetailsViewModel @Inject constructor(
     private fun loadChapters() {
         chapterRepository.getChaptersByMangaId(mangaId)
             .onEach { chapters ->
+                val enrichedChapters = chapters.map { chapter ->
+                    val (thumbnailUrl, totalPages) = getChapterThumbnailInfo(chapter)
+                    chapter.toChapterItem(thumbnailUrl, totalPages)
+                }
                 _state.update { state ->
                     state.copy(
-                        chapters = chapters.map { it.toChapterItem() },
+                        chapters = enrichedChapters,
                         isLoading = false
                     )
                 }
+                
+                // Fetch thumbnails for downloaded chapters in background
+                fetchThumbnailsForDownloadedChapters(chapters)
             }
             .launchIn(viewModelScope)
+    }
+    
+    /**
+     * Get cached thumbnail info or return null/0 if not available.
+     */
+    private fun getChapterThumbnailInfo(chapter: Chapter): Pair<String?, Int> {
+        return thumbnailCache[chapter.id] ?: (null to 0)
+    }
+    
+    /**
+     * Fetch thumbnails for downloaded chapters in the background.
+     * Only fetches for chapters that have been downloaded to avoid excessive network requests.
+     */
+    private fun fetchThumbnailsForDownloadedChapters(chapters: List<Chapter>) {
+        viewModelScope.launch {
+            // Get chapters that need thumbnail fetching
+            val chaptersNeedingThumbnails = chapters.filter { chapter ->
+                // Only fetch if not in cache and is downloaded or has been read
+                !thumbnailCache.containsKey(chapter.id) && 
+                (chapter.downloadStatus == app.otakureader.domain.model.DownloadStatus.COMPLETED || 
+                 chapter.lastPageRead > 0)
+            }.take(10) // Limit to first 10 to avoid overwhelming the source
+            
+            if (chaptersNeedingThumbnails.isEmpty()) return@launch
+            
+            val manga = _state.value.manga ?: return@launch
+            val source = sourceRepository.getSource(manga.sourceId.toString()) ?: return@launch
+            
+            supervisorScope {
+                chaptersNeedingThumbnails.map { chapter ->
+                    async {
+                        try {
+                            val sourceChapter = SourceChapter(
+                                id = chapter.id.toString(),
+                                name = chapter.name,
+                                url = chapter.url,
+                                uploadDate = chapter.dateUpload,
+                                chapterNumber = chapter.chapterNumber,
+                                scanlator = chapter.scanlator
+                            )
+                            
+                            source.getPageList(sourceChapter)
+                                .onSuccess { pages ->
+                                    if (pages.isNotEmpty()) {
+                                        val firstPageUrl = pages.first().imageUrl
+                                        thumbnailCache[chapter.id] = firstPageUrl to pages.size
+                                        
+                                        // Update the chapter in state with new thumbnail
+                                        _state.update { state ->
+                                            val updatedChapters = state.chapters.map { item ->
+                                                if (item.id == chapter.id) {
+                                                    item.copy(
+                                                        thumbnailUrl = firstPageUrl,
+                                                        totalPages = pages.size
+                                                    )
+                                                } else item
+                                            }
+                                            state.copy(chapters = updatedChapters)
+                                        }
+                                    }
+                                }
+                        } catch (e: Exception) {
+                            // Silently fail - thumbnails are optional
+                        }
+                    }
+                }.awaitAll()
+            }
+        }
     }
 
     private fun observeFavoriteStatus() {
