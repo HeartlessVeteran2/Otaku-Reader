@@ -7,10 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0-alpha] - 2026-04-12
+
 ### Added
-- 🎨 New app icons and branding
-- 📝 Professional GitHub project setup
-- 📚 Improved documentation
+- 🤖 **AI Feature Suite (Gemini)**: Full AI stack behind Settings → AI Features toggles
+  - **SFX Translation**: AI-powered sound effect detection and translation
+  - **Chapter Summary**: Auto-generated chapter summaries, cached in Room
+  - **Source Intelligence**: AI-enhanced source health and recommendations
+  - All features gated behind `AiFeatureGate` (master toggle + API key + per-feature toggle)
+  - Graceful degradation: no crashes when AI is disabled or API key is absent
+- 🔐 **Secure API Key Storage**: End-to-end encrypted key management
+  - `EncryptedApiKeyStore` — AES-256-GCM via Android Keystore / EncryptedSharedPreferences
+  - `SecureApiKeyDataStore` — key lifecycle (save, validate, rotate) in `core/ai`
+  - Hardware-backed storage on devices with StrongBox
+  - Keys never cached in JVM heap between reads
+  - `android:allowBackup="false"` + custom `ai_backup_rules.xml` to prevent backup leakage
+- 📋 **Auto-Categorization**: AI-powered manga category suggestions with `CategorizationRepository`
+  - Suggestions stored in Room v11 (`categorization_results` table)
+  - kotlinx-serialization used for JSON column encoding
+- 🔒 **Comprehensive Security Audit** — zero critical or high issues found
+  - Cleartext traffic blocked via `network_security_config` (`cleartextTrafficPermitted="false"`)
+  - HTTP logging enabled only in debug builds
+  - Tracker OAuth credentials injected at build time (not hard-coded)
+- 🧪 **Test Coverage Expansion**: domain use cases and feature ViewModels
+
+### Changed
+- 🗄️ Database upgraded to **version 11** (adds `categorization_results` table; migrations v1 → v11 maintained)
+- 🔒 Netty pinned to 4.2.10.Final (MadeYouReset DoS fix)
+- 🔒 jose4j pinned to 0.9.6+ (compressed JWE DoS fix)
+
+### Fixed
+- ⚙️ `BrowseViewModel` injection fixed; use-case `@Inject` annotations corrected
+- ⚙️ `ArchitectureTest` compilation errors resolved
+- 🔁 Two-way sync conflict resolution for Google Drive library sync
 
 ## [0.3.0-alpha] - 2026-03-15
 
