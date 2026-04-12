@@ -32,6 +32,9 @@ object DetailsContract {
         val globalDeleteAfterRead: Boolean = false,
         val noteEditorVisible: Boolean = false,
         val noteEditorText: String = "",
+
+        /** AI-generated chapter summaries keyed by chapter ID. */
+        val chapterSummaries: Map<Long, String> = emptyMap(),
         /** AI-generated summary of the manga description; null when not yet generated. */
         val aiSummary: String? = null,
         /** True while the AI summary is being generated. */
@@ -146,6 +149,8 @@ object DetailsContract {
         // Chapter thumbnail loading
         data class LoadChapterThumbnail(val chapterId: Long) : Event
 
+        // AI Summary
+        data class RequestChapterSummary(val chapterId: Long) : Event
         // AI Summary Translation
         data object GenerateAiSummary : Event
     }

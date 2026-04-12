@@ -29,6 +29,7 @@ import app.otakureader.core.preferences.DownloadPreferences
 import app.otakureader.data.download.ChapterDownloadRequest
 import app.otakureader.data.download.DownloadManager
 import app.otakureader.feature.reader.panel.PanelDetectionService
+import app.otakureader.domain.usecase.ai.TranslateSfxUseCase
 import coil3.ImageLoader
 import coil3.request.ImageRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -38,7 +39,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import app.otakureader.core.preferences.AiPreferences
-import app.otakureader.domain.repository.AiRepository
 import app.otakureader.domain.usecase.ai.TranslateSfxUseCase
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -79,9 +79,8 @@ class UltimateReaderViewModel @Inject constructor(
     private val smartPrefetchManager: SmartPrefetchManager,
     private val chapterPrefetcher: AdaptiveChapterPrefetcher,
     private val panelDetectionService: PanelDetectionService,
-    private val aiRepository: AiRepository,
     private val aiPreferences: AiPreferences,
-    private val translateSfxUseCase: TranslateSfxUseCase,
+    private val translateSfx: TranslateSfxUseCase,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -587,6 +586,7 @@ class UltimateReaderViewModel @Inject constructor(
             }
             preloadPages(validPage)
             scheduleProgressSave()
+            loadSfxTranslationsForPage(validPage)
 
             // Update Discord presence with current page
             val manga = currentManga
@@ -1173,12 +1173,15 @@ class UltimateReaderViewModel @Inject constructor(
         const val AUTO_SCROLL_INCREMENT = 50f
     }
 
-    // --- SFX Translation ---
-
+    /**
+     * Observes the combined AI master toggle + SFX translation toggle from preferences.
+     * The [ReaderState.sfxTranslationEnabled] flag is kept in sync so the UI can
+     * conditionally show/hide the SFX overlay.
+     */
     private fun observeSfxSettings() {
         combine(
             aiPreferences.aiEnabled,
-            aiPreferences.aiSfxTranslation
+            aiPreferences.aiSfxTranslation,
         ) { aiEnabled, sfxEnabled ->
             aiEnabled && sfxEnabled
         }.onEach { enabled ->
@@ -1186,36 +1189,48 @@ class UltimateReaderViewModel @Inject constructor(
         }.launchIn(viewModelScope)
     }
 
-    private fun translateSfx(sfxText: String) {
-        if (sfxText.isBlank()) return
-        // Return cached result immediately if available
-        val cached = _state.value.sfxTranslations[sfxText]
-        if (cached != null) return
+    /**
+     * In-flight jobs per page index, used to avoid duplicate AI calls when the user
+     * scrolls quickly or a page is revisited before its first request completes.
+     * Keyed by [pageIndex]; an active entry means a request is already in progress.
+     */
+    private val sfxPageJobs = mutableMapOf<Int, kotlinx.coroutines.Job>()
 
-        viewModelScope.launch {
-            if (!aiRepository.isAvailable()) {
-                _effect.send(ReaderEffect.ShowSnackbar("AI is not available. Please configure an API key in Settings."))
-                return@launch
-            }
+    /**
+     * Asynchronously loads SFX translations for the given page index.
+     *
+     * If a job is already in progress for [pageIndex] (e.g., rapid back-and-forth
+     * scrolling), this function is a no-op to avoid duplicate AI calls.
+     * The result is merged into [ReaderState.sfxTranslations] keyed by [pageIndex].
+     * When AI is disabled or unavailable the use case returns an empty list
+     * and no state update is emitted, so the reader is unaffected.
+     */
+    private fun loadSfxTranslationsForPage(pageIndex: Int) {
+        // Skip if a request for this page is already in-flight
+        if (sfxPageJobs[pageIndex]?.isActive == true) return
+
+        val chapter = currentChapter ?: return
+        val pageUrl = _state.value.pages.getOrNull(pageIndex)?.imageUrl ?: return
+
+        sfxPageJobs[pageIndex] = viewModelScope.launch {
             _state.update { it.copy(isSfxTranslating = true) }
-            translateSfxUseCase(sfxText)
-                .onSuccess { translation ->
-                    _state.update { state ->
-                        state.copy(
-                            isSfxTranslating = false,
-                            sfxTranslations = state.sfxTranslations + (sfxText to translation)
-                        )
-                    }
-                }
-                .onFailure { error ->
-                    _state.update { it.copy(isSfxTranslating = false) }
-                    _effect.send(
-                        ReaderEffect.ShowSnackbar("Translation failed: ${error.message ?: "Unknown error"}")
-                    )
-                }
+            val result = translateSfx(
+                chapterId = chapter.id,
+                pageIndex = pageIndex,
+                pageImageUrl = pageUrl,
+            )
+            val translations = result.getOrNull() ?: emptyList()
+            _state.update { state ->
+                val updatedTranslations = state.sfxTranslations + (pageIndex to translations)
+                state.copy(
+                    sfxTranslations = updatedTranslations,
+                    isSfxTranslating = false,
+                )
+            }
+        }.also { job ->
+            job.invokeOnCompletion { sfxPageJobs.remove(pageIndex) }
         }
     }
-}
 
 /**
  * Effects emitted by the reader

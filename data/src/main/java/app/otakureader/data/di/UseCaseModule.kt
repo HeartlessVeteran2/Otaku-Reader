@@ -3,14 +3,20 @@ package app.otakureader.data.di
 import app.otakureader.domain.repository.AiRepository
 import app.otakureader.domain.ai.AiFeatureGate
 import app.otakureader.domain.repository.ChapterRepository
+import app.otakureader.domain.repository.ChapterSummaryRepository
 import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.domain.repository.OpdsRepository
+import app.otakureader.domain.repository.SfxTranslationRepository
+import app.otakureader.domain.repository.SourceIntelligenceRepository
 import app.otakureader.domain.usecase.DeleteChapterUseCase
 import app.otakureader.domain.usecase.GetChaptersUseCase
 import app.otakureader.domain.usecase.GetHistoryUseCase
 import app.otakureader.domain.usecase.GetLibraryUseCase
 import app.otakureader.domain.usecase.ai.GenerateAiContentUseCase
+import app.otakureader.domain.usecase.ai.ScoreSourcesForMangaUseCase
+import app.otakureader.domain.usecase.ai.SummarizeChapterUseCase
+import app.otakureader.domain.usecase.ai.TranslateSfxUseCase
 import app.otakureader.domain.usecase.opds.BrowseOpdsCatalogUseCase
 import app.otakureader.domain.usecase.opds.DeleteOpdsServerUseCase
 import app.otakureader.domain.usecase.opds.GetOpdsServersUseCase
@@ -71,4 +77,28 @@ object UseCaseModule {
         aiFeatureGate: AiFeatureGate,
     ): GenerateAiContentUseCase =
         GenerateAiContentUseCase(aiRepository, aiFeatureGate)
+
+    @Provides
+    fun provideTranslateSfxUseCase(
+        aiRepository: AiRepository,
+        aiFeatureGate: AiFeatureGate,
+        sfxTranslationRepository: SfxTranslationRepository,
+    ): TranslateSfxUseCase =
+        TranslateSfxUseCase(aiRepository, aiFeatureGate, sfxTranslationRepository)
+
+    @Provides
+    fun provideSummarizeChapterUseCase(
+        aiRepository: AiRepository,
+        aiFeatureGate: AiFeatureGate,
+        chapterSummaryRepository: ChapterSummaryRepository,
+    ): SummarizeChapterUseCase =
+        SummarizeChapterUseCase(aiRepository, aiFeatureGate, chapterSummaryRepository)
+
+    @Provides
+    fun provideScoreSourcesForMangaUseCase(
+        aiRepository: AiRepository,
+        aiFeatureGate: AiFeatureGate,
+        sourceIntelligenceRepository: SourceIntelligenceRepository,
+    ): ScoreSourcesForMangaUseCase =
+        ScoreSourcesForMangaUseCase(aiRepository, aiFeatureGate, sourceIntelligenceRepository)
 }

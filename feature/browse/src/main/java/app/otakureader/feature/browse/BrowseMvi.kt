@@ -3,6 +3,7 @@ package app.otakureader.feature.browse
 import app.otakureader.core.common.mvi.UiEffect
 import app.otakureader.core.common.mvi.UiEvent
 import app.otakureader.core.common.mvi.UiState
+import app.otakureader.domain.model.SourceScore
 import app.otakureader.sourceapi.FilterList
 import app.otakureader.sourceapi.SourceManga
 
@@ -20,12 +21,12 @@ data class BrowseState(
     val availableFilters: FilterList = FilterList(),
     val activeFilters: FilterList = FilterList(),
     val showFilterSheet: Boolean = false,
-    /** AI-generated quality analysis for sources: sourceId → summary text. */
-    val sourceIntelligence: Map<String, String> = emptyMap(),
-    /** True while AI is analyzing a source. */
+    /** AI-ranked source scores for the manga currently being browsed, sorted by overall score desc. */
+    val sourceScores: List<SourceScore> = emptyList(),
+    /** True while AI is analyzing sources. */
     val isAnalyzingSource: Boolean = false,
     /** Whether the Source Intelligence feature is enabled in settings. */
-    val sourceIntelligenceEnabled: Boolean = false
+    val sourceIntelligenceEnabled: Boolean = false,
 ) : UiState
 
 sealed interface BrowseEvent : UiEvent {
@@ -40,6 +41,8 @@ sealed interface BrowseEvent : UiEvent {
     data class UpdateFilter(val index: Int, val filter: app.otakureader.sourceapi.Filter<*>) : BrowseEvent
     data object ResetFilters : BrowseEvent
     data object ApplyFilters : BrowseEvent
+    /** Request AI source scoring for a specific manga (identified by title). */
+    data class RequestSourceScores(val mangaId: Long, val mangaTitle: String) : BrowseEvent
 }
 
 sealed interface BrowseEffect : UiEffect {

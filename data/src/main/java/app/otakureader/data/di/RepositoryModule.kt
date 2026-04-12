@@ -2,19 +2,25 @@ package app.otakureader.data.di
 
 import app.otakureader.domain.repository.CategorizationRepository
 import app.otakureader.domain.repository.CategoryRepository
+import app.otakureader.domain.repository.ChapterSummaryRepository
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.FeedRepository
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.domain.repository.OpdsRepository
+import app.otakureader.domain.repository.SfxTranslationRepository
+import app.otakureader.domain.repository.SourceIntelligenceRepository
 import app.otakureader.domain.repository.StatisticsRepository
 import app.otakureader.data.opds.OpdsRepositoryImpl
 import app.otakureader.data.repository.CategorizationRepositoryImpl
 import app.otakureader.data.repository.CategoryRepositoryImpl
+import app.otakureader.data.repository.ChapterSummaryRepositoryImpl
 import app.otakureader.data.repository.ChapterRepositoryImpl
 import app.otakureader.data.repository.DownloadRepositoryImpl
 import app.otakureader.data.repository.FeedRepositoryImpl
 import app.otakureader.data.repository.MangaRepositoryImpl
+import app.otakureader.data.repository.SfxTranslationRepositoryImpl
+import app.otakureader.data.repository.SourceIntelligenceRepositoryImpl
 import app.otakureader.data.repository.StatisticsRepositoryImpl
 import dagger.Binds
 import dagger.Module
@@ -73,4 +79,19 @@ abstract class RepositoryModule {
     abstract fun bindCategorizationRepository(
         impl: CategorizationRepositoryImpl
     ): CategorizationRepository
+
+    @Binds
+    abstract fun bindSfxTranslationRepository(
+        impl: SfxTranslationRepositoryImpl
+    ): SfxTranslationRepository
+
+    @Binds
+    abstract fun bindChapterSummaryRepository(
+        impl: ChapterSummaryRepositoryImpl
+    ): ChapterSummaryRepository
+
+    @Binds
+    abstract fun bindSourceIntelligenceRepository(
+        impl: SourceIntelligenceRepositoryImpl
+    ): SourceIntelligenceRepository
 }

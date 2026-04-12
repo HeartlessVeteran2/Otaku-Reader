@@ -176,12 +176,12 @@ data class ReaderState(
     // --- SFX Translation ---
     /** Whether the SFX translation feature is enabled in settings. */
     val sfxTranslationEnabled: Boolean = false,
-    /** Cached SFX translations: raw SFX text → translated result. */
-    val sfxTranslations: Map<String, String> = emptyMap(),
+    /** AI-generated SFX translations keyed by zero-based page index. */
+    val sfxTranslations: Map<Int, List<app.otakureader.domain.model.SfxTranslation>> = emptyMap(),
     /** True while an SFX translation request is in progress. */
     val isSfxTranslating: Boolean = false,
-    /** Whether the SFX translation dialog is visible. */
-    val showSfxDialog: Boolean = false
+    /** Whether the SFX translation overlay is currently visible. */
+    val sfxOverlayVisible: Boolean = false,
 ) {
     /** Total pages in chapter (derived from pages.size) */
     val totalPages: Int get() = pages.size

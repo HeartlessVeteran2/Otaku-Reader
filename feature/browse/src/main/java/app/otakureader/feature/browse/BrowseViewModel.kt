@@ -4,8 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.otakureader.core.preferences.AiPreferences
 import app.otakureader.core.preferences.GeneralPreferences
-import app.otakureader.domain.repository.AiRepository
-import app.otakureader.domain.usecase.ai.AnalyzeSourceUseCase
+import app.otakureader.domain.usecase.ai.ScoreSourcesForMangaUseCase
+import app.otakureader.domain.usecase.ai.SourceInfo
 import app.otakureader.domain.usecase.source.GetLatestUpdatesUseCase
 import app.otakureader.domain.usecase.source.GetPopularMangaUseCase
 import app.otakureader.domain.usecase.source.GetSourceFiltersUseCase
@@ -35,9 +35,8 @@ class BrowseViewModel @Inject constructor(
     private val searchMangaUseCase: SearchMangaUseCase,
     private val getSourceFiltersUseCase: GetSourceFiltersUseCase,
     private val generalPreferences: GeneralPreferences,
-    private val aiRepository: AiRepository,
     private val aiPreferences: AiPreferences,
-    private val analyzeSourceUseCase: AnalyzeSourceUseCase
+    private val scoreSourcesForManga: ScoreSourcesForMangaUseCase,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(BrowseState())
@@ -84,12 +83,6 @@ class BrowseViewModel @Inject constructor(
                 }
                 loadPopularManga(event.sourceId)
                 loadSourceFilters(event.sourceId)
-                // Analyze source intelligence if enabled and not yet cached
-                if (_state.value.sourceIntelligenceEnabled &&
-                    !_state.value.sourceIntelligence.containsKey(event.sourceId)
-                ) {
-                    analyzeSource(event.sourceId)
-                }
             }
             is BrowseEvent.OnMangaClick -> {
                 val sourceId = _state.value.currentSourceId ?: return
@@ -98,77 +91,50 @@ class BrowseViewModel @Inject constructor(
             is BrowseEvent.OnSearchQueryChange -> {
                 _state.update { it.copy(searchQuery = event.query) }
             }
-            is BrowseEvent.Search -> {
-                performSearch()
-            }
-            is BrowseEvent.LoadNextPage -> {
-                loadNextPage()
-            }
-            is BrowseEvent.RefreshSources -> {
-                refreshSources()
-            }
-            is BrowseEvent.LoadLatest -> {
-                val sourceId = _state.value.currentSourceId ?: return
-                loadLatestUpdates(sourceId)
-            }
+            is BrowseEvent.Search -> performSearch()
+            is BrowseEvent.LoadNextPage -> loadNextPage()
+            is BrowseEvent.RefreshSources -> refreshSources()
+            is BrowseEvent.LoadLatest -> loadLatestUpdates()
             is BrowseEvent.ToggleFilterSheet -> {
                 _state.update { it.copy(showFilterSheet = !it.showFilterSheet) }
             }
             is BrowseEvent.UpdateFilter -> {
-                updateFilter(event.index, event.filter)
+                val currentFilters = _state.value.activeFilters.list.toMutableList()
+                if (event.index < currentFilters.size) {
+                    currentFilters[event.index] = event.filter
+                    _state.update { it.copy(activeFilters = FilterList(currentFilters)) }
+                }
             }
             is BrowseEvent.ResetFilters -> {
-                resetFilters()
+                _state.update {
+                    it.copy(activeFilters = it.availableFilters)
+                }
             }
             is BrowseEvent.ApplyFilters -> {
                 _state.update { it.copy(showFilterSheet = false) }
                 performSearch()
             }
-        }
-    }
-
-    private fun loadSourceFilters(sourceId: String) {
-        viewModelScope.launch {
-            val filters = getSourceFiltersUseCase(sourceId)
-            _state.update {
-                it.copy(
-                    availableFilters = filters,
-                    activeFilters = filters
-                )
+            is BrowseEvent.RequestSourceScores -> {
+                requestSourceScores(event.mangaId, event.mangaTitle)
             }
-        }
-    }
-
-    private fun updateFilter(index: Int, filter: app.otakureader.sourceapi.Filter<*>) {
-        val currentFilters = _state.value.activeFilters.filters.toMutableList()
-        if (index in currentFilters.indices) {
-            currentFilters[index] = filter
-            _state.update { it.copy(activeFilters = FilterList(currentFilters)) }
-        }
-    }
-
-    private fun resetFilters() {
-        val sourceId = _state.value.currentSourceId ?: return
-        viewModelScope.launch {
-            val filters = getSourceFiltersUseCase(sourceId)
-            _state.update { it.copy(activeFilters = filters) }
         }
     }
 
     private fun loadPopularManga(sourceId: String, page: Int = 1) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
+            val source = _sources.value.find { it.id == sourceId }
+            if (source == null) {
+                _state.update { it.copy(isLoading = false, error = "Source not found") }
+                return@launch
+            }
 
-            getPopularMangaUseCase(sourceId, page)
+            source.fetchPopularManga(page)
                 .onSuccess { mangaPage ->
-                    _state.update { state ->
-                        state.copy(
+                    _state.update {
+                        it.copy(
                             isLoading = false,
-                            popularManga = if (page == 1) {
-                                mangaPage.mangas
-                            } else {
-                                state.popularManga + mangaPage.mangas
-                            },
+                            popularManga = if (page == 1) mangaPage.mangas else it.popularManga + mangaPage.mangas,
                             hasNextPage = mangaPage.hasNextPage,
                             currentPage = page,
                             error = null
@@ -186,56 +152,38 @@ class BrowseViewModel @Inject constructor(
         }
     }
 
-    private fun loadLatestUpdates(sourceId: String, page: Int = 1) {
+    private fun loadSourceFilters(sourceId: String) {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, error = null) }
-
-            getLatestUpdatesUseCase(sourceId, page)
-                .onSuccess { mangaPage ->
-                    _state.update { state ->
-                        state.copy(
-                            isLoading = false,
-                            popularManga = if (page == 1) {
-                                mangaPage.mangas
-                            } else {
-                                state.popularManga + mangaPage.mangas
-                            },
-                            hasNextPage = mangaPage.hasNextPage,
-                            currentPage = page,
-                            error = null
-                        )
-                    }
-                }
-                .onFailure { error ->
-                    _state.update {
-                        it.copy(
-                            isLoading = false,
-                            error = error.message ?: "Failed to load latest updates"
-                        )
-                    }
-                }
+            val source = _sources.value.find { it.id == sourceId } ?: return@launch
+            val filters = getSourceFiltersUseCase(source)
+            _state.update {
+                it.copy(
+                    availableFilters = filters,
+                    activeFilters = filters
+                )
+            }
         }
     }
 
     private fun performSearch() {
         val query = _state.value.searchQuery
         val sourceId = _state.value.currentSourceId ?: return
-        val filters = _state.value.activeFilters
-
-        // Allow filter-only search only when at least one filter is non-default
-        if (query.isBlank() && !filters.hasActiveFilters()) return
 
         viewModelScope.launch {
             _state.update { it.copy(isSearching = true, error = null) }
+            val source = _sources.value.find { it.id == sourceId }
+            if (source == null) {
+                _state.update { it.copy(isSearching = false, error = "Source not found") }
+                return@launch
+            }
 
-            searchMangaUseCase(sourceId, query, 1, filters)
+            source.fetchSearchManga(1, query, _state.value.activeFilters)
                 .onSuccess { mangaPage ->
-                    _state.update { state ->
-                        state.copy(
+                    _state.update {
+                        it.copy(
                             isSearching = false,
                             searchResults = mangaPage.mangas,
                             hasNextPage = mangaPage.hasNextPage,
-                            currentPage = 1,
                             error = null
                         )
                     }
@@ -251,27 +199,72 @@ class BrowseViewModel @Inject constructor(
         }
     }
 
+    private fun loadLatestUpdates() {
+        val sourceId = _state.value.currentSourceId ?: return
+
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true, error = null) }
+            val source = _sources.value.find { it.id == sourceId }
+            if (source == null) {
+                _state.update { it.copy(isLoading = false, error = "Source not found") }
+                return@launch
+            }
+
+            source.fetchLatestUpdates(1)
+                .onSuccess { mangaPage ->
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            popularManga = mangaPage.mangas,
+                            hasNextPage = mangaPage.hasNextPage,
+                            currentPage = 1,
+                            error = null
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            error = error.message ?: "Failed to load latest updates"
+                        )
+                    }
+                }
+        }
+    }
+
     private fun loadNextPage() {
         val currentState = _state.value
+        if (!currentState.hasNextPage || currentState.isLoading) return
+
         val sourceId = currentState.currentSourceId ?: return
 
-        if (currentState.isSearching) {
-            // Load next page of search results
+        if (currentState.searchQuery.isNotBlank()) {
             viewModelScope.launch {
-                searchMangaUseCase(
-                    sourceId,
-                    currentState.searchQuery,
+                _state.update { it.copy(isLoading = true) }
+                val source = _sources.value.find { it.id == sourceId }
+                if (source == null) {
+                    _state.update { it.copy(isLoading = false) }
+                    return@launch
+                }
+
+                source.fetchSearchManga(
                     currentState.currentPage + 1,
+                    currentState.searchQuery,
                     currentState.activeFilters
                 )
                     .onSuccess { mangaPage ->
-                        _state.update { state ->
-                            state.copy(
-                                searchResults = state.searchResults + mangaPage.mangas,
+                        _state.update {
+                            it.copy(
+                                isLoading = false,
+                                searchResults = it.searchResults + mangaPage.mangas,
                                 hasNextPage = mangaPage.hasNextPage,
-                                currentPage = state.currentPage + 1
+                                currentPage = it.currentPage + 1
                             )
                         }
+                    }
+                    .onFailure {
+                        _state.update { it.copy(isLoading = false) }
                     }
             }
         } else {
@@ -300,6 +293,11 @@ class BrowseViewModel @Inject constructor(
 
     // --- Source Intelligence ---
 
+    /**
+     * Observes the combined AI master toggle + source intelligence toggle from preferences.
+     * The [BrowseState.sourceIntelligenceEnabled] flag is kept in sync so the UI can
+     * conditionally show/hide source scoring chips.
+     */
     private fun observeSourceIntelligenceSettings() {
         combine(
             aiPreferences.aiEnabled,
@@ -311,27 +309,35 @@ class BrowseViewModel @Inject constructor(
         }.launchIn(viewModelScope)
     }
 
-    private fun analyzeSource(sourceId: String) {
-        val source = _sources.value.find { it.id == sourceId } ?: return
-
+    /**
+     * Requests AI source intelligence scoring for the given manga.
+     *
+     * Available sources are mapped to [SourceInfo] objects and passed to
+     * [ScoreSourcesForMangaUseCase]. Results are stored in [BrowseState.sourceScores]
+     * sorted by overall score descending so the UI can suggest the best source.
+     *
+     * When AI is disabled or unavailable the use case returns an empty list and no
+     * state update is performed – the UI continues to show sources unsorted.
+     */
+    private fun requestSourceScores(mangaId: Long, mangaTitle: String) {
         viewModelScope.launch {
-            if (!aiRepository.isAvailable()) return@launch
             _state.update { it.copy(isAnalyzingSource = true) }
-            analyzeSourceUseCase(
-                sourceName = source.name,
-                sourceLanguage = source.lang,
-                isNsfw = source.isNsfw
-            ).onSuccess { summary ->
-                _state.update { state ->
-                    state.copy(
-                        isAnalyzingSource = false,
-                        sourceIntelligence = state.sourceIntelligence + (sourceId to summary)
-                    )
-                }
-            }.onFailure {
-                _state.update { it.copy(isAnalyzingSource = false) }
+            val sourceInfoList = _sources.value.map { source ->
+                SourceInfo(
+                    sourceId = source.id,
+                    sourceName = source.name,
+                    chapterCount = 0, // Not available at browse level; AI uses name/language as proxy
+                    language = source.lang,
+                )
+            }
+            val result = scoreSourcesForManga(mangaId, mangaTitle, sourceInfoList)
+            val scores = result.getOrNull() ?: emptyList()
+            _state.update { state ->
+                state.copy(
+                    isAnalyzingSource = false,
+                    sourceScores = scores,
+                )
             }
         }
     }
 }
-
