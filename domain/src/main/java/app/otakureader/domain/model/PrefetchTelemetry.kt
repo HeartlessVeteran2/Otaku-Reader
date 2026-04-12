@@ -1,11 +1,14 @@
 package app.otakureader.domain.model
 
+import androidx.compose.runtime.Immutable
+
 /**
  * Telemetry data for tracking prefetch effectiveness and optimization.
  *
  * This model captures metrics to tune the smart prefetch system and
  * provide insights into cache performance.
  */
+@Immutable
 data class PrefetchTelemetry(
     /** Total number of pages prefetched. */
     val pagesPrefetched: Long = 0L,

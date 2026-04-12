@@ -1,8 +1,11 @@
 package app.otakureader.domain.model
 
+import androidx.compose.runtime.Immutable
+
 /**
  * Represents an AI-suggested category with confidence score.
  */
+@Immutable
 data class CategorySuggestion(
     val categoryName: String,
     val confidenceScore: Float,
@@ -23,6 +26,7 @@ enum class CategoryType {
 /**
  * Result of AI categorization for a manga.
  */
+@Immutable
 data class CategorizationResult(
     val mangaId: Long,
     val suggestions: List<CategorySuggestion>,

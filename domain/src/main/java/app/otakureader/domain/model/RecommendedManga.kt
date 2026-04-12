@@ -1,5 +1,6 @@
 package app.otakureader.domain.model
 
+import androidx.compose.runtime.Immutable
 import kotlinx.serialization.Serializable
 
 /**
@@ -13,6 +14,7 @@ import kotlinx.serialization.Serializable
  * @property recommendationType Type of recommendation (similar, discovery, trending, etc.)
  * @property generatedAt Timestamp when the recommendation was generated
  */
+@Immutable
 @Serializable
 data class RecommendedManga(
     val manga: Manga,
@@ -51,6 +53,7 @@ data class RecommendedManga(
  * @property isCached Whether these results came from cache
  * @property analysisSummary Brief summary of the user's reading patterns used for recommendations
  */
+@Immutable
 @Serializable
 data class RecommendedMangaResult(
     val recommendations: List<RecommendedManga>,
@@ -75,6 +78,7 @@ data class RecommendedMangaResult(
  * @property preferredGenres User's preferred genres based on history
  * @property favoriteAuthors User's favorite authors based on reading patterns
  */
+@Immutable
 @Serializable
 data class RecommendationAnalysisInput(
     val readingHistory: List<MangaReadingHistory>,
@@ -97,6 +101,7 @@ data class RecommendationAnalysisInput(
  * @property lastReadAt Timestamp of last read
  * @property isFavorite Whether the manga is favorited
  */
+@Immutable
 @Serializable
 data class MangaReadingHistory(
     val manga: Manga,
@@ -114,6 +119,7 @@ data class MangaReadingHistory(
  * @property manga The manga
  * @property rating User rating (typically 1-5 or 1-10)
  */
+@Immutable
 @Serializable
 data class RatedManga(
     val manga: Manga,

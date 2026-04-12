@@ -1,5 +1,7 @@
 package app.otakureader.domain.model
 
+import androidx.compose.runtime.Immutable
+
 /**
  * AI-generated summary for a manga chapter.
  *
@@ -11,6 +13,7 @@ package app.otakureader.domain.model
  * @property language BCP-47 language tag of the summary (e.g. "en", "ja").
  * @property generatedAt Unix timestamp (ms) when the summary was generated.
  */
+@Immutable
 data class ChapterSummary(
     val chapterId: Long,
     val mangaId: Long,

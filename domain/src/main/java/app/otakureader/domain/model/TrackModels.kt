@@ -1,5 +1,6 @@
 package app.otakureader.domain.model
 
+import androidx.compose.runtime.Immutable
 import kotlinx.serialization.Serializable
 
 /**
@@ -24,6 +25,7 @@ enum class TrackStatus {
 /**
  * A single tracked manga entry as stored by a remote tracker service.
  */
+@Immutable
 @Serializable
 data class TrackEntry(
     /** Unique identifier of the tracked item on the remote service. */

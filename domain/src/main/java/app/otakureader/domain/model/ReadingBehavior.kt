@@ -1,11 +1,14 @@
 package app.otakureader.domain.model
 
+import androidx.compose.runtime.Immutable
+
 /**
  * Represents a user's reading behavior pattern for adaptive prefetching.
  *
  * This model captures navigation patterns to predict likely next actions
  * and optimize page/chapter preloading.
  */
+@Immutable
 data class ReadingBehavior(
     /** Ratio of forward page navigations (0.0 to 1.0). */
     val forwardNavigationRatio: Float = 0.9f,
@@ -58,6 +61,7 @@ data class ReadingBehavior(
 /**
  * Represents a single page navigation event for behavior tracking.
  */
+@Immutable
 data class PageNavigationEvent(
     /** Manga ID for this navigation event. */
     val mangaId: Long,

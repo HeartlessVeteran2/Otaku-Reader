@@ -1,8 +1,10 @@
 package app.otakureader.domain.model
 
+import androidx.compose.runtime.Immutable
 import kotlinx.serialization.Serializable
 
 /** A manga in the user's library, enriched with category and reading state. */
+@Immutable
 @Serializable
 data class LibraryManga(
     val manga: Manga,
@@ -13,6 +15,7 @@ data class LibraryManga(
 )
 
 /** A chapter with its reading history entry. */
+@Immutable
 @Serializable
 data class ChapterWithHistory(
     val chapter: Chapter,
@@ -21,6 +24,7 @@ data class ChapterWithHistory(
 )
 
 /** Manga with its latest chapter for the Updates screen. */
+@Immutable
 @Serializable
 data class MangaUpdate(
     val manga: Manga,
@@ -28,6 +32,7 @@ data class MangaUpdate(
 )
 
 /** Reading session details for exact position resume. */
+@Immutable
 @Serializable
 data class ReadingSession(
     val mangaId: Long,

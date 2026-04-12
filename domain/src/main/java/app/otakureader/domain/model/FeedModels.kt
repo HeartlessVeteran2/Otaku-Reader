@@ -1,11 +1,13 @@
 package app.otakureader.domain.model
 
+import androidx.compose.runtime.Immutable
 import java.time.Instant
 
 /**
  * Represents a feed item - latest updates from a source.
  * Used in the Feed feature to show recent chapters across sources.
  */
+@Immutable
 data class FeedItem(
     val id: Long = 0,
     val mangaId: Long,
@@ -23,6 +25,7 @@ data class FeedItem(
 /**
  * Feed source configuration - which sources to include in feed.
  */
+@Immutable
 data class FeedSource(
     val sourceId: Long,
     val sourceName: String,
@@ -34,6 +37,7 @@ data class FeedSource(
 /**
  * Saved search for feed - tracks a specific search query.
  */
+@Immutable
 data class FeedSavedSearch(
     val id: Long = 0,
     val sourceId: Long,

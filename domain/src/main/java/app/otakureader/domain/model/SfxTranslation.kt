@@ -1,5 +1,7 @@
 package app.otakureader.domain.model
 
+import androidx.compose.runtime.Immutable
+
 /**
  * Represents a single translated sound-effect (SFX) annotation on a manga page.
  *
@@ -10,6 +12,7 @@ package app.otakureader.domain.model
  * @property positionHint An optional free-form description of where on the page the SFX appears
  *   (e.g. "top-right corner") returned by the AI.
  */
+@Immutable
 data class SfxTranslation(
     val pageIndex: Int,
     val originalText: String,

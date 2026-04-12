@@ -1,5 +1,7 @@
 package app.otakureader.domain.model
 
+import androidx.compose.runtime.Immutable
+
 /**
  * AI-derived quality score for a single manga source.
  *
@@ -14,6 +16,7 @@ package app.otakureader.domain.model
  * @property recommendation Short AI-generated justification for the ranking.
  * @property analyzedAt Unix timestamp (ms) when the analysis was performed.
  */
+@Immutable
 data class SourceScore(
     val sourceId: String,
     val mangaId: Long,
