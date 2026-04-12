@@ -12,7 +12,7 @@
 
 ---
 
-**🚀 Feature-complete Beta** — Core functionality ready for daily use
+**🚀 Feature-complete Beta** — Core functionality ready for daily use · Security-audited
 
 ## ✨ Features
 
@@ -23,7 +23,8 @@
 - 📊 **Tracking** — MAL, AniList, Kitsu, MangaUpdates, Shikimori
 - 🔌 **Extension System** — Full Tachiyomi ecosystem (Keiyoushi, Komikku repos)
 - 🔔 **Smart Notifications** — New chapter alerts with covers, grouped by manga
-- ☁️ **Cloud Sync** — Cross-device library sync (in progress)
+- ☁️ **Cloud Sync** — Cross-device library sync (Google Drive, Wi-Fi optional)
+- 🤖 **AI Features** — Gemini-powered recommendations, auto-categorization, chapter summaries (gated toggle)
 
 <details>
 <summary>📖 Reader Details</summary>
@@ -72,11 +73,11 @@ Browse extensions by language, install/update/uninstall, manage repositories, an
 
 ## 🗺️ Roadmap
 
-- ⏳ **Cloud Sync** — Google Drive integration for library sync
-- ⏳ **OPDS Support** — Komga/Kavita catalog browsing
-- 🔮 **AI Features** — Recommendations, auto-categorization
+- ✅ **Cloud Sync** — Google Drive integration for library sync
+- ✅ **OPDS Support** — Komga/Kavita catalog browsing
+- ✅ **AI Features** — Gemini recommendations + auto-categorization (gated; requires API key)
+- ⏳ **SFX Translation** — Sound effect detection/translation (AI-powered, in progress)
 - 🔮 **Widgets** — Home screen continue reading
-- 🔮 **SFX Translation** — Sound effect detection/translation
 - 🔮 **Panel-by-Panel** — Advanced panel navigation
 
 ## 🛠️ Tech Stack & Architecture
@@ -90,7 +91,7 @@ Browse extensions by language, install/update/uninstall, manage repositories, an
 | UI | Jetpack Compose + Material 3 |
 | Architecture | Clean Architecture + MVI |
 | DI | Hilt |
-| Database | Room (v8 with migrations) |
+| Database | Room (v11 with migrations) |
 | Preferences | DataStore |
 | Network | Retrofit + OkHttp |
 | Images | Coil 3 |
@@ -140,13 +141,14 @@ Browse extensions by language, install/update/uninstall, manage repositories, an
 | `domain` | Use cases and domain models |
 | `data` | Repository, downloads, backup, sync |
 | `core/common` | Shared utilities |
-| `core/database` | Room database (v8) |
+| `core/database` | Room database (v11) |
 | `core/network` | Retrofit + OkHttp |
 | `core/preferences` | DataStore preferences |
 | `core/ui` | Shared Compose components |
 | `core/navigation` | Navigation routing |
 | `core/extension` | Extension loading & install |
 | `core/tachiyomi-compat` | Tachiyomi compatibility |
+| `core/ai` | Gemini client, AI feature gate, secure key storage |
 | `core/discord` | Discord Rich Presence |
 | `feature/library` | Library screen |
 | `feature/browse` | Browse & search |
