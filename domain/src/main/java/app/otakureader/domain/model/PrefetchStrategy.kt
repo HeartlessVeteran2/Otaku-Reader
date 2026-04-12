@@ -1,14 +1,11 @@
 package app.otakureader.domain.model
 
-import androidx.compose.runtime.Stable
-
 /**
  * Defines different strategies for smart prefetching of manga pages and chapters.
  *
  * Each strategy balances memory usage, network bandwidth, and reading experience
  * based on different usage scenarios and user preferences.
  */
-@Stable
 sealed interface PrefetchStrategy {
 
     /**
