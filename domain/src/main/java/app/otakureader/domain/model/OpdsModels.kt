@@ -1,5 +1,6 @@
 package app.otakureader.domain.model
 
+import androidx.compose.runtime.Immutable
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 
@@ -11,6 +12,7 @@ import kotlinx.serialization.Transient
  * stored separately in encrypted storage — never in the Room database or
  * backup files.
  */
+@Immutable
 @Serializable
 data class OpdsServer(
     val id: Long = 0,
@@ -23,6 +25,7 @@ data class OpdsServer(
 /**
  * Represents an OPDS catalog feed (Atom feed).
  */
+@Immutable
 data class OpdsFeed(
     val title: String,
     val entries: List<OpdsEntry>,
@@ -33,6 +36,7 @@ data class OpdsFeed(
 /**
  * Represents an OPDS entry (either navigation or acquisition).
  */
+@Immutable
 data class OpdsEntry(
     val title: String,
     val id: String = "",
@@ -47,6 +51,7 @@ data class OpdsEntry(
 /**
  * Represents a link in an OPDS feed or entry.
  */
+@Immutable
 data class OpdsLink(
     val href: String,
     val type: String = "",

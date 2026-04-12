@@ -1,5 +1,6 @@
 package app.otakureader.domain.model
 
+import androidx.compose.runtime.Immutable
 import java.time.Instant
 
 /**
@@ -16,6 +17,7 @@ enum class SyncStatus {
 /**
  * Tracks reading progress sync state with external trackers.
  */
+@Immutable
 data class TrackerSyncState(
     val mangaId: Long,
     val trackerId: Int, // AniList, MAL, etc.
@@ -46,6 +48,7 @@ const val DEFAULT_AUTO_SYNC_INTERVAL_MS = 300_000L
 /**
  * Configuration for 2-way sync behavior.
  */
+@Immutable
 data class SyncConfiguration(
     val trackerId: Int,
     val enabled: Boolean = true,

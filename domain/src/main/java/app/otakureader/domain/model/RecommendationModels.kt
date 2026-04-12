@@ -1,5 +1,6 @@
 package app.otakureader.domain.model
 
+import androidx.compose.runtime.Immutable
 import kotlinx.serialization.Serializable
 
 /**
@@ -20,6 +21,7 @@ import kotlinx.serialization.Serializable
  * @property recommendationType Type of recommendation (e.g., similar, discovery, trending)
  * @property generatedAt Timestamp when the recommendation was generated
  */
+@Immutable
 @Serializable
 data class MangaRecommendation(
     val mangaId: Long? = null,
@@ -75,6 +77,7 @@ enum class RecommendationType {
  * @property commonThemes Extracted themes from manga descriptions
  * @property readingVelocity How quickly the user reads through series
  */
+@Immutable
 @Serializable
 data class UserReadingPattern(
     val favoriteGenres: List<GenrePreference> = emptyList(),
@@ -91,6 +94,7 @@ data class UserReadingPattern(
 /**
  * Genre preference with weight based on engagement.
  */
+@Immutable
 @Serializable
 data class GenrePreference(
     val genre: String,
@@ -102,6 +106,7 @@ data class GenrePreference(
 /**
  * Author preference with engagement metrics.
  */
+@Immutable
 @Serializable
 data class AuthorPreference(
     val author: String,
@@ -129,6 +134,7 @@ enum class ReadingVelocity {
  * @property expiresAt When the recommendations expire and should be refreshed
  * @property isCached Whether these are cached results
  */
+@Immutable
 @Serializable
 data class RecommendationResult(
     val recommendations: List<MangaRecommendation>,
@@ -150,6 +156,7 @@ data class RecommendationResult(
  * @property timeSpentPerManga Time spent reading each manga
  * @property ratings User ratings for manga (if available)
  */
+@Immutable
 @Serializable
 data class RecommendationInput(
     val libraryManga: List<MangaWithEngagement>,
@@ -160,6 +167,7 @@ data class RecommendationInput(
 /**
  * Manga with engagement metrics for recommendation input.
  */
+@Immutable
 @Serializable
 data class MangaWithEngagement(
     val manga: Manga,

@@ -1,5 +1,6 @@
 package app.otakureader.domain.model
 
+import androidx.compose.runtime.Immutable
 import kotlinx.serialization.Serializable
 
 /**
@@ -13,6 +14,7 @@ import kotlinx.serialization.Serializable
  *
  * Size optimization is critical as this will be uploaded/downloaded frequently.
  */
+@Immutable
 @Serializable
 data class SyncSnapshot(
     /** Version of the sync snapshot format. */
@@ -45,6 +47,7 @@ data class SyncSnapshot(
  * Sync representation of a manga.
  * Contains only essential fields needed for sync.
  */
+@Immutable
 @Serializable
 data class SyncManga(
     /** Unique identifier combining source and URL. */
@@ -73,6 +76,7 @@ data class SyncManga(
  * Sync representation of a chapter.
  * Only includes read state, not full chapter metadata.
  */
+@Immutable
 @Serializable
 data class SyncChapter(
     /** Chapter identifier (URL is the stable key). */
@@ -90,6 +94,7 @@ data class SyncChapter(
 /**
  * Sync representation of a category.
  */
+@Immutable
 @Serializable
 data class SyncCategory(
     /** Category ID (stable across devices). */
@@ -108,6 +113,7 @@ data class SyncCategory(
 /**
  * Metadata for sync operations and conflict resolution.
  */
+@Immutable
 @Serializable
 data class SyncMetadata(
     /** Incremental version number for this sync state. */
@@ -126,6 +132,7 @@ data class SyncMetadata(
 /**
  * Result of a sync operation.
  */
+@Immutable
 @Serializable
 data class SyncResult(
     /** Whether sync completed successfully. */

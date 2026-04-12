@@ -1,5 +1,6 @@
 package app.otakureader.domain.model
 
+import androidx.compose.runtime.Immutable
 import kotlinx.serialization.Serializable
 
 /**
@@ -15,6 +16,7 @@ enum class MigrationMode {
 /**
  * Represents a candidate manga match from target source for migration.
  */
+@Immutable
 @Serializable
 data class MigrationCandidate(
     val sourceId: Long,
@@ -47,6 +49,7 @@ enum class MigrationStatus {
 /**
  * Result of a migration operation.
  */
+@Immutable
 data class MigrationResult(
     val originalMangaId: Long,
     val newMangaId: Long? = null,
