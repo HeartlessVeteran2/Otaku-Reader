@@ -11,6 +11,8 @@ import app.otakureader.core.database.dao.MangaCategoryDao
 import app.otakureader.core.database.dao.MangaDao
 import app.otakureader.core.database.dao.OpdsServerDao
 import app.otakureader.core.database.dao.ReadingHistoryDao
+import app.otakureader.core.database.dao.RecommendationDao
+import app.otakureader.core.database.dao.SmartSearchCacheDao
 import app.otakureader.core.database.dao.TrackerSyncDao
 import app.otakureader.core.database.entity.CategorizationResultEntity
 import app.otakureader.core.database.entity.CategoryEntity
@@ -22,6 +24,10 @@ import app.otakureader.core.database.entity.MangaCategoryEntity
 import app.otakureader.core.database.entity.MangaEntity
 import app.otakureader.core.database.entity.OpdsServerEntity
 import app.otakureader.core.database.entity.ReadingHistoryEntity
+import app.otakureader.core.database.entity.RecommendationEntity
+import app.otakureader.core.database.entity.ReadingPatternEntity
+import app.otakureader.core.database.entity.RecommendationRefreshEntity
+import app.otakureader.core.database.entity.SmartSearchCacheEntity
 import app.otakureader.core.database.entity.SyncConfigurationEntity
 import app.otakureader.core.database.entity.TrackerSyncStateEntity
 
@@ -41,9 +47,15 @@ import app.otakureader.core.database.entity.TrackerSyncStateEntity
         TrackerSyncStateEntity::class,
         SyncConfigurationEntity::class,
         // AI categorization feature
-        CategorizationResultEntity::class
+        CategorizationResultEntity::class,
+        // Smart search cache
+        SmartSearchCacheEntity::class,
+        // AI recommendation feature
+        RecommendationEntity::class,
+        ReadingPatternEntity::class,
+        RecommendationRefreshEntity::class,
     ],
-    version = 11,
+    version = 12,
     exportSchema = true
 )
 @TypeConverters(DatabaseConverters::class)
@@ -54,12 +66,20 @@ abstract class OtakuReaderDatabase : RoomDatabase() {
     abstract fun mangaCategoryDao(): MangaCategoryDao
     abstract fun readingHistoryDao(): ReadingHistoryDao
     abstract fun opdsServerDao(): OpdsServerDao
-    
-    // New DAOs
+
+    // Feed + tracker sync DAOs
     abstract fun feedDao(): FeedDao
     abstract fun trackerSyncDao(): TrackerSyncDao
+
+    // AI categorization DAO
     abstract fun categorizationResultDao(): CategorizationResultDao
-    
+
+    // Smart search cache DAO
+    abstract fun smartSearchCacheDao(): SmartSearchCacheDao
+
+    // AI recommendation DAO (recommendations, reading patterns, refresh history)
+    abstract fun recommendationDao(): RecommendationDao
+
     companion object {
         const val DATABASE_NAME = "otakureader.db"
     }

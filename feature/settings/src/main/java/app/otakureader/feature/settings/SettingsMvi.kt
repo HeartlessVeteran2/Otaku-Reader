@@ -1,5 +1,6 @@
 package app.otakureader.feature.settings
 
+import android.net.Uri
 import app.otakureader.core.common.mvi.UiEffect
 import app.otakureader.core.common.mvi.UiEvent
 import app.otakureader.core.common.mvi.UiState
@@ -259,6 +260,8 @@ sealed interface SettingsEvent : UiEvent {
     // Backup
     data object OnCreateBackup : SettingsEvent
     data object OnRestoreBackup : SettingsEvent
+    data class CreateBackupWithUri(val uri: Uri) : SettingsEvent
+    data class RestoreBackupFromUri(val uri: Uri) : SettingsEvent
     data class SetAutoBackupEnabled(val enabled: Boolean) : SettingsEvent
     data class SetAutoBackupInterval(val hours: Int) : SettingsEvent
     data class SetAutoBackupMaxCount(val count: Int) : SettingsEvent
@@ -312,6 +315,9 @@ sealed interface SettingsEvent : UiEvent {
     data class SetSyncIntervalHours(val hours: Int) : SettingsEvent
     data class SetSyncOnlyOnWifi(val onlyWifi: Boolean) : SettingsEvent
     data class SetConflictResolutionStrategy(val strategy: String) : SettingsEvent
+
+    // Navigation
+    data object NavigateToAbout : SettingsEvent
 }
 
 sealed interface SettingsEffect : UiEffect {
@@ -319,5 +325,6 @@ sealed interface SettingsEffect : UiEffect {
     data object ShowBackupPicker : SettingsEffect
     data object ShowRestorePicker : SettingsEffect
     data object NavigateToMigrationEntry : SettingsEffect
+    data object NavigateToAbout : SettingsEffect
     data class ShowDownloadLocationPicker(val currentLocation: String?) : SettingsEffect
 }

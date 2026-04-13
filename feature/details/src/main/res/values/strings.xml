@@ -16,6 +16,7 @@
     <string name="details_back">Back</string>
     <string name="details_refresh">Refresh</string>
     <string name="details_share">Share</string>
+    <string name="details_tracking">Manage tracking</string>
     <string name="details_continue_reading">Continue Reading</string>
     <string name="details_start_reading">Start Reading</string>
     <string name="details_unknown_error">Unknown error</string>

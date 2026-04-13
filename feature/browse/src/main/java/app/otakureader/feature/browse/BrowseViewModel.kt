@@ -99,7 +99,7 @@ class BrowseViewModel @Inject constructor(
                 _state.update { it.copy(showFilterSheet = !it.showFilterSheet) }
             }
             is BrowseEvent.UpdateFilter -> {
-                val currentFilters = _state.value.activeFilters.list.toMutableList()
+                val currentFilters = _state.value.activeFilters.filters.toMutableList()
                 if (event.index < currentFilters.size) {
                     currentFilters[event.index] = event.filter
                     _state.update { it.copy(activeFilters = FilterList(currentFilters)) }
@@ -123,13 +123,7 @@ class BrowseViewModel @Inject constructor(
     private fun loadPopularManga(sourceId: String, page: Int = 1) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
-            val source = _sources.value.find { it.id == sourceId }
-            if (source == null) {
-                _state.update { it.copy(isLoading = false, error = "Source not found") }
-                return@launch
-            }
-
-            source.fetchPopularManga(page)
+            getPopularMangaUseCase(sourceId, page)
                 .onSuccess { mangaPage ->
                     _state.update {
                         it.copy(
@@ -154,8 +148,7 @@ class BrowseViewModel @Inject constructor(
 
     private fun loadSourceFilters(sourceId: String) {
         viewModelScope.launch {
-            val source = _sources.value.find { it.id == sourceId } ?: return@launch
-            val filters = getSourceFiltersUseCase(source)
+            val filters = getSourceFiltersUseCase(sourceId)
             _state.update {
                 it.copy(
                     availableFilters = filters,
@@ -171,13 +164,7 @@ class BrowseViewModel @Inject constructor(
 
         viewModelScope.launch {
             _state.update { it.copy(isSearching = true, error = null) }
-            val source = _sources.value.find { it.id == sourceId }
-            if (source == null) {
-                _state.update { it.copy(isSearching = false, error = "Source not found") }
-                return@launch
-            }
-
-            source.fetchSearchManga(1, query, _state.value.activeFilters)
+            searchMangaUseCase(sourceId, query, 1, _state.value.activeFilters)
                 .onSuccess { mangaPage ->
                     _state.update {
                         it.copy(
@@ -204,13 +191,7 @@ class BrowseViewModel @Inject constructor(
 
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
-            val source = _sources.value.find { it.id == sourceId }
-            if (source == null) {
-                _state.update { it.copy(isLoading = false, error = "Source not found") }
-                return@launch
-            }
-
-            source.fetchLatestUpdates(1)
+            getLatestUpdatesUseCase(sourceId, 1)
                 .onSuccess { mangaPage ->
                     _state.update {
                         it.copy(
@@ -242,15 +223,10 @@ class BrowseViewModel @Inject constructor(
         if (currentState.searchQuery.isNotBlank()) {
             viewModelScope.launch {
                 _state.update { it.copy(isLoading = true) }
-                val source = _sources.value.find { it.id == sourceId }
-                if (source == null) {
-                    _state.update { it.copy(isLoading = false) }
-                    return@launch
-                }
-
-                source.fetchSearchManga(
-                    currentState.currentPage + 1,
+                searchMangaUseCase(
+                    sourceId,
                     currentState.searchQuery,
+                    currentState.currentPage + 1,
                     currentState.activeFilters
                 )
                     .onSuccess { mangaPage ->

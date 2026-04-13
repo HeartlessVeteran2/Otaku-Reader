@@ -7,12 +7,14 @@ import app.otakureader.feature.settings.SettingsScreen
 
 fun NavGraphBuilder.settingsScreen(
     onNavigateBack: () -> Unit,
-    onNavigateToMigrationEntry: () -> Unit = {}
+    onNavigateToMigrationEntry: () -> Unit = {},
+    onNavigateToAbout: () -> Unit = {},
 ) {
     composable<SettingsRoute> {
         SettingsScreen(
             onNavigateBack = onNavigateBack,
-            onNavigateToMigrationEntry = onNavigateToMigrationEntry
+            onNavigateToMigrationEntry = onNavigateToMigrationEntry,
+            onNavigateToAbout = onNavigateToAbout
         )
     }
 }

@@ -9,6 +9,7 @@ import app.otakureader.domain.repository.FeedRepository
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.domain.repository.OpdsRepository
 import app.otakureader.domain.repository.SfxTranslationRepository
+import app.otakureader.domain.repository.SmartSearchCacheRepository
 import app.otakureader.domain.repository.SourceIntelligenceRepository
 import app.otakureader.domain.repository.StatisticsRepository
 import app.otakureader.data.opds.OpdsRepositoryImpl
@@ -20,6 +21,7 @@ import app.otakureader.data.repository.DownloadRepositoryImpl
 import app.otakureader.data.repository.FeedRepositoryImpl
 import app.otakureader.data.repository.MangaRepositoryImpl
 import app.otakureader.data.repository.SfxTranslationRepositoryImpl
+import app.otakureader.data.repository.SmartSearchCacheRepositoryImpl
 import app.otakureader.data.repository.SourceIntelligenceRepositoryImpl
 import app.otakureader.data.repository.StatisticsRepositoryImpl
 import dagger.Binds
@@ -94,4 +96,9 @@ abstract class RepositoryModule {
     abstract fun bindSourceIntelligenceRepository(
         impl: SourceIntelligenceRepositoryImpl
     ): SourceIntelligenceRepository
+
+    @Binds
+    abstract fun bindSmartSearchCacheRepository(
+        impl: SmartSearchCacheRepositoryImpl
+    ): SmartSearchCacheRepository
 }

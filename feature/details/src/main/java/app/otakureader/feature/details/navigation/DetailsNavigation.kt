@@ -9,13 +9,15 @@ import app.otakureader.feature.details.DetailsScreen
 fun NavGraphBuilder.detailsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToReader: (mangaId: Long, chapterId: Long) -> Unit,
+    onNavigateToTracking: (mangaId: Long, mangaTitle: String) -> Unit = { _, _ -> },
 ) {
     composable<MangaDetailRoute> { backStackEntry ->
         val route = backStackEntry.toRoute<MangaDetailRoute>()
         DetailsScreen(
             mangaId = route.mangaId,
             onNavigateBack = onNavigateBack,
-            onNavigateToReader = onNavigateToReader
+            onNavigateToReader = onNavigateToReader,
+            onNavigateToTracking = onNavigateToTracking
         )
     }
 }

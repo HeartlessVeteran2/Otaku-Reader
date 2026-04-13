@@ -391,8 +391,9 @@ class LibraryViewModel @Inject constructor(
 
     private fun onRecommendationClick(recommendation: MangaRecommendation) {
         viewModelScope.launch {
-            if (recommendation.mangaId != null) {
-                _effect.send(LibraryEffect.NavigateToManga(recommendation.mangaId))
+            val mangaId = recommendation.mangaId
+            if (mangaId != null) {
+                _effect.send(LibraryEffect.NavigateToManga(mangaId))
             } else {
                 _effect.send(LibraryEffect.NavigateToRecommendationSearch(recommendation.title))
             }

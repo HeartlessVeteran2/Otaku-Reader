@@ -21,6 +21,7 @@ dependencies {
     implementation(projects.core.navigation)
     implementation(projects.domain)
     implementation(projects.data)
+    implementation(projects.sourceApi)
     implementation(libs.lifecycle.viewmodel.ktx)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.coil.compose)

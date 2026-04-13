@@ -239,6 +239,93 @@ object DatabaseModule {
         }
     }
 
+    /**
+     * Adds smart_search_cache, recommendations, reading_patterns, and
+     * recommendation_refreshes tables in database version 12.
+     */
+    private val MIGRATION_11_12 = object : Migration(11, 12) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Smart search cache table
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `smart_search_cache` (
+                    `queryHash` TEXT PRIMARY KEY NOT NULL,
+                    `originalQuery` TEXT NOT NULL,
+                    `parsedQueryJson` TEXT NOT NULL,
+                    `timestamp` INTEGER NOT NULL
+                )
+                """.trimIndent()
+            )
+
+            // Recommendations table
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `recommendations` (
+                    `id` TEXT PRIMARY KEY NOT NULL,
+                    `mangaId` INTEGER,
+                    `title` TEXT NOT NULL,
+                    `author` TEXT,
+                    `thumbnailUrl` TEXT,
+                    `description` TEXT,
+                    `genres` TEXT NOT NULL DEFAULT '',
+                    `sourceId` TEXT NOT NULL,
+                    `sourceUrl` TEXT NOT NULL,
+                    `reasonExplanation` TEXT NOT NULL,
+                    `confidenceScore` REAL NOT NULL DEFAULT 0.0,
+                    `basedOnMangaIds` TEXT NOT NULL DEFAULT '',
+                    `basedOnGenres` TEXT NOT NULL DEFAULT '',
+                    `recommendationType` TEXT NOT NULL DEFAULT 'SIMILAR',
+                    `generatedAt` INTEGER NOT NULL,
+                    `expiresAt` INTEGER NOT NULL,
+                    `viewed` INTEGER NOT NULL DEFAULT 0,
+                    `actioned` INTEGER NOT NULL DEFAULT 0,
+                    `dismissed` INTEGER NOT NULL DEFAULT 0,
+                    `actionedMangaId` INTEGER
+                )
+                """.trimIndent()
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_recommendations_generatedAt` ON `recommendations` (`generatedAt`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_recommendations_recommendationType` ON `recommendations` (`recommendationType`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_recommendations_viewed` ON `recommendations` (`viewed`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_recommendations_dismissed` ON `recommendations` (`dismissed`)")
+
+            // Reading patterns table
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `reading_patterns` (
+                    `id` TEXT PRIMARY KEY NOT NULL,
+                    `favoriteGenres` TEXT NOT NULL DEFAULT '',
+                    `favoriteAuthors` TEXT NOT NULL DEFAULT '',
+                    `preferredStatus` TEXT NOT NULL DEFAULT '',
+                    `averageReadingTimeMs` INTEGER NOT NULL DEFAULT 0,
+                    `preferredMinChapters` INTEGER,
+                    `preferredMaxChapters` INTEGER,
+                    `commonThemes` TEXT NOT NULL DEFAULT '',
+                    `readingVelocity` TEXT NOT NULL DEFAULT 'MODERATE',
+                    `favoriteTropes` TEXT NOT NULL DEFAULT '',
+                    `generatedAt` INTEGER NOT NULL
+                )
+                """.trimIndent()
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_reading_patterns_generatedAt` ON `reading_patterns` (`generatedAt`)")
+
+            // Recommendation refresh history table
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `recommendation_refreshes` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `timestamp` INTEGER NOT NULL,
+                    `success` INTEGER NOT NULL DEFAULT 1,
+                    `errorMessage` TEXT,
+                    `recommendationsCount` INTEGER NOT NULL DEFAULT 0,
+                    `patternId` TEXT
+                )
+                """.trimIndent()
+            )
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_recommendation_refreshes_timestamp` ON `recommendation_refreshes` (`timestamp`)")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(
@@ -249,7 +336,7 @@ object DatabaseModule {
             OtakuReaderDatabase::class.java,
             OtakuReaderDatabase.DATABASE_NAME
         )
-            .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
+            .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12)
         // Only allow destructive migration in debug builds to avoid silently wiping
         // user data (including notes) in production if a migration is missing.
         if (BuildConfig.DEBUG) {
@@ -284,4 +371,10 @@ object DatabaseModule {
 
     @Provides
     fun provideCategorizationResultDao(database: OtakuReaderDatabase) = database.categorizationResultDao()
+
+    @Provides
+    fun provideSmartSearchCacheDao(database: OtakuReaderDatabase) = database.smartSearchCacheDao()
+
+    @Provides
+    fun provideRecommendationDao(database: OtakuReaderDatabase) = database.recommendationDao()
 }

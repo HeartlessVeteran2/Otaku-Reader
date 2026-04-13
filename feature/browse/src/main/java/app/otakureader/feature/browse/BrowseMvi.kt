@@ -27,6 +27,8 @@ data class BrowseState(
     val isAnalyzingSource: Boolean = false,
     /** Whether the Source Intelligence feature is enabled in settings. */
     val sourceIntelligenceEnabled: Boolean = false,
+    /** AI-generated intelligence text keyed by sourceId. */
+    val sourceIntelligence: Map<String, String> = emptyMap(),
 ) : UiState
 
 sealed interface BrowseEvent : UiEvent {

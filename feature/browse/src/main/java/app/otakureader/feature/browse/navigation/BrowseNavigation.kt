@@ -8,14 +8,16 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import app.otakureader.core.navigation.BrowseRoute
+import app.otakureader.core.navigation.ExtensionInstallRoute
 import app.otakureader.core.navigation.ExtensionsRoute
 import app.otakureader.core.navigation.GlobalSearchRoute
 import app.otakureader.core.navigation.SourceDetailRoute
+import app.otakureader.core.navigation.SourceMangaDetailRoute
 import app.otakureader.feature.browse.BrowseScreen
 import app.otakureader.feature.browse.ExtensionsBottomSheet
 import app.otakureader.feature.browse.GlobalSearchScreen
+import app.otakureader.feature.browse.SourceMangaDetailScreen
 import app.otakureader.feature.browse.SourceMangaScreen
-import app.otakureader.core.navigation.ExtensionInstallRoute
 import app.otakureader.feature.browse.extension.ExtensionInstallScreen
 
 fun NavGraphBuilder.browseScreen(
@@ -54,6 +56,16 @@ fun NavGraphBuilder.sourceDetailScreen(
     }
 }
 
+fun NavGraphBuilder.sourceMangaDetailScreen(
+    onNavigateToMangaDetail: (mangaId: Long) -> Unit,
+) {
+    composable<SourceMangaDetailRoute> {
+        SourceMangaDetailScreen(
+            onNavigateToMangaDetail = onNavigateToMangaDetail
+        )
+    }
+}
+
 fun NavGraphBuilder.extensionsBottomSheet(
     onDismiss: () -> Unit,
     onNavigateToSettings: () -> Unit = {},
@@ -67,6 +79,16 @@ fun NavGraphBuilder.extensionsBottomSheet(
         ExtensionsBottomSheet(
             onDismiss = onDismiss,
             onNavigateToSettings = onNavigateToSettings,
+        )
+    }
+}
+
+fun NavGraphBuilder.extensionInstallScreen(
+    onNavigateBack: () -> Unit,
+) {
+    composable<ExtensionInstallRoute> {
+        ExtensionInstallScreen(
+            onBackClick = onNavigateBack
         )
     }
 }

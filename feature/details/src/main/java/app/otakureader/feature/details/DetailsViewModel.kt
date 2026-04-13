@@ -126,6 +126,20 @@ class DetailsViewModel @Inject constructor(
 
             // AI Summary Translation
             is DetailsContract.Event.GenerateAiSummary -> generateAiSummary()
+
+            is DetailsContract.Event.OpenTracking -> openTracking()
+        }
+    }
+
+    private fun openTracking() {
+        viewModelScope.launch {
+            val manga = _state.value.manga ?: return@launch
+            _effect.send(
+                DetailsContract.Effect.NavigateToTracking(
+                    mangaId = mangaId,
+                    mangaTitle = manga.title
+                )
+            )
         }
     }
 
@@ -172,10 +186,8 @@ class DetailsViewModel @Inject constructor(
         viewModelScope.launch {
             // Get chapters that need thumbnail fetching
             val chaptersNeedingThumbnails = chapters.filter { chapter ->
-                // Only fetch if not in cache and is downloaded or has been read
-                !thumbnailCache.containsKey(chapter.id) && 
-                (chapter.downloadStatus == app.otakureader.domain.model.DownloadStatus.COMPLETED || 
-                 chapter.lastPageRead > 0)
+                // Only fetch for chapters that have been read or partially read
+                !thumbnailCache.containsKey(chapter.id) && chapter.lastPageRead > 0
             }.take(10) // Limit to first 10 to avoid overwhelming the source
             
             if (chaptersNeedingThumbnails.isEmpty()) return@launch
@@ -188,34 +200,31 @@ class DetailsViewModel @Inject constructor(
                     async {
                         try {
                             val sourceChapter = SourceChapter(
-                                id = chapter.id.toString(),
-                                name = chapter.name,
                                 url = chapter.url,
-                                uploadDate = chapter.dateUpload,
+                                name = chapter.name,
+                                dateUpload = chapter.dateUpload,
                                 chapterNumber = chapter.chapterNumber,
                                 scanlator = chapter.scanlator
                             )
-                            
-                            source.getPageList(sourceChapter)
-                                .onSuccess { pages ->
-                                    if (pages.isNotEmpty()) {
-                                        val firstPageUrl = pages.first().imageUrl
-                                        thumbnailCache[chapter.id] = firstPageUrl to pages.size
-                                        
-                                        // Update the chapter in state with new thumbnail
-                                        _state.update { state ->
-                                            val updatedChapters = state.chapters.map { item ->
-                                                if (item.id == chapter.id) {
-                                                    item.copy(
-                                                        thumbnailUrl = firstPageUrl,
-                                                        totalPages = pages.size
-                                                    )
-                                                } else item
-                                            }
-                                            state.copy(chapters = updatedChapters)
-                                        }
+
+                            val pages = source.fetchPageList(sourceChapter)
+                            if (pages.isNotEmpty()) {
+                                val firstPageUrl = pages.first().imageUrl
+                                thumbnailCache[chapter.id] = firstPageUrl to pages.size
+
+                                // Update the chapter in state with new thumbnail
+                                _state.update { state ->
+                                    val updatedChapters = state.chapters.map { item ->
+                                        if (item.id == chapter.id) {
+                                            item.copy(
+                                                thumbnailUrl = firstPageUrl,
+                                                totalPages = pages.size
+                                            )
+                                        } else item
                                     }
+                                    state.copy(chapters = updatedChapters)
                                 }
+                            }
                         } catch (e: Exception) {
                             // Silently fail - thumbnails are optional
                         }
@@ -793,45 +802,35 @@ class DetailsViewModel @Inject constructor(
                 }
                 
                 val sourceChapter = SourceChapter(
-                    id = chapter.id.toString(),
-                    name = chapter.name,
                     url = chapter.url,
-                    uploadDate = chapter.dateUpload,
+                    name = chapter.name,
+                    dateUpload = chapter.dateUpload,
                     chapterNumber = chapter.chapterNumber,
                     scanlator = chapter.scanlator
                 )
                 
-                source.getPageList(sourceChapter)
-                    .onSuccess { pages ->
-                        if (pages.isNotEmpty()) {
-                            val firstPageUrl = pages.first().imageUrl
-                            thumbnailCache[chapterId] = firstPageUrl to pages.size
-                            
-                            // Update the chapter in state
-                            _state.update { state ->
-                                val updatedChapters = state.chapters.map { item ->
-                                    if (item.id == chapterId) {
-                                        item.copy(
-                                            thumbnailUrl = firstPageUrl,
-                                            totalPages = pages.size
-                                        )
-                                    } else item
-                                }
-                                state.copy(chapters = updatedChapters)
-                            }
-                            
-                            _effect.send(DetailsContract.Effect.ShowSnackbar("Preview loaded"))
-                        } else {
-                            _effect.send(DetailsContract.Effect.ShowError("No pages found"))
+                val pages = source.fetchPageList(sourceChapter)
+                if (pages.isNotEmpty()) {
+                    val firstPageUrl = pages.first().imageUrl
+                    thumbnailCache[chapterId] = firstPageUrl to pages.size
+
+                    // Update the chapter in state
+                    _state.update { state ->
+                        val updatedChapters = state.chapters.map { item ->
+                            if (item.id == chapterId) {
+                                item.copy(
+                                    thumbnailUrl = firstPageUrl,
+                                    totalPages = pages.size
+                                )
+                            } else item
                         }
+                        state.copy(chapters = updatedChapters)
                     }
-                    .onFailure { error ->
-                        _effect.send(
-                            DetailsContract.Effect.ShowError(
-                                "Failed to load preview: ${error.message ?: "Unknown error"}"
-                            )
-                        )
-                    }
+
+                    _effect.send(DetailsContract.Effect.ShowSnackbar("Preview loaded"))
+                } else {
+                    _effect.send(DetailsContract.Effect.ShowError("No pages found"))
+                }
             } catch (e: Exception) {
                 _effect.send(
                     DetailsContract.Effect.ShowError("Failed to load preview: ${e.message ?: "Unknown error"}")

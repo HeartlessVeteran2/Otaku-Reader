@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.QueryStats
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
@@ -98,6 +99,7 @@ fun DetailsScreen(
     mangaId: Long,
     onNavigateBack: () -> Unit,
     onNavigateToReader: (mangaId: Long, chapterId: Long) -> Unit,
+    onNavigateToTracking: (mangaId: Long, mangaTitle: String) -> Unit = { _, _ -> },
     viewModel: DetailsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -128,7 +130,10 @@ fun DetailsScreen(
                     }
                     context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_manga)))
                 }
-                else -> { /* Handle other effects */ }
+                is DetailsContract.Effect.NavigateToTracking -> {
+                    onNavigateToTracking(effect.mangaId, effect.mangaTitle)
+                }
+                else -> { /* no-op */ }
             }
         }
     }
@@ -148,6 +153,9 @@ fun DetailsScreen(
                     }
                     IconButton(onClick = { viewModel.onEvent(DetailsContract.Event.ShareManga) }) {
                         Icon(Icons.Default.Share, contentDescription = stringResource(R.string.details_share))
+                    }
+                    IconButton(onClick = { viewModel.onEvent(DetailsContract.Event.OpenTracking) }) {
+                        Icon(Icons.Default.QueryStats, contentDescription = stringResource(R.string.details_tracking))
                     }
                 }
             )

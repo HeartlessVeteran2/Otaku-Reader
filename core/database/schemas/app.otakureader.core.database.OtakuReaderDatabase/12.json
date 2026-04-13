@@ -1,0 +1,1381 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 12,
+    "identityHash": "1eb9aaee7b577a23315d7854928534e2",
+    "entities": [
+      {
+        "tableName": "manga",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sourceId` INTEGER NOT NULL, `url` TEXT NOT NULL, `title` TEXT NOT NULL, `thumbnailUrl` TEXT, `author` TEXT, `artist` TEXT, `description` TEXT, `genre` TEXT, `status` INTEGER NOT NULL, `favorite` INTEGER NOT NULL, `lastUpdate` INTEGER NOT NULL, `initialized` INTEGER NOT NULL, `viewerFlags` INTEGER NOT NULL, `chapterFlags` INTEGER NOT NULL, `coverLastModified` INTEGER NOT NULL, `dateAdded` INTEGER NOT NULL, `autoDownload` INTEGER NOT NULL, `notes` TEXT, `notifyNewChapters` INTEGER NOT NULL, `readerDirection` INTEGER, `readerMode` INTEGER, `readerColorFilter` INTEGER, `readerCustomTintColor` INTEGER, `readerBackgroundColor` INTEGER, `preloadPagesBefore` INTEGER, `preloadPagesAfter` INTEGER)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceId",
+            "columnName": "sourceId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "url",
+            "columnName": "url",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "thumbnailUrl",
+            "columnName": "thumbnailUrl",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "author",
+            "columnName": "author",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "artist",
+            "columnName": "artist",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "genre",
+            "columnName": "genre",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "favorite",
+            "columnName": "favorite",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastUpdate",
+            "columnName": "lastUpdate",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "initialized",
+            "columnName": "initialized",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "viewerFlags",
+            "columnName": "viewerFlags",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "chapterFlags",
+            "columnName": "chapterFlags",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "coverLastModified",
+            "columnName": "coverLastModified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dateAdded",
+            "columnName": "dateAdded",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "autoDownload",
+            "columnName": "autoDownload",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "notifyNewChapters",
+            "columnName": "notifyNewChapters",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "readerDirection",
+            "columnName": "readerDirection",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "readerMode",
+            "columnName": "readerMode",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "readerColorFilter",
+            "columnName": "readerColorFilter",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "readerCustomTintColor",
+            "columnName": "readerCustomTintColor",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "readerBackgroundColor",
+            "columnName": "readerBackgroundColor",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "preloadPagesBefore",
+            "columnName": "preloadPagesBefore",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "preloadPagesAfter",
+            "columnName": "preloadPagesAfter",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_manga_sourceId",
+            "unique": false,
+            "columnNames": [
+              "sourceId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_manga_sourceId` ON `${TABLE_NAME}` (`sourceId`)"
+          },
+          {
+            "name": "index_manga_title",
+            "unique": false,
+            "columnNames": [
+              "title"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_manga_title` ON `${TABLE_NAME}` (`title`)"
+          },
+          {
+            "name": "index_manga_favorite",
+            "unique": false,
+            "columnNames": [
+              "favorite"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_manga_favorite` ON `${TABLE_NAME}` (`favorite`)"
+          },
+          {
+            "name": "index_manga_sourceId_url",
+            "unique": true,
+            "columnNames": [
+              "sourceId",
+              "url"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_manga_sourceId_url` ON `${TABLE_NAME}` (`sourceId`, `url`)"
+          }
+        ]
+      },
+      {
+        "tableName": "chapters",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `mangaId` INTEGER NOT NULL, `url` TEXT NOT NULL, `name` TEXT NOT NULL, `scanlator` TEXT, `read` INTEGER NOT NULL, `bookmark` INTEGER NOT NULL, `lastPageRead` INTEGER NOT NULL, `chapterNumber` REAL NOT NULL, `sourceOrder` INTEGER NOT NULL, `dateFetch` INTEGER NOT NULL, `dateUpload` INTEGER NOT NULL, `lastModified` INTEGER NOT NULL, FOREIGN KEY(`mangaId`) REFERENCES `manga`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mangaId",
+            "columnName": "mangaId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "url",
+            "columnName": "url",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scanlator",
+            "columnName": "scanlator",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "read",
+            "columnName": "read",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bookmark",
+            "columnName": "bookmark",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastPageRead",
+            "columnName": "lastPageRead",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "chapterNumber",
+            "columnName": "chapterNumber",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceOrder",
+            "columnName": "sourceOrder",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dateFetch",
+            "columnName": "dateFetch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dateUpload",
+            "columnName": "dateUpload",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastModified",
+            "columnName": "lastModified",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_chapters_mangaId",
+            "unique": false,
+            "columnNames": [
+              "mangaId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_chapters_mangaId` ON `${TABLE_NAME}` (`mangaId`)"
+          },
+          {
+            "name": "index_chapters_mangaId_url",
+            "unique": true,
+            "columnNames": [
+              "mangaId",
+              "url"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_chapters_mangaId_url` ON `${TABLE_NAME}` (`mangaId`, `url`)"
+          },
+          {
+            "name": "index_chapters_read",
+            "unique": false,
+            "columnNames": [
+              "read"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_chapters_read` ON `${TABLE_NAME}` (`read`)"
+          },
+          {
+            "name": "index_chapters_bookmark",
+            "unique": false,
+            "columnNames": [
+              "bookmark"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_chapters_bookmark` ON `${TABLE_NAME}` (`bookmark`)"
+          },
+          {
+            "name": "index_chapters_dateFetch",
+            "unique": false,
+            "columnNames": [
+              "dateFetch"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_chapters_dateFetch` ON `${TABLE_NAME}` (`dateFetch`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "manga",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "mangaId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "categories",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `order` INTEGER NOT NULL, `flags` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "order",
+            "columnName": "order",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "flags",
+            "columnName": "flags",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "manga_categories",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`mangaId` INTEGER NOT NULL, `categoryId` INTEGER NOT NULL, PRIMARY KEY(`mangaId`, `categoryId`), FOREIGN KEY(`mangaId`) REFERENCES `manga`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`categoryId`) REFERENCES `categories`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "mangaId",
+            "columnName": "mangaId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "categoryId",
+            "columnName": "categoryId",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "mangaId",
+            "categoryId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_manga_categories_mangaId",
+            "unique": false,
+            "columnNames": [
+              "mangaId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_manga_categories_mangaId` ON `${TABLE_NAME}` (`mangaId`)"
+          },
+          {
+            "name": "index_manga_categories_categoryId",
+            "unique": false,
+            "columnNames": [
+              "categoryId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_manga_categories_categoryId` ON `${TABLE_NAME}` (`categoryId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "manga",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "mangaId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "categories",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "categoryId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "reading_history",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `chapter_id` INTEGER NOT NULL, `read_at` INTEGER NOT NULL, `read_duration_ms` INTEGER NOT NULL, FOREIGN KEY(`chapter_id`) REFERENCES `chapters`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "chapterId",
+            "columnName": "chapter_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "readAt",
+            "columnName": "read_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "readDurationMs",
+            "columnName": "read_duration_ms",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_reading_history_chapter_id",
+            "unique": true,
+            "columnNames": [
+              "chapter_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_reading_history_chapter_id` ON `${TABLE_NAME}` (`chapter_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "chapters",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "chapter_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "opds_servers",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `url` TEXT NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "url",
+            "columnName": "url",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_opds_servers_url",
+            "unique": true,
+            "columnNames": [
+              "url"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_opds_servers_url` ON `${TABLE_NAME}` (`url`)"
+          }
+        ]
+      },
+      {
+        "tableName": "feed_items",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `mangaId` INTEGER NOT NULL, `mangaTitle` TEXT NOT NULL, `mangaThumbnailUrl` TEXT, `chapterId` INTEGER NOT NULL, `chapterName` TEXT NOT NULL, `chapterNumber` REAL NOT NULL, `sourceId` INTEGER NOT NULL, `sourceName` TEXT NOT NULL, `timestamp` INTEGER NOT NULL, `isRead` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mangaId",
+            "columnName": "mangaId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mangaTitle",
+            "columnName": "mangaTitle",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mangaThumbnailUrl",
+            "columnName": "mangaThumbnailUrl",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "chapterId",
+            "columnName": "chapterId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "chapterName",
+            "columnName": "chapterName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "chapterNumber",
+            "columnName": "chapterNumber",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceId",
+            "columnName": "sourceId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceName",
+            "columnName": "sourceName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isRead",
+            "columnName": "isRead",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_feed_items_sourceId",
+            "unique": false,
+            "columnNames": [
+              "sourceId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_feed_items_sourceId` ON `${TABLE_NAME}` (`sourceId`)"
+          },
+          {
+            "name": "index_feed_items_timestamp",
+            "unique": false,
+            "columnNames": [
+              "timestamp"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_feed_items_timestamp` ON `${TABLE_NAME}` (`timestamp`)"
+          },
+          {
+            "name": "index_feed_items_mangaId",
+            "unique": false,
+            "columnNames": [
+              "mangaId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_feed_items_mangaId` ON `${TABLE_NAME}` (`mangaId`)"
+          }
+        ]
+      },
+      {
+        "tableName": "feed_sources",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sourceId` INTEGER NOT NULL, `sourceName` TEXT NOT NULL, `isEnabled` INTEGER NOT NULL, `itemCount` INTEGER NOT NULL, `order` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceId",
+            "columnName": "sourceId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceName",
+            "columnName": "sourceName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isEnabled",
+            "columnName": "isEnabled",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "itemCount",
+            "columnName": "itemCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "order",
+            "columnName": "order",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_feed_sources_sourceId",
+            "unique": true,
+            "columnNames": [
+              "sourceId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_feed_sources_sourceId` ON `${TABLE_NAME}` (`sourceId`)"
+          }
+        ]
+      },
+      {
+        "tableName": "feed_saved_searches",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sourceId` INTEGER NOT NULL, `sourceName` TEXT NOT NULL, `query` TEXT NOT NULL, `filtersJson` TEXT, `order` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceId",
+            "columnName": "sourceId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceName",
+            "columnName": "sourceName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "query",
+            "columnName": "query",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "filtersJson",
+            "columnName": "filtersJson",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "order",
+            "columnName": "order",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_feed_saved_searches_sourceId",
+            "unique": false,
+            "columnNames": [
+              "sourceId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_feed_saved_searches_sourceId` ON `${TABLE_NAME}` (`sourceId`)"
+          }
+        ]
+      },
+      {
+        "tableName": "tracker_sync_state",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `mangaId` INTEGER NOT NULL, `trackerId` INTEGER NOT NULL, `remoteId` TEXT NOT NULL, `localLastChapterRead` REAL NOT NULL, `localTotalChapters` INTEGER NOT NULL, `localStatus` INTEGER NOT NULL, `localLastModified` INTEGER NOT NULL, `remoteLastChapterRead` REAL NOT NULL, `remoteTotalChapters` INTEGER NOT NULL, `remoteStatus` INTEGER NOT NULL, `remoteLastModified` INTEGER, `syncStatus` INTEGER NOT NULL, `lastSyncAttempt` INTEGER, `lastSuccessfulSync` INTEGER, `syncError` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mangaId",
+            "columnName": "mangaId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "trackerId",
+            "columnName": "trackerId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "remoteId",
+            "columnName": "remoteId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "localLastChapterRead",
+            "columnName": "localLastChapterRead",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "localTotalChapters",
+            "columnName": "localTotalChapters",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "localStatus",
+            "columnName": "localStatus",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "localLastModified",
+            "columnName": "localLastModified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "remoteLastChapterRead",
+            "columnName": "remoteLastChapterRead",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "remoteTotalChapters",
+            "columnName": "remoteTotalChapters",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "remoteStatus",
+            "columnName": "remoteStatus",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "remoteLastModified",
+            "columnName": "remoteLastModified",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "syncStatus",
+            "columnName": "syncStatus",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastSyncAttempt",
+            "columnName": "lastSyncAttempt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "lastSuccessfulSync",
+            "columnName": "lastSuccessfulSync",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "syncError",
+            "columnName": "syncError",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_tracker_sync_state_mangaId_trackerId",
+            "unique": true,
+            "columnNames": [
+              "mangaId",
+              "trackerId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_tracker_sync_state_mangaId_trackerId` ON `${TABLE_NAME}` (`mangaId`, `trackerId`)"
+          },
+          {
+            "name": "index_tracker_sync_state_syncStatus",
+            "unique": false,
+            "columnNames": [
+              "syncStatus"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_tracker_sync_state_syncStatus` ON `${TABLE_NAME}` (`syncStatus`)"
+          }
+        ]
+      },
+      {
+        "tableName": "sync_configuration",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `trackerId` INTEGER NOT NULL, `enabled` INTEGER NOT NULL, `syncDirection` INTEGER NOT NULL, `conflictResolution` INTEGER NOT NULL, `autoSyncInterval` INTEGER NOT NULL, `syncOnChapterRead` INTEGER NOT NULL, `syncOnMarkComplete` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "trackerId",
+            "columnName": "trackerId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "enabled",
+            "columnName": "enabled",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncDirection",
+            "columnName": "syncDirection",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "conflictResolution",
+            "columnName": "conflictResolution",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "autoSyncInterval",
+            "columnName": "autoSyncInterval",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncOnChapterRead",
+            "columnName": "syncOnChapterRead",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncOnMarkComplete",
+            "columnName": "syncOnMarkComplete",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_sync_configuration_trackerId",
+            "unique": true,
+            "columnNames": [
+              "trackerId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_sync_configuration_trackerId` ON `${TABLE_NAME}` (`trackerId`)"
+          }
+        ]
+      },
+      {
+        "tableName": "categorization_results",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`mangaId` INTEGER NOT NULL, `suggestionsJson` TEXT NOT NULL, `appliedCategoriesJson` TEXT NOT NULL, `wasAutoApplied` INTEGER NOT NULL, `wasReviewed` INTEGER NOT NULL, `timestamp` INTEGER NOT NULL, PRIMARY KEY(`mangaId`))",
+        "fields": [
+          {
+            "fieldPath": "mangaId",
+            "columnName": "mangaId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "suggestionsJson",
+            "columnName": "suggestionsJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "appliedCategoriesJson",
+            "columnName": "appliedCategoriesJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "wasAutoApplied",
+            "columnName": "wasAutoApplied",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "wasReviewed",
+            "columnName": "wasReviewed",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "mangaId"
+          ]
+        }
+      },
+      {
+        "tableName": "smart_search_cache",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`queryHash` TEXT NOT NULL, `originalQuery` TEXT NOT NULL, `parsedQueryJson` TEXT NOT NULL, `timestamp` INTEGER NOT NULL, PRIMARY KEY(`queryHash`))",
+        "fields": [
+          {
+            "fieldPath": "queryHash",
+            "columnName": "queryHash",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "originalQuery",
+            "columnName": "originalQuery",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "parsedQueryJson",
+            "columnName": "parsedQueryJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "queryHash"
+          ]
+        }
+      },
+      {
+        "tableName": "recommendations",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `mangaId` INTEGER, `title` TEXT NOT NULL, `author` TEXT, `thumbnailUrl` TEXT, `description` TEXT, `genres` TEXT NOT NULL, `sourceId` TEXT NOT NULL, `sourceUrl` TEXT NOT NULL, `reasonExplanation` TEXT NOT NULL, `confidenceScore` REAL NOT NULL, `basedOnMangaIds` TEXT NOT NULL, `basedOnGenres` TEXT NOT NULL, `recommendationType` TEXT NOT NULL, `generatedAt` INTEGER NOT NULL, `expiresAt` INTEGER NOT NULL, `viewed` INTEGER NOT NULL, `actioned` INTEGER NOT NULL, `dismissed` INTEGER NOT NULL, `actionedMangaId` INTEGER, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mangaId",
+            "columnName": "mangaId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "author",
+            "columnName": "author",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "thumbnailUrl",
+            "columnName": "thumbnailUrl",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "genres",
+            "columnName": "genres",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceId",
+            "columnName": "sourceId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceUrl",
+            "columnName": "sourceUrl",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reasonExplanation",
+            "columnName": "reasonExplanation",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "confidenceScore",
+            "columnName": "confidenceScore",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "basedOnMangaIds",
+            "columnName": "basedOnMangaIds",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "basedOnGenres",
+            "columnName": "basedOnGenres",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recommendationType",
+            "columnName": "recommendationType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "generatedAt",
+            "columnName": "generatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "expiresAt",
+            "columnName": "expiresAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "viewed",
+            "columnName": "viewed",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "actioned",
+            "columnName": "actioned",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dismissed",
+            "columnName": "dismissed",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "actionedMangaId",
+            "columnName": "actionedMangaId",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_recommendations_generatedAt",
+            "unique": false,
+            "columnNames": [
+              "generatedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_recommendations_generatedAt` ON `${TABLE_NAME}` (`generatedAt`)"
+          },
+          {
+            "name": "index_recommendations_recommendationType",
+            "unique": false,
+            "columnNames": [
+              "recommendationType"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_recommendations_recommendationType` ON `${TABLE_NAME}` (`recommendationType`)"
+          },
+          {
+            "name": "index_recommendations_viewed",
+            "unique": false,
+            "columnNames": [
+              "viewed"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_recommendations_viewed` ON `${TABLE_NAME}` (`viewed`)"
+          },
+          {
+            "name": "index_recommendations_dismissed",
+            "unique": false,
+            "columnNames": [
+              "dismissed"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_recommendations_dismissed` ON `${TABLE_NAME}` (`dismissed`)"
+          }
+        ]
+      },
+      {
+        "tableName": "reading_patterns",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `favoriteGenres` TEXT NOT NULL, `favoriteAuthors` TEXT NOT NULL, `preferredStatus` TEXT NOT NULL, `averageReadingTimeMs` INTEGER NOT NULL, `preferredMinChapters` INTEGER, `preferredMaxChapters` INTEGER, `commonThemes` TEXT NOT NULL, `readingVelocity` TEXT NOT NULL, `favoriteTropes` TEXT NOT NULL, `generatedAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "favoriteGenres",
+            "columnName": "favoriteGenres",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "favoriteAuthors",
+            "columnName": "favoriteAuthors",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "preferredStatus",
+            "columnName": "preferredStatus",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "averageReadingTimeMs",
+            "columnName": "averageReadingTimeMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "preferredMinChapters",
+            "columnName": "preferredMinChapters",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "preferredMaxChapters",
+            "columnName": "preferredMaxChapters",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "commonThemes",
+            "columnName": "commonThemes",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "readingVelocity",
+            "columnName": "readingVelocity",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "favoriteTropes",
+            "columnName": "favoriteTropes",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "generatedAt",
+            "columnName": "generatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_reading_patterns_generatedAt",
+            "unique": false,
+            "columnNames": [
+              "generatedAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_reading_patterns_generatedAt` ON `${TABLE_NAME}` (`generatedAt`)"
+          }
+        ]
+      },
+      {
+        "tableName": "recommendation_refreshes",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `timestamp` INTEGER NOT NULL, `success` INTEGER NOT NULL, `errorMessage` TEXT, `recommendationsCount` INTEGER NOT NULL, `patternId` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "success",
+            "columnName": "success",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "errorMessage",
+            "columnName": "errorMessage",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "recommendationsCount",
+            "columnName": "recommendationsCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "patternId",
+            "columnName": "patternId",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_recommendation_refreshes_timestamp",
+            "unique": true,
+            "columnNames": [
+              "timestamp"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_recommendation_refreshes_timestamp` ON `${TABLE_NAME}` (`timestamp`)"
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '1eb9aaee7b577a23315d7854928534e2')"
+    ]
+  }
+}

@@ -46,6 +46,15 @@ class TachiyomiManifestParser {
         const val METADATA_SOURCES = "tachiyomi.extension.sources"
         const val METADATA_HAS_README = "tachiyomi.extension.hasReadme"
         const val METADATA_HAS_CHANGELOG = "tachiyomi.extension.hasChangelog"
+
+        /** Maximum accepted byte length for the sources JSON payload (64 KB). */
+        private const val MAX_SOURCES_JSON_BYTES = 65_536
+        /** Maximum number of sources a single extension may declare. */
+        private const val MAX_SOURCE_COUNT = 100
+        /** Maximum length for a fully-qualified class name. */
+        private const val MAX_CLASS_NAME_LENGTH = 256
+        /** Maximum length for freeform string fields (name, baseUrl). */
+        private const val MAX_FIELD_LENGTH = 512
     }
 
     /**
@@ -181,17 +190,6 @@ class TachiyomiManifestParser {
         }
 
         return sources
-    }
-
-    companion object ValidationLimits {
-        /** Maximum accepted byte length for the sources JSON payload (64 KB). */
-        private const val MAX_SOURCES_JSON_BYTES = 65_536
-        /** Maximum number of sources a single extension may declare. */
-        private const val MAX_SOURCE_COUNT = 100
-        /** Maximum length for a fully-qualified class name. */
-        private const val MAX_CLASS_NAME_LENGTH = 256
-        /** Maximum length for freeform string fields (name, baseUrl). */
-        private const val MAX_FIELD_LENGTH = 512
     }
 
     /**

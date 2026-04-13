@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
@@ -83,6 +84,7 @@ import kotlin.math.roundToInt
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToMigrationEntry: () -> Unit = {},
+    onNavigateToAbout: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
@@ -125,6 +127,7 @@ fun SettingsScreen(
                     restoreFileLauncher.launch(arrayOf("application/json"))
                 }
                 SettingsEffect.NavigateToMigrationEntry -> onNavigateToMigrationEntry()
+                SettingsEffect.NavigateToAbout -> onNavigateToAbout()
                 is SettingsEffect.ShowDownloadLocationPicker -> {
                     downloadLocationLauncher.launch(null)
                 }
@@ -176,6 +179,8 @@ fun SettingsScreen(
             DiscordSection(state = state, onEvent = viewModel::onEvent)
             HorizontalDivider()
             AiSection(state = state, onEvent = viewModel::onEvent)
+            HorizontalDivider()
+            AboutSection(onEvent = viewModel::onEvent)
         }
     }
 }
@@ -2130,5 +2135,20 @@ private fun AccentColorPicker(
             }
         },
         modifier = modifier
+    )
+}
+
+@Composable
+private fun AboutSection(onEvent: (SettingsEvent) -> Unit) {
+    SectionHeader(title = "About")
+    ListItem(
+        headlineContent = { Text("About Otaku Reader") },
+        supportingContent = { Text("App info, FAQ, licenses") },
+        leadingContent = {
+            Icon(Icons.Default.Info, contentDescription = null)
+        },
+        modifier = androidx.compose.ui.Modifier.clickable {
+            onEvent(SettingsEvent.NavigateToAbout)
+        }
     )
 }
