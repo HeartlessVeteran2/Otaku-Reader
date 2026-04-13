@@ -56,7 +56,6 @@ class OtakuReaderApplication : Application(), Configuration.Provider, SingletonI
      * - Disk cache: capped at 512 MB to support large manga chapter image caches.
      * - Networking: backed by the shared [OkHttpClient] for connection pooling and
      *   consistent headers (e.g. User-Agent, Referer) set by extension interceptors.
-     * - Crossfade: smooth image transitions in the UI.
      */
     override fun newImageLoader(context: Context): ImageLoader {
         return ImageLoader.Builder(context)
@@ -74,7 +73,6 @@ class OtakuReaderApplication : Application(), Configuration.Provider, SingletonI
             .components {
                 add(OkHttpNetworkFetcherFactory(callFactory = { okHttpClient }))
             }
-            .crossfade(true)
             .build()
     }
 }
