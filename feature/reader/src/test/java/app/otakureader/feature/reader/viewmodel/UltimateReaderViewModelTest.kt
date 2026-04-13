@@ -125,6 +125,28 @@ class UltimateReaderViewModelTest {
         every { settingsRepository.prefetchAdjacentChapters } returns flowOf(false)
         every { settingsRepository.prefetchOnlyOnWiFi } returns flowOf(false)
 
+        // Missing settings for updated loadSettings() - added 2025-04-14
+        every { settingsRepository.showContentInCutout } returns flowOf(false)
+        every { settingsRepository.backgroundColor } returns flowOf(0)
+        every { settingsRepository.animatePageTransitions } returns flowOf(true)
+        every { settingsRepository.showReadingModeOverlay } returns flowOf(true)
+        every { settingsRepository.showTapZonesOverlay } returns flowOf(false)
+        every { settingsRepository.readerScale } returns flowOf(1f)
+        every { settingsRepository.autoZoomWideImages } returns flowOf(true)
+        every { settingsRepository.invertTapZones } returns flowOf(false)
+        every { settingsRepository.webtoonSidePadding } returns flowOf(0)
+        every { settingsRepository.webtoonMenuHideSensitivity } returns flowOf(0)
+        every { settingsRepository.webtoonDoubleTapZoom } returns flowOf(true)
+        every { settingsRepository.webtoonDisableZoomOut } returns flowOf(false)
+        every { settingsRepository.einkFlashOnPageChange } returns flowOf(false)
+        every { settingsRepository.einkBlackAndWhite } returns flowOf(false)
+        every { settingsRepository.skipReadChapters } returns flowOf(false)
+        every { settingsRepository.skipFilteredChapters } returns flowOf(false)
+        every { settingsRepository.skipDuplicateChapters } returns flowOf(false)
+        every { settingsRepository.alwaysShowChapterTransition } returns flowOf(false)
+        every { settingsRepository.savePagesToSeparateFolders } returns flowOf(false)
+        every { settingsRepository.showActionsOnLongTap } returns flowOf(true)
+
         // Return null for chapter/manga so loadChapter() exits early without side-effects.
         coEvery { chapterRepository.getChapterById(chapterId) } returns null
         coEvery { mangaRepository.getMangaById(mangaId) } returns null
