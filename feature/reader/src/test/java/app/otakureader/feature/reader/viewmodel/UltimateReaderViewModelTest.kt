@@ -621,8 +621,10 @@ class UltimateReaderViewModelTest {
         val vm = createViewModel()
         testDispatcher.scheduler.advanceUntilIdle()
 
-        vm.setPages(List(5) { ReaderPage(index = it) })
+        vm.setPages(List(5) { ReaderPage(index = it, imageUrl = "https://example.com/page$it.jpg") })
         vm.onEvent(ReaderEvent.OnModeChange(ReaderMode.SMART_PANELS))
+        // Wait for panel detection to complete so panels are populated before navigating
+        testDispatcher.scheduler.advanceUntilIdle()
 
         // Navigate to panel 1 on page 0
         vm.onEvent(ReaderEvent.OnPanelChange(1))

@@ -125,6 +125,9 @@ class LibraryUpdateWorkerTest {
         every { downloadPreferences.downloadOnlyOnWifi } returns flowOf(false)
         every { downloadPreferences.autoDownloadLimit } returns flowOf(3)
         every { generalPreferences.notificationsEnabled } returns flowOf(true)
+        every { libraryPreferences.updateOnlyOnWifi } returns flowOf(false)
+        every { libraryPreferences.skipUpdateCategoryIds } returns flowOf(emptySet())
+        every { libraryPreferences.showUpdateProgress } returns flowOf(false)
 
         // Mock connectivity
         every { context.getSystemService(Context.CONNECTIVITY_SERVICE) } returns connectivityManager

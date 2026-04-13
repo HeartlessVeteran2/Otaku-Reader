@@ -65,8 +65,8 @@ allprojects {
             // Apache HttpClient - fixes XSS
             force("org.apache.httpcomponents:httpclient:4.5.14")
 
-            // Log4j Core - fixes XMLLayout sanitization (CVE-2021-44228 related)
-            force("org.apache.logging.log4j:log4j-core:2.24.3")
+            // Log4j Core - fixes XMLLayout sanitization and RCE (CVE-2021-44228); bumped to 2.25.4
+            force("org.apache.logging.log4j:log4j-core:2.25.4")
 
             // Plexus Utils - fixes directory traversal (CVSS 7.5)
             force("org.codehaus.plexus:plexus-utils:4.0.3")

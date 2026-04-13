@@ -355,24 +355,29 @@ class DownloadManager @Inject constructor(
      * Processes the pending download queue when slots become available.
      * Finds the highest priority queued download and starts it if under the limit.
      * Must NOT be called while holding [mutex].
+     *
+     * The pending item and its request are resolved under the lock, then the lock is
+     * released before calling [launchDownloadJob].  This avoids a re-entrant deadlock:
+     * [launchDownloadJob] is a suspend function that also acquires [mutex], and the
+     * coroutine mutex is NOT reentrant.
      */
     private fun processPendingQueue() {
         scope.launch {
-            mutex.withLock {
-                // Check if we have room for more downloads
-                if (jobs.size >= maxConcurrentDownloads) return@withLock
+            // Resolve the next candidate under the lock, then release before launching.
+            val toStart = mutex.withLock {
+                if (jobs.size >= maxConcurrentDownloads) return@launch
 
-                // Find highest priority queued item that's not already downloading
                 val pendingItem = downloadMap.values
                     .filter { it.status == DownloadStatus.QUEUED && !jobs.containsKey(it.chapterId) }
                     .minByOrNull { it.priority }
-                    ?: return@withLock
+                    ?: return@launch
 
-                val request = requests[pendingItem.chapterId] ?: return@withLock
-
-                // Launch download outside the lock to avoid blocking
-                launchDownloadJob(pendingItem.chapterId, request)
+                val request = requests[pendingItem.chapterId] ?: return@launch
+                pendingItem.chapterId to request
             }
+
+            // Call launchDownloadJob *outside* the lock to avoid re-entrant deadlock.
+            launchDownloadJob(toStart.first, toStart.second)
         }
     }
 
@@ -387,15 +392,21 @@ class DownloadManager @Inject constructor(
             updateStatus(chapterId, DownloadStatus.DOWNLOADING)
 
             jobs[chapterId] = scope.launch {
+                // Track whether actual page downloads were attempted.  When pageUrls is empty
+                // the item is re-queued and waits for page URLs to be resolved; in that case
+                // processPendingQueue must NOT be called to avoid an infinite retry loop.
+                var downloadedPages = false
                 try {
                     val pageUrls = request.pageUrls
                     val totalPages = pageUrls.size
 
                     if (totalPages == 0) {
+                        // Pages not yet resolved – park the item back as QUEUED and stop.
                         mutex.withLock { updateStatus(chapterId, DownloadStatus.QUEUED) }
                         return@launch
                     }
 
+                    downloadedPages = true
                     val packAsCbz = downloadPreferences.saveAsCbz.first()
 
                     pageUrls.forEachIndexed { index, url ->
@@ -443,7 +454,11 @@ class DownloadManager @Inject constructor(
                     }
                 } finally {
                     mutex.withLock { jobs.remove(chapterId) }
-                    processPendingQueue()
+                    // Only look for the next queued item when real download work was done.
+                    // Skipping this when pages were empty prevents an infinite re-launch loop.
+                    if (downloadedPages) {
+                        processPendingQueue()
+                    }
                 }
             }
         }
