@@ -24,7 +24,8 @@ class AiKeyValidationTest {
 
     @Test
     fun `key exactly 39 chars starting with AIza and valid charset returns true`() {
-        assertTrue(isGeminiApiKeyFormatValid("AIzaSyD-9tSrke72I6e49xbc7ABCDEFGHIJK"))
+        // Exactly 39 characters matching [A-Za-z0-9_-]
+        assertTrue(isGeminiApiKeyFormatValid("AIzaSyD-9tSrke72I6e49xbc7ABCDEFGHIJKLMN"))
     }
 
     @Test

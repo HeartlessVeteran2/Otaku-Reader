@@ -50,6 +50,7 @@ class DownloadManagerTest {
 
         // Mock preferences
         every { downloadPreferences.saveAsCbz } returns flowOf(false)
+        every { downloadPreferences.concurrentDownloads } returns flowOf(2)
 
         // Mock successful download
         coEvery { downloader.downloadPage(any(), any()) } returns Result.success(File("/tmp/test/page.jpg"))
