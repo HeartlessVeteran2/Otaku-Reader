@@ -131,7 +131,7 @@ class UltimateReaderViewModelTest {
         every { settingsRepository.animatePageTransitions } returns flowOf(true)
         every { settingsRepository.showReadingModeOverlay } returns flowOf(true)
         every { settingsRepository.showTapZonesOverlay } returns flowOf(false)
-        every { settingsRepository.readerScale } returns flowOf(1f)
+        every { settingsRepository.readerScale } returns flowOf(1)
         every { settingsRepository.autoZoomWideImages } returns flowOf(true)
         every { settingsRepository.invertTapZones } returns flowOf(false)
         every { settingsRepository.webtoonSidePadding } returns flowOf(0)
