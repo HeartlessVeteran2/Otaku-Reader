@@ -50,7 +50,7 @@ class ChapterRepositoryImpl @Inject constructor(
         chapterDao.updateChapterProgress(chapterId, read, lastPageRead)
     }
     
-    override suspend fun updateChapterProgress(chapterIds: List<Long>, read: Boolean, lastPageRead: Int) {
+    override suspend fun updateChapterProgress(chapterIds: Collection<Long>, read: Boolean, lastPageRead: Int) {
         // SQLite's bound-parameter limit is 999. This query also binds `read` and `lastPageRead`
         // (2 parameters), so the IN (:chapterIds) list must be at most 997 to avoid
         // "too many SQL variables" at runtime.

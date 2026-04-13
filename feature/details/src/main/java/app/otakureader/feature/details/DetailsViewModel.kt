@@ -66,16 +66,17 @@ class DetailsViewModel @Inject constructor(
     val effect: Flow<DetailsContract.Effect> = _effect.receiveAsFlow()
 
     // Thumbnail cache: chapterId -> Pair(thumbnailUrl, totalPages)
-    private val thumbnailCache = mutableMapOf<Long, Pair<String?, Int>>()
-
+    // LRU bounded to 50 entries to prevent unbounded memory growth
+    private val thumbnailCache = object : LinkedHashMap<Long, Pair<String?, Int>>(50, 0.75f, true) {
+        override fun removeEldestEntry(eldest: Map.Entry<Long, Pair<String?, Int>>): Boolean {
+            return size > 50
+        }
+    }
     init {
         loadMangaDetails()
         loadChapters()
-        observeFavoriteStatus()
         loadNextUnreadChapter()
-        observeDownloads()
-        observeDeleteAfterReadSetting()
-        observeAiSettings()
+        observeStaticSettings()
     }
 
     fun onEvent(event: DetailsContract.Event) {
@@ -234,10 +235,6 @@ class DetailsViewModel @Inject constructor(
         }
     }
 
-    private fun observeFavoriteStatus() {
-        mangaRepository.isFavorite(mangaId)
-            .onEach { isFavorite ->
-                _state.update { it.copy(isFavorite = isFavorite) }
             }
             .launchIn(viewModelScope)
     }
@@ -246,10 +243,14 @@ class DetailsViewModel @Inject constructor(
         viewModelScope.launch {
             val nextChapter = chapterRepository.getNextUnreadChapter(mangaId)
             _state.update { it.copy(nextUnreadChapter = nextChapter) }
-        }
-    }
 
-    private fun observeDownloads() {
+    private fun observeStaticSettings() {
+        mangaRepository.isFavorite(mangaId)
+            .onEach { isFavorite ->
+                _state.update { it.copy(isFavorite = isFavorite) }
+            }
+            .launchIn(viewModelScope)
+
         downloadRepository.observeDownloads()
             .onEach { downloads ->
                 _state.update { state ->
@@ -269,10 +270,7 @@ class DetailsViewModel @Inject constructor(
                 }
             }
             .launchIn(viewModelScope)
-    }
 
-    private fun observeDeleteAfterReadSetting() {
-        // Observe delete-after-read preference and keep state in sync
         combine(
             downloadPreferences.deleteAfterReading,
             downloadPreferences.perMangaOverrides
@@ -288,7 +286,20 @@ class DetailsViewModel @Inject constructor(
                 }
             }
             .launchIn(viewModelScope)
+
+        combine(
+            aiPreferences.aiEnabled,
+            aiPreferences.aiSummaryTranslation
+        ) { aiEnabled, summaryEnabled ->
+            aiEnabled && summaryEnabled
+        }.onEach { enabled ->
+            _state.update { it.copy(aiSummaryEnabled = enabled) }
+        }.launchIn(viewModelScope)
     }
+        }
+    }
+
+
 
     private fun refreshData() {
         _state.update { it.copy(isRefreshing = true) }
@@ -445,7 +456,7 @@ class DetailsViewModel @Inject constructor(
     private fun markSelectedAsRead() {
         viewModelScope.launch {
             try {
-                val selectedIds = _state.value.selectedChapters.toList()
+                val selectedIds = _state.value.selectedChapters
                 if (selectedIds.isNotEmpty()) {
                     chapterRepository.updateChapterProgress(
                         chapterIds = selectedIds,
@@ -464,7 +475,7 @@ class DetailsViewModel @Inject constructor(
     private fun markSelectedAsUnread() {
         viewModelScope.launch {
             try {
-                val selectedIds = _state.value.selectedChapters.toList()
+                val selectedIds = _state.value.selectedChapters
                 if (selectedIds.isNotEmpty()) {
                     chapterRepository.updateChapterProgress(
                         chapterIds = selectedIds,
@@ -877,19 +888,6 @@ class DetailsViewModel @Inject constructor(
     companion object {
         const val MANGA_ID_ARG = "mangaId"
         private const val SUMMARY_CONTEXT_CHAPTERS = 5
-    }
-
-    // --- AI Settings Observation ---
-
-    private fun observeAiSettings() {
-        combine(
-            aiPreferences.aiEnabled,
-            aiPreferences.aiSummaryTranslation
-        ) { aiEnabled, summaryEnabled ->
-            aiEnabled && summaryEnabled
-        }.onEach { enabled ->
-            _state.update { it.copy(aiSummaryEnabled = enabled) }
-        }.launchIn(viewModelScope)
     }
 
     // --- AI Summary Translation ---
