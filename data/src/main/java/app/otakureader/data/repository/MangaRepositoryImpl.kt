@@ -8,6 +8,7 @@ import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.repository.MangaRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -21,9 +22,14 @@ class MangaRepositoryImpl @Inject constructor(
 ) : MangaRepository {
 
     override fun getLibraryManga(): Flow<List<Manga>> {
-        return mangaDao.getFavoriteMangaWithUnreadCount().map { mangaWithUnreadList ->
-            mangaWithUnreadList.map { it.manga.toDomain(it.unreadCount) }
-        }
+        return mangaDao.getFavoriteMangaWithUnreadCount()
+            .distinctUntilChanged { old, new ->
+                // Only emit if the actual content changed
+                old.size == new.size && old.map { it.manga.id } == new.map { it.manga.id }
+            }
+            .map { mangaWithUnreadList ->
+                mangaWithUnreadList.map { it.manga.toDomain(it.unreadCount) }
+            }
     }
 
     override fun searchLibraryManga(query: String): Flow<List<Manga>> {
