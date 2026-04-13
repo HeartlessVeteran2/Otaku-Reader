@@ -9,7 +9,7 @@ import app.otakureader.domain.model.Manga
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.data.download.DownloadManager
-import app.otakureader.domain.usecase.TranslateSfxUseCase
+import app.otakureader.domain.usecase.ai.TranslateSfxUseCase
 import app.otakureader.core.discord.DiscordRpcService
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.DownloadPreferences
@@ -96,7 +96,7 @@ class UltimateReaderViewModelTest {
         chapterPrefetcher = mockk(relaxed = true)
         panelDetectionService = mockk()
         aiPreferences = mockk()
-        translateSfx = mockk()
+        translateSfx = mockk<TranslateSfxUseCase>()
         coEvery { panelDetectionService.detectPanelsFromUrl(any(), any()) } returns emptyList()
         every { generalPreferences.discordRpcEnabled } returns flowOf(false)
 
