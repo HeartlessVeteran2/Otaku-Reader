@@ -72,6 +72,7 @@ object DetailsContract {
     data class ChapterItem(
         val id: Long,
         val mangaId: Long,
+        val url: String,
         val name: String,
         val chapterNumber: Float,
         val volume: String?,
@@ -180,6 +181,7 @@ fun Chapter.toChapterItem(thumbnailUrl: String? = null, totalPages: Int = 0): De
     return DetailsContract.ChapterItem(
         id = id,
         mangaId = mangaId,
+        url = url,
         name = name,
         chapterNumber = chapterNumber,
         volume = volume,
