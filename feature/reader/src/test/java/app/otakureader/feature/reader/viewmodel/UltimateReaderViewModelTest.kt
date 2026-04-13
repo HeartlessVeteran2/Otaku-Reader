@@ -124,8 +124,6 @@ class UltimateReaderViewModelTest {
         every { settingsRepository.adaptiveLearningEnabled } returns flowOf(true)
         every { settingsRepository.prefetchAdjacentChapters } returns flowOf(false)
         every { settingsRepository.prefetchOnlyOnWiFi } returns flowOf(false)
-        every { settingsRepository.galleryColumns } returns flowOf(3)
-        every { settingsRepository.pageRotation } returns flowOf(PageRotation.NONE)
 
         // Return null for chapter/manga so loadChapter() exits early without side-effects.
         coEvery { chapterRepository.getChapterById(chapterId) } returns null
