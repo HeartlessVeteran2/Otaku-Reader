@@ -11,8 +11,8 @@ import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.domain.usecase.SetMangaNotificationsUseCase
 import app.otakureader.domain.usecase.UpdateMangaNoteUseCase
-import app.otakureader.domain.usecase.SummarizeChapterUseCase
-import app.otakureader.domain.usecase.GenerateMangaSummaryUseCase
+import app.otakureader.domain.usecase.ai.SummarizeChapterUseCase
+import app.otakureader.domain.usecase.ai.GenerateMangaSummaryUseCase
 import app.otakureader.domain.repository.AiRepository
 import app.otakureader.core.preferences.AiPreferences
 import app.cash.turbine.test
@@ -81,10 +81,10 @@ class DetailsViewModelTest {
         downloadPreferences = mockk()
         updateMangaNote = mockk()
         setMangaNotifications = mockk()
-        summarizeChapter = mockk()
-        aiRepository = mockk()
+        summarizeChapter = mockk<SummarizeChapterUseCase>()
+        aiRepository = mockk<AiRepository>()
         aiPreferences = mockk()
-        generateMangaSummary = mockk()
+        generateMangaSummary = mockk<GenerateMangaSummaryUseCase>()
         savedStateHandle = SavedStateHandle(mapOf(DetailsViewModel.MANGA_ID_ARG to mangaId))
     }
 

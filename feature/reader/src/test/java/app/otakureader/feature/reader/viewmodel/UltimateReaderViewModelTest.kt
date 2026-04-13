@@ -8,7 +8,7 @@ import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.MangaRepository
-import app.otakureader.domain.source.DownloadManager
+import app.otakureader.data.download.DownloadManager
 import app.otakureader.domain.usecase.TranslateSfxUseCase
 import app.otakureader.core.discord.DiscordRpcService
 import app.otakureader.core.preferences.GeneralPreferences
