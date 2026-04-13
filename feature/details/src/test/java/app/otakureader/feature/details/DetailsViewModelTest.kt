@@ -83,7 +83,7 @@ class DetailsViewModelTest {
         setMangaNotifications = mockk()
         summarizeChapter = mockk<SummarizeChapterUseCase>()
         aiRepository = mockk<AiRepository>()
-        aiPreferences = mockk()
+        aiPreferences = mockk(relaxed = true)
         generateMangaSummary = mockk<GenerateMangaSummaryUseCase>()
         savedStateHandle = SavedStateHandle(mapOf(DetailsViewModel.MANGA_ID_ARG to mangaId))
     }
