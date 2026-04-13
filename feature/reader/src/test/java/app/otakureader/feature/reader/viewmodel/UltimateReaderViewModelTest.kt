@@ -95,7 +95,7 @@ class UltimateReaderViewModelTest {
         smartPrefetchManager = mockk(relaxed = true)
         chapterPrefetcher = mockk(relaxed = true)
         panelDetectionService = mockk()
-        aiPreferences = mockk()
+        aiPreferences = mockk(relaxed = true)
         translateSfx = mockk<TranslateSfxUseCase>()
         coEvery { panelDetectionService.detectPanelsFromUrl(any(), any()) } returns emptyList()
         every { generalPreferences.discordRpcEnabled } returns flowOf(false)
