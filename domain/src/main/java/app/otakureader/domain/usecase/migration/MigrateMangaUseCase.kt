@@ -129,13 +129,13 @@ class MigrateMangaUseCase @Inject constructor(
                     // with the remaining entries so partial progress is preserved.
                     failedTrackers++
                     // Domain layer uses System.err.println (not android.util.Log) as it's pure Kotlin
-                    System.err.println("Failed to migrate tracker entry for tracker " +
+                // System.err.println("Failed to migrate tracker entry for tracker " +
                         "${entry.trackerId}: ${e.message}")
                 }
             }
             if (failedTrackers > 0) {
                 // Domain layer uses System.err.println (not android.util.Log) as it's pure Kotlin
-                System.err.println("Migration completed with $failedTrackers tracker " +
+                // System.err.println("Migration completed with $failedTrackers tracker " +
                     "failure(s) out of ${trackerEntries.size} total")
             }
 

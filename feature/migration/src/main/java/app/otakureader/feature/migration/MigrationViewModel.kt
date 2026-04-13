@@ -133,7 +133,7 @@ class MigrationViewModel @Inject constructor(
                     status = MigrationStatus.SEARCHING,
                     statusMessage = "Searching for matches..."
                 )
-                _state.update { it.copy(migrationTasks = tasks.toList()) }
+                _state.update { it.copy(migrationTasks = tasks) }
 
                 // Search for matches
                 val searchResult = searchMigrationTargets(
@@ -148,7 +148,7 @@ class MigrationViewModel @Inject constructor(
                         errorMessage = "No matches found in target source",
                         statusMessage = null
                     )
-                    _state.update { it.copy(migrationTasks = tasks.toList()) }
+                    _state.update { it.copy(migrationTasks = tasks) }
                     return@forEachIndexed
                 }
 
@@ -167,7 +167,7 @@ class MigrationViewModel @Inject constructor(
                         errorMessage = "No candidates meet the minimum chapter count ($minChapterCount)",
                         statusMessage = null
                     )
-                    _state.update { it.copy(migrationTasks = tasks.toList()) }
+                    _state.update { it.copy(migrationTasks = tasks) }
                     return@forEachIndexed
                 }
 
@@ -179,7 +179,7 @@ class MigrationViewModel @Inject constructor(
                         status = MigrationStatus.MIGRATING,
                         statusMessage = "Migrating data..."
                     )
-                    _state.update { it.copy(migrationTasks = tasks.toList()) }
+                    _state.update { it.copy(migrationTasks = tasks) }
 
                     val migrationResult = migrateManga(
                         sourceManga = task.manga,
@@ -210,7 +210,7 @@ class MigrationViewModel @Inject constructor(
                     )
                     _state.update {
                         it.copy(
-                            migrationTasks = tasks.toList(),
+                            migrationTasks = tasks,
                             showConfirmationDialog = true,
                             currentCandidates = filteredCandidates
                         )
@@ -218,7 +218,7 @@ class MigrationViewModel @Inject constructor(
                     return@launch // Pause migration for user confirmation
                 }
 
-                _state.update { it.copy(migrationTasks = tasks.toList()) }
+                _state.update { it.copy(migrationTasks = tasks) }
             }
 
             _state.update { it.copy(isLoading = false) }
@@ -303,7 +303,7 @@ class MigrationViewModel @Inject constructor(
                 status = MigrationStatus.MIGRATING,
                 statusMessage = "Migrating data..."
             )
-            _state.update { it.copy(migrationTasks = tasks.toList()) }
+            _state.update { it.copy(migrationTasks = tasks) }
 
             val migrationResult = migrateManga(
                 sourceManga = tasks[taskIndex].manga,
@@ -327,7 +327,7 @@ class MigrationViewModel @Inject constructor(
                 )
             }
 
-            _state.update { it.copy(migrationTasks = tasks.toList(), isLoading = false) }
+            _state.update { it.copy(migrationTasks = tasks, isLoading = false) }
 
             // Continue with next PENDING task
             startMigration()
@@ -343,7 +343,7 @@ class MigrationViewModel @Inject constructor(
                 status = MigrationStatus.SKIPPED,
                 statusMessage = null
             )
-            _state.update { it.copy(migrationTasks = tasks.toList(), showConfirmationDialog = false) }
+            _state.update { it.copy(migrationTasks = tasks, showConfirmationDialog = false) }
 
             // Continue with next PENDING task
             startMigration()
@@ -385,7 +385,7 @@ class MigrationViewModel @Inject constructor(
             _state.update {
                 it.copy(
                     showConfirmationDialog = false,
-                    migrationTasks = tasks.toList(),
+                    migrationTasks = tasks,
                     isLoading = false
                 )
             }

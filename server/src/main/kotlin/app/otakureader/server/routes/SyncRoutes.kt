@@ -46,7 +46,7 @@ fun Route.syncRoutes(config: AppConfig) {
                     // H-9: Log the full exception server-side; return a generic message to the
                     // client so that internal implementation details are never exposed.
                     val cause = result.exceptionOrNull()
-                    System.err.println("[SyncRoutes] storeSnapshot failed: ${cause?.message}")
+                // System.err.println("[SyncRoutes] storeSnapshot failed: ${cause?.message}")
                     call.respond(
                         HttpStatusCode.InternalServerError,
                         ErrorResponse("Failed to store snapshot. Please try again later.")
@@ -55,7 +55,7 @@ fun Route.syncRoutes(config: AppConfig) {
             } catch (e: Exception) {
                 // H-9: Log the full exception server-side; return a generic message to the
                 // client so that internal implementation details are never exposed.
-                System.err.println("[SyncRoutes] upload request error: ${e.message}")
+                // System.err.println("[SyncRoutes] upload request error: ${e.message}")
                 call.respond(
                     HttpStatusCode.BadRequest,
                     ErrorResponse("Invalid request. Please check the request format and try again.")
@@ -122,7 +122,7 @@ fun Route.syncRoutes(config: AppConfig) {
                 // H-9: Log the full exception server-side; return a generic message to the
                 // client so that internal implementation details are never exposed.
                 val cause = result.exceptionOrNull()
-                System.err.println("[SyncRoutes] deleteSnapshot failed: ${cause?.message}")
+                // System.err.println("[SyncRoutes] deleteSnapshot failed: ${cause?.message}")
                 call.respond(
                     HttpStatusCode.InternalServerError,
                     ErrorResponse("Failed to delete snapshot. Please try again later.")
