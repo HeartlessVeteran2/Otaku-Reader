@@ -27,6 +27,7 @@ import app.otakureader.core.discord.ReadingStatus
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.DownloadPreferences
 import app.otakureader.data.download.DownloadManager
+import app.otakureader.data.download.ChapterDownloadRequest
 import app.otakureader.data.download.DownloadProvider
 import app.otakureader.data.worker.RecordReadingHistoryWorker
 import app.otakureader.feature.reader.panel.PanelDetectionService
@@ -54,6 +55,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.abs
+import app.otakureader.sourceapi.SourceChapter
 
 /**
  * Ultimate ViewModel for the Reader feature.
@@ -1031,16 +1033,42 @@ class UltimateReaderViewModel @Inject constructor(
 
             // Check if already downloaded to storage
             val manga = currentManga ?: mangaRepository.getMangaById(mangaId) ?: return@launch
-            val source = sourceRepository.getSource(manga.sourceId.toString()) ?: return@launch
+            val sourceName = manga.sourceId.toString()
             
             val isDownloaded = DownloadProvider.isChapterDownloaded(
-                context, source.name, manga.title, nextChapter.name
+                context, sourceName, manga.title, nextChapter.name
             )
             if (isDownloaded) return@launch
 
-            // TODO: fetch page URLs via source.fetchPageList() and enqueue download.
-            // This requires converting domain Chapter → source-api Chapter, which is
-            // tracked as a separate task. For now, download-ahead is a no-op.
+            val sourceChapter = SourceChapter(
+                url = nextChapter.url,
+                name = nextChapter.name,
+                dateUpload = nextChapter.dateUpload,
+                chapterNumber = nextChapter.chapterNumber,
+                scanlator = nextChapter.scanlator
+            )
+            val pageUrls = sourceRepository.getPageList(sourceName, sourceChapter)
+                .getOrNull()
+                ?.mapNotNull { page ->
+                    when {
+                        !page.imageUrl.isNullOrBlank() -> page.imageUrl
+                        page.url.isNotBlank() -> page.url
+                        else -> null
+                    }
+                }
+                .orEmpty()
+            if (pageUrls.isEmpty()) return@launch
+
+            downloadManager.enqueue(
+                ChapterDownloadRequest(
+                    mangaId = manga.id,
+                    chapterId = nextChapter.id,
+                    sourceName = sourceName,
+                    mangaTitle = manga.title,
+                    chapterTitle = nextChapter.name,
+                    pageUrls = pageUrls
+                )
+            )
         }
     }
 

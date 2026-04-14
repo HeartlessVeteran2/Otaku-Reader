@@ -34,9 +34,11 @@ import io.mockk.just
 import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.runs
+import io.mockk.slot
 import io.mockk.unmockkStatic
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -124,6 +126,12 @@ class UltimateReaderViewModelTest {
         every { settingsRepository.adaptiveLearningEnabled } returns flowOf(true)
         every { settingsRepository.prefetchAdjacentChapters } returns flowOf(false)
         every { settingsRepository.prefetchOnlyOnWiFi } returns flowOf(false)
+        every { downloadPreferences.downloadAheadWhileReading } returns flowOf(0)
+        every { downloadPreferences.downloadAheadOnlyOnWifi } returns flowOf(false)
+        every { downloadManager.downloads } returns MutableStateFlow(
+            emptyList<app.otakureader.domain.model.DownloadItem>()
+        )
+        coEvery { downloadManager.enqueue(any()) } just runs
 
         // Missing settings for updated loadSettings() - added 2025-04-14
         every { settingsRepository.showContentInCutout } returns flowOf(false)
@@ -659,5 +667,106 @@ class UltimateReaderViewModelTest {
         // Only page 1 should have been processed (page 0 already had panels)
         coVerify(exactly = 0) { panelDetectionService.detectPanelsFromUrl(eq("https://example.com/page0.jpg"), any()) }
         coVerify(exactly = 1) { panelDetectionService.detectPanelsFromUrl(eq("https://example.com/page1.jpg"), any()) }
+    }
+
+    @Test
+    fun `download-ahead enqueues next chapter when near end and pages resolve`() = runTest {
+        val currentChapter = Chapter(
+            id = chapterId,
+            mangaId = mangaId,
+            url = "https://example.com/chapter-10",
+            name = "Chapter 10",
+            chapterNumber = 10f
+        )
+        val nextChapter = Chapter(
+            id = 11L,
+            mangaId = mangaId,
+            url = "https://example.com/chapter-11",
+            name = "Chapter 11",
+            chapterNumber = 11f
+        )
+        val manga = Manga(id = mangaId, sourceId = 99L, title = "Test Manga")
+
+        coEvery { chapterRepository.getChapterById(chapterId) } returns currentChapter
+        coEvery { mangaRepository.getMangaById(mangaId) } returns manga
+        coEvery { chapterRepository.getChaptersByMangaId(mangaId) } returns flowOf(listOf(currentChapter, nextChapter))
+        every { downloadPreferences.downloadAheadWhileReading } returns flowOf(1)
+        every { downloadPreferences.downloadAheadOnlyOnWifi } returns flowOf(false)
+        every { downloadManager.downloads } returns MutableStateFlow(
+            emptyList<app.otakureader.domain.model.DownloadItem>()
+        )
+        coEvery {
+            sourceRepository.getPageList(
+                "99",
+                match { it.url == nextChapter.url && it.name == nextChapter.name }
+            )
+        } returns Result.success(
+            listOf(
+                app.otakureader.sourceapi.Page(index = 0, imageUrl = "https://img/1.jpg"),
+                app.otakureader.sourceapi.Page(index = 1, imageUrl = "https://img/2.jpg")
+            )
+        )
+        coEvery { chapterRepository.recordHistory(any(), any(), any()) } just runs
+        coEvery { chapterRepository.updateChapterProgress(any<Long>(), any<Boolean>(), any<Int>()) } just runs
+
+        val requestSlot = slot<app.otakureader.data.download.ChapterDownloadRequest>()
+        coEvery { downloadManager.enqueue(capture(requestSlot)) } just runs
+
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        vm.setPages(List(5) { ReaderPage(index = it, imageUrl = "https://example.com/page$it.jpg") })
+        vm.onEvent(ReaderEvent.OnPageChange(4))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 1) { downloadManager.enqueue(any()) }
+        assertEquals(nextChapter.id, requestSlot.captured.chapterId)
+        assertEquals("99", requestSlot.captured.sourceName)
+        assertEquals(2, requestSlot.captured.pageUrls.size)
+    }
+
+    @Test
+    fun `download-ahead does not enqueue when page list resolution fails`() = runTest {
+        val currentChapter = Chapter(
+            id = chapterId,
+            mangaId = mangaId,
+            url = "https://example.com/chapter-10",
+            name = "Chapter 10",
+            chapterNumber = 10f
+        )
+        val nextChapter = Chapter(
+            id = 11L,
+            mangaId = mangaId,
+            url = "https://example.com/chapter-11",
+            name = "Chapter 11",
+            chapterNumber = 11f
+        )
+        val manga = Manga(id = mangaId, sourceId = 99L, title = "Test Manga")
+
+        coEvery { chapterRepository.getChapterById(chapterId) } returns currentChapter
+        coEvery { mangaRepository.getMangaById(mangaId) } returns manga
+        coEvery { chapterRepository.getChaptersByMangaId(mangaId) } returns flowOf(listOf(currentChapter, nextChapter))
+        every { downloadPreferences.downloadAheadWhileReading } returns flowOf(1)
+        every { downloadPreferences.downloadAheadOnlyOnWifi } returns flowOf(false)
+        every { downloadManager.downloads } returns MutableStateFlow(
+            emptyList<app.otakureader.domain.model.DownloadItem>()
+        )
+        coEvery {
+            sourceRepository.getPageList(
+                "99",
+                match { it.url == nextChapter.url && it.name == nextChapter.name }
+            )
+        } returns Result.failure(IllegalStateException("Network failed"))
+        coEvery { chapterRepository.recordHistory(any(), any(), any()) } just runs
+        coEvery { chapterRepository.updateChapterProgress(any<Long>(), any<Boolean>(), any<Int>()) } just runs
+
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        vm.setPages(List(5) { ReaderPage(index = it, imageUrl = "https://example.com/page$it.jpg") })
+        vm.onEvent(ReaderEvent.OnPageChange(4))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 0) { downloadManager.enqueue(any()) }
     }
 }
