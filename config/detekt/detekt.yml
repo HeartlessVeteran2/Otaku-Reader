@@ -280,9 +280,9 @@ naming:
     packagePattern: '[a-z]+(\.[a-z][A-Za-z0-9]*)*'
   TopLevelPropertyNaming:
     active: true
-    constants: '[A-Z][_A-Z0-9]*'
-    properties: '[A-Za-z][_A-Za-z0-9]*'
-    privateProperties: '(_)?[A-Za-z][_A-Za-z0-9]*'
+    constantPattern: '[A-Z][_A-Z0-9]*'
+    propertyPattern: '[A-Za-z][_A-Za-z0-9]*'
+    privatePropertyPattern: '(_)?[A-Za-z][_A-Za-z0-9]*'
   VariableMaxLength:
     active: false
   VariableMinLength:
@@ -310,8 +310,6 @@ performance:
 
 potential-bugs:
   active: true
-  AvoidReferenceToMutableStateFlowExposedAsStateFlow:
-    active: false
   CastToNullableType:
     active: false
   Deprecation:
@@ -418,7 +416,7 @@ style:
     active: false
   ForbiddenComment:
     active: true
-    values:
+    comments:
       - reason: 'Avoid STOPSHIP comments; use GitHub issues instead.'
         value: 'STOPSHIP:'
     allowedPatterns: ''
