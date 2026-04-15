@@ -39,7 +39,7 @@ datastore = "1.2.1"
 security-crypto = "1.1.0"
 
 # Network
-okhttp = "4.12.0"
+okhttp = "5.3.2"
 # D-1: Updated from 4.2.10.Final to 4.2.12.Final for security patches (CVE-2025-59419, CVE-2025-67735)
 netty = "4.2.12.Final"
 retrofit = "3.0.0"
