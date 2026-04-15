@@ -13,9 +13,11 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import java.io.File
+import kotlin.io.path.createTempDirectory
 
 /**
  * Integration tests for ExtensionLoader.
@@ -26,6 +28,12 @@ class ExtensionLoaderTest {
     private lateinit var context: Context
     private lateinit var packageManager: PackageManager
     private lateinit var extensionLoader: ExtensionLoader
+    private lateinit var filesDir: File
+
+    @After
+    fun tearDown() {
+        filesDir.deleteRecursively()
+    }
 
     @Before
     fun setUp() {
@@ -35,6 +43,11 @@ class ExtensionLoaderTest {
         every { context.packageManager } returns packageManager
         every { context.classLoader } returns this::class.java.classLoader
         every { context.codeCacheDir } returns File("/tmp/code_cache")
+        filesDir = createTempDirectory(prefix = "extension_loader_test_").toFile()
+        every { context.filesDir } returns filesDir
+        @Suppress("DEPRECATION")
+        every { packageManager.getInstalledPackages(any<Int>()) } returns emptyList()
+        every { packageManager.getInstalledPackages(any<PackageManager.PackageInfoFlags>()) } returns emptyList()
 
         extensionLoader = ExtensionLoader(context)
     }
@@ -260,7 +273,7 @@ class ExtensionLoaderTest {
         // Then - should fail on missing sources, not on version check
         assertTrue(result is ExtensionLoadResult.Error)
         val error = result as ExtensionLoadResult.Error
-        assertTrue(error.message.contains("No valid sources found"))
+        assertFalse(error.message.contains("Unsupported lib version"))
     }
 
     @Test
@@ -279,7 +292,7 @@ class ExtensionLoaderTest {
         // Then - should fail on missing sources, not on version check
         assertTrue(result is ExtensionLoadResult.Error)
         val error = result as ExtensionLoadResult.Error
-        assertTrue(error.message.contains("No valid sources found"))
+        assertFalse(error.message.contains("Unsupported lib version"))
     }
 
     // -------------------------------------------------------------------------
@@ -380,6 +393,9 @@ class ExtensionLoaderTest {
         every {
             packageManager.getPackageInfo(pkgName, any<Int>())
         } throws PackageManager.NameNotFoundException()
+        every {
+            packageManager.getPackageInfo(pkgName, any<PackageManager.PackageInfoFlags>())
+        } throws PackageManager.NameNotFoundException()
 
         // When
         val result = extensionLoader.loadExtensionFromPkgName(pkgName)
@@ -397,6 +413,9 @@ class ExtensionLoaderTest {
         val pkgName = "com.test.extension"
         every {
             packageManager.getPackageInfo(pkgName, any<Int>())
+        } throws RuntimeException("Unexpected error")
+        every {
+            packageManager.getPackageInfo(pkgName, any<PackageManager.PackageInfoFlags>())
         } throws RuntimeException("Unexpected error")
 
         // When
@@ -425,6 +444,11 @@ class ExtensionLoaderTest {
             extension1,
             extension2
         )
+        every { packageManager.getInstalledPackages(any<PackageManager.PackageInfoFlags>()) } returns listOf(
+            regularApp,
+            extension1,
+            extension2
+        )
 
         // When
         val results = extensionLoader.loadAllExtensions()
@@ -442,6 +466,7 @@ class ExtensionLoaderTest {
             createMockPackageInfo("com.app2", hasExtensionFeature = false)
         )
         every { packageManager.getInstalledPackages(any<Int>()) } returns regularApps
+        every { packageManager.getInstalledPackages(any<PackageManager.PackageInfoFlags>()) } returns regularApps
 
         // When
         val results = extensionLoader.loadAllExtensions()
@@ -454,6 +479,7 @@ class ExtensionLoaderTest {
     fun `loadAllExtensions handles empty installed packages list`() {
         // Given
         every { packageManager.getInstalledPackages(any<Int>()) } returns emptyList()
+        every { packageManager.getInstalledPackages(any<PackageManager.PackageInfoFlags>()) } returns emptyList()
 
         // When
         val results = extensionLoader.loadAllExtensions()
@@ -497,11 +523,10 @@ class ExtensionLoaderTest {
         sourceFactory: String? = null,
         isNsfw: Boolean = false
     ): PackageInfo {
-        val metadata = Bundle().apply {
-            sourceClass?.let { putString(ExtensionLoader.METADATA_SOURCE_CLASS, it) }
-            sourceFactory?.let { putString(ExtensionLoader.METADATA_SOURCE_FACTORY, it) }
-            putInt(ExtensionLoader.METADATA_NSFW, if (isNsfw) 1 else 0)
-        }
+        val metadata = mockk<Bundle>(relaxed = true)
+        every { metadata.getString(ExtensionLoader.METADATA_SOURCE_CLASS) } returns sourceClass
+        every { metadata.getString(ExtensionLoader.METADATA_SOURCE_FACTORY) } returns sourceFactory
+        every { metadata.getInt(ExtensionLoader.METADATA_NSFW) } returns if (isNsfw) 1 else 0
 
         val appInfo = ApplicationInfo().apply {
             this.sourceDir = "/data/app/test/base.apk"

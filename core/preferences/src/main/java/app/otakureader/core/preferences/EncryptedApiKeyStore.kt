@@ -127,7 +127,7 @@ class EncryptedApiKeyStore(private val context: Context) {
         return (ageMs / MILLIS_PER_DAY) >= maxAgeDays
     }
 
-    private companion object {
+    companion object {
         const val FILE_NAME = "encrypted_api_keys"
         const val KEY_GEMINI_API = "gemini_api_key"
         private const val KEY_GEMINI_STORED_AT = "gemini_key_stored_at"

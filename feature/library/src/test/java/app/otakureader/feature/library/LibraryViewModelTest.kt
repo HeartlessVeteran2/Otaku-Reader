@@ -3,11 +3,15 @@ package app.otakureader.feature.library
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.LibraryPreferences
 import app.otakureader.domain.model.Manga
+import app.otakureader.domain.model.RecommendationResult
 import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.tracking.TrackRepository
+import app.otakureader.domain.usecase.DismissRecommendationUseCase
+import app.otakureader.domain.usecase.GetForYouRecommendationsUseCase
 import app.otakureader.domain.usecase.GetLibraryMangaUseCase
+import app.otakureader.domain.usecase.RefreshRecommendationsUseCase
 import app.otakureader.domain.usecase.ToggleFavoriteMangaUseCase
 import app.cash.turbine.test
 import io.mockk.coEvery
@@ -40,6 +44,9 @@ class LibraryViewModelTest {
     private lateinit var chapterRepository: ChapterRepository
     private lateinit var downloadRepository: DownloadRepository
     private lateinit var trackRepository: TrackRepository
+    private lateinit var getForYouRecommendations: GetForYouRecommendationsUseCase
+    private lateinit var refreshRecommendations: RefreshRecommendationsUseCase
+    private lateinit var dismissRecommendation: DismissRecommendationUseCase
 
     private val sampleMangas = listOf(
         Manga(id = 1L, sourceId = 10L, url = "/m/1", title = "Naruto", favorite = true, unreadCount = 3, lastRead = 1000L, status = MangaStatus.ONGOING),
@@ -72,6 +79,15 @@ class LibraryViewModelTest {
         trackRepository = mockk {
             every { observeEntriesForManga(any()) } returns flowOf(emptyList())
         }
+        getForYouRecommendations = mockk {
+            coEvery { this@mockk.invoke(any()) } returns Result.success(emptyList())
+        }
+        refreshRecommendations = mockk {
+            coEvery { this@mockk.invoke() } returns Result.success(RecommendationResult(recommendations = emptyList()))
+        }
+        dismissRecommendation = mockk {
+            coEvery { this@mockk.invoke(any()) } returns Unit
+        }
     }
 
     @After
@@ -80,7 +96,18 @@ class LibraryViewModelTest {
     }
 
     private fun createViewModel(): LibraryViewModel {
-        return LibraryViewModel(getLibraryManga, toggleFavoriteManga, libraryPreferences, generalPreferences, chapterRepository, downloadRepository, trackRepository)
+        return LibraryViewModel(
+            getLibraryManga,
+            toggleFavoriteManga,
+            libraryPreferences,
+            generalPreferences,
+            chapterRepository,
+            downloadRepository,
+            trackRepository,
+            getForYouRecommendations,
+            refreshRecommendations,
+            dismissRecommendation
+        )
     }
 
     @Test

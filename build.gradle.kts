@@ -28,6 +28,10 @@ detekt {
     )
 }
 
+tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
+    exclude("**/build/**", "**/generated/**")
+}
+
 // Security: Force secure versions of transitive dependencies
 allprojects {
     configurations.all {

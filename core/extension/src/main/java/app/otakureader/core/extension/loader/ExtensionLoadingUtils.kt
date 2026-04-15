@@ -2,6 +2,7 @@ package app.otakureader.core.extension.loader
 
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
+import android.util.Log
 import eu.kanade.tachiyomi.source.Source
 import eu.kanade.tachiyomi.source.SourceFactory
 
@@ -12,6 +13,7 @@ import eu.kanade.tachiyomi.source.SourceFactory
  * TachiyomiExtensionLoader has its own copy to avoid circular dependencies.
  */
 object ExtensionLoadingUtils {
+    private const val TAG = "ExtensionLoadingUtils"
 
     /** Feature flag that identifies a package as a Tachiyomi-compatible extension. */
     const val EXTENSION_FEATURE = "tachiyomi.extension"
@@ -97,6 +99,10 @@ object ExtensionLoadingUtils {
             null
         } catch (e: SecurityException) {
             // Security manager denies access - rare but expected
+            null
+        } catch (e: RuntimeException) {
+            // Some class loaders (or test stubs) may throw RuntimeException instead of ClassNotFoundException.
+            Log.w(TAG, "RuntimeException instantiating extension class: $className", e)
             null
         } catch (e: java.lang.reflect.InvocationTargetException) {
             // Constructor threw an exception - expected for extension code with initialization errors

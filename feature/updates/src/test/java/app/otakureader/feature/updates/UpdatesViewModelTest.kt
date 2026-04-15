@@ -1,6 +1,7 @@
 package app.otakureader.feature.updates
 
 import app.otakureader.core.preferences.GeneralPreferences
+import androidx.datastore.preferences.core.Preferences
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MangaStatus
@@ -8,6 +9,7 @@ import app.otakureader.domain.model.MangaUpdate
 import app.otakureader.domain.usecase.GetRecentUpdatesUseCase
 import app.cash.turbine.test
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -50,7 +52,7 @@ class UpdatesViewModelTest {
         Dispatchers.setMain(testDispatcher)
         getRecentUpdatesUseCase = mockk()
         generalPreferences = mockk {
-            coEvery { setLastUpdatesViewedAt(any()) } returns Unit
+            coEvery { setLastUpdatesViewedAt(any()) } returns mockk<Preferences>(relaxed = true)
         }
     }
 
@@ -173,6 +175,6 @@ class UpdatesViewModelTest {
         createViewModel()
         testDispatcher.scheduler.advanceUntilIdle()
 
-        coEvery { generalPreferences.setLastUpdatesViewedAt(any()) } returns Unit
+        coVerify(exactly = 1) { generalPreferences.setLastUpdatesViewedAt(any()) }
     }
 }
