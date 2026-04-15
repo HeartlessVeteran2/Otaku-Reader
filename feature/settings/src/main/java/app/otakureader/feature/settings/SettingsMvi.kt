@@ -31,6 +31,7 @@ data class SettingsState(
     val colorScheme: Int = 0,
     val customAccentColor: Long = 0xFF1976D2L,
     val locale: String = "",
+    val autoThemeColor: Boolean = false,
 
     // --- Reader - Display ---
     val readerMode: Int = 0,
@@ -178,6 +179,7 @@ sealed interface SettingsEvent : UiEvent {
     data class SetColorScheme(val scheme: Int) : SettingsEvent
     data class SetCustomAccentColor(val color: Long) : SettingsEvent
     data class SetLocale(val locale: String) : SettingsEvent
+    data class SetAutoThemeColor(val enabled: Boolean) : SettingsEvent
 
     // Reader - Display
     data class SetReaderMode(val mode: Int) : SettingsEvent

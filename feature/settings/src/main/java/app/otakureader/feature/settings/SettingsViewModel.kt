@@ -128,6 +128,11 @@ class SettingsViewModel @Inject constructor(
                 _state.update { it.copy(discordRpcEnabled = discordRpc) }
             }
         }
+        viewModelScope.launch {
+            generalPreferences.autoThemeColor.collect { autoTheme ->
+                _state.update { it.copy(autoThemeColor = autoTheme) }
+            }
+        }
     }
 
     private fun observeLibraryPreferences() {
@@ -359,6 +364,7 @@ class SettingsViewModel @Inject constructor(
                 is SettingsEvent.SetColorScheme -> generalPreferences.setColorScheme(event.scheme)
                 is SettingsEvent.SetCustomAccentColor -> generalPreferences.setCustomAccentColor(event.color)
                 is SettingsEvent.SetLocale -> generalPreferences.setLocale(event.locale)
+                is SettingsEvent.SetAutoThemeColor -> generalPreferences.setAutoThemeColor(event.enabled)
 
                 // Reader - Display
                 is SettingsEvent.SetReaderMode -> readerPreferences.setReaderMode(event.mode)

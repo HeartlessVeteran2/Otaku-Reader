@@ -27,6 +27,10 @@
     <string name="settings_color_scheme_custom_accent">Custom Accent</string>
     <string name="settings_accent_color">Accent Color</string>
 
+    <!-- Auto Theme Color -->
+    <string name="settings_auto_theme_color">Auto theme from cover</string>
+    <string name="settings_auto_theme_color_description">Extract colors from manga cover for dynamic theming</string>
+
     <!-- Accessibility -->
     <string name="settings_high_contrast">High Contrast</string>
     <string name="settings_high_contrast_description">Increase text and icon contrast for improved readability</string>

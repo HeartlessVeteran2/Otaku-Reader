@@ -65,6 +65,9 @@ generativeai = "0.9.0"
 mlkit-text-recognition = "16.0.1"
 mlkit-image-labeling = "17.0.9"
 
+# Palette
+palette = "1.0.0"
+
 # Server (D-4: moved from hardcoded strings in server/build.gradle.kts)
 ktor = "3.4.2"
 logback = "1.5.32"

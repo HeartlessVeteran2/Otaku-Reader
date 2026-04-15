@@ -95,6 +95,15 @@ class GeneralPreferences(private val dataStore: DataStore<Preferences>) {
     val onboardingCompleted: Flow<Boolean> = dataStore.data.map { it[Keys.ONBOARDING_COMPLETED] ?: false }
     suspend fun setOnboardingCompleted(value: Boolean) = dataStore.edit { it[Keys.ONBOARDING_COMPLETED] = value }
 
+    // --- Auto Theme Color ---
+
+    /**
+     * Auto theme color based on manga cover.
+     * When enabled, extracts dominant colors from manga cover for dynamic theming.
+     */
+    val autoThemeColor: Flow<Boolean> = dataStore.data.map { it[Keys.AUTO_THEME_COLOR] ?: false }
+    suspend fun setAutoThemeColor(value: Boolean) = dataStore.edit { it[Keys.AUTO_THEME_COLOR] = value }
+
     private object Keys {
         val THEME_MODE = intPreferencesKey("theme_mode")
         val USE_DYNAMIC_COLOR = booleanPreferencesKey("use_dynamic_color")
@@ -109,5 +118,6 @@ class GeneralPreferences(private val dataStore: DataStore<Preferences>) {
         val SHOW_NSFW_CONTENT = booleanPreferencesKey("show_nsfw_content")
         val DISCORD_RPC_ENABLED = booleanPreferencesKey("discord_rpc_enabled")
         val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
+        val AUTO_THEME_COLOR = booleanPreferencesKey("auto_theme_color")
     }
 }

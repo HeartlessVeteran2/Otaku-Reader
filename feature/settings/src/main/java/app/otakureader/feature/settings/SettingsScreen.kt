@@ -318,6 +318,18 @@ private fun AppearanceSection(state: SettingsState, onEvent: (SettingsEvent) -> 
                 )
             }
 
+            // Auto theme color from cover
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_auto_theme_color)) },
+                supportingContent = { Text(stringResource(R.string.settings_auto_theme_color_description)) },
+                trailingContent = {
+                    Switch(
+                        checked = state.autoThemeColor,
+                        onCheckedChange = { onEvent(SettingsEvent.SetAutoThemeColor(it)) }
+                    )
+                }
+            )
+
             // Language
             val context = LocalContext.current
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
