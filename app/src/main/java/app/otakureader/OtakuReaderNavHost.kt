@@ -13,6 +13,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import app.otakureader.core.navigation.AboutRoute
 import app.otakureader.core.navigation.BrowseRoute
+import app.otakureader.core.navigation.CategoryManagementRoute
 import app.otakureader.core.navigation.DownloadsRoute
 import app.otakureader.core.navigation.ExtensionInstallRoute
 import app.otakureader.core.navigation.ExtensionsRoute
@@ -42,6 +43,7 @@ import app.otakureader.feature.browse.navigation.sourceDetailScreen
 import app.otakureader.feature.details.navigation.detailsScreen
 import app.otakureader.feature.feed.navigation.feedScreen
 import app.otakureader.feature.history.navigation.historyScreen
+import app.otakureader.feature.library.category.navigation.categoryManagementScreen
 import app.otakureader.feature.library.navigation.libraryScreen
 import app.otakureader.feature.migration.navigation.migrationEntryScreen
 import app.otakureader.feature.migration.navigation.migrationScreen
@@ -163,6 +165,9 @@ fun OtakuReaderNavHost(
             onNavigateToMigration = {
                 navController.navigate(MigrationEntryRoute)
             },
+            onNavigateToCategoryManagement = {
+                navController.navigate(CategoryManagementRoute)
+            },
         )
 
         // Updates screen - new chapters
@@ -245,6 +250,13 @@ fun OtakuReaderNavHost(
         // Extensions bottom sheet
         extensionsBottomSheet(
             onDismiss = {
+                navController.popBackStack()
+            }
+        )
+
+        // Category management screen
+        categoryManagementScreen(
+            onNavigateBack = {
                 navController.popBackStack()
             }
         )

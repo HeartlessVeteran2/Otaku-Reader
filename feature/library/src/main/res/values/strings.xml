@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="library_filter_has_notes">Has notes</string>
+    <string name="library_manage_categories">Manage categories</string>
     <string name="library_selected_count">%1$d selected</string>
     <string name="library_title">Library</string>
     <string name="library_more">More</string>
@@ -27,4 +28,28 @@
     <string name="library_recommendations_dismiss">Dismiss recommendation</string>
     <string name="library_recommendations_thumbnail">Recommendation thumbnail for %1$s</string>
     <string name="library_recommendations_reason_prefix">Why: %1$s</string>
+    <!-- Category filter -->
+    <string name="library_category_all">All</string>
+    <!-- Category Management -->
+    <string name="category_management_title">Categories</string>
+    <string name="category_back">Back</string>
+    <string name="category_create_new">Create category</string>
+    <string name="category_edit">Edit</string>
+    <string name="category_delete">Delete</string>
+    <string name="category_more">More options</string>
+    <string name="category_hide">Hide</string>
+    <string name="category_show">Show</string>
+    <string name="category_hidden">Hidden</string>
+    <string name="category_manga_count">%1$d manga</string>
+    <string name="category_create_title">New Category</string>
+    <string name="category_edit_title">Edit Category</string>
+    <string name="category_name_label">Category name</string>
+    <string name="category_save">Save</string>
+    <string name="category_cancel">Cancel</string>
+    <string name="category_delete_title">Delete Category?</string>
+    <string name="category_delete_message">Delete "%1$s"? Manga in this category will not be deleted.</string>
+    <string name="category_delete_confirm">Delete</string>
+    <string name="category_delete_cancel">Cancel</string>
+    <string name="category_empty_title">No categories yet</string>
+    <string name="category_empty_message">Create categories to organize your library</string>
 </resources>

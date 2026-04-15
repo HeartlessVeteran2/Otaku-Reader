@@ -77,6 +77,7 @@ fun LibraryScreen(
     onNavigateToSettings: () -> Unit,
     onNavigateToDownloads: () -> Unit,
     onNavigateToMigration: (List<Long>) -> Unit = {},
+    onNavigateToCategoryManagement: () -> Unit = {},
     onRecommendationClick: (String) -> Unit = { onNavigateToBrowse() },
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
@@ -152,6 +153,13 @@ fun LibraryScreen(
                                         viewModel.onEvent(LibraryEvent.FilterHasNotes(checked))
                                     }
                                 )
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.library_manage_categories)) },
+                            onClick = {
+                                showMenu = false
+                                onNavigateToCategoryManagement()
                             }
                         )
                     }
@@ -240,6 +248,16 @@ private fun MangaGrid(
                 onRefresh = { onEvent(LibraryEvent.RefreshRecommendations) },
                 onRecommendationClick = { onEvent(LibraryEvent.OnRecommendationClick(it)) },
                 onDismiss = { onEvent(LibraryEvent.DismissRecommendation(it)) }
+            )
+        }
+
+        // Category filter chips (full-width span)
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            CategoryFilterChips(
+                categories = state.categories,
+                selectedCategory = state.selectedCategory,
+                onCategorySelected = { onEvent(LibraryEvent.OnCategorySelected(it)) },
+                modifier = Modifier.padding(vertical = 8.dp)
             )
         }
 
@@ -562,4 +580,54 @@ private fun EmptyLibraryMessage(
 }
 
 private const val DISMISS_BUTTON_BACKGROUND_ALPHA = 0.72f
+
+@Composable
+private fun CategoryFilterChips(
+    categories: List<CategoryItem>,
+    selectedCategory: Long?,
+    onCategorySelected: (Long?) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        // "All" chip
+        item {
+            FilterChip(
+                selected = selectedCategory == null,
+                onClick = { onCategorySelected(null) },
+                label = { Text(stringResource(R.string.library_category_all)) }
+            )
+        }
+        
+        // Category chips
+        items(
+            items = categories,
+            key = { it.id }
+        ) { category ->
+            FilterChip(
+                selected = selectedCategory == category.id,
+                onClick = { onCategorySelected(category.id) },
+                label = { Text(category.name) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun FilterChip(
+    selected: Boolean,
+    onClick: () -> Unit,
+    label: @Composable () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    androidx.compose.material3.FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = label,
+        modifier = modifier
+    )
+}
 

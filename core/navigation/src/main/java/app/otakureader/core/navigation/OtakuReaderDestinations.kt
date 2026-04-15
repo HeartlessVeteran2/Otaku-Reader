@@ -86,6 +86,10 @@ object AboutRoute : OtakuReaderDestination
 @Serializable
 object OpdsRoute : OtakuReaderDestination
 
+/** Category management screen for organizing library. */
+@Serializable
+object CategoryManagementRoute : OtakuReaderDestination
+
 /** Feed screen – latest updates across all configured sources. */
 @Serializable
 object FeedRoute : OtakuReaderDestination
