@@ -102,7 +102,9 @@ object ExtensionLoadingUtils {
             null
         } catch (e: RuntimeException) {
             // Some class loaders (or test stubs) may throw RuntimeException instead of ClassNotFoundException.
-            Log.w(TAG, "RuntimeException instantiating extension class: $className", e)
+            runCatching {
+                Log.w(TAG, "RuntimeException instantiating extension class: $className", e)
+            }
             null
         } catch (e: java.lang.reflect.InvocationTargetException) {
             // Constructor threw an exception - expected for extension code with initialization errors

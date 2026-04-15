@@ -4,8 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.otakureader.core.preferences.AiPreferences
 import app.otakureader.core.preferences.GeneralPreferences
+import app.otakureader.domain.model.SourceInfo
 import app.otakureader.domain.usecase.ai.ScoreSourcesForMangaUseCase
-import app.otakureader.domain.usecase.ai.SourceInfo
 import app.otakureader.domain.usecase.source.GetLatestUpdatesUseCase
 import app.otakureader.domain.usecase.source.GetPopularMangaUseCase
 import app.otakureader.domain.usecase.source.GetSourceFiltersUseCase

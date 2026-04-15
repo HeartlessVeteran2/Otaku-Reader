@@ -23,6 +23,11 @@ jobs:
     
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
+
+    - name: Ensure Android SDK components
+      run: |
+        yes | sdkmanager --licenses > /dev/null
+        sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
       
     - name: Cache Gradle dependencies
       uses: actions/cache@v4

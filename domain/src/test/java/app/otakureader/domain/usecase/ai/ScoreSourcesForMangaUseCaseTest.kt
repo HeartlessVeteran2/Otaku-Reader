@@ -2,6 +2,7 @@ package app.otakureader.domain.usecase.ai
 
 import app.otakureader.domain.ai.AiFeature
 import app.otakureader.domain.ai.AiFeatureGate
+import app.otakureader.domain.model.SourceInfo
 import app.otakureader.domain.model.SourceScore
 import app.otakureader.domain.repository.AiRepository
 import app.otakureader.domain.repository.SourceIntelligenceRepository
