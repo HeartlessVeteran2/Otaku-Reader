@@ -140,6 +140,7 @@ class UltimateReaderViewModel @Inject constructor(
         loadChapter()
         cacheDiscordPreference()
         observeSfxSettings()
+        observeSettingsWriteFailures()
     }
 
     private fun recordHistoryOpen() {
@@ -1235,6 +1236,18 @@ class UltimateReaderViewModel @Inject constructor(
         }.launchIn(viewModelScope)
     }
 
+    private fun observeSettingsWriteFailures() {
+        settingsRepository.writeFailureEvents
+            .onEach {
+                _effect.send(
+                    ReaderEffect.ShowSnackbar(
+                        messageResId = app.otakureader.feature.reader.R.string.reader_settings_save_failed
+                    )
+                )
+            }
+            .launchIn(viewModelScope)
+    }
+
     /**
      * In-flight jobs per page index, used to avoid duplicate AI calls when the user
      * scrolls quickly or a page is revisited before its first request completes.
@@ -1284,6 +1297,9 @@ class UltimateReaderViewModel @Inject constructor(
  */
 sealed interface ReaderEffect {
     data object NavigateBack : ReaderEffect
-    data class ShowSnackbar(val message: String) : ReaderEffect
+    data class ShowSnackbar(
+        val message: String? = null,
+        @androidx.annotation.StringRes val messageResId: Int? = null
+    ) : ReaderEffect
     data class NavigateToChapter(val chapterId: Long) : ReaderEffect
 }

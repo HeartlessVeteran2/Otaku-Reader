@@ -254,8 +254,10 @@ class TachiyomiSourceAdapter(
     }
 
     /**
-     * Generate a unique chapter ID based on URL and manga URL
+     * Generate a unique chapter ID based on URL and manga URL.
+     * Provides deterministic IDs; kept for future improvements to chapter ID generation.
      */
+    @Suppress("UnusedPrivateMember")
     private fun generateChapterId(chapterUrl: String, mangaUrl: String): Long {
         return (mangaUrl + chapterUrl).hashCode().toLong()
     }

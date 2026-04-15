@@ -117,7 +117,10 @@ fun ReaderScreen(
                 is ReaderEffect.NavigateBack -> onNavigateBack()
                 is ReaderEffect.ShowSnackbar -> {
                     scope.launch {
-                        snackbarHostState.showSnackbar(effect.message)
+                        val text = effect.messageResId?.let { resId -> context.getString(resId) }
+                            ?: effect.message
+                            ?: return@launch
+                        snackbarHostState.showSnackbar(text)
                     }
                 }
                 is ReaderEffect.NavigateToChapter -> {

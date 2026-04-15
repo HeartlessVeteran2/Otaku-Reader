@@ -131,7 +131,9 @@ fun MangaCard(
 
 /**
  * Placeholder shown while the manga cover is loading.
+ * Alternative to MangaCardShimmer for static placeholder display.
  */
+@Suppress("UnusedPrivateMember")
 @Composable
 private fun MangaCardPlaceholder() {
     Box(

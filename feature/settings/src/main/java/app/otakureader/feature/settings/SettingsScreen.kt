@@ -160,7 +160,7 @@ fun SettingsScreen(
             HorizontalDivider()
             BrowseSection(state = state, onEvent = viewModel::onEvent)
             HorizontalDivider()
-            DownloadsSettingsSection(state = state, onEvent = viewModel::onEvent)
+            DownloadSection(state = state, onEvent = viewModel::onEvent)
             HorizontalDivider()
             ReaderSection(state = state, onEvent = viewModel::onEvent)
             HorizontalDivider()
@@ -488,38 +488,6 @@ private fun BrowseSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit
             )
         }
     )
-}
-
-@Composable
-private fun DownloadsSettingsSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
-    // ── Downloads ─────────────────────────────────────────────────────
-    SectionHeader(title = stringResource(R.string.settings_downloads))
-
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_remove_after_reading)) },
-                supportingContent = { Text(stringResource(R.string.settings_remove_after_reading_description)) },
-                trailingContent = {
-                    Switch(
-                        checked = state.deleteAfterReading,
-                        onCheckedChange = {
-                            onEvent(SettingsEvent.SetDeleteAfterReading(it))
-                        }
-                    )
-                }
-            )
-
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_save_as_cbz)) },
-                supportingContent = { Text(stringResource(R.string.settings_save_as_cbz_description)) },
-                trailingContent = {
-                    Switch(
-                        checked = state.saveAsCbz,
-                        onCheckedChange = {
-                            onEvent(SettingsEvent.SetSaveAsCbz(it))
-                        }
-                    )
-                }
-            )
 }
 
 @Composable

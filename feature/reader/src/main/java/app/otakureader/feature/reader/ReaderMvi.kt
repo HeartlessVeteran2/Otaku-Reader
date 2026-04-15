@@ -32,5 +32,8 @@ sealed interface ReaderEvent : UiEvent {
 
 sealed interface ReaderEffect : UiEffect {
     data object NavigateBack : ReaderEffect
-    data class ShowSnackbar(val message: String) : ReaderEffect
+    data class ShowSnackbar(
+        val message: String? = null,
+        @androidx.annotation.StringRes val messageResId: Int? = null
+    ) : ReaderEffect
 }

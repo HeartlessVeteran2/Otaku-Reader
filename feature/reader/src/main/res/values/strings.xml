@@ -113,4 +113,7 @@
     <string name="reader_sfx_history_label">Previous translations</string>
     <string name="reader_sfx_translate_action">Translate</string>
     <string name="reader_sfx_close">Close</string>
+
+    <!-- Settings error -->
+    <string name="reader_settings_save_failed">Failed to save reader settings. Please try again.</string>
 </resources>
