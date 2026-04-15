@@ -12,6 +12,47 @@
 
 ---
 
+**🚀 Production-Ready** — Feature-complete · Security-audited · Enterprise-grade architecture
+
+> **Privacy First:** All data stays on your device. No servers, no tracking, no cloud required.
+
+---
+
+## 📥 Download
+
+| Build | Description | Download |
+|-------|-------------|----------|
+| **Full** | All features including AI | [Latest Release](https://github.com/HeartlessVeteran2/Otaku-Reader/releases/latest) |
+| **FOSS** | Open-source only, no AI SDK | [Latest Release](https://github.com/HeartlessVeteran2/Otaku-Reader/releases/latest) |
+
+**Minimum Requirements:** Android 8.0 (API 26) · ~30MB storage
+
+---
+
+## 🔐 Privacy & Security
+
+**Otaku Reader is privacy-first by design:**
+
+- ✅ **No data collection** — Everything stays on your device
+- ✅ **No accounts required** — Use without registration
+- ✅ **No analytics** — We don't track your reading habits
+- ✅ **Encrypted preferences** — Secure API key storage (AI features)
+- ✅ **HTTPS-only extensions** — Security-enforced source downloads
+- ✅ **Sandboxed extensions** — Isolated classloading for untrusted sources
+
+**Data stored locally:**
+- Your library (manga, chapters, reading progress)
+- Downloaded chapters (offline reading)
+- App preferences (themes, settings)
+- Extension sources (your choice)
+
+**Optional features that use internet:**
+- Manga source browsing (downloads manga info/covers)
+- Tracker sync (MAL, AniList, etc. — only if you enable)
+- AI features (Gemini — only if you add API key)
+
+---
+
 **🚀 Feature-complete Beta** — Core functionality ready for daily use · Security-audited
 
 ## ✨ Features
@@ -164,19 +205,76 @@ Browse extensions by language, install/update/uninstall, manage repositories, an
 </details>
 
 <details>
-<summary>🚀 Getting Started</summary>
+<summary>🚀 Building from Source</summary>
 
+### Debug Build (Development)
 ```bash
 # Clone
-git clone https://github.com/Heartless-Veteran/otaku-reader.git
-cd otaku-reader
+git clone https://github.com/HeartlessVeteran2/Otaku-Reader.git
+cd Otaku-Reader
 
-# Build
+# Build debug APK
 ./gradlew assembleDebug
 
-# Install
+# Install to device
 adb install app/build/outputs/apk/debug/app-debug.apk
 ```
+
+### Release Build (Distribution)
+
+**1. Generate Release Keystore (One-time setup)**
+```bash
+keytool -genkey -v -keystore otaku-reader-release.keystore \
+        -alias otaku-reader -keyalg RSA -keysize 2048 -validity 10000 \
+        -dname "CN=Otaku Reader, O=YourName, C=US"
+```
+
+**⚠️ CRITICAL:** Back up this keystore file securely. If you lose it, you cannot update your app.
+
+**2. Configure Signing**
+```bash
+# Copy template
+cp keystore.properties.template keystore.properties
+
+# Edit with your actual values
+nano keystore.properties
+```
+
+**3. Build Release APK**
+```bash
+./gradlew assembleRelease
+
+# Output: app/build/outputs/apk/full/release/app-full-release.apk
+```
+
+</details>
+
+<details>
+<summary>📦 Distribution Setup</summary>
+
+### Manual Distribution (Sideloading)
+For investor demos or beta testing:
+
+1. Build release APK (see above)
+2. Upload to GitHub Releases or share directly
+3. Users enable "Install from unknown sources" in Android settings
+4. Install APK
+
+### CI/CD (GitHub Actions)
+The project includes GitHub Actions workflows that:
+- Build on every push to `main`
+- Run tests and detekt
+- Upload APK artifacts
+- Create releases automatically
+
+**Setting up release signing in CI:**
+1. Go to GitHub → Settings → Secrets and variables → Actions
+2. Add secrets:
+   - `KEYSTORE_BASE64` — Base64-encoded keystore
+   - `KEYSTORE_PASSWORD`
+   - `KEY_ALIAS`
+   - `KEY_PASSWORD`
+3. CI will use these to sign release builds
 
 </details>
 
