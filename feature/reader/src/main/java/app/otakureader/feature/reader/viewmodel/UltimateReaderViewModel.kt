@@ -1052,12 +1052,14 @@ class UltimateReaderViewModel @Inject constructor(
 
             val pageListResult = sourceRepository.getPageList(sourceName, sourceChapter)
             pageListResult.onFailure { throwable ->
-                Log.w(
-                    TAG,
-                    "Failed to fetch page list for download-ahead " +
-                        "(mangaId=${manga.id}, chapterId=${nextChapter.id}, sourceName=$sourceName)",
-                    throwable
-                )
+                runCatching {
+                    Log.w(
+                        TAG,
+                        "Failed to fetch page list for download-ahead " +
+                            "(mangaId=${manga.id}, chapterId=${nextChapter.id}, sourceName=$sourceName)",
+                        throwable
+                    )
+                }
             }
 
             val pageUrls = pageListResult

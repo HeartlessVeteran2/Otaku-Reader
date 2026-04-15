@@ -20,7 +20,7 @@ private const val GOOGLE_API_KEY_LENGTH = 39
 // that appear in real Google API keys.
 private val GOOGLE_API_KEY_REGEX = Regex("^[A-Za-z0-9_-]{$GOOGLE_API_KEY_LENGTH}$")
 
-internal fun isGeminiApiKeyFormatValid(key: String): Boolean =
+fun isGeminiApiKeyFormatValid(key: String): Boolean =
     key.startsWith(GOOGLE_API_KEY_PREFIX) &&
         key.length == GOOGLE_API_KEY_LENGTH &&
         GOOGLE_API_KEY_REGEX.matches(key)
