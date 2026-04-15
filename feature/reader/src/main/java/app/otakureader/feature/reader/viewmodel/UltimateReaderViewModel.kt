@@ -2,6 +2,7 @@ package app.otakureader.feature.reader.viewmodel
 
 import android.content.Context
 import android.os.SystemClock
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -1048,7 +1049,18 @@ class UltimateReaderViewModel @Inject constructor(
                 chapterNumber = nextChapter.chapterNumber,
                 scanlator = nextChapter.scanlator
             )
-            val pageUrls = sourceRepository.getPageList(sourceName, sourceChapter)
+
+            val pageListResult = sourceRepository.getPageList(sourceName, sourceChapter)
+            pageListResult.onFailure { throwable ->
+                Log.w(
+                    TAG,
+                    "Failed to fetch page list for download-ahead " +
+                        "(mangaId=${manga.id}, chapterId=${nextChapter.id}, sourceName=$sourceName)",
+                    throwable
+                )
+            }
+
+            val pageUrls = pageListResult
                 .getOrNull()
                 ?.mapNotNull { page -> page.effectiveUrl() }
                 .orEmpty()
