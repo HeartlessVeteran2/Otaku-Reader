@@ -6,11 +6,13 @@ import app.otakureader.core.navigation.OpdsRoute
 import app.otakureader.feature.opds.OpdsScreen
 
 fun NavGraphBuilder.opdsScreen(
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onNavigateToMangaDetail: (mangaUrl: String, mangaTitle: String) -> Unit,
 ) {
     composable<OpdsRoute> {
         OpdsScreen(
-            onNavigateBack = onNavigateBack
+            onNavigateBack = onNavigateBack,
+            onNavigateToMangaDetail = onNavigateToMangaDetail
         )
     }
 }

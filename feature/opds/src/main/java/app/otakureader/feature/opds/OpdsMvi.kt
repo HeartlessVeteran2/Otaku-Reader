@@ -63,5 +63,9 @@ sealed interface OpdsEvent : UiEvent {
  */
 sealed interface OpdsEffect : UiEffect {
     data class ShowSnackbar(val message: String) : OpdsEffect
-    data class NavigateToMangaDetail(val mangaId: Long) : OpdsEffect
+    data class NavigateToMangaDetail(
+        val mangaId: Long,
+        val mangaUrl: String,
+        val mangaTitle: String
+    ) : OpdsEffect
 }

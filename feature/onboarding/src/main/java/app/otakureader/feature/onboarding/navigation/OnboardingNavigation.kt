@@ -7,10 +7,12 @@ import app.otakureader.feature.onboarding.OnboardingScreen
 
 fun NavGraphBuilder.onboardingScreen(
     onComplete: () -> Unit,
+    onNavigateToExtensions: () -> Unit,
 ) {
     composable<OnboardingRoute> {
         OnboardingScreen(
-            onComplete = onComplete
+            onComplete = onComplete,
+            onNavigateToExtensions = onNavigateToExtensions
         )
     }
 }

@@ -204,6 +204,11 @@ fun OtakuReaderNavHost(
         opdsScreen(
             onNavigateBack = {
                 navController.popBackStack()
+            },
+            onNavigateToMangaDetail = { mangaUrl, mangaTitle ->
+                // Navigate to global search with the manga URL as query
+                // This will search across all sources for the manga
+                navController.navigate(GlobalSearchRoute(query = mangaUrl))
             }
         )
 
@@ -355,6 +360,10 @@ fun OtakuReaderNavHost(
                 navController.navigate(LibraryRoute) {
                     popUpTo<OnboardingRoute> { inclusive = true }
                 }
+            },
+            onNavigateToExtensions = {
+                // Navigate to extensions bottom sheet from onboarding
+                navController.navigate(ExtensionsRoute)
             }
         )
     }

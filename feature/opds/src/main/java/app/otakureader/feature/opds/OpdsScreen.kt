@@ -67,6 +67,7 @@ import coil3.compose.AsyncImage
 @Composable
 fun OpdsScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToMangaDetail: (mangaUrl: String, mangaTitle: String) -> Unit,
     viewModel: OpdsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -79,7 +80,8 @@ fun OpdsScreen(
                     android.widget.Toast.makeText(context, effect.message, android.widget.Toast.LENGTH_SHORT).show()
                 }
                 is OpdsEffect.NavigateToMangaDetail -> {
-                    // Future: navigate to manga detail
+                    // Navigate to manga detail using the provided callback
+                    onNavigateToMangaDetail(effect.mangaUrl, effect.mangaTitle)
                 }
             }
         }

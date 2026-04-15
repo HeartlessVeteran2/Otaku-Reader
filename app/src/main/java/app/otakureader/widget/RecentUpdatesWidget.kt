@@ -5,6 +5,8 @@ import androidx.compose.runtime.Composable
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
+import androidx.glance.action.actionStartActivity
+import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
@@ -20,6 +22,7 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.otakureader.MainActivity
 import app.otakureader.R
 import app.otakureader.domain.repository.ChapterRepository
 import dagger.hilt.EntryPoint
@@ -130,7 +133,9 @@ private fun RecentUpdatesContent(
 @Composable
 private fun UpdateItemWidget(update: MangaUpdate) {
     Column(
-        modifier = GlanceModifier.fillMaxWidth()
+        modifier = GlanceModifier
+            .fillMaxWidth()
+            .clickable(actionStartActivity<MainActivity>())
     ) {
         Text(
             text = update.title,
