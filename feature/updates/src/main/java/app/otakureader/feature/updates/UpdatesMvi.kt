@@ -5,15 +5,36 @@ import app.otakureader.core.common.mvi.UiEvent
 import app.otakureader.core.common.mvi.UiState
 import app.otakureader.domain.model.MangaUpdate
 
+/**
+ * Represents a failed update entry for the error screen.
+ */
+data class UpdateErrorEntry(
+    val mangaId: Long,
+    val mangaTitle: String,
+    val thumbnailUrl: String?,
+    val errorMessage: String,
+    val timestamp: Long
+)
+
 data class UpdatesState(
     val isLoading: Boolean = false,
     val updates: List<MangaUpdate> = emptyList(),
-    val error: String? = null
+    val error: String? = null,
+    /** List of failed updates for the Update Error Screen. */
+    val updateErrors: List<UpdateErrorEntry> = emptyList(),
+    /** Whether the update error screen is visible. */
+    val showUpdateErrors: Boolean = false
 ) : UiState
 
 sealed interface UpdatesEvent : UiEvent {
     data object Refresh : UpdatesEvent
     data class OnChapterClick(val mangaId: Long, val chapterId: Long) : UpdatesEvent
+    
+    // Update Error Screen events
+    data object ShowUpdateErrors : UpdatesEvent
+    data object HideUpdateErrors : UpdatesEvent
+    data class ClearUpdateError(val mangaId: Long) : UpdatesEvent
+    data object ClearAllUpdateErrors : UpdatesEvent
 }
 
 sealed interface UpdatesEffect : UiEffect {

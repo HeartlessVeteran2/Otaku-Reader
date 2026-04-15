@@ -14,6 +14,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -22,7 +25,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -71,6 +76,21 @@ fun UpdatesScreen(
                     }
                 },
                 actions = {
+                    // Update errors icon with badge
+                    if (state.updateErrors.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.onEvent(UpdatesEvent.ShowUpdateErrors) }) {
+                            BadgedBox(
+                                badge = {
+                                    Badge { Text("${state.updateErrors.size}") }
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ErrorOutline,
+                                    contentDescription = stringResource(R.string.updates_view_errors)
+                                )
+                            }
+                        }
+                    }
                     IconButton(onClick = onNavigateToDownloads) {
                         Icon(
                             imageVector = Icons.Default.Download,
@@ -128,6 +148,16 @@ fun UpdatesScreen(
                     )
                 },
                 modifier = Modifier.padding(paddingValues)
+            )
+        }
+        
+        // Update Error Dialog
+        if (state.showUpdateErrors) {
+            UpdateErrorDialog(
+                errors = state.updateErrors,
+                onDismiss = { viewModel.onEvent(UpdatesEvent.HideUpdateErrors) },
+                onClearError = { viewModel.onEvent(UpdatesEvent.ClearUpdateError(it)) },
+                onClearAll = { viewModel.onEvent(UpdatesEvent.ClearAllUpdateErrors) }
             )
         }
     }
@@ -196,3 +226,89 @@ private fun formatFetchDate(epochMs: Long): String = runCatching {
         .atZone(ZoneId.systemDefault())
         .format(dateFormatter)
 }.getOrDefault("Unknown date")
+
+@Composable
+private fun UpdateErrorDialog(
+    errors: List<UpdateErrorEntry>,
+    onDismiss: () -> Unit,
+    onClearError: (Long) -> Unit,
+    onClearAll: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.updates_error_title)) },
+        text = {
+            if (errors.isEmpty()) {
+                Text(stringResource(R.string.updates_error_empty))
+            } else {
+                LazyColumn(modifier = modifier.fillMaxWidth()) {
+                    items(errors, key = { it.mangaId }) { error ->
+                        UpdateErrorItem(
+                            error = error,
+                            onClear = { onClearError(error.mangaId) }
+                        )
+                        HorizontalDivider()
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.updates_error_close))
+            }
+        },
+        dismissButton = {
+            if (errors.isNotEmpty()) {
+                TextButton(onClick = onClearAll) {
+                    Text(stringResource(R.string.updates_error_clear_all))
+                }
+            }
+        }
+    )
+}
+
+@Composable
+private fun UpdateErrorItem(
+    error: UpdateErrorEntry,
+    onClear: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = error.mangaTitle,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = error.errorMessage,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (error.timestamp > 0L) {
+                Text(
+                    text = formatFetchDate(error.timestamp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        IconButton(onClick = onClear) {
+            Icon(
+                imageVector = Icons.Default.ErrorOutline,
+                contentDescription = stringResource(R.string.updates_error_clear),
+                tint = MaterialTheme.colorScheme.error
+            )
+        }
+    }
+}

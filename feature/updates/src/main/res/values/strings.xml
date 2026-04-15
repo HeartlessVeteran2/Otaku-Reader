@@ -31,4 +31,12 @@
     <string name="downloads_status_completed">Completed</string>
     <string name="downloads_status_failed">Failed</string>
     <string name="downloads_status_canceled">Canceled</string>
+    
+    <!-- Update Error Screen -->
+    <string name="updates_view_errors">View update errors</string>
+    <string name="updates_error_title">Update Errors</string>
+    <string name="updates_error_empty">No update errors</string>
+    <string name="updates_error_close">Close</string>
+    <string name="updates_error_clear">Clear error</string>
+    <string name="updates_error_clear_all">Clear all</string>
 </resources>

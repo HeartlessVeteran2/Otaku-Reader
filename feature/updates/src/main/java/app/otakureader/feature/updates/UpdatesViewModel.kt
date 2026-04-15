@@ -42,6 +42,22 @@ class UpdatesViewModel @Inject constructor(
                     _effect.send(UpdatesEffect.NavigateToReader(event.mangaId, event.chapterId))
                 }
             }
+            
+            // Update Error Screen events
+            UpdatesEvent.ShowUpdateErrors -> {
+                _state.update { it.copy(showUpdateErrors = true) }
+            }
+            UpdatesEvent.HideUpdateErrors -> {
+                _state.update { it.copy(showUpdateErrors = false) }
+            }
+            is UpdatesEvent.ClearUpdateError -> {
+                _state.update { state ->
+                    state.copy(updateErrors = state.updateErrors.filter { it.mangaId != event.mangaId })
+                }
+            }
+            UpdatesEvent.ClearAllUpdateErrors -> {
+                _state.update { it.copy(updateErrors = emptyList()) }
+            }
         }
     }
 
