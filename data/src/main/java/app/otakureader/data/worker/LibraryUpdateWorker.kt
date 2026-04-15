@@ -5,7 +5,11 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.util.Log
 import androidx.hilt.work.HiltWorker
+import androidx.work.Constraints
 import androidx.work.CoroutineWorker
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkerParameters
 import app.otakureader.core.preferences.DownloadPreferences
 import app.otakureader.core.preferences.GeneralPreferences
@@ -18,6 +22,7 @@ import app.otakureader.domain.usecase.UpdateLibraryMangaUseCase
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.first
+import java.util.concurrent.TimeUnit
 
 /**
  * Background worker that checks for new chapters in the library.
@@ -204,6 +209,7 @@ class LibraryUpdateWorker @AssistedInject constructor(
     companion object {
         private const val TAG = "LibraryUpdateWorker"
         const val WORK_NAME = "library_update"
+        const val PERIODIC_WORK_NAME = "library_update_periodic"
 
         /**
          * Enqueues a one-time library update work request.
@@ -217,6 +223,46 @@ class LibraryUpdateWorker @AssistedInject constructor(
 
             androidx.work.WorkManager.getInstance(context)
                 .enqueueUniqueWork(WORK_NAME, androidx.work.ExistingWorkPolicy.KEEP, workRequest)
+        }
+
+        /**
+         * Schedules periodic library updates.
+         *
+         * @param context Application context
+         * @param intervalHours Update interval in hours (app minimum is 1 hour for battery/network efficiency, stricter than WorkManager's 15-minute periodic minimum)
+         * @param wifiOnly Whether to run only on unmetered (Wi-Fi) network
+         */
+        fun schedule(
+            context: Context,
+            intervalHours: Int = 12,
+            wifiOnly: Boolean = false
+        ) {
+            val safeIntervalHours = intervalHours.coerceAtLeast(1)
+            val constraints = Constraints.Builder()
+                .setRequiredNetworkType(
+                    if (wifiOnly) NetworkType.UNMETERED else NetworkType.CONNECTED
+                )
+                .build()
+
+            val workRequest = PeriodicWorkRequestBuilder<LibraryUpdateWorker>(
+                repeatInterval = safeIntervalHours.toLong(),
+                repeatIntervalTimeUnit = TimeUnit.HOURS
+            )
+                .setConstraints(constraints)
+                .build()
+
+            androidx.work.WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+                PERIODIC_WORK_NAME,
+                ExistingPeriodicWorkPolicy.UPDATE,
+                workRequest
+            )
+        }
+
+        /**
+         * Cancels periodic library updates.
+         */
+        fun cancelPeriodic(context: Context) {
+            androidx.work.WorkManager.getInstance(context).cancelUniqueWork(PERIODIC_WORK_NAME)
         }
     }
 }
