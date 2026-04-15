@@ -229,7 +229,7 @@ class LibraryUpdateWorker @AssistedInject constructor(
          * Schedules periodic library updates.
          *
          * @param context Application context
-         * @param intervalHours Update interval in hours (app minimum is 1 hour, which is stricter than WorkManager's 15-minute periodic minimum)
+         * @param intervalHours Update interval in hours (app minimum is 1 hour for battery/network efficiency, stricter than WorkManager's 15-minute periodic minimum)
          * @param wifiOnly Whether to run only on unmetered (Wi-Fi) network
          */
         fun schedule(

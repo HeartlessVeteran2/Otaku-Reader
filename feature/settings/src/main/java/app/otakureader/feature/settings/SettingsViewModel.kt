@@ -605,7 +605,11 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             libraryPreferences.setUpdateOnlyOnWifi(enabled)
             val intervalHours = state.value.updateCheckInterval
-            libraryUpdateScheduler.schedule(intervalHours = intervalHours, wifiOnly = enabled)
+            try {
+                libraryUpdateScheduler.schedule(intervalHours = intervalHours, wifiOnly = enabled)
+            } catch (_: Exception) {
+                _effect.send(SettingsEffect.ShowSnackbar("Failed to update library scheduler settings"))
+            }
         }
     }
 
@@ -613,7 +617,11 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             generalPreferences.setUpdateCheckInterval(hours)
             val wifiOnly = state.value.updateOnlyOnWifi
-            libraryUpdateScheduler.schedule(intervalHours = hours, wifiOnly = wifiOnly)
+            try {
+                libraryUpdateScheduler.schedule(intervalHours = hours, wifiOnly = wifiOnly)
+            } catch (_: Exception) {
+                _effect.send(SettingsEffect.ShowSnackbar("Failed to update library scheduler settings"))
+            }
         }
     }
 
