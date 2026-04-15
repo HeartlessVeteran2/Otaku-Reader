@@ -16,6 +16,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.os.LocaleListCompat
@@ -52,7 +53,7 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var generalPreferences: GeneralPreferences
     @Inject lateinit var libraryPreferences: LibraryPreferences
     @Inject lateinit var libraryUpdateScheduler: LibraryUpdateScheduler
-    
+
     // Hold deep link result across recompositions for the current Activity instance
     private var pendingDeepLinkResult by mutableStateOf<DeepLinkResult?>(null)
 
@@ -60,7 +61,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         applyLocaleFromPreferences()
-        
+
         // Trigger auto-refresh on app start if enabled (only on fresh launch, not recreation)
         if (savedInstanceState == null) {
             lifecycleScope.launch {
@@ -78,7 +79,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-        
+
         // Handle deep link or share intent only on initial launch
         if (savedInstanceState == null) {
             val result = DeepLinkHandler.parseIntent(intent)
@@ -86,7 +87,7 @@ class MainActivity : ComponentActivity() {
                 pendingDeepLinkResult = result
             }
         }
-        
+
         setContent {
             val themeMode by generalPreferences.themeMode
                 .collectAsStateWithLifecycle(initialValue = 0)
@@ -98,6 +99,9 @@ class MainActivity : ComponentActivity() {
                 .collectAsStateWithLifecycle(initialValue = false)
             val customAccentColor by generalPreferences.customAccentColor
                 .collectAsStateWithLifecycle(initialValue = 0xFF1976D2L)
+            // Observe onboarding status - defaults to false (show onboarding) for new users
+            val onboardingCompleted by generalPreferences.onboardingCompleted
+                .collectAsStateWithLifecycle(initialValue = false)
 
             // I-2: Use named constants instead of magic numbers for theme mode.
             val darkTheme = when (themeMode) {
@@ -118,6 +122,8 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     OtakuReaderApp(
+                        generalPreferences = generalPreferences,
+                        onboardingCompleted = onboardingCompleted,
                         deepLinkResult = pendingDeepLinkResult,
                         onDeepLinkConsumed = { pendingDeepLinkResult = null }
                     )
@@ -125,7 +131,7 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-    
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         // Handle new intents when activity is already running
@@ -162,16 +168,26 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun OtakuReaderApp(
+    generalPreferences: GeneralPreferences,
+    onboardingCompleted: Boolean,
     deepLinkResult: DeepLinkResult? = null,
     onDeepLinkConsumed: () -> Unit = {}
 ) {
     val navController = rememberNavController()
+    val coroutineScope = rememberCoroutineScope()
 
     Scaffold { padding ->
         OtakuReaderNavHost(
             navController = navController,
+            onboardingCompleted = onboardingCompleted,
             deepLinkResult = deepLinkResult,
             onDeepLinkConsumed = onDeepLinkConsumed,
+            // Set onboarding as complete when user finishes the flow
+            onOnboardingComplete = {
+                coroutineScope.launch {
+                    generalPreferences.setOnboardingCompleted(true)
+                }
+            },
             modifier = Modifier.padding(padding)
         )
     }

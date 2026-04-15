@@ -8,6 +8,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import app.otakureader.core.navigation.AboutRoute
@@ -58,10 +59,14 @@ import app.otakureader.util.DeepLinkResult
 fun OtakuReaderNavHost(
     navController: NavHostController,
     modifier: Modifier = Modifier,
-    startDestination: Any = LibraryRoute,
+    onboardingCompleted: Boolean = false,
     deepLinkResult: DeepLinkResult? = null,
-    onDeepLinkConsumed: () -> Unit = {}
+    onDeepLinkConsumed: () -> Unit = {},
+    onOnboardingComplete: () -> Unit = {},
 ) {
+    // Determine start destination based on onboarding status
+    val startDestination: Any = if (onboardingCompleted) LibraryRoute else OnboardingRoute
+
     // Handle deep link navigation - only trigger once when deepLinkResult changes
     LaunchedEffect(deepLinkResult) {
         when (deepLinkResult) {
@@ -155,12 +160,12 @@ fun OtakuReaderNavHost(
             onNavigateToDownloads = {
                 navController.navigate(DownloadsRoute)
             },
-            onNavigateToMigration = { selectedMangaIds ->
-                navController.navigate(MigrationRoute(selectedMangaIds))
-            }
+            onNavigateToMigration = {
+                navController.navigate(MigrationEntryRoute)
+            },
         )
 
-        // Updates screen
+        // Updates screen - new chapters
         updatesScreen(
             onMangaClick = { mangaId ->
                 navController.navigate(MangaDetailRoute(mangaId))
@@ -170,10 +175,10 @@ fun OtakuReaderNavHost(
             },
             onNavigateToDownloads = {
                 navController.navigate(DownloadsRoute)
-            }
+            },
         )
 
-        // Browse screen - list of sources
+        // Browse - sources catalog
         browseScreen(
             onMangaClick = { sourceId, mangaUrl, mangaTitle ->
                 navController.navigate(SourceMangaDetailRoute(sourceId, mangaUrl, mangaTitle))
@@ -184,22 +189,25 @@ fun OtakuReaderNavHost(
             onNavigateToExtensions = {
                 navController.navigate(ExtensionsRoute)
             },
-            onNavigateToGlobalSearch = {
-                navController.navigate(GlobalSearchRoute())
+            onNavigateToGlobalSearch = { initialQuery ->
+                navController.navigate(GlobalSearchRoute(query = initialQuery))
             },
             onNavigateToOpds = {
                 navController.navigate(OpdsRoute)
-            }
+            },
+            onNavigateBack = {
+                navController.popBackStack()
+            },
         )
 
-        // OPDS catalog browser
+        // OPDS catalog
         opdsScreen(
             onNavigateBack = {
                 navController.popBackStack()
             }
         )
 
-        // Global search screen
+        // Global search across all sources
         globalSearchScreen(
             onMangaClick = { sourceId, mangaUrl ->
                 navController.navigate(SourceMangaDetailRoute(sourceId, mangaUrl))
@@ -340,9 +348,10 @@ fun OtakuReaderNavHost(
             }
         )
 
-        // Onboarding — navigates to Library on completion
+        // Onboarding — shows first for new users, navigates to Library on completion
         onboardingScreen(
             onComplete = {
+                onOnboardingComplete()
                 navController.navigate(LibraryRoute) {
                     popUpTo<OnboardingRoute> { inclusive = true }
                 }

@@ -89,6 +89,12 @@ class GeneralPreferences(private val dataStore: DataStore<Preferences>) {
     val discordRpcEnabled: Flow<Boolean> = dataStore.data.map { it[Keys.DISCORD_RPC_ENABLED] ?: false }
     suspend fun setDiscordRpcEnabled(value: Boolean) = dataStore.edit { it[Keys.DISCORD_RPC_ENABLED] = value }
 
+    // --- Onboarding ---
+
+    /** Whether the user has completed onboarding. Default: false (show onboarding on first launch). */
+    val onboardingCompleted: Flow<Boolean> = dataStore.data.map { it[Keys.ONBOARDING_COMPLETED] ?: false }
+    suspend fun setOnboardingCompleted(value: Boolean) = dataStore.edit { it[Keys.ONBOARDING_COMPLETED] = value }
+
     private object Keys {
         val THEME_MODE = intPreferencesKey("theme_mode")
         val USE_DYNAMIC_COLOR = booleanPreferencesKey("use_dynamic_color")
@@ -102,5 +108,6 @@ class GeneralPreferences(private val dataStore: DataStore<Preferences>) {
         val LAST_UPDATES_VIEWED_AT = longPreferencesKey("last_updates_viewed_at")
         val SHOW_NSFW_CONTENT = booleanPreferencesKey("show_nsfw_content")
         val DISCORD_RPC_ENABLED = booleanPreferencesKey("discord_rpc_enabled")
+        val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
     }
 }
