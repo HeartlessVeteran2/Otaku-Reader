@@ -1,9 +1,0 @@
-fix(settings): address AI review feedback on PR 546
-
-- Add Log.e() for scheduler failures instead of swallowing exceptions
-- Extract scheduleLibraryUpdateOrShowError() helper to reduce code duplication
-- Both handleSetUpdateOnlyOnWifi and handleSetUpdateInterval now use shared error handling
-
-Addresses Sourcery review suggestions:
-1. Exception logging for traceability
-2. Code deduplication via helper method
