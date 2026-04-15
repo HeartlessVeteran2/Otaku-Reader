@@ -58,6 +58,18 @@ class UpdatesViewModel @Inject constructor(
             UpdatesEvent.ClearAllUpdateErrors -> {
                 _state.update { it.copy(updateErrors = emptyList()) }
             }
+            
+            // To-Be-Updated Screen events
+            UpdatesEvent.ShowPendingUpdates -> {
+                _state.update { it.copy(showPendingUpdates = true) }
+                loadPendingUpdates()
+            }
+            UpdatesEvent.HidePendingUpdates -> {
+                _state.update { it.copy(showPendingUpdates = false) }
+            }
+            UpdatesEvent.StartLibraryUpdate -> {
+                startLibraryUpdate()
+            }
         }
     }
 
@@ -77,6 +89,29 @@ class UpdatesViewModel @Inject constructor(
     private fun markUpdatesViewed() {
         viewModelScope.launch {
             generalPreferences.setLastUpdatesViewedAt(System.currentTimeMillis())
+        }
+    }
+    
+    /** Load manga that will be checked during the next library update. */
+    private fun loadPendingUpdates() {
+        viewModelScope.launch {
+            // TODO: This is a placeholder. In a real implementation, 
+            // this would query the database for manga marked for updates.
+            // For now, we'll show an empty list or mock data.
+            _state.update { state ->
+                state.copy(
+                    pendingUpdates = emptyList() // Will be populated from database
+                )
+            }
+        }
+    }
+    
+    /** Start a manual library update. */
+    private fun startLibraryUpdate() {
+        viewModelScope.launch {
+            // TODO: Trigger LibraryUpdateWorker to run immediately
+            // For now, just hide the pending updates screen
+            _state.update { it.copy(showPendingUpdates = false) }
         }
     }
 }

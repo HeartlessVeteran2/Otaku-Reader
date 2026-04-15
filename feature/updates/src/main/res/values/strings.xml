@@ -39,4 +39,14 @@
     <string name="updates_error_close">Close</string>
     <string name="updates_error_clear">Clear error</string>
     <string name="updates_error_clear_all">Clear all</string>
+    
+    <!-- To-Be-Updated Screen -->
+    <string name="updates_view_pending">Preview next update</string>
+    <string name="updates_pending_title">To Be Updated</string>
+    <string name="updates_pending_empty">No manga scheduled for update</string>
+    <string name="updates_pending_hint">Manga in your library will appear here before the next update check</string>
+    <string name="updates_pending_count">%1$d manga will be checked</string>
+    <string name="updates_pending_last_checked">Last checked: %1$s</string>
+    <string name="updates_pending_close">Close</string>
+    <string name="updates_pending_start">Start Update</string>
 </resources>

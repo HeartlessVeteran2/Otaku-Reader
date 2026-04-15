@@ -16,6 +16,17 @@ data class UpdateErrorEntry(
     val timestamp: Long
 )
 
+/**
+ * Represents a manga that will be checked during the next library update.
+ */
+data class PendingUpdateManga(
+    val mangaId: Long,
+    val title: String,
+    val thumbnailUrl: String?,
+    val sourceName: String,
+    val lastChecked: Long
+)
+
 data class UpdatesState(
     val isLoading: Boolean = false,
     val updates: List<MangaUpdate> = emptyList(),
@@ -23,7 +34,11 @@ data class UpdatesState(
     /** List of failed updates for the Update Error Screen. */
     val updateErrors: List<UpdateErrorEntry> = emptyList(),
     /** Whether the update error screen is visible. */
-    val showUpdateErrors: Boolean = false
+    val showUpdateErrors: Boolean = false,
+    /** List of manga that will be checked in the next update. */
+    val pendingUpdates: List<PendingUpdateManga> = emptyList(),
+    /** Whether the To-Be-Updated screen is visible. */
+    val showPendingUpdates: Boolean = false
 ) : UiState
 
 sealed interface UpdatesEvent : UiEvent {
@@ -35,6 +50,11 @@ sealed interface UpdatesEvent : UiEvent {
     data object HideUpdateErrors : UpdatesEvent
     data class ClearUpdateError(val mangaId: Long) : UpdatesEvent
     data object ClearAllUpdateErrors : UpdatesEvent
+    
+    // To-Be-Updated Screen events
+    data object ShowPendingUpdates : UpdatesEvent
+    data object HidePendingUpdates : UpdatesEvent
+    data object StartLibraryUpdate : UpdatesEvent
 }
 
 sealed interface UpdatesEffect : UiEffect {
