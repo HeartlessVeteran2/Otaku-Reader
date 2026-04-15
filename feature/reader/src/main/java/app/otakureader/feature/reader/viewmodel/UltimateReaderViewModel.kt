@@ -2,6 +2,7 @@ package app.otakureader.feature.reader.viewmodel
 
 import android.content.Context
 import android.os.SystemClock
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -27,6 +28,7 @@ import app.otakureader.core.discord.ReadingStatus
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.DownloadPreferences
 import app.otakureader.data.download.DownloadManager
+import app.otakureader.data.download.ChapterDownloadRequest
 import app.otakureader.data.download.DownloadProvider
 import app.otakureader.data.worker.RecordReadingHistoryWorker
 import app.otakureader.feature.reader.panel.PanelDetectionService
@@ -54,6 +56,8 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.abs
+import app.otakureader.sourceapi.Page
+import app.otakureader.sourceapi.SourceChapter
 
 /**
  * Ultimate ViewModel for the Reader feature.
@@ -1031,16 +1035,63 @@ class UltimateReaderViewModel @Inject constructor(
 
             // Check if already downloaded to storage
             val manga = currentManga ?: mangaRepository.getMangaById(mangaId) ?: return@launch
-            val source = sourceRepository.getSource(manga.sourceId.toString()) ?: return@launch
+            val sourceName = manga.sourceId.toString()
             
             val isDownloaded = DownloadProvider.isChapterDownloaded(
-                context, source.name, manga.title, nextChapter.name
+                context, sourceName, manga.title, nextChapter.name
             )
             if (isDownloaded) return@launch
 
-            // TODO: fetch page URLs via source.fetchPageList() and enqueue download.
-            // This requires converting domain Chapter → source-api Chapter, which is
-            // tracked as a separate task. For now, download-ahead is a no-op.
+            val sourceChapter = SourceChapter(
+                url = nextChapter.url,
+                name = nextChapter.name,
+                dateUpload = nextChapter.dateUpload,
+                chapterNumber = nextChapter.chapterNumber,
+                scanlator = nextChapter.scanlator
+            )
+
+            val pageListResult = sourceRepository.getPageList(sourceName, sourceChapter)
+            pageListResult.onFailure { throwable ->
+                Log.w(
+                    TAG,
+                    "Failed to fetch page list for download-ahead " +
+                        "(mangaId=${manga.id}, chapterId=${nextChapter.id}, sourceName=$sourceName)",
+                    throwable
+                )
+            }
+
+            val pageUrls = pageListResult
+                .getOrNull()
+                ?.mapNotNull { page -> page.effectiveUrl() }
+                .orEmpty()
+            if (pageUrls.isEmpty()) return@launch
+
+            downloadManager.enqueue(
+                ChapterDownloadRequest(
+                    mangaId = manga.id,
+                    chapterId = nextChapter.id,
+                    sourceName = sourceName,
+                    mangaTitle = manga.title,
+                    chapterTitle = nextChapter.name,
+                    pageUrls = pageUrls
+                )
+            )
+        }
+    }
+
+    /**
+     * Returns the best downloadable URL for a source page.
+     *
+     * Preference order:
+     * 1) [Page.imageUrl] when the source provides a direct image URL.
+     * 2) [Page.url] as a fallback for sources that populate only the generic page URL field.
+     * 3) `null` when neither field contains a usable value.
+     */
+    private fun Page.effectiveUrl(): String? {
+        return when {
+            !imageUrl.isNullOrBlank() -> imageUrl
+            url.isNotBlank() -> url
+            else -> null
         }
     }
 
