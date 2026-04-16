@@ -43,7 +43,11 @@ class AddMangaToLibraryUseCase(
                 artist = sourceManga.artist,
                 author = sourceManga.author,
                 description = sourceManga.description,
-                genre = sourceManga.genre?.split(", ")?.filter { it.isNotEmpty() } ?: emptyList(),
+                genre = sourceManga.genre
+                    ?.split(",")
+                    ?.map { it.trim() }
+                    ?.filter { it.isNotEmpty() }
+                    ?: emptyList(),
                 status = MangaStatus.UNKNOWN, // Will be updated when details fetched
                 thumbnailUrl = sourceManga.thumbnailUrl,
                 favorite = true, // Add to favorites immediately
