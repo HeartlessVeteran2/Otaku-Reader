@@ -1,15 +1,20 @@
 package app.otakureader.feature.updates
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.otakureader.core.preferences.GeneralPreferences
+import app.otakureader.data.worker.LibraryUpdateWorker
+import app.otakureader.domain.usecase.GetLibraryMangaUseCase
 import app.otakureader.domain.usecase.GetRecentUpdatesUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -20,7 +25,9 @@ import javax.inject.Inject
 @HiltViewModel
 class UpdatesViewModel @Inject constructor(
     private val getRecentUpdatesUseCase: GetRecentUpdatesUseCase,
-    private val generalPreferences: GeneralPreferences
+    private val getLibraryMangaUseCase: GetLibraryMangaUseCase,
+    private val generalPreferences: GeneralPreferences,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(UpdatesState())
@@ -95,13 +102,25 @@ class UpdatesViewModel @Inject constructor(
     /** Load manga that will be checked during the next library update. */
     private fun loadPendingUpdates() {
         viewModelScope.launch {
-            // TODO: This is a placeholder. In a real implementation, 
-            // this would query the database for manga marked for updates.
-            // For now, we'll show an empty list or mock data.
-            _state.update { state ->
-                state.copy(
-                    pendingUpdates = emptyList() // Will be populated from database
-                )
+            try {
+                val libraryManga = getLibraryMangaUseCase().first()
+                val pendingManga = libraryManga.map { manga ->
+                    PendingUpdateManga(
+                        mangaId = manga.id,
+                        title = manga.title,
+                        thumbnailUrl = manga.thumbnailUrl,
+                        sourceName = manga.sourceName,
+                        lastChecked = manga.lastUpdate
+                    )
+                }
+                _state.update { state ->
+                    state.copy(pendingUpdates = pendingManga)
+                }
+            } catch (e: Exception) {
+                // If loading fails, show empty list
+                _state.update { state ->
+                    state.copy(pendingUpdates = emptyList())
+                }
             }
         }
     }
@@ -109,9 +128,11 @@ class UpdatesViewModel @Inject constructor(
     /** Start a manual library update. */
     private fun startLibraryUpdate() {
         viewModelScope.launch {
-            // TODO: Trigger LibraryUpdateWorker to run immediately
-            // For now, just hide the pending updates screen
+            // Enqueue one-time library update work
+            LibraryUpdateWorker.enqueue(context)
+            // Hide the dialog and show confirmation
             _state.update { it.copy(showPendingUpdates = false) }
+            _effect.send(UpdatesEffect.ShowSnackbar("Library update started"))
         }
     }
 }

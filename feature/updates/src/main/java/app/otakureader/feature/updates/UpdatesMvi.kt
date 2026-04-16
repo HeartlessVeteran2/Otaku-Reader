@@ -59,4 +59,5 @@ sealed interface UpdatesEvent : UiEvent {
 
 sealed interface UpdatesEffect : UiEffect {
     data class NavigateToReader(val mangaId: Long, val chapterId: Long) : UpdatesEffect
+    data class ShowSnackbar(val message: String) : UpdatesEffect
 }

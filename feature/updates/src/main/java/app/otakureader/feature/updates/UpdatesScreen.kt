@@ -58,17 +58,20 @@ fun UpdatesScreen(
     viewModel: UpdatesViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val snackbarHostState = androidx.compose.material3.SnackbarHostState()
 
     LaunchedEffect(viewModel.effect) {
         viewModel.effect.collectLatest { effect ->
             when (effect) {
                 is UpdatesEffect.NavigateToReader -> onMangaClick(effect.mangaId)
+                is UpdatesEffect.ShowSnackbar -> snackbarHostState.showSnackbar(effect.message)
             }
         }
     }
 
     Scaffold(
         modifier = modifier,
+        snackbarHost = { androidx.compose.material3.SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.updates_title)) },
