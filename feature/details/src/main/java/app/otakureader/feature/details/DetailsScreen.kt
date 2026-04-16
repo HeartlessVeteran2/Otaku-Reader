@@ -89,6 +89,10 @@ import app.otakureader.feature.details.R
 import app.otakureader.core.preferences.DeleteAfterReadMode
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.flow.collectLatest
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.material3.OutlinedButton
 
 private val MARKDOWN_BOLD_REGEX = Regex("""\*\*(.+?)\*\*""")
 private val MARKDOWN_ITALIC_REGEX = Regex("""(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)""")

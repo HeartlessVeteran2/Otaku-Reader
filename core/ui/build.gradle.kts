@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.otakureader.android.library)
     alias(libs.plugins.otakureader.android.library.compose)
+    alias(libs.plugins.otakureader.android.hilt)
 }
 
 android {
@@ -9,6 +10,9 @@ android {
 
 dependencies {
     implementation(projects.core.common)
+
+    // Palette API for dynamic color extraction
+    implementation(libs.androidx.palette)
 
     api(platform(libs.compose.bom))
     api(libs.compose.ui)

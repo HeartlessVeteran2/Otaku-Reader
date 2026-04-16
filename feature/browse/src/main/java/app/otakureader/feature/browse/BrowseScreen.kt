@@ -349,10 +349,7 @@ private fun SourcesContent(
             // Show manga grid
             MangaGrid(
                 manga = popularManga,
-                selectedManga = emptyMap(), // Will be passed from state
-                isBulkMode = false,
                 onMangaClick = onMangaClick,
-                onMangaLongClick = {},
                 onLoadMore = onLoadMore,
                 hasNextPage = hasNextPage,
                 isLoading = isLoading

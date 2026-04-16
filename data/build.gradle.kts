@@ -54,6 +54,7 @@ dependencies {
     implementation(libs.retrofit.kotlinx.serialization)
     implementation(libs.coil.compose)
     ksp(libs.hilt.compiler)
+    ksp(libs.hilt.work.compiler)
 
     testImplementation(libs.junit)
     testImplementation(libs.mockk)

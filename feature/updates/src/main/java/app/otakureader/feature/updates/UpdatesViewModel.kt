@@ -109,8 +109,8 @@ class UpdatesViewModel @Inject constructor(
                         mangaId = manga.id,
                         title = manga.title,
                         thumbnailUrl = manga.thumbnailUrl,
-                        sourceName = manga.sourceName,
-                        lastChecked = manga.lastUpdate
+                        sourceName = manga.sourceId.toString(), // source name lookup not available without source registry
+                        lastChecked = 0L // no last-checked timestamp in Manga model; 0 means "never"
                     )
                 }
                 _state.update { state ->
