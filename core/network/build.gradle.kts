@@ -15,6 +15,7 @@ android {
 dependencies {
     implementation(projects.core.common)
 
+    implementation(platform(libs.okhttp.bom))
     api(libs.okhttp.core)
     implementation(libs.okhttp.logging)
     implementation(libs.okhttp.brotli)
