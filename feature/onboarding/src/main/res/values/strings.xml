@@ -6,6 +6,8 @@
     <string name="onboarding_title_download">Download &amp; Read Offline</string>
     <string name="onboarding_title_organize">Organize Your Library</string>
     <string name="onboarding_title_extensions">Install Extensions</string>
+    <string name="onboarding_title_notifications">Notifications</string>
+    <string name="onboarding_title_battery">Background Updates</string>
 
     <!-- Page descriptions -->
     <string name="onboarding_desc_welcome">Your personal manga library. Track your reading, discover new series, and enjoy your favorite manga offline.</string>
@@ -13,12 +15,20 @@
     <string name="onboarding_desc_download">Download chapters to read anywhere, even without internet. Your library stays with you.</string>
     <string name="onboarding_desc_organize">Create categories, track reading progress, and get notified when new chapters are available.</string>
     <string name="onboarding_desc_extensions">Otaku Reader uses extensions to access manga sources. Install your first extension to get started!</string>
+    <string name="onboarding_desc_notifications">Get notified when new chapters of your favorite manga become available.</string>
+    <string name="onboarding_desc_battery">Disable battery optimization so Otaku Reader can fetch updates reliably in the background.</string>
 
     <!-- Buttons -->
     <string name="onboarding_btn_next">Next</string>
     <string name="onboarding_btn_skip">Skip</string>
     <string name="onboarding_btn_get_started">Get Started</string>
     <string name="onboarding_btn_install_extensions">Install Extensions</string>
+    <string name="onboarding_btn_grant_permission">Grant Permission</string>
+    <string name="onboarding_btn_disable_battery">Disable Battery Optimization</string>
+
+    <!-- Status labels (shown when permission is already granted) -->
+    <string name="onboarding_notifications_granted">Permission Granted</string>
+    <string name="onboarding_battery_unrestricted">Unrestricted</string>
 
     <!-- Accessibility -->
     <string name="onboarding_page_icon">Onboarding illustration</string>
