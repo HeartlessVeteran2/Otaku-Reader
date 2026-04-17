@@ -376,6 +376,13 @@ fun OtakuReaderNavHost(
             }
         )
 
+        // Category management
+        categoryManagementScreen(
+            onNavigateBack = {
+                navController.popBackStack()
+            }
+        )
+
         // Onboarding — shows first for new users, navigates to Library on completion
         onboardingScreen(
             onComplete = {
