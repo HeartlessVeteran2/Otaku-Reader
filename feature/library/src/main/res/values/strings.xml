@@ -52,4 +52,14 @@
     <string name="category_delete_cancel">Cancel</string>
     <string name="category_empty_title">No categories yet</string>
     <string name="category_empty_message">Create categories to organize your library</string>
+    <!-- Search -->
+    <string name="library_search">Search library</string>
+    <string name="library_search_placeholder">Search…</string>
+    <string name="library_search_close">Close search</string>
+    <!-- Bulk selection actions -->
+    <string name="library_deselect_all">Deselect all</string>
+    <string name="library_mark_selected_read">Mark as read</string>
+    <string name="library_mark_selected_unread">Mark as unread</string>
+    <string name="library_download_selected">Download selected</string>
+    <string name="library_remove_selected">Remove from library</string>
 </resources>

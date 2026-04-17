@@ -6,9 +6,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -27,6 +29,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -34,16 +37,22 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.otakureader.domain.model.MangaUpdate
+import coil3.compose.AsyncImage
 import kotlinx.coroutines.flow.collectLatest
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -185,18 +194,77 @@ fun UpdatesScreen(
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Grouped list
+// ─────────────────────────────────────────────────────────────────────────────
+
+private fun updateRelativeLabel(epochMs: Long): String {
+    if (epochMs <= 0L) return "Older"
+    val today = LocalDate.now()
+    val day = Instant.ofEpochMilli(epochMs).atZone(ZoneId.systemDefault()).toLocalDate()
+    return when {
+        day == today -> "Today"
+        day == today.minusDays(1) -> "Yesterday"
+        day >= today.minusDays(6) -> "This week"
+        day >= today.minusDays(29) -> "This month"
+        else -> "Older"
+    }
+}
+
+private sealed interface UpdateListItem {
+    data class Header(val label: String) : UpdateListItem
+    data class Entry(val update: MangaUpdate) : UpdateListItem
+}
+
 @Composable
 private fun UpdatesList(
     updates: List<MangaUpdate>,
     onChapterClick: (MangaUpdate) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    LazyColumn(modifier = modifier.fillMaxSize()) {
-        items(updates, key = { it.chapter.id }) { update ->
-            UpdateItem(update = update, onClick = { onChapterClick(update) })
-            HorizontalDivider()
+    val listItems = remember(updates) {
+        buildList {
+            var lastLabel: String? = null
+            updates.forEach { update ->
+                val label = updateRelativeLabel(update.chapter.dateFetch)
+                if (label != lastLabel) {
+                    add(UpdateListItem.Header(label))
+                    lastLabel = label
+                }
+                add(UpdateListItem.Entry(update))
+            }
         }
     }
+
+    LazyColumn(modifier = modifier.fillMaxSize()) {
+        items(listItems, key = { item ->
+            when (item) {
+                is UpdateListItem.Header -> "header_${item.label}"
+                is UpdateListItem.Entry -> item.update.chapter.id
+            }
+        }) { item ->
+            when (item) {
+                is UpdateListItem.Header -> UpdatesDateHeader(label = item.label)
+                is UpdateListItem.Entry -> {
+                    UpdateItem(update = item.update, onClick = { onChapterClick(item.update) })
+                    HorizontalDivider()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UpdatesDateHeader(label: String, modifier: Modifier = Modifier) {
+    Text(
+        text = label,
+        style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+    )
 }
 
 @Composable
@@ -209,14 +277,31 @@ private fun UpdateItem(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Manga cover thumbnail
+        Surface(
+            shape = MaterialTheme.shapes.small,
+            modifier = Modifier.size(width = 40.dp, height = 56.dp)
+        ) {
+            AsyncImage(
+                model = update.manga.thumbnailUrl,
+                contentDescription = update.manga.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(5f / 7f)
+                    .clip(MaterialTheme.shapes.small)
+            )
+        }
+
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = update.manga.title,
                 style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )

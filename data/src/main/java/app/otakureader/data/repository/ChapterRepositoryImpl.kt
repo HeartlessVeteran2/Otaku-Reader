@@ -5,6 +5,7 @@ import app.otakureader.core.database.dao.ReadingHistoryDao
 import app.otakureader.core.database.entity.ChapterEntity
 import app.otakureader.core.database.entity.ChapterWithHistoryEntity
 import app.otakureader.core.database.entity.ChapterWithMangaEntity
+import app.otakureader.core.database.entity.HistoryWithMangaEntity
 import app.otakureader.core.database.entity.MangaEntity
 import app.otakureader.core.database.entity.MangaStatus as DbMangaStatus
 import app.otakureader.domain.model.Chapter
@@ -73,7 +74,7 @@ class ChapterRepositoryImpl @Inject constructor(
     }
 
     override fun observeHistory(): Flow<List<ChapterWithHistory>> {
-        return readingHistoryDao.observeHistoryWithChapters().map { entities ->
+        return readingHistoryDao.observeHistoryWithMangaInfo().map { entities ->
             entities.map { it.toDomain() }
         }
     }
@@ -124,6 +125,26 @@ class ChapterRepositoryImpl @Inject constructor(
         chapter = chapter.toDomain(),
         readAt = history.readAt,
         readDurationMs = history.readDurationMs
+    )
+
+    private fun HistoryWithMangaEntity.toDomain() = ChapterWithHistory(
+        chapter = Chapter(
+            id = chapterId,
+            mangaId = mangaId,
+            url = url,
+            name = name,
+            scanlator = scanlator,
+            read = read,
+            bookmark = bookmark,
+            lastPageRead = lastPageRead,
+            chapterNumber = chapterNumber,
+            dateFetch = dateFetch,
+            dateUpload = dateUpload
+        ),
+        readAt = readAt,
+        readDurationMs = readDurationMs,
+        mangaTitle = mangaTitle,
+        mangaThumbnailUrl = mangaThumbnailUrl
     )
 
     private fun ChapterWithMangaEntity.toDomain() = MangaUpdate(
