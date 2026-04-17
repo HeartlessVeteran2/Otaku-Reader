@@ -13,4 +13,11 @@
     <string name="history_empty">Your reading history will appear here.</string>
     <string name="history_no_results">No results for \"%1$s\".</string>
     <string name="history_remove">Remove from history</string>
+    <string name="history_resume">Resume reading</string>
+    <!-- Date group headers -->
+    <string name="history_date_today">Today</string>
+    <string name="history_date_yesterday">Yesterday</string>
+    <string name="history_date_this_week">This week</string>
+    <string name="history_date_this_month">This month</string>
+    <string name="history_date_older">Older</string>
 </resources>

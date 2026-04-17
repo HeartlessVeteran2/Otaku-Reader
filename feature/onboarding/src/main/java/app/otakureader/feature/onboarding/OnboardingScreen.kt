@@ -1,5 +1,15 @@
 package app.otakureader.feature.onboarding
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.os.PowerManager
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.StringRes
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -18,12 +28,12 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.BatteryFull
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Collections
-import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.MenuBook
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -31,30 +41,46 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import app.otakureader.feature.onboarding.R
 import kotlinx.coroutines.launch
 
-/**
- * Data class representing an onboarding page.
- */
+/** Type of each onboarding page — drives which permission UI (if any) is shown. */
+enum class OnboardingPageType {
+    WELCOME,
+    NOTIFICATIONS,  // Android 13+ only
+    BATTERY,        // Battery optimisation exclusion
+    EXTENSIONS,     // "Install extensions" action
+}
+
 data class OnboardingPage(
-    val title: String,
-    val description: String,
+    val type: OnboardingPageType,
+    @StringRes val titleRes: Int,
+    @StringRes val descriptionRes: Int,
     val icon: ImageVector,
-    val showExtensionInstall: Boolean = false
 )
 
 /**
- * Onboarding screen for first-time users.
- * Multi-step flow: Welcome → Browse & Discover → Download & Read Offline → Organize Library → Install Extensions
+ * Onboarding screen that mirrors the setup-focused flow used by Mihon and Komikku:
+ *
+ *  1. Welcome
+ *  2. [Android 13+] Notifications permission
+ *  3. Battery-optimisation exclusion
+ *  4. Install extensions
+ *
+ * Each permission page shows a live status icon and an action button that is
+ * disabled once the permission has been granted.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -62,39 +88,77 @@ fun OnboardingScreen(
     onComplete: () -> Unit,
     onSkip: () -> Unit = onComplete,
     onNavigateToExtensions: () -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
-    val pages = listOf(
-        OnboardingPage(
-            title = "Welcome to Otaku Reader",
-            description = "Your personal manga library. Track your reading, discover new series, and enjoy your favorite manga offline.",
-            icon = Icons.Default.MenuBook
-        ),
-        OnboardingPage(
-            title = "Browse & Discover",
-            description = "Explore thousands of manga from various sources. Search by title, genre, or popularity to find your next read.",
-            icon = Icons.Default.Search
-        ),
-        OnboardingPage(
-            title = "Download & Read Offline",
-            description = "Download chapters to read anywhere, even without internet. Your library stays with you.",
-            icon = Icons.Default.Download
-        ),
-        OnboardingPage(
-            title = "Organize Your Library",
-            description = "Create categories, track reading progress, and get notified when new chapters are available.",
-            icon = Icons.Default.Collections
-        ),
-        OnboardingPage(
-            title = "Install Extensions",
-            description = "Otaku Reader uses extensions to access manga sources. Install your first extension to get started!",
-            icon = Icons.Default.Settings,
-            showExtensionInstall = true
-        )
-    )
+    val context = LocalContext.current
+
+    // Build page list dynamically; notifications page is Android 13+ only
+    val pages = remember {
+        buildList {
+            add(
+                OnboardingPage(
+                    type = OnboardingPageType.WELCOME,
+                    titleRes = R.string.onboarding_title_welcome,
+                    descriptionRes = R.string.onboarding_desc_welcome,
+                    icon = Icons.Default.MenuBook,
+                ),
+            )
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                add(
+                    OnboardingPage(
+                        type = OnboardingPageType.NOTIFICATIONS,
+                        titleRes = R.string.onboarding_title_notifications,
+                        descriptionRes = R.string.onboarding_desc_notifications,
+                        icon = Icons.Default.Notifications,
+                    ),
+                )
+            }
+            add(
+                OnboardingPage(
+                    type = OnboardingPageType.BATTERY,
+                    titleRes = R.string.onboarding_title_battery,
+                    descriptionRes = R.string.onboarding_desc_battery,
+                    icon = Icons.Default.PowerSettingsNew,
+                ),
+            )
+            add(
+                OnboardingPage(
+                    type = OnboardingPageType.EXTENSIONS,
+                    titleRes = R.string.onboarding_title_extensions,
+                    descriptionRes = R.string.onboarding_desc_extensions,
+                    icon = Icons.Default.Extension,
+                ),
+            )
+        }
+    }
 
     val pagerState = rememberPagerState(pageCount = { pages.size })
     val coroutineScope = rememberCoroutineScope()
+
+    // ── Notifications permission ──────────────────────────────────────────────
+    var notificationsGranted by remember {
+        mutableStateOf(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
+                    PackageManager.PERMISSION_GRANTED
+            } else {
+                true // Pre-API 33 — permission not needed at runtime
+            },
+        )
+    }
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted -> notificationsGranted = granted }
+
+    // ── Battery optimisation ──────────────────────────────────────────────────
+    fun isBatteryOptimizationIgnored(): Boolean =
+        context.getSystemService(PowerManager::class.java)
+            ?.isIgnoringBatteryOptimizations(context.packageName) ?: false
+
+    var batteryOptimizationIgnored by remember { mutableStateOf(isBatteryOptimizationIgnored()) }
+    val batteryOptimizationLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { batteryOptimizationIgnored = isBatteryOptimizationIgnored() }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -102,6 +166,7 @@ fun OnboardingScreen(
             OnboardingBottomBar(
                 currentPage = pagerState.currentPage,
                 totalPages = pages.size,
+                currentPageType = pages[pagerState.currentPage].type,
                 onNext = {
                     if (pagerState.currentPage < pages.size - 1) {
                         coroutineScope.launch {
@@ -112,91 +177,190 @@ fun OnboardingScreen(
                     }
                 },
                 onSkip = onSkip,
-                showExtensionInstall = pages[pagerState.currentPage].showExtensionInstall,
-                onNavigateToExtensions = onNavigateToExtensions
+                onNavigateToExtensions = onNavigateToExtensions,
             )
-        }
+        },
     ) { paddingValues ->
         HorizontalPager(
             state = pagerState,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-        ) { page ->
+                .padding(paddingValues),
+        ) { pageIndex ->
             OnboardingPageContent(
-                page = pages[page],
-                modifier = Modifier.fillMaxSize()
+                page = pages[pageIndex],
+                notificationsGranted = notificationsGranted,
+                batteryOptimizationIgnored = batteryOptimizationIgnored,
+                onRequestNotifications = {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                },
+                onRequestBatteryOptimization = {
+                    val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                        data = Uri.parse("package:${context.packageName}")
+                    }
+                    batteryOptimizationLauncher.launch(intent)
+                },
+                modifier = Modifier.fillMaxSize(),
             )
         }
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Page content
+// ─────────────────────────────────────────────────────────────────────────────
+
 @Composable
 private fun OnboardingPageContent(
     page: OnboardingPage,
-    modifier: Modifier = Modifier
+    notificationsGranted: Boolean,
+    batteryOptimizationIgnored: Boolean,
+    onRequestNotifications: () -> Unit,
+    onRequestBatteryOptimization: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
+    val isPermissionGranted = when (page.type) {
+        OnboardingPageType.NOTIFICATIONS -> notificationsGranted
+        OnboardingPageType.BATTERY -> batteryOptimizationIgnored
+        else -> false
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
             .padding(horizontal = 32.dp, vertical = 48.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.Center,
     ) {
+        // Icon with "granted" feedback
         Box(
             modifier = Modifier
                 .size(120.dp)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer),
-            contentAlignment = Alignment.Center
+                .background(
+                    if (isPermissionGranted) {
+                        MaterialTheme.colorScheme.secondaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.primaryContainer
+                    },
+                ),
+            contentAlignment = Alignment.Center,
         ) {
             Icon(
-                imageVector = page.icon,
-                contentDescription = stringResource(R.string.onboarding_page_icon),
+                imageVector = if (isPermissionGranted) Icons.Default.Check else page.icon,
+                contentDescription = stringResource(page.titleRes),
                 modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                tint = if (isPermissionGranted) {
+                    MaterialTheme.colorScheme.onSecondaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                },
             )
         }
 
         Spacer(modifier = Modifier.height(32.dp))
 
         Text(
-            text = page.title,
+            text = stringResource(page.titleRes),
             style = MaterialTheme.typography.headlineMedium,
             textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onBackground
+            color = MaterialTheme.colorScheme.onBackground,
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = page.description,
+            text = stringResource(page.descriptionRes),
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+
+        // ── Per-page action buttons ───────────────────────────────────────────
+
+        if (page.type == OnboardingPageType.NOTIFICATIONS) {
+            Spacer(modifier = Modifier.height(32.dp))
+            Button(
+                onClick = onRequestNotifications,
+                enabled = !notificationsGranted,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(
+                    imageVector = if (notificationsGranted) Icons.Default.Check else Icons.Default.Notifications,
+                    contentDescription = stringResource(
+                        if (notificationsGranted) R.string.onboarding_notifications_granted
+                        else R.string.onboarding_btn_grant_permission,
+                    ),
+                    modifier = Modifier.size(20.dp),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    stringResource(
+                        if (notificationsGranted) {
+                            R.string.onboarding_notifications_granted
+                        } else {
+                            R.string.onboarding_btn_grant_permission
+                        },
+                    ),
+                )
+            }
+        }
+
+        if (page.type == OnboardingPageType.BATTERY) {
+            Spacer(modifier = Modifier.height(32.dp))
+            Button(
+                onClick = onRequestBatteryOptimization,
+                enabled = !batteryOptimizationIgnored,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(
+                    imageVector = if (batteryOptimizationIgnored) Icons.Default.Check else Icons.Default.BatteryFull,
+                    contentDescription = stringResource(
+                        if (batteryOptimizationIgnored) R.string.onboarding_battery_unrestricted
+                        else R.string.onboarding_btn_disable_battery,
+                    ),
+                    modifier = Modifier.size(20.dp),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    stringResource(
+                        if (batteryOptimizationIgnored) {
+                            R.string.onboarding_battery_unrestricted
+                        } else {
+                            R.string.onboarding_btn_disable_battery
+                        },
+                    ),
+                )
+            }
+        }
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Bottom bar
+// ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
 private fun OnboardingBottomBar(
     currentPage: Int,
     totalPages: Int,
+    currentPageType: OnboardingPageType,
     onNext: () -> Unit,
     onSkip: () -> Unit,
-    showExtensionInstall: Boolean,
     onNavigateToExtensions: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 24.dp)
+            .padding(horizontal = 24.dp, vertical = 24.dp),
     ) {
         // Page indicators
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center
+            horizontalArrangement = Arrangement.Center,
         ) {
             repeat(totalPages) { index ->
                 val isSelected = index == currentPage
@@ -209,8 +373,8 @@ private fun OnboardingBottomBar(
                                 MaterialTheme.colorScheme.primary
                             } else {
                                 MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-                            }
-                        )
+                            },
+                        ),
                 )
                 if (index < totalPages - 1) {
                     Spacer(modifier = Modifier.width(8.dp))
@@ -220,16 +384,16 @@ private fun OnboardingBottomBar(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Buttons
-        if (showExtensionInstall) {
+        // Extensions page: "Install Extensions" primary + "Get Started" outline
+        if (currentPageType == OnboardingPageType.EXTENSIONS) {
             Button(
                 onClick = onNavigateToExtensions,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "Onboarding illustration",
-                    modifier = Modifier.size(20.dp)
+                    imageVector = Icons.Default.Extension,
+                    contentDescription = stringResource(R.string.onboarding_btn_install_extensions),
+                    modifier = Modifier.size(20.dp),
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(R.string.onboarding_btn_install_extensions))
@@ -239,29 +403,38 @@ private fun OnboardingBottomBar(
 
             OutlinedButton(
                 onClick = onNext,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(stringResource(R.string.onboarding_btn_skip))
+                Text(stringResource(R.string.onboarding_btn_get_started))
             }
         } else {
+            // All other pages: "Next / Get Started" + optional "Skip"
             Button(
                 onClick = onNext,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(stringResource(if (currentPage == totalPages - 1) R.string.onboarding_btn_get_started else R.string.onboarding_btn_next))
+                Text(
+                    stringResource(
+                        if (currentPage == totalPages - 1) {
+                            R.string.onboarding_btn_get_started
+                        } else {
+                            R.string.onboarding_btn_next
+                        },
+                    ),
+                )
                 if (currentPage < totalPages - 1) {
                     Spacer(modifier = Modifier.width(8.dp))
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = "Theme preview",
-                        modifier = Modifier.size(20.dp)
+                        contentDescription = stringResource(R.string.onboarding_btn_next),
+                        modifier = Modifier.size(20.dp),
                     )
                 } else {
                     Spacer(modifier = Modifier.width(8.dp))
                     Icon(
                         imageVector = Icons.Default.Check,
-                        contentDescription = "Theme preview",
-                        modifier = Modifier.size(20.dp)
+                        contentDescription = stringResource(R.string.onboarding_btn_get_started),
+                        modifier = Modifier.size(20.dp),
                     )
                 }
             }
@@ -271,7 +444,7 @@ private fun OnboardingBottomBar(
 
                 OutlinedButton(
                     onClick = onSkip,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(stringResource(R.string.onboarding_btn_skip))
                 }
@@ -279,3 +452,4 @@ private fun OnboardingBottomBar(
         }
     }
 }
+

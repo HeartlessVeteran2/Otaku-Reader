@@ -132,6 +132,18 @@
     <string name="settings_migrate_manga">Migrate manga</string>
     <string name="settings_migrate_manga_description">Move manga from one source to another</string>
 
+    <!-- Data management -->
+    <string name="settings_data_management">Data Management</string>
+    <string name="settings_clear_image_cache">Clear image cache</string>
+    <string name="settings_clear_image_cache_desc">Free up space used by cached cover and page images</string>
+    <string name="settings_clear_history">Clear reading history</string>
+    <string name="settings_clear_history_desc">Remove all reading history and progress from the database</string>
+    <string name="settings_clear_button">Clear</string>
+    <string name="settings_clear_cache_success">Image cache cleared</string>
+    <string name="settings_clear_cache_failed">Failed to clear image cache</string>
+    <string name="settings_clear_history_success">Reading history cleared</string>
+    <string name="settings_clear_history_failed">Failed to clear reading history</string>
+
     <!-- Local Source -->
     <string name="settings_local_source">Local Source</string>
     <string name="settings_scan_directory">Scan Directory</string>

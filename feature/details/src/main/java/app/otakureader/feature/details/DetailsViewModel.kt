@@ -86,6 +86,12 @@ class DetailsViewModel @Inject constructor(
             is DetailsContract.Event.ToggleFavorite -> toggleFavorite()
             is DetailsContract.Event.ToggleDescription -> toggleDescription()
             is DetailsContract.Event.ToggleSortOrder -> toggleSortOrder()
+            is DetailsContract.Event.ShowChapterFilter ->
+                _state.update { it.copy(showChapterFilter = true) }
+            is DetailsContract.Event.HideChapterFilter ->
+                _state.update { it.copy(showChapterFilter = false) }
+            is DetailsContract.Event.SetChapterFilter ->
+                _state.update { it.copy(chapterFilter = event.filter, showChapterFilter = false) }
             is DetailsContract.Event.StartReading -> startReading()
             is DetailsContract.Event.ContinueReading -> continueReading()
             is DetailsContract.Event.ChapterClick -> onChapterClick(event.chapterId)

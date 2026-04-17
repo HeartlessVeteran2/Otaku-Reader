@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.data.worker.LibraryUpdateWorker
+import app.otakureader.domain.repository.ChapterRepository
+import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.usecase.GetLibraryMangaUseCase
 import app.otakureader.domain.usecase.GetRecentUpdatesUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,6 +29,8 @@ class UpdatesViewModel @Inject constructor(
     private val getRecentUpdatesUseCase: GetRecentUpdatesUseCase,
     private val getLibraryMangaUseCase: GetLibraryMangaUseCase,
     private val generalPreferences: GeneralPreferences,
+    private val downloadRepository: DownloadRepository,
+    private val chapterRepository: ChapterRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -44,39 +48,116 @@ class UpdatesViewModel @Inject constructor(
     fun onEvent(event: UpdatesEvent) {
         when (event) {
             UpdatesEvent.Refresh -> loadUpdates()
-            is UpdatesEvent.OnChapterClick -> {
-                viewModelScope.launch {
-                    _effect.send(UpdatesEffect.NavigateToReader(event.mangaId, event.chapterId))
-                }
-            }
-            
+            is UpdatesEvent.OnChapterClick -> handleChapterClick(event.mangaId, event.chapterId)
+            is UpdatesEvent.OnChapterLongClick -> toggleSelection(event.chapterId)
+            is UpdatesEvent.OnDownloadChapter -> downloadChapter(event.mangaId, event.chapterId)
+            UpdatesEvent.ClearSelection -> _state.update { it.copy(selectedItems = emptySet()) }
+            UpdatesEvent.SelectAll -> selectAll()
+            UpdatesEvent.DownloadSelected -> downloadSelected()
+            UpdatesEvent.MarkSelectedAsRead -> markSelectedAsRead()
+
             // Update Error Screen events
-            UpdatesEvent.ShowUpdateErrors -> {
-                _state.update { it.copy(showUpdateErrors = true) }
+            UpdatesEvent.ShowUpdateErrors -> _state.update { it.copy(showUpdateErrors = true) }
+            UpdatesEvent.HideUpdateErrors -> _state.update { it.copy(showUpdateErrors = false) }
+            is UpdatesEvent.ClearUpdateError -> _state.update { state ->
+                state.copy(updateErrors = state.updateErrors.filter { it.mangaId != event.mangaId })
             }
-            UpdatesEvent.HideUpdateErrors -> {
-                _state.update { it.copy(showUpdateErrors = false) }
-            }
-            is UpdatesEvent.ClearUpdateError -> {
-                _state.update { state ->
-                    state.copy(updateErrors = state.updateErrors.filter { it.mangaId != event.mangaId })
-                }
-            }
-            UpdatesEvent.ClearAllUpdateErrors -> {
-                _state.update { it.copy(updateErrors = emptyList()) }
-            }
-            
+            UpdatesEvent.ClearAllUpdateErrors -> _state.update { it.copy(updateErrors = emptyList()) }
+
             // To-Be-Updated Screen events
             UpdatesEvent.ShowPendingUpdates -> {
                 _state.update { it.copy(showPendingUpdates = true) }
                 loadPendingUpdates()
             }
-            UpdatesEvent.HidePendingUpdates -> {
-                _state.update { it.copy(showPendingUpdates = false) }
+            UpdatesEvent.HidePendingUpdates -> _state.update { it.copy(showPendingUpdates = false) }
+            UpdatesEvent.StartLibraryUpdate -> startLibraryUpdate()
+        }
+    }
+
+    private fun handleChapterClick(mangaId: Long, chapterId: Long) {
+        if (_state.value.selectedItems.isNotEmpty()) {
+            toggleSelection(chapterId)
+        } else {
+            viewModelScope.launch {
+                _effect.send(UpdatesEffect.NavigateToReader(mangaId, chapterId))
             }
-            UpdatesEvent.StartLibraryUpdate -> {
-                startLibraryUpdate()
+        }
+    }
+
+    private fun toggleSelection(chapterId: Long) {
+        _state.update { state ->
+            val sel = state.selectedItems
+            state.copy(
+                selectedItems = if (chapterId in sel) sel - chapterId else sel + chapterId
+            )
+        }
+    }
+
+    private fun selectAll() {
+        _state.update { state ->
+            state.copy(selectedItems = state.updates.map { it.chapter.id }.toSet())
+        }
+    }
+
+    private fun downloadChapter(mangaId: Long, chapterId: Long) {
+        val update = _state.value.updates.find { it.chapter.id == chapterId } ?: return
+        viewModelScope.launch {
+            runCatching {
+                downloadRepository.enqueueChapter(
+                    mangaId = mangaId,
+                    chapterId = chapterId,
+                    mangaTitle = update.manga.title,
+                    chapterTitle = update.chapter.name,
+                    sourceName = update.manga.sourceId.toString()
+                )
+            }.onSuccess {
+                _effect.send(UpdatesEffect.ShowSnackbar(
+                    context.getString(R.string.updates_download_queued, update.chapter.name)
+                ))
+            }.onFailure {
+                _effect.send(UpdatesEffect.ShowSnackbar(
+                    context.getString(R.string.updates_download_failed, update.chapter.name)
+                ))
             }
+        }
+    }
+
+    private fun downloadSelected() {
+        val selected = _state.value.selectedItems
+        if (selected.isEmpty()) return
+        viewModelScope.launch {
+            val updates = _state.value.updates.filter { it.chapter.id in selected }
+            var successCount = 0
+            var failCount = 0
+            updates.forEach { update ->
+                runCatching {
+                    downloadRepository.enqueueChapter(
+                        mangaId = update.manga.id,
+                        chapterId = update.chapter.id,
+                        mangaTitle = update.manga.title,
+                        chapterTitle = update.chapter.name,
+                        sourceName = update.manga.sourceId.toString()
+                    )
+                }.onSuccess { successCount++ }.onFailure { failCount++ }
+            }
+            _state.update { it.copy(selectedItems = emptySet()) }
+            val message = if (failCount == 0) {
+                context.getString(R.string.updates_bulk_download_queued, successCount)
+            } else {
+                context.getString(R.string.updates_bulk_download_partial, successCount, failCount)
+            }
+            _effect.send(UpdatesEffect.ShowSnackbar(message))
+        }
+    }
+
+    private fun markSelectedAsRead() {
+        val selected = _state.value.selectedItems
+        if (selected.isEmpty()) return
+        viewModelScope.launch {
+            runCatching {
+                chapterRepository.updateChapterProgress(selected, read = true, lastPageRead = 0)
+            }
+            _state.update { it.copy(selectedItems = emptySet()) }
         }
     }
 
@@ -98,7 +179,7 @@ class UpdatesViewModel @Inject constructor(
             generalPreferences.setLastUpdatesViewedAt(System.currentTimeMillis())
         }
     }
-    
+
     /** Load manga that will be checked during the next library update. */
     private fun loadPendingUpdates() {
         viewModelScope.launch {
@@ -109,30 +190,23 @@ class UpdatesViewModel @Inject constructor(
                         mangaId = manga.id,
                         title = manga.title,
                         thumbnailUrl = manga.thumbnailUrl,
-                        sourceName = manga.sourceId.toString(), // source name lookup not available without source registry
-                        lastChecked = 0L // no last-checked timestamp in Manga model; 0 means "never"
+                        sourceName = manga.sourceId.toString(),
+                        lastChecked = 0L
                     )
                 }
-                _state.update { state ->
-                    state.copy(pendingUpdates = pendingManga)
-                }
+                _state.update { state -> state.copy(pendingUpdates = pendingManga) }
             } catch (e: Exception) {
-                // If loading fails, show empty list
-                _state.update { state ->
-                    state.copy(pendingUpdates = emptyList())
-                }
+                _state.update { state -> state.copy(pendingUpdates = emptyList()) }
             }
         }
     }
-    
+
     /** Start a manual library update. */
     private fun startLibraryUpdate() {
         viewModelScope.launch {
-            // Enqueue one-time library update work
             LibraryUpdateWorker.enqueue(context)
-            // Hide the dialog and show confirmation
             _state.update { it.copy(showPendingUpdates = false) }
-            _effect.send(UpdatesEffect.ShowSnackbar("Library update started"))
+            _effect.send(UpdatesEffect.ShowSnackbar(context.getString(R.string.updates_library_update_started)))
         }
     }
 }

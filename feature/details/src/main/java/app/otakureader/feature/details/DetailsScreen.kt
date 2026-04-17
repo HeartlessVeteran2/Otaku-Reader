@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -291,7 +292,9 @@ private fun DetailsContent(
             ChapterListHeader(
                 chapterCount = state.chapters.size,
                 sortOrder = state.chapterSortOrder,
-                onToggleSort = { onEvent(DetailsContract.Event.ToggleSortOrder) }
+                isFilterActive = state.chapterFilter.isActive,
+                onToggleSort = { onEvent(DetailsContract.Event.ToggleSortOrder) },
+                onShowFilter = { onEvent(DetailsContract.Event.ShowChapterFilter) }
             )
         }
 
@@ -312,6 +315,15 @@ private fun DetailsContent(
             onTextChange = { onEvent(DetailsContract.Event.UpdateNoteText(it)) },
             onSave = { onEvent(DetailsContract.Event.SaveNote) },
             onDismiss = { onEvent(DetailsContract.Event.HideNoteEditor) }
+        )
+    }
+
+    if (state.showChapterFilter) {
+        ChapterFilterDialog(
+            filter = state.chapterFilter,
+            scanlators = state.chapters.mapNotNull { it.scanlator }.distinct().sorted(),
+            onApply = { newFilter -> onEvent(DetailsContract.Event.SetChapterFilter(newFilter)) },
+            onDismiss = { onEvent(DetailsContract.Event.HideChapterFilter) }
         )
     }
 }
@@ -1147,7 +1159,9 @@ private fun ColorChip(
 private fun ChapterListHeader(
     chapterCount: Int,
     sortOrder: DetailsContract.ChapterSortOrder,
+    isFilterActive: Boolean = false,
     onToggleSort: () -> Unit,
+    onShowFilter: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -1160,14 +1174,160 @@ private fun ChapterListHeader(
             style = MaterialTheme.typography.titleMedium
         )
 
-        TextButton(onClick = onToggleSort) {
-            Text(
-                when (sortOrder) {
-                    DetailsContract.ChapterSortOrder.ASCENDING -> stringResource(R.string.details_sort_ascending)
-                    DetailsContract.ChapterSortOrder.DESCENDING -> stringResource(R.string.details_sort_descending)
-                }
-            )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onShowFilter) {
+                Icon(
+                    imageVector = Icons.Default.FilterList,
+                    contentDescription = stringResource(R.string.details_filter_chapters),
+                    tint = if (isFilterActive) MaterialTheme.colorScheme.primary
+                           else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            TextButton(onClick = onToggleSort) {
+                Text(
+                    when (sortOrder) {
+                        DetailsContract.ChapterSortOrder.ASCENDING -> stringResource(R.string.details_sort_ascending)
+                        DetailsContract.ChapterSortOrder.DESCENDING -> stringResource(R.string.details_sort_descending)
+                    }
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun ChapterFilterDialog(
+    filter: DetailsContract.ChapterFilter,
+    scanlators: List<String>,
+    onApply: (DetailsContract.ChapterFilter) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var read by remember { mutableStateOf(filter.read) }
+    var bookmarked by remember { mutableStateOf(filter.bookmarked) }
+    var downloaded by remember { mutableStateOf(filter.downloaded) }
+    var selectedScanlator by remember { mutableStateOf(filter.scanlator) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.details_filter_chapters)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Read / Unread filter
+                Text(
+                    text = stringResource(R.string.details_filter_read_label),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                TriStateRow(
+                    labelAll = stringResource(R.string.details_filter_all),
+                    labelOnly = stringResource(R.string.details_filter_read),
+                    labelExclude = stringResource(R.string.details_filter_unread),
+                    state = read,
+                    onStateChange = { read = it }
+                )
+
+                HorizontalDivider()
+
+                // Bookmark filter
+                Text(
+                    text = stringResource(R.string.details_filter_bookmarked_label),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                TriStateRow(
+                    labelAll = stringResource(R.string.details_filter_all),
+                    labelOnly = stringResource(R.string.details_filter_bookmarked),
+                    labelExclude = stringResource(R.string.details_filter_not_bookmarked),
+                    state = bookmarked,
+                    onStateChange = { bookmarked = it }
+                )
+
+                HorizontalDivider()
+
+                // Downloaded filter
+                Text(
+                    text = stringResource(R.string.details_filter_downloaded_label),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                TriStateRow(
+                    labelAll = stringResource(R.string.details_filter_all),
+                    labelOnly = stringResource(R.string.details_filter_downloaded),
+                    labelExclude = stringResource(R.string.details_filter_not_downloaded),
+                    state = downloaded,
+                    onStateChange = { downloaded = it }
+                )
+
+                // Scanlator filter (only shown when multiple scanlators exist)
+                if (scanlators.size > 1) {
+                    HorizontalDivider()
+                    Text(
+                        text = stringResource(R.string.details_filter_scanlator_label),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    // "All scanlators" chip
+                    FilterChip(
+                        selected = selectedScanlator == null,
+                        onClick = { selectedScanlator = null },
+                        label = { Text(stringResource(R.string.details_filter_all)) }
+                    )
+                    scanlators.forEach { s ->
+                        FilterChip(
+                            selected = selectedScanlator == s,
+                            onClick = { selectedScanlator = if (selectedScanlator == s) null else s },
+                            label = { Text(s) }
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                onApply(DetailsContract.ChapterFilter(read, bookmarked, downloaded, selectedScanlator))
+            }) {
+                Text(stringResource(R.string.details_filter_apply))
+            }
+        },
+        dismissButton = {
+            Row {
+                TextButton(onClick = {
+                    onApply(DetailsContract.ChapterFilter())
+                }) {
+                    Text(stringResource(R.string.details_filter_reset))
+                }
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.details_filter_cancel))
+                }
+            }
+        }
+    )
+}
+
+@Composable
+private fun TriStateRow(
+    labelAll: String,
+    labelOnly: String,
+    labelExclude: String,
+    state: DetailsContract.TriState,
+    onStateChange: (DetailsContract.TriState) -> Unit
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FilterChip(
+            selected = state == DetailsContract.TriState.ALL,
+            onClick = { onStateChange(DetailsContract.TriState.ALL) },
+            label = { Text(labelAll) }
+        )
+        FilterChip(
+            selected = state == DetailsContract.TriState.ONLY,
+            onClick = { onStateChange(DetailsContract.TriState.ONLY) },
+            label = { Text(labelOnly) }
+        )
+        FilterChip(
+            selected = state == DetailsContract.TriState.EXCLUDE,
+            onClick = { onStateChange(DetailsContract.TriState.EXCLUDE) },
+            label = { Text(labelExclude) }
+        )
     }
 }
 

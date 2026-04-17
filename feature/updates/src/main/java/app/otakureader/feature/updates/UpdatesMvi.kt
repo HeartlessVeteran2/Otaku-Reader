@@ -31,6 +31,8 @@ data class UpdatesState(
     val isLoading: Boolean = false,
     val updates: List<MangaUpdate> = emptyList(),
     val error: String? = null,
+    /** Selected chapter IDs for bulk operations. */
+    val selectedItems: Set<Long> = emptySet(),
     /** List of failed updates for the Update Error Screen. */
     val updateErrors: List<UpdateErrorEntry> = emptyList(),
     /** Whether the update error screen is visible. */
@@ -44,13 +46,19 @@ data class UpdatesState(
 sealed interface UpdatesEvent : UiEvent {
     data object Refresh : UpdatesEvent
     data class OnChapterClick(val mangaId: Long, val chapterId: Long) : UpdatesEvent
-    
+    data class OnChapterLongClick(val chapterId: Long) : UpdatesEvent
+    data class OnDownloadChapter(val mangaId: Long, val chapterId: Long) : UpdatesEvent
+    data object ClearSelection : UpdatesEvent
+    data object SelectAll : UpdatesEvent
+    data object DownloadSelected : UpdatesEvent
+    data object MarkSelectedAsRead : UpdatesEvent
+
     // Update Error Screen events
     data object ShowUpdateErrors : UpdatesEvent
     data object HideUpdateErrors : UpdatesEvent
     data class ClearUpdateError(val mangaId: Long) : UpdatesEvent
     data object ClearAllUpdateErrors : UpdatesEvent
-    
+
     // To-Be-Updated Screen events
     data object ShowPendingUpdates : UpdatesEvent
     data object HidePendingUpdates : UpdatesEvent

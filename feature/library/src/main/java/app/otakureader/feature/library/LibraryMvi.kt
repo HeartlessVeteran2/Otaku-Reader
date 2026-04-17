@@ -25,6 +25,7 @@ data class LibraryState(
     val mangaList: List<LibraryMangaItem> = emptyList(),
     val selectedManga: Set<Long> = emptySet(),
     val searchQuery: String = "",
+    val showSearchBar: Boolean = false,
     val error: String? = null,
     val categories: List<CategoryItem> = emptyList(),
     val selectedCategory: Long? = null,
@@ -71,6 +72,7 @@ sealed class LibraryEvent {
     data class OnMangaClick(val mangaId: Long) : LibraryEvent()
     data class OnMangaLongClick(val mangaId: Long) : LibraryEvent()
     data class OnSearchQueryChange(val query: String) : LibraryEvent()
+    data object ToggleSearchBar : LibraryEvent()
     data class OnCategorySelected(val categoryId: Long?) : LibraryEvent()
     data object ClearSelection : LibraryEvent()
     data class ToggleFavorite(val mangaId: Long) : LibraryEvent()
@@ -79,6 +81,11 @@ sealed class LibraryEvent {
     data class SetFilterMode(val mode: LibraryFilterMode) : LibraryEvent()
     data class SetFilterSource(val sourceId: Long?) : LibraryEvent()
     data class ToggleNsfw(val show: Boolean) : LibraryEvent()
+    // Bulk selection actions
+    data object MarkSelectedAsRead : LibraryEvent()
+    data object MarkSelectedAsUnread : LibraryEvent()
+    data object RemoveSelectedFromLibrary : LibraryEvent()
+    data object DownloadSelected : LibraryEvent()
     // Recommendations
     data object LoadRecommendations : LibraryEvent()
     data object RefreshRecommendations : LibraryEvent()

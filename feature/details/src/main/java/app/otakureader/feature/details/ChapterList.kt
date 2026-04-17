@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.Downloading
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.SelectAll
@@ -76,7 +77,9 @@ fun ChapterList(
     selectedChapters: Set<Long>,
     groupedChapters: Map<String?, List<DetailsContract.ChapterItem>>,
     sortOrder: DetailsContract.ChapterSortOrder,
+    chapterFilter: DetailsContract.ChapterFilter = DetailsContract.ChapterFilter(),
     onSortOrderChange: () -> Unit,
+    onShowFilter: () -> Unit = {},
     onChapterClick: (Long) -> Unit,
     onChapterLongClick: (Long) -> Unit,
     onToggleRead: (Long) -> Unit,
@@ -101,7 +104,9 @@ fun ChapterList(
             chapterCount = chapters.size,
             selectedCount = selectedChapters.size,
             sortOrder = sortOrder,
+            isFilterActive = chapterFilter.isActive,
             onSortOrderChange = onSortOrderChange,
+            onShowFilter = onShowFilter,
             onClearSelection = onClearSelection,
             onSelectAll = onSelectAll,
             onDownloadSelected = onDownloadSelected,
@@ -153,7 +158,9 @@ private fun ChapterListHeader(
     chapterCount: Int,
     selectedCount: Int,
     sortOrder: DetailsContract.ChapterSortOrder,
+    isFilterActive: Boolean = false,
     onSortOrderChange: () -> Unit,
+    onShowFilter: () -> Unit = {},
     onClearSelection: () -> Unit,
     onSelectAll: () -> Unit,
     onDownloadSelected: () -> Unit,
@@ -225,6 +232,15 @@ private fun ChapterListHeader(
                         Icon(
                             imageVector = Icons.Default.SelectAll,
                             contentDescription = stringResource(R.string.details_select_all)
+                        )
+                    }
+                    // Filter button — tinted when a filter is active
+                    IconButton(onClick = onShowFilter) {
+                        Icon(
+                            imageVector = Icons.Default.FilterList,
+                            contentDescription = stringResource(R.string.details_filter_chapters),
+                            tint = if (isFilterActive) MaterialTheme.colorScheme.primary
+                                   else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     IconButton(onClick = onSortOrderChange) {

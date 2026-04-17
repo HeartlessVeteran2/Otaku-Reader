@@ -49,4 +49,23 @@
     <string name="updates_pending_last_checked">Last checked: %1$s</string>
     <string name="updates_pending_close">Close</string>
     <string name="updates_pending_start">Start Update</string>
+    <!-- Selection mode -->
+    <string name="updates_selected_count">%1$d selected</string>
+    <string name="updates_clear_selection">Clear selection</string>
+    <string name="updates_select_all">Select all</string>
+    <string name="updates_download_selected">Download selected</string>
+    <string name="updates_mark_selected_read">Mark selected as read</string>
+    <string name="updates_download_chapter">Download chapter</string>
+    <!-- Download feedback -->
+    <string name="updates_download_queued">Download queued: %1$s</string>
+    <string name="updates_download_failed">Failed to queue download: %1$s</string>
+    <string name="updates_bulk_download_queued">%1$d chapter(s) queued for download</string>
+    <string name="updates_bulk_download_partial">%1$d queued, %2$d failed</string>
+    <string name="updates_library_update_started">Library update started</string>
+    <!-- Date group headers -->
+    <string name="updates_date_today">Today</string>
+    <string name="updates_date_yesterday">Yesterday</string>
+    <string name="updates_date_this_week">This week</string>
+    <string name="updates_date_this_month">This month</string>
+    <string name="updates_date_older">Older</string>
 </resources>

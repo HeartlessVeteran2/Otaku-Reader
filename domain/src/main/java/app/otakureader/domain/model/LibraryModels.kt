@@ -14,13 +14,17 @@ data class LibraryManga(
     val downloadedCount: Int = 0
 )
 
-/** A chapter with its reading history entry. */
+/** A chapter with its reading history entry, optionally enriched with manga metadata. */
 @Immutable
 @Serializable
 data class ChapterWithHistory(
     val chapter: Chapter,
     val readAt: Long = 0L,
-    val readDurationMs: Long = 0L
+    val readDurationMs: Long = 0L,
+    /** The parent manga's title. Populated when loaded via a manga-joined query. */
+    val mangaTitle: String? = null,
+    /** The parent manga's cover URL. Populated when loaded via a manga-joined query. */
+    val mangaThumbnailUrl: String? = null
 )
 
 /** Manga with its latest chapter for the Updates screen. */

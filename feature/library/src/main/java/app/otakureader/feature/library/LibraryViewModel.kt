@@ -76,6 +76,7 @@ class LibraryViewModel @Inject constructor(
             is LibraryEvent.OnMangaClick -> onMangaClick(event.mangaId)
             is LibraryEvent.OnMangaLongClick -> onMangaLongClick(event.mangaId)
             is LibraryEvent.OnSearchQueryChange -> onSearchQueryChange(event.query)
+            is LibraryEvent.ToggleSearchBar -> toggleSearchBar()
             is LibraryEvent.OnCategorySelected -> onCategorySelected(event.categoryId)
             is LibraryEvent.ClearSelection -> clearSelection()
             is LibraryEvent.ToggleFavorite -> toggleFavorite(event.mangaId)
@@ -84,6 +85,10 @@ class LibraryViewModel @Inject constructor(
             is LibraryEvent.SetFilterMode -> onSetFilterMode(event.mode)
             is LibraryEvent.SetFilterSource -> onSetFilterSource(event.sourceId)
             is LibraryEvent.ToggleNsfw -> onToggleNsfw(event.show)
+            is LibraryEvent.MarkSelectedAsRead -> markSelectedAsRead()
+            is LibraryEvent.MarkSelectedAsUnread -> markSelectedAsUnread()
+            is LibraryEvent.RemoveSelectedFromLibrary -> removeSelectedFromLibrary()
+            is LibraryEvent.DownloadSelected -> downloadSelected()
             is LibraryEvent.LoadRecommendations -> loadRecommendations()
             is LibraryEvent.RefreshRecommendations -> loadRecommendations(forceRefresh = true)
             is LibraryEvent.DismissRecommendation -> onDismissRecommendation(event.recommendationTitle)
@@ -336,12 +341,67 @@ class LibraryViewModel @Inject constructor(
         _state.update { it.copy(searchQuery = query) }
     }
 
+    private fun toggleSearchBar() {
+        _state.update { state ->
+            if (state.showSearchBar) {
+                // Closing: also clear the query
+                state.copy(showSearchBar = false, searchQuery = "")
+            } else {
+                state.copy(showSearchBar = true)
+            }
+        }
+    }
+
     private fun onCategorySelected(categoryId: Long?) {
         _state.update { it.copy(selectedCategory = categoryId) }
     }
 
     private fun clearSelection() {
         _state.update { it.copy(selectedManga = emptySet()) }
+    }
+
+    private fun markSelectedAsRead() {
+        val mangaIds = _state.value.selectedManga
+        if (mangaIds.isEmpty()) return
+        viewModelScope.launch {
+            val chapterIds = mangaIds.flatMap { mangaId ->
+                chapterRepository.getChaptersByMangaIdSync(mangaId).map { it.id }
+            }
+            if (chapterIds.isNotEmpty()) {
+                chapterRepository.updateChapterProgress(chapterIds, read = true, lastPageRead = 0)
+            }
+            clearSelection()
+        }
+    }
+
+    private fun markSelectedAsUnread() {
+        val mangaIds = _state.value.selectedManga
+        if (mangaIds.isEmpty()) return
+        viewModelScope.launch {
+            val chapterIds = mangaIds.flatMap { mangaId ->
+                chapterRepository.getChaptersByMangaIdSync(mangaId).map { it.id }
+            }
+            if (chapterIds.isNotEmpty()) {
+                chapterRepository.updateChapterProgress(chapterIds, read = false, lastPageRead = 0)
+            }
+            clearSelection()
+        }
+    }
+
+    private fun removeSelectedFromLibrary() {
+        val ids = _state.value.selectedManga
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            ids.forEach { mangaId -> toggleFavoriteManga(mangaId) }
+            clearSelection()
+        }
+    }
+
+    private fun downloadSelected() {
+        // TODO: Wire up DownloadRepository to enqueue selected manga chapters.
+        // Currently left as a no-op to avoid silently doing nothing after clearing
+        // the selection — callers should wait until this is implemented before exposing it.
+        clearSelection()
     }
 
     private fun toggleFavorite(mangaId: Long) {

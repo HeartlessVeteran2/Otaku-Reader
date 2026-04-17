@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Transaction
 import app.otakureader.core.database.entity.ChapterWithHistoryEntity
+import app.otakureader.core.database.entity.HistoryWithMangaEntity
 import app.otakureader.core.database.entity.LastReadInfo
 import app.otakureader.core.database.entity.ReadingHistoryEntity
 import kotlinx.coroutines.flow.Flow
@@ -76,6 +77,36 @@ interface ReadingHistoryDao {
 
     @Query("SELECT * FROM reading_history ORDER BY read_at DESC")
     fun observeHistory(): Flow<List<ReadingHistoryEntity>>
+
+    /**
+     * Returns chapters joined with their reading history **and** parent manga metadata, ordered
+     * by most-recently read.  Used by the History screen to display the cover thumbnail and manga
+     * title alongside each chapter row without extra queries.
+     */
+    @Query(
+        """
+        SELECT ch.id,
+               ch.mangaId,
+               ch.url,
+               ch.name,
+               ch.scanlator,
+               ch.read,
+               ch.bookmark,
+               ch.lastPageRead,
+               ch.chapterNumber,
+               ch.dateFetch,
+               ch.dateUpload,
+               rh.read_at,
+               rh.read_duration_ms,
+               m.title  AS manga_title,
+               m.thumbnailUrl AS manga_thumbnail
+        FROM   chapters        ch
+        INNER JOIN reading_history rh ON ch.id        = rh.chapter_id
+        INNER JOIN manga           m  ON ch.mangaId   = m.id
+        ORDER  BY rh.read_at DESC
+        """
+    )
+    fun observeHistoryWithMangaInfo(): Flow<List<HistoryWithMangaEntity>>
 
     /**
      * Returns chapters joined with their reading history, ordered by most-recently read.

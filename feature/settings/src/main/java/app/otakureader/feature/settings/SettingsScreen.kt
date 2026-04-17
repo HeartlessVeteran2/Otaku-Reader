@@ -1616,6 +1616,36 @@ private fun DataStorageSection(state: SettingsState, onEvent: (SettingsEvent) ->
                 supportingContent = { Text(stringResource(R.string.settings_migrate_manga_description)) },
                 modifier = Modifier.clickable { onEvent(SettingsEvent.OnNavigateToMigration) }
             )
+
+            HorizontalDivider()
+            SectionHeader(title = stringResource(R.string.settings_data_management))
+
+            // Clear image cache
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_clear_image_cache)) },
+                supportingContent = { Text(stringResource(R.string.settings_clear_image_cache_desc)) },
+                trailingContent = {
+                    OutlinedButton(onClick = { onEvent(SettingsEvent.ClearImageCache) }) {
+                        Text(stringResource(R.string.settings_clear_button))
+                    }
+                }
+            )
+
+            // Clear reading history
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_clear_history)) },
+                supportingContent = { Text(stringResource(R.string.settings_clear_history_desc)) },
+                trailingContent = {
+                    OutlinedButton(
+                        onClick = { onEvent(SettingsEvent.ClearHistory) },
+                        colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Text(stringResource(R.string.settings_clear_button))
+                    }
+                }
+            )
 }
 
 @Composable

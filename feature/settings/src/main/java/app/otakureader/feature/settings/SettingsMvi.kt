@@ -326,6 +326,10 @@ sealed interface SettingsEvent : UiEvent {
     data class SetAppUpdateCheckEnabled(val enabled: Boolean) : SettingsEvent
     data object CheckForAppUpdate : SettingsEvent
 
+    // Data management
+    data object ClearImageCache : SettingsEvent
+    data object ClearHistory : SettingsEvent
+
     // Navigation
     data object NavigateToAbout : SettingsEvent
 }

@@ -1,11 +1,15 @@
 package app.otakureader.feature.updates
 
+import android.content.Context
 import app.otakureader.core.preferences.GeneralPreferences
 import androidx.datastore.preferences.core.Preferences
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.model.MangaUpdate
+import app.otakureader.domain.repository.ChapterRepository
+import app.otakureader.domain.repository.DownloadRepository
+import app.otakureader.domain.usecase.GetLibraryMangaUseCase
 import app.otakureader.domain.usecase.GetRecentUpdatesUseCase
 import app.cash.turbine.test
 import io.mockk.coEvery
@@ -35,7 +39,11 @@ class UpdatesViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
 
     private lateinit var getRecentUpdatesUseCase: GetRecentUpdatesUseCase
+    private lateinit var getLibraryMangaUseCase: GetLibraryMangaUseCase
     private lateinit var generalPreferences: GeneralPreferences
+    private lateinit var downloadRepository: DownloadRepository
+    private lateinit var chapterRepository: ChapterRepository
+    private lateinit var context: Context
 
     private val sampleManga = Manga(
         id = 1L, sourceId = 1L, url = "/m/1", title = "Naruto",
@@ -51,9 +59,13 @@ class UpdatesViewModelTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         getRecentUpdatesUseCase = mockk()
+        getLibraryMangaUseCase = mockk(relaxed = true)
         generalPreferences = mockk {
             coEvery { setLastUpdatesViewedAt(any()) } returns mockk<Preferences>(relaxed = true)
         }
+        downloadRepository = mockk(relaxed = true)
+        chapterRepository = mockk(relaxed = true)
+        context = mockk(relaxed = true)
     }
 
     @After
@@ -62,7 +74,14 @@ class UpdatesViewModelTest {
     }
 
     private fun createViewModel(): UpdatesViewModel {
-        return UpdatesViewModel(getRecentUpdatesUseCase, generalPreferences)
+        return UpdatesViewModel(
+            getRecentUpdatesUseCase,
+            getLibraryMangaUseCase,
+            generalPreferences,
+            downloadRepository,
+            chapterRepository,
+            context
+        )
     }
 
     @Test
