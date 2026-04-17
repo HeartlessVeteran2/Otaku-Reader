@@ -520,7 +520,7 @@ class SettingsViewModel @Inject constructor(
 
                 // Data management
                 SettingsEvent.ClearImageCache -> clearImageCache()
-                SettingsEvent.ClearDatabase -> clearDatabase()
+                SettingsEvent.ClearHistory -> clearHistory()
 
                 SettingsEvent.NavigateToAbout -> _effect.send(SettingsEffect.NavigateToAbout)
             }
@@ -880,13 +880,17 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    /** Clears all Coil in-memory and disk image caches by deleting the cache directory. */
+    /** Clears the on-disk image cache directory used by Coil. */
     private fun clearImageCache() {
         viewModelScope.launch {
             try {
                 val cacheDir = context.cacheDir.resolve("image_cache")
-                cacheDir.deleteRecursively()
-                _effect.send(SettingsEffect.ShowSnackbar(context.getString(R.string.settings_clear_cache_success)))
+                val deleted = !cacheDir.exists() || cacheDir.deleteRecursively()
+                if (deleted) {
+                    _effect.send(SettingsEffect.ShowSnackbar(context.getString(R.string.settings_clear_cache_success)))
+                } else {
+                    _effect.send(SettingsEffect.ShowSnackbar(context.getString(R.string.settings_clear_cache_failed)))
+                }
             } catch (e: Exception) {
                 _effect.send(SettingsEffect.ShowSnackbar(context.getString(R.string.settings_clear_cache_failed)))
             }
@@ -894,7 +898,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     /** Clears all reading history from the database. */
-    private fun clearDatabase() {
+    private fun clearHistory() {
         viewModelScope.launch {
             try {
                 chapterRepository.clearAllHistory()

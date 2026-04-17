@@ -153,7 +153,7 @@ fun OnboardingScreen(
     // ── Battery optimisation ──────────────────────────────────────────────────
     fun isBatteryOptimizationIgnored(): Boolean =
         context.getSystemService(PowerManager::class.java)
-            .isIgnoringBatteryOptimizations(context.packageName)
+            ?.isIgnoringBatteryOptimizations(context.packageName) ?: false
 
     var batteryOptimizationIgnored by remember { mutableStateOf(isBatteryOptimizationIgnored()) }
     val batteryOptimizationLauncher = rememberLauncherForActivityResult(

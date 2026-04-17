@@ -398,7 +398,9 @@ class LibraryViewModel @Inject constructor(
     }
 
     private fun downloadSelected() {
-        // Downloads are managed by DownloadManager; just clear selection for now
+        // TODO: Wire up DownloadRepository to enqueue selected manga chapters.
+        // Currently left as a no-op to avoid silently doing nothing after clearing
+        // the selection — callers should wait until this is implemented before exposing it.
         clearSelection()
     }
 

@@ -1637,7 +1637,7 @@ private fun DataStorageSection(state: SettingsState, onEvent: (SettingsEvent) ->
                 supportingContent = { Text(stringResource(R.string.settings_clear_history_desc)) },
                 trailingContent = {
                     OutlinedButton(
-                        onClick = { onEvent(SettingsEvent.ClearDatabase) },
+                        onClick = { onEvent(SettingsEvent.ClearHistory) },
                         colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
                             contentColor = MaterialTheme.colorScheme.error
                         )

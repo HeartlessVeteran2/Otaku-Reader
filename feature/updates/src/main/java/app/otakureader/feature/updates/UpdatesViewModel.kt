@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.data.worker.LibraryUpdateWorker
+import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.usecase.GetLibraryMangaUseCase
 import app.otakureader.domain.usecase.GetRecentUpdatesUseCase
@@ -29,6 +30,7 @@ class UpdatesViewModel @Inject constructor(
     private val getLibraryMangaUseCase: GetLibraryMangaUseCase,
     private val generalPreferences: GeneralPreferences,
     private val downloadRepository: DownloadRepository,
+    private val chapterRepository: ChapterRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -52,7 +54,7 @@ class UpdatesViewModel @Inject constructor(
             UpdatesEvent.ClearSelection -> _state.update { it.copy(selectedItems = emptySet()) }
             UpdatesEvent.SelectAll -> selectAll()
             UpdatesEvent.DownloadSelected -> downloadSelected()
-            UpdatesEvent.MarkSelectedAsRead -> _state.update { it.copy(selectedItems = emptySet()) }
+            UpdatesEvent.MarkSelectedAsRead -> markSelectedAsRead()
 
             // Update Error Screen events
             UpdatesEvent.ShowUpdateErrors -> _state.update { it.copy(showUpdateErrors = true) }
@@ -105,13 +107,14 @@ class UpdatesViewModel @Inject constructor(
                     mangaId = mangaId,
                     chapterId = chapterId,
                     mangaTitle = update.manga.title,
-                    chapterTitle = update.chapter.name
+                    chapterTitle = update.chapter.name,
+                    sourceName = update.manga.sourceId.toString()
                 )
             }.onSuccess {
                 _effect.send(UpdatesEffect.ShowSnackbar(
                     context.getString(R.string.updates_download_queued, update.chapter.name)
                 ))
-            }.onFailure { e ->
+            }.onFailure {
                 _effect.send(UpdatesEffect.ShowSnackbar(
                     context.getString(R.string.updates_download_failed, update.chapter.name)
                 ))
@@ -132,7 +135,8 @@ class UpdatesViewModel @Inject constructor(
                         mangaId = update.manga.id,
                         chapterId = update.chapter.id,
                         mangaTitle = update.manga.title,
-                        chapterTitle = update.chapter.name
+                        chapterTitle = update.chapter.name,
+                        sourceName = update.manga.sourceId.toString()
                     )
                 }.onSuccess { successCount++ }.onFailure { failCount++ }
             }
@@ -143,6 +147,17 @@ class UpdatesViewModel @Inject constructor(
                 context.getString(R.string.updates_bulk_download_partial, successCount, failCount)
             }
             _effect.send(UpdatesEffect.ShowSnackbar(message))
+        }
+    }
+
+    private fun markSelectedAsRead() {
+        val selected = _state.value.selectedItems
+        if (selected.isEmpty()) return
+        viewModelScope.launch {
+            runCatching {
+                chapterRepository.updateChapterProgress(selected, read = true, lastPageRead = 0)
+            }
+            _state.update { it.copy(selectedItems = emptySet()) }
         }
     }
 

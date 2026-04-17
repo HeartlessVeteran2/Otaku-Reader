@@ -171,11 +171,7 @@ data class SettingsState(
 
     // App Update Checker
     val appUpdateCheckEnabled: Boolean = true,
-    val lastAppUpdateCheck: Long = 0L,
-
-    // Data management
-    val showClearCacheConfirm: Boolean = false,
-    val showClearDatabaseConfirm: Boolean = false
+    val lastAppUpdateCheck: Long = 0L
 ) : UiState
 
 sealed interface SettingsEvent : UiEvent {
@@ -332,7 +328,7 @@ sealed interface SettingsEvent : UiEvent {
 
     // Data management
     data object ClearImageCache : SettingsEvent
-    data object ClearDatabase : SettingsEvent
+    data object ClearHistory : SettingsEvent
 
     // Navigation
     data object NavigateToAbout : SettingsEvent
