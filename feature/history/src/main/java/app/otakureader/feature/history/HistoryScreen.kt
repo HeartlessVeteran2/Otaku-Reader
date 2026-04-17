@@ -357,7 +357,7 @@ private fun HistoryItem(
                     tint = MaterialTheme.colorScheme.primary
                 )
             }
-            Spacer(modifier = Modifier.width(0.dp))
+            Spacer(modifier = Modifier.width(4.dp))
             IconButton(onClick = onRemoveClick, modifier = Modifier.size(32.dp)) {
                 Icon(
                     Icons.Default.Delete,
