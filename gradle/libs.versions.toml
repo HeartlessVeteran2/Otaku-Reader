@@ -39,7 +39,7 @@ datastore = "1.2.1"
 security-crypto = "1.1.0"
 
 # Network
-okhttp = "4.12.0"
+okhttp = "5.3.2"
 # D-1: Updated from 4.2.10.Final to 4.2.12.Final for security patches (CVE-2025-59419, CVE-2025-67735)
 netty = "4.2.12.Final"
 retrofit = "3.0.0"
@@ -74,7 +74,7 @@ detekt = "1.23.8"
 
 # Testing
 junit = "4.13.2"
-junit5 = "5.11.0"
+junit5 = "6.0.3"
 androidxTest = "1.3.0"
 androidxTestCore = "1.7.0"
 espresso = "3.7.0"
@@ -214,8 +214,8 @@ junit5-api = { group = "org.junit.jupiter", name = "junit-jupiter-api", version.
 junit5-engine = { group = "org.junit.jupiter", name = "junit-jupiter-engine", version.ref = "junit5" }
 junit5-params = { group = "org.junit.jupiter", name = "junit-jupiter-params", version.ref = "junit5" }
 junit5-vintage = { group = "org.junit.vintage", name = "junit-vintage-engine", version.ref = "junit5" }
-junit5-android-test-core = { group = "de.mannodermaus.junit5", name = "android-test-core", version = "1.3.0" }
-junit5-android-test-runner = { group = "de.mannodermaus.junit5", name = "android-test-runner", version = "1.3.0" }
+junit5-android-test-core = { group = "de.mannodermaus.junit5", name = "android-test-core", version = "2.0.1" }
+junit5-android-test-runner = { group = "de.mannodermaus.junit5", name = "android-test-runner", version = "2.0.1" }
 androidx-test-core = { group = "androidx.test", name = "core", version.ref = "androidxTestCore" }
 androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidxTest" }
 androidx-test-rules = { group = "androidx.test", name = "rules", version.ref = "androidxTest" }
