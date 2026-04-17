@@ -8,6 +8,7 @@ import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.tracking.TrackRepository
+import app.otakureader.core.database.dao.CategoryDao
 import app.otakureader.domain.usecase.DismissRecommendationUseCase
 import app.otakureader.domain.usecase.GetForYouRecommendationsUseCase
 import app.otakureader.domain.usecase.GetLibraryMangaUseCase
@@ -47,6 +48,7 @@ class LibraryViewModelTest {
     private lateinit var getForYouRecommendations: GetForYouRecommendationsUseCase
     private lateinit var refreshRecommendations: RefreshRecommendationsUseCase
     private lateinit var dismissRecommendation: DismissRecommendationUseCase
+    private lateinit var categoryDao: CategoryDao
 
     private val sampleMangas = listOf(
         Manga(id = 1L, sourceId = 10L, url = "/m/1", title = "Naruto", favorite = true, unreadCount = 3, lastRead = 1000L, status = MangaStatus.ONGOING),
@@ -88,6 +90,10 @@ class LibraryViewModelTest {
         dismissRecommendation = mockk {
             coEvery { this@mockk.invoke(any()) } returns Unit
         }
+        categoryDao = mockk(relaxed = true) {
+            every { getCategories() } returns flowOf(emptyList())
+            every { getMangaIdsByCategoryId(any()) } returns flowOf(emptyList())
+        }
     }
 
     @After
@@ -104,6 +110,7 @@ class LibraryViewModelTest {
             chapterRepository,
             downloadRepository,
             trackRepository,
+            categoryDao,
             getForYouRecommendations,
             refreshRecommendations,
             dismissRecommendation
