@@ -131,4 +131,21 @@
     
     <!-- Panorama cover -->
     <string name="details_toggle_panorama">Toggle panorama cover</string>
+
+    <!-- Chapter filter dialog -->
+    <string name="details_filter_chapters">Filter chapters</string>
+    <string name="details_filter_read_label">Read status</string>
+    <string name="details_filter_bookmarked_label">Bookmarked</string>
+    <string name="details_filter_downloaded_label">Downloaded</string>
+    <string name="details_filter_scanlator_label">Scanlator</string>
+    <string name="details_filter_all">All</string>
+    <string name="details_filter_read">Read</string>
+    <string name="details_filter_unread">Unread</string>
+    <string name="details_filter_bookmarked">Bookmarked</string>
+    <string name="details_filter_not_bookmarked">Not bookmarked</string>
+    <string name="details_filter_downloaded">Downloaded</string>
+    <string name="details_filter_not_downloaded">Not downloaded</string>
+    <string name="details_filter_apply">Apply</string>
+    <string name="details_filter_reset">Reset</string>
+    <string name="details_filter_cancel">Cancel</string>
 </resources>

@@ -49,4 +49,11 @@
     <string name="updates_pending_last_checked">Last checked: %1$s</string>
     <string name="updates_pending_close">Close</string>
     <string name="updates_pending_start">Start Update</string>
+    <!-- Selection mode -->
+    <string name="updates_selected_count">%1$d selected</string>
+    <string name="updates_clear_selection">Clear selection</string>
+    <string name="updates_select_all">Select all</string>
+    <string name="updates_download_selected">Download selected</string>
+    <string name="updates_mark_selected_read">Mark selected as read</string>
+    <string name="updates_download_chapter">Download chapter</string>
 </resources>

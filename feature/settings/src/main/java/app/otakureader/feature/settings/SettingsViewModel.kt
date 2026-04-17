@@ -1,11 +1,12 @@
 package app.otakureader.feature.settings
 
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import app.otakureader.core.preferences.AppPreferences
 import app.otakureader.core.preferences.AiPreferences
 import app.otakureader.core.preferences.AiTier
+import app.otakureader.core.preferences.AppPreferences
 import app.otakureader.core.preferences.BackupPreferences
 import app.otakureader.core.preferences.DownloadPreferences
 import app.otakureader.core.preferences.GeneralPreferences
@@ -56,7 +57,9 @@ class SettingsViewModel @Inject constructor(
     private val discordRpcService: DiscordRpcService,
     private val syncPreferences: SyncPreferences,
     private val syncManager: SyncManager,
-    private val appUpdateChecker: app.otakureader.data.updater.AppUpdateChecker
+    private val appUpdateChecker: app.otakureader.data.updater.AppUpdateChecker,
+    private val chapterRepository: app.otakureader.domain.repository.ChapterRepository,
+    @dagger.hilt.android.qualifiers.ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SettingsState())
@@ -515,6 +518,10 @@ class SettingsViewModel @Inject constructor(
                 is SettingsEvent.SetAppUpdateCheckEnabled -> generalPreferences.setAppUpdateCheckEnabled(event.enabled)
                 SettingsEvent.CheckForAppUpdate -> handleCheckForAppUpdate()
 
+                // Data management
+                SettingsEvent.ClearImageCache -> clearImageCache()
+                SettingsEvent.ClearDatabase -> clearDatabase()
+
                 SettingsEvent.NavigateToAbout -> _effect.send(SettingsEffect.NavigateToAbout)
             }
         }
@@ -869,6 +876,31 @@ class SettingsViewModel @Inject constructor(
                 _effect.send(SettingsEffect.ShowSnackbar("Update available: ${versionInfo.versionName}"))
             } else {
                 _effect.send(SettingsEffect.ShowSnackbar("App is up to date"))
+            }
+        }
+    }
+
+    /** Clears all Coil in-memory and disk image caches by deleting the cache directory. */
+    private fun clearImageCache() {
+        viewModelScope.launch {
+            try {
+                val cacheDir = context.cacheDir.resolve("image_cache")
+                cacheDir.deleteRecursively()
+                _effect.send(SettingsEffect.ShowSnackbar("Image cache cleared"))
+            } catch (e: Exception) {
+                _effect.send(SettingsEffect.ShowSnackbar("Failed to clear cache: ${e.message}"))
+            }
+        }
+    }
+
+    /** Clears all reading history from the database. */
+    private fun clearDatabase() {
+        viewModelScope.launch {
+            try {
+                chapterRepository.clearAllHistory()
+                _effect.send(SettingsEffect.ShowSnackbar("Reading history cleared"))
+            } catch (e: Exception) {
+                _effect.send(SettingsEffect.ShowSnackbar("Failed to clear history: ${e.message}"))
             }
         }
     }

@@ -25,6 +25,8 @@ object DetailsContract {
         val isFavorite: Boolean = false,
         val descriptionExpanded: Boolean = false,
         val chapterSortOrder: ChapterSortOrder = ChapterSortOrder.DESCENDING,
+        /** Active chapter list filter. */
+        val chapterFilter: ChapterFilter = ChapterFilter(),
         val error: String? = null,
         val isRefreshing: Boolean = false,
         val nextUnreadChapter: Chapter? = null,
@@ -47,6 +49,8 @@ object DetailsContract {
         val isLoadingSourceSuggestions: Boolean = false,
         /** Error message for source suggestions loading failure. */
         val sourceSuggestionsError: String? = null,
+        /** Whether the chapter filter bottom-sheet is currently visible. */
+        val showChapterFilter: Boolean = false,
         /** Whether to show panorama cover (wide banner) instead of square thumbnail. */
         val showPanoramaCover: Boolean = false
     ) : UiState {
@@ -58,9 +62,12 @@ object DetailsContract {
             get() = chapters.any { !it.read }
         
         val sortedChapters: List<ChapterItem>
-            get() = when (chapterSortOrder) {
-                ChapterSortOrder.ASCENDING -> chapters.sortedBy { it.chapterNumber }
-                ChapterSortOrder.DESCENDING -> chapters.sortedByDescending { it.chapterNumber }
+            get() {
+                val filtered = chapterFilter.apply(chapters)
+                return when (chapterSortOrder) {
+                    ChapterSortOrder.ASCENDING -> filtered.sortedBy { it.chapterNumber }
+                    ChapterSortOrder.DESCENDING -> filtered.sortedByDescending { it.chapterNumber }
+                }
             }
         
         val groupedChapters: Map<String?, List<ChapterItem>>
@@ -72,6 +79,47 @@ object DetailsContract {
                 DeleteAfterReadMode.DISABLED -> false
                 DeleteAfterReadMode.INHERIT -> globalDeleteAfterRead
             }
+    }
+
+    /**
+     * Tri-state for chapter list filters: unset = show all, true = show only matching,
+     * false = show only non-matching.
+     */
+    enum class TriState { ALL, ONLY, EXCLUDE }
+
+    /**
+     * Active chapter list filter configuration, matching Mihon's filter sheet options.
+     */
+    data class ChapterFilter(
+        val read: TriState = TriState.ALL,
+        val bookmarked: TriState = TriState.ALL,
+        val downloaded: TriState = TriState.ALL,
+        /** When non-null, only chapters from this scanlator are shown. */
+        val scanlator: String? = null
+    ) {
+        val isActive: Boolean
+            get() = read != TriState.ALL || bookmarked != TriState.ALL ||
+                    downloaded != TriState.ALL || scanlator != null
+
+        fun apply(chapters: List<ChapterItem>): List<ChapterItem> = chapters.filter { ch ->
+            val readOk = when (read) {
+                TriState.ALL -> true
+                TriState.ONLY -> ch.read
+                TriState.EXCLUDE -> !ch.read
+            }
+            val bookmarkOk = when (bookmarked) {
+                TriState.ALL -> true
+                TriState.ONLY -> ch.bookmark
+                TriState.EXCLUDE -> !ch.bookmark
+            }
+            val downloadOk = when (downloaded) {
+                TriState.ALL -> true
+                TriState.ONLY -> ch.downloadStatus == DownloadStatus.DOWNLOADED
+                TriState.EXCLUDE -> ch.downloadStatus != DownloadStatus.DOWNLOADED
+            }
+            val scanlatorOk = scanlator == null || ch.scanlator == scanlator
+            readOk && bookmarkOk && downloadOk && scanlatorOk
+        }
     }
 
     /**
@@ -119,6 +167,9 @@ object DetailsContract {
         data object ToggleFavorite : Event
         data object ToggleDescription : Event
         data object ToggleSortOrder : Event
+        data object ShowChapterFilter : Event
+        data object HideChapterFilter : Event
+        data class SetChapterFilter(val filter: ChapterFilter) : Event
         data object StartReading : Event
         data object ContinueReading : Event
         data class ChapterClick(val chapterId: Long) : Event

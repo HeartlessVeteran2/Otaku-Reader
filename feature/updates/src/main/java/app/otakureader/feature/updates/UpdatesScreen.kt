@@ -1,6 +1,7 @@
 package app.otakureader.feature.updates
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,10 +17,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.CircularProgressIndicator
@@ -83,44 +87,68 @@ fun UpdatesScreen(
         modifier = modifier,
         snackbarHost = { androidx.compose.material3.SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.updates_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.updates_back))
-                    }
-                },
-                actions = {
-                    // To-Be-Updated preview icon
-                    IconButton(onClick = { viewModel.onEvent(UpdatesEvent.ShowPendingUpdates) }) {
-                        Icon(
-                            imageVector = Icons.Default.Schedule,
-                            contentDescription = stringResource(R.string.updates_view_pending)
-                        )
-                    }
-                    // Update errors icon with badge
-                    if (state.updateErrors.isNotEmpty()) {
-                        IconButton(onClick = { viewModel.onEvent(UpdatesEvent.ShowUpdateErrors) }) {
-                            BadgedBox(
-                                badge = {
-                                    Badge { Text("${state.updateErrors.size}") }
-                                }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.ErrorOutline,
-                                    contentDescription = stringResource(R.string.updates_view_errors)
-                                )
-                            }
+            if (state.selectedItems.isNotEmpty()) {
+                TopAppBar(
+                    title = {
+                        Text(stringResource(R.string.updates_selected_count, state.selectedItems.size))
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = { viewModel.onEvent(UpdatesEvent.ClearSelection) }) {
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.updates_clear_selection))
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { viewModel.onEvent(UpdatesEvent.SelectAll) }) {
+                            Icon(Icons.Default.SelectAll, contentDescription = stringResource(R.string.updates_select_all))
+                        }
+                        IconButton(onClick = { viewModel.onEvent(UpdatesEvent.DownloadSelected) }) {
+                            Icon(Icons.Default.Download, contentDescription = stringResource(R.string.updates_download_selected))
+                        }
+                        IconButton(onClick = { viewModel.onEvent(UpdatesEvent.MarkSelectedAsRead) }) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = stringResource(R.string.updates_mark_selected_read))
                         }
                     }
-                    IconButton(onClick = onNavigateToDownloads) {
-                        Icon(
-                            imageVector = Icons.Default.Download,
-                            contentDescription = stringResource(R.string.updates_downloads)
-                        )
+                )
+            } else {
+                TopAppBar(
+                    title = { Text(stringResource(R.string.updates_title)) },
+                    navigationIcon = {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.updates_back))
+                        }
+                    },
+                    actions = {
+                        // To-Be-Updated preview icon
+                        IconButton(onClick = { viewModel.onEvent(UpdatesEvent.ShowPendingUpdates) }) {
+                            Icon(
+                                imageVector = Icons.Default.Schedule,
+                                contentDescription = stringResource(R.string.updates_view_pending)
+                            )
+                        }
+                        // Update errors icon with badge
+                        if (state.updateErrors.isNotEmpty()) {
+                            IconButton(onClick = { viewModel.onEvent(UpdatesEvent.ShowUpdateErrors) }) {
+                                BadgedBox(
+                                    badge = {
+                                        Badge { Text("${state.updateErrors.size}") }
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ErrorOutline,
+                                        contentDescription = stringResource(R.string.updates_view_errors)
+                                    )
+                                }
+                            }
+                        }
+                        IconButton(onClick = onNavigateToDownloads) {
+                            Icon(
+                                imageVector = Icons.Default.Download,
+                                contentDescription = stringResource(R.string.updates_downloads)
+                            )
+                        }
                     }
-                }
-            )
+                )
+            }
         }
     ) { paddingValues ->
         when {
@@ -161,6 +189,7 @@ fun UpdatesScreen(
 
             else -> UpdatesList(
                 updates = state.updates,
+                selectedItems = state.selectedItems,
                 onChapterClick = { update ->
                     viewModel.onEvent(
                         UpdatesEvent.OnChapterClick(
@@ -169,10 +198,21 @@ fun UpdatesScreen(
                         )
                     )
                 },
+                onChapterLongClick = { update ->
+                    viewModel.onEvent(UpdatesEvent.OnChapterLongClick(update.chapter.id))
+                },
+                onDownloadClick = { update ->
+                    viewModel.onEvent(
+                        UpdatesEvent.OnDownloadChapter(
+                            mangaId = update.manga.id,
+                            chapterId = update.chapter.id
+                        )
+                    )
+                },
                 modifier = Modifier.padding(paddingValues)
             )
         }
-        
+
         // Update Error Dialog
         if (state.showUpdateErrors) {
             UpdateErrorDialog(
@@ -182,7 +222,7 @@ fun UpdatesScreen(
                 onClearAll = { viewModel.onEvent(UpdatesEvent.ClearAllUpdateErrors) }
             )
         }
-        
+
         // To-Be-Updated Dialog
         if (state.showPendingUpdates) {
             PendingUpdatesDialog(
@@ -219,7 +259,10 @@ private sealed interface UpdateListItem {
 @Composable
 private fun UpdatesList(
     updates: List<MangaUpdate>,
+    selectedItems: Set<Long>,
     onChapterClick: (MangaUpdate) -> Unit,
+    onChapterLongClick: (MangaUpdate) -> Unit,
+    onDownloadClick: (MangaUpdate) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val listItems = remember(updates) {
@@ -246,7 +289,13 @@ private fun UpdatesList(
             when (item) {
                 is UpdateListItem.Header -> UpdatesDateHeader(label = item.label)
                 is UpdateListItem.Entry -> {
-                    UpdateItem(update = item.update, onClick = { onChapterClick(item.update) })
+                    UpdateItem(
+                        update = item.update,
+                        isSelected = selectedItems.contains(item.update.chapter.id),
+                        onClick = { onChapterClick(item.update) },
+                        onLongClick = { onChapterLongClick(item.update) },
+                        onDownloadClick = { onDownloadClick(item.update) }
+                    )
                     HorizontalDivider()
                 }
             }
@@ -270,31 +319,43 @@ private fun UpdatesDateHeader(label: String, modifier: Modifier = Modifier) {
 @Composable
 private fun UpdateItem(
     update: MangaUpdate,
+    isSelected: Boolean,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    onDownloadClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(horizontal = 12.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Manga cover thumbnail
-        Surface(
-            shape = MaterialTheme.shapes.small,
-            modifier = Modifier.size(width = 40.dp, height = 56.dp)
-        ) {
-            AsyncImage(
-                model = update.manga.thumbnailUrl,
-                contentDescription = update.manga.title,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(5f / 7f)
-                    .clip(MaterialTheme.shapes.small)
+        // Checkbox or cover thumbnail
+        if (isSelected) {
+            androidx.compose.material3.Checkbox(
+                checked = true,
+                onCheckedChange = { onClick() },
+                modifier = Modifier.size(40.dp)
             )
+        } else {
+            // Manga cover thumbnail
+            Surface(
+                shape = MaterialTheme.shapes.small,
+                modifier = Modifier.size(width = 40.dp, height = 56.dp)
+            ) {
+                AsyncImage(
+                    model = update.manga.thumbnailUrl,
+                    contentDescription = update.manga.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(5f / 7f)
+                        .clip(MaterialTheme.shapes.small)
+                )
+            }
         }
 
         Column(modifier = Modifier.weight(1f)) {
@@ -313,13 +374,23 @@ private fun UpdateItem(
                 overflow = TextOverflow.Ellipsis
             )
         }
-        if (update.chapter.dateFetch > 0L) {
-            Text(
-                text = formatFetchDate(update.chapter.dateFetch),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.widthIn(max = 72.dp)
-            )
+        if (!isSelected) {
+            if (update.chapter.dateFetch > 0L) {
+                Text(
+                    text = formatFetchDate(update.chapter.dateFetch),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.widthIn(max = 72.dp)
+                )
+            }
+            // Per-item download button
+            IconButton(onClick = onDownloadClick, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    imageVector = Icons.Default.Download,
+                    contentDescription = stringResource(R.string.updates_download_chapter),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }
