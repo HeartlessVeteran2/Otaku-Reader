@@ -16,4 +16,12 @@
     <string name="shortcut_updates_long">Check Updates</string>
     <string name="shortcut_continue_reading_short">Continue</string>
     <string name="shortcut_continue_reading_long">Continue Reading</string>
+
+    <!-- Crash report dialog -->
+    <string name="crash_report_title">App Crashed</string>
+    <string name="crash_report_subtitle">The app crashed on the previous launch. The error details are shown below. Use the copy button to share them.</string>
+    <string name="crash_report_copy">Copy</string>
+    <string name="crash_report_copied">Copied to clipboard</string>
+    <string name="crash_report_dismiss">Dismiss</string>
+    <string name="crash_report_stack_trace_label">Stack trace</string>
 </resources>
