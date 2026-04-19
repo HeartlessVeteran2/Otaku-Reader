@@ -360,11 +360,11 @@ class LibraryViewModel @Inject constructor(
         _state.update { it.copy(selectedManga = emptySet()) }
     }
 
-    private fun markSelectedAsRead() = markSelectedChapters(read = true)
+    private fun markSelectedAsRead() = markChaptersForSelectedManga(read = true)
 
-    private fun markSelectedAsUnread() = markSelectedChapters(read = false)
+    private fun markSelectedAsUnread() = markChaptersForSelectedManga(read = false)
 
-    private fun markSelectedChapters(read: Boolean) {
+    private fun markChaptersForSelectedManga(read: Boolean) {
         val mangaIds = _state.value.selectedManga
         if (mangaIds.isEmpty()) return
         viewModelScope.launch {
