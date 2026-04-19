@@ -23,5 +23,4 @@
     <string name="crash_report_copy">Copy</string>
     <string name="crash_report_copied">Copied to clipboard</string>
     <string name="crash_report_dismiss">Dismiss</string>
-    <string name="crash_report_stack_trace_label">Stack trace</string>
 </resources>
