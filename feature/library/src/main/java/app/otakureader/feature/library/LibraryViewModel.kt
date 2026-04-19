@@ -360,21 +360,11 @@ class LibraryViewModel @Inject constructor(
         _state.update { it.copy(selectedManga = emptySet()) }
     }
 
-    private fun markSelectedAsRead() {
-        val mangaIds = _state.value.selectedManga
-        if (mangaIds.isEmpty()) return
-        viewModelScope.launch {
-            val chapterIds = mangaIds.flatMap { mangaId ->
-                chapterRepository.getChaptersByMangaIdSync(mangaId).map { it.id }
-            }
-            if (chapterIds.isNotEmpty()) {
-                chapterRepository.updateChapterProgress(chapterIds, read = true, lastPageRead = 0)
-            }
-            clearSelection()
-        }
-    }
+    private fun markSelectedAsRead() = markChaptersForSelectedManga(read = true)
 
-    private fun markSelectedAsUnread() {
+    private fun markSelectedAsUnread() = markChaptersForSelectedManga(read = false)
+
+    private fun markChaptersForSelectedManga(read: Boolean) {
         val mangaIds = _state.value.selectedManga
         if (mangaIds.isEmpty()) return
         viewModelScope.launch {
@@ -382,7 +372,7 @@ class LibraryViewModel @Inject constructor(
                 chapterRepository.getChaptersByMangaIdSync(mangaId).map { it.id }
             }
             if (chapterIds.isNotEmpty()) {
-                chapterRepository.updateChapterProgress(chapterIds, read = false, lastPageRead = 0)
+                chapterRepository.updateChapterProgress(chapterIds, read = read, lastPageRead = 0)
             }
             clearSelection()
         }
