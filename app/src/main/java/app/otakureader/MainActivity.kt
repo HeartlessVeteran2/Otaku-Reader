@@ -250,7 +250,7 @@ fun OtakuReaderApp(
  *
  * - The stack trace is wrapped in a [SelectionContainer] so you can long-press
  *   any line on your phone to select and copy a specific portion.
- * - The **Copy all** button copies the full report to the clipboard in one tap.
+ * - The **Copy** button copies the full report to the clipboard in one tap.
  * - The **Dismiss** button closes the dialog. Because [CrashHandler.getAndClearCrashReport]
  *   already removed the report from SharedPreferences when it was first read,
  *   the dialog will not reappear on the next launch — no separate "clear" step needed.
