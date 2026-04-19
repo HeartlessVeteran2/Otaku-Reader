@@ -74,8 +74,8 @@ detekt = "1.23.8"
 
 # Testing
 junit = "4.13.2"
-junit5 = "5.11.0"
-androidxTest = "1.3.0"
+junit5 = "5.14.3"
+androidxTest = "1.7.0"
 androidxTestCore = "1.7.0"
 espresso = "3.7.0"
 mockk = "1.14.9"
@@ -110,7 +110,7 @@ paging-compose = { group = "androidx.paging", name = "paging-compose", version.r
 # Alias matching libs.workmanager.ktx
 workmanager-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workmanager" }
 # AndroidX Browser
-browser = { group = "androidx.browser", name = "browser", version = "1.8.0" }
+browser = { group = "androidx.browser", name = "browser", version = "1.10.0" }
 
 # Compose BOM
 compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "compose-bom" }
@@ -214,8 +214,8 @@ junit5-api = { group = "org.junit.jupiter", name = "junit-jupiter-api", version.
 junit5-engine = { group = "org.junit.jupiter", name = "junit-jupiter-engine", version.ref = "junit5" }
 junit5-params = { group = "org.junit.jupiter", name = "junit-jupiter-params", version.ref = "junit5" }
 junit5-vintage = { group = "org.junit.vintage", name = "junit-vintage-engine", version.ref = "junit5" }
-junit5-android-test-core = { group = "de.mannodermaus.junit5", name = "android-test-core", version = "1.3.0" }
-junit5-android-test-runner = { group = "de.mannodermaus.junit5", name = "android-test-runner", version = "1.3.0" }
+junit5-android-test-core = { group = "de.mannodermaus.junit5", name = "android-test-core", version = "1.9.0" }
+junit5-android-test-runner = { group = "de.mannodermaus.junit5", name = "android-test-runner", version = "1.9.0" }
 androidx-test-core = { group = "androidx.test", name = "core", version.ref = "androidxTestCore" }
 androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidxTest" }
 androidx-test-rules = { group = "androidx.test", name = "rules", version.ref = "androidxTest" }
@@ -224,13 +224,13 @@ espresso-core = { group = "androidx.test.espresso", name = "espresso-core", vers
 androidx-test-espresso = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
 androidx-test-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
 # Alias matching libs.androidx.test.ext.junit
-androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version = "1.2.1" }
+androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version = "1.3.0" }
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 # Baseline profile / UI automator
 uiautomator = { group = "androidx.test.uiautomator", name = "uiautomator", version = "2.3.0" }
-androidx-benchmark-macro = { group = "androidx.benchmark", name = "benchmark-macro-junit4", version = "1.3.4" }
+androidx-benchmark-macro = { group = "androidx.benchmark", name = "benchmark-macro-junit4", version = "1.4.1" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -256,4 +256,4 @@ otakureader-android-room = { id = "otakureader.android.room", version = "unspeci
 otakureader-kotlin-library = { id = "otakureader.kotlin.library", version = "unspecified" }
 # Extra Android plugins for baselineprofile module
 android-test = { id = "com.android.test", version.ref = "agp" }
-baselineprofile = { id = "androidx.baselineprofile", version = "1.3.4" }
+baselineprofile = { id = "androidx.baselineprofile", version = "1.4.1" }
