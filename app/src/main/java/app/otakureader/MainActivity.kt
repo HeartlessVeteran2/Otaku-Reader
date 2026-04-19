@@ -53,7 +53,8 @@ import app.otakureader.util.DeepLinkResult
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.firstimport kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @AndroidEntryPoint
