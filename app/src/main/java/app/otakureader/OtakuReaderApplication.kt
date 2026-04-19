@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import app.otakureader.crash.CrashHandler
 import app.otakureader.shortcut.AppShortcutManager
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
@@ -40,6 +41,9 @@ class OtakuReaderApplication : Application(), Configuration.Provider, SingletonI
             .build()
 
     override fun onCreate() {
+        // Install the crash handler first so failures during Hilt graph construction
+        // or any other startup code are captured and shown on the next launch.
+        CrashHandler.install(this)
         super.onCreate()
         // Enable Material You dynamic colors on Android 12+ (API 31+)
         DynamicColors.applyToActivitiesIfAvailable(this)
