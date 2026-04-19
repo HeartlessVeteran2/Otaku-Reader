@@ -50,8 +50,15 @@ object CrashHandler {
     fun getAndClearCrashReport(context: Context): String? {
         val prefs = prefs(context)
         val report = prefs.getString(KEY_CRASH_REPORT, null) ?: return null
-        prefs.edit().remove(KEY_CRASH_REPORT).apply()
-        return report
+
+        // commit() instead of apply() is intentional: the clear must complete
+        // synchronously before continuing so the same report is not shown again
+        // if the app is killed or crashes during startup.
+        return if (prefs.edit().remove(KEY_CRASH_REPORT).commit()) {
+            report
+        } else {
+            null
+        }
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
