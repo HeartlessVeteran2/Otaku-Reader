@@ -183,11 +183,22 @@ class AppUpdateChecker @Inject constructor(
 
     /**
      * Returns true if [candidate] is strictly newer than [current].
+     *
      * Compares each dot-separated numeric component in order.
+     * All components must be valid integers; an invalid segment causes this
+     * method to throw [IllegalArgumentException] rather than silently
+     * dropping or altering components.
      */
     private fun isNewerVersion(candidate: String, current: String): Boolean {
-        val candidateParts = candidate.split(".").mapNotNull { it.toIntOrNull() }
-        val currentParts = current.split(".").mapNotNull { it.toIntOrNull() }
+        val candidateParts = candidate.split(".").map { part ->
+            part.toIntOrNull()
+                ?: throw IllegalArgumentException("Invalid version segment '$part' in candidate version '$candidate'")
+        }
+        val currentParts = current.split(".").map { part ->
+            part.toIntOrNull()
+                ?: throw IllegalArgumentException("Invalid version segment '$part' in current version '$current'")
+        }
+
         val maxLen = maxOf(candidateParts.size, currentParts.size)
         for (i in 0 until maxLen) {
             val c = candidateParts.getOrElse(i) { 0 }
