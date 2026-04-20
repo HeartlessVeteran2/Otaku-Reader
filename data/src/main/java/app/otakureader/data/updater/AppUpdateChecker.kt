@@ -152,10 +152,10 @@ class AppUpdateChecker @Inject constructor(
                 .header("Accept", "application/vnd.github+json")
                 .build()
 
-            val response = okHttpClient.newCall(request).execute()
-            if (!response.isSuccessful) return@withContext null
-
-            val body = response.body?.string() ?: return@withContext null
+            val body = okHttpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext null
+                response.body?.string()
+            } ?: return@withContext null
             val json = Json { ignoreUnknownKeys = true }
                 .parseToJsonElement(body)
                 .jsonObject
