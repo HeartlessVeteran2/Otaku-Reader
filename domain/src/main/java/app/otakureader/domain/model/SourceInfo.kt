@@ -1,5 +1,7 @@
 package app.otakureader.domain.model
 
+import androidx.compose.runtime.Immutable
+
 /**
  * Input model describing a single source candidate for evaluation.
  *
@@ -9,6 +11,7 @@ package app.otakureader.domain.model
  * @property latestChapterName Name of the most recently updated chapter, or `null`.
  * @property language Primary language of the source.
  */
+@Immutable
 data class SourceInfo(
     val sourceId: String,
     val sourceName: String,

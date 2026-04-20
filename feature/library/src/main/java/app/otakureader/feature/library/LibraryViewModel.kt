@@ -388,10 +388,24 @@ class LibraryViewModel @Inject constructor(
     }
 
     private fun downloadSelected() {
-        // TODO: Wire up DownloadRepository to enqueue selected manga chapters.
-        // Currently left as a no-op to avoid silently doing nothing after clearing
-        // the selection — callers should wait until this is implemented before exposing it.
-        clearSelection()
+        val mangaIds = _state.value.selectedManga
+        if (mangaIds.isEmpty()) return
+        viewModelScope.launch {
+            val mangaById = _allItems.value.associateBy { it.id }
+            mangaIds.forEach { mangaId ->
+                val manga = mangaById[mangaId] ?: return@forEach
+                val chapters = chapterRepository.getChaptersByMangaIdSync(mangaId)
+                chapters.filter { !it.read }.forEach { chapter ->
+                    downloadRepository.enqueueChapter(
+                        mangaId = mangaId,
+                        chapterId = chapter.id,
+                        mangaTitle = manga.title,
+                        chapterTitle = chapter.name
+                    )
+                }
+            }
+            clearSelection()
+        }
     }
 
     private fun toggleFavorite(mangaId: Long) {

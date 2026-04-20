@@ -140,8 +140,9 @@ fun CategoryManagementScreen(
                 editingCategory = null
             },
             onConfirm = { name ->
-                if (editingCategory != null) {
-                    viewModel.onEvent(CategoryEvent.UpdateCategory(editingCategory!!.id, name))
+                val editing = editingCategory
+                if (editing != null) {
+                    viewModel.onEvent(CategoryEvent.UpdateCategory(editing.id, name))
                 } else {
                     viewModel.onEvent(CategoryEvent.CreateCategory(name))
                 }
