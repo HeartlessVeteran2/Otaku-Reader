@@ -832,10 +832,25 @@ class UltimateReaderViewModel @Inject constructor(
                 // Skip pages that already have panels detected or lack an image URL
                 if (page.panels.isNotEmpty() || page.imageUrl == null) continue
 
-                val detectedPanels = panelDetectionService.detectPanelsFromUrl(
-                    imageUrl = page.imageUrl,
-                    readingDirection = readingDirection
-                )
+                // Wrap per-page detection so a single failure (network timeout,
+                // ML Kit crash, OOM, etc.) skips that page rather than silently
+                // killing the entire detection job for the whole chapter.
+                // CancellationException MUST be re-thrown — swallowing it breaks
+                // Kotlin's cooperative cancellation (the coroutine would keep
+                // running after it has been cancelled).
+                val detectedPanels = try {
+                    panelDetectionService.detectPanelsFromUrl(
+                        imageUrl = page.imageUrl,
+                        readingDirection = readingDirection
+                    )
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // Log the failure but continue processing remaining pages;
+                    // this page will fall back to full-page display mode.
+                    Log.w(TAG, "Panel detection failed for page $index, skipping", e)
+                    continue
+                }
 
                 if (detectedPanels.isNotEmpty()) {
                     _state.update { currentState ->
