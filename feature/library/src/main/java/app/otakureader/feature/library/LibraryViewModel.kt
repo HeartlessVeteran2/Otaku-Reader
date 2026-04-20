@@ -394,7 +394,7 @@ class LibraryViewModel @Inject constructor(
             val mangaById = _allItems.value.associateBy { it.id }
             mangaIds.forEach { mangaId ->
                 val manga = mangaById[mangaId] ?: return@forEach
-                val chapters = chapterRepository.getChaptersByMangaIdSync(mangaId)
+                val chapters = chapterRepository.getChaptersByMangaId(mangaId).first()
                 chapters.filter { !it.read }.forEach { chapter ->
                     downloadRepository.enqueueChapter(
                         mangaId = mangaId,
