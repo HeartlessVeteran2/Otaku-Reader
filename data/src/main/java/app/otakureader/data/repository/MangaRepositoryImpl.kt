@@ -200,7 +200,10 @@ class MangaRepositoryImpl @Inject constructor(
         author = author,
         artist = artist,
         description = description,
-        genre = genre.joinToString(","),
+        // "|||" is the canonical multi-value separator used throughout this file.
+        // toDomain() (above) splits on "|||"; if we join with a different character
+        // here the round-trip corrupts genres into a single malformed string.
+        genre = genre.joinToString("|||"),
         status = status.ordinal,
         favorite = favorite,
         initialized = initialized,
