@@ -22,10 +22,6 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -36,7 +32,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImagePainter
 import coil3.compose.SubcomposeAsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
@@ -71,7 +66,6 @@ fun MangaCard(
     onLongClick: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
-    var imageLoadFailed by remember { mutableStateOf(false) }
 
     Card(
         modifier = modifier.combinedClickable(
@@ -93,34 +87,27 @@ fun MangaCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(2f / 3f),
-                onState = { imageLoadFailed = it is AsyncImagePainter.State.Error },
                 loading = { MangaCardShimmer() },
                 error = { MangaCardError() }
             )
 
             // Gradient scrim for title readability
-            if (!imageLoadFailed) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(2f / 3f)
-                        .bottomGradientScrim(
-                            heightPercent = 0.45f,
-                            startAlpha = 0.0f,
-                            endAlpha = 0.85f
-                        )
-                )
-            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(2f / 3f)
+                    .bottomGradientScrim(
+                        heightPercent = 0.45f,
+                        startAlpha = 0.0f,
+                        endAlpha = 0.85f
+                    )
+            )
 
             // Title overlaid at bottom
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodySmall,
-                color = if (imageLoadFailed) {
-                    MaterialTheme.colorScheme.onSurface
-                } else {
-                    Color.White
-                },
+                color = Color.White,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
