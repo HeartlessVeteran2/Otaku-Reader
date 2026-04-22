@@ -156,11 +156,11 @@ interface ReadingHistoryDao {
     suspend fun deleteAll()
 
     /**
-     * Returns the most-recently-read chapter for each favorited manga, ordered by most recently
-     * read descending. Used by the "Continue Reading" section in the Library screen.
+     * Returns recent reading history entries for favorited manga, ordered by most recently read.
+     * Used by the "Continue Reading" section in the Library screen.
      *
-     * The subquery picks the single latest read_at per manga so each manga appears only once,
-     * showing exactly the chapter the user was on when they last read it.
+     * Callers are responsible for deduplicating by mangaId to show one entry per manga
+     * (use distinctBy { it.mangaId }.take(12) on the result).
      */
     @Query(
         """
@@ -179,20 +179,12 @@ interface ReadingHistoryDao {
                rh.read_duration_ms  AS read_duration_ms,
                m.title              AS manga_title,
                m.thumbnailUrl       AS manga_thumbnail
-        FROM   manga m
-        INNER JOIN (
-            SELECT ch2.mangaId AS mangaId, MAX(rh2.read_at) AS max_read_at
-            FROM   reading_history rh2
-            INNER JOIN chapters ch2 ON ch2.id = rh2.chapter_id
-            GROUP  BY ch2.mangaId
-        ) max_per_manga ON m.id = max_per_manga.mangaId
-        INNER JOIN reading_history rh
-            ON rh.read_at = max_per_manga.max_read_at
-        INNER JOIN chapters ch
-            ON ch.id = rh.chapter_id AND ch.mangaId = m.id
+        FROM   reading_history rh
+        INNER JOIN chapters ch ON ch.id = rh.chapter_id
+        INNER JOIN manga    m  ON m.id  = ch.mangaId
         WHERE  m.favorite = 1
-        ORDER  BY max_per_manga.max_read_at DESC
-        LIMIT  12
+        ORDER  BY rh.read_at DESC
+        LIMIT  100
         """
     )
     fun observeContinueReading(): Flow<List<HistoryWithMangaEntity>>

@@ -524,18 +524,21 @@ class LibraryViewModel @Inject constructor(
     private fun observeContinueReading() {
         readingHistoryDao.observeContinueReading()
             .map { entities ->
-                entities.map { e ->
-                    ContinueReadingItem(
-                        mangaId = e.mangaId,
-                        chapterId = e.chapterId,
-                        mangaTitle = e.mangaTitle ?: "",
-                        thumbnailUrl = e.mangaThumbnailUrl,
-                        chapterName = e.name,
-                        chapterNumber = e.chapterNumber,
-                        lastPageRead = e.lastPageRead,
-                        readAt = e.readAt
-                    )
-                }
+                entities
+                    .distinctBy { it.mangaId }
+                    .take(12)
+                    .map { e ->
+                        ContinueReadingItem(
+                            mangaId = e.mangaId,
+                            chapterId = e.chapterId,
+                            mangaTitle = e.mangaTitle ?: "",
+                            thumbnailUrl = e.mangaThumbnailUrl,
+                            chapterName = e.name,
+                            chapterNumber = e.chapterNumber,
+                            lastPageRead = e.lastPageRead,
+                            readAt = e.readAt
+                        )
+                    }
             }
             .onEach { items -> _state.update { it.copy(continueReadingItems = items) } }
             .catch { e -> android.util.Log.w("LibraryViewModel", "observeContinueReading failed", e) }
