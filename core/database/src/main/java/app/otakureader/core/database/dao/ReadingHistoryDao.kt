@@ -181,13 +181,13 @@ interface ReadingHistoryDao {
                m.thumbnailUrl       AS manga_thumbnail
         FROM   manga m
         INNER JOIN (
-            SELECT ch2.mangaId, MAX(rh2.read_at) AS max_read_at
+            SELECT ch2.mangaId, ch2.id AS chapter_id, MAX(rh2.read_at) AS max_read_at
             FROM   reading_history rh2
             INNER JOIN chapters ch2 ON ch2.id = rh2.chapter_id
             GROUP  BY ch2.mangaId
         ) latest ON m.id = latest.mangaId
-        INNER JOIN reading_history rh ON rh.read_at = latest.max_read_at
-        INNER JOIN chapters ch ON ch.id = rh.chapter_id AND ch.mangaId = m.id
+        INNER JOIN reading_history rh ON rh.chapter_id = latest.chapter_id
+        INNER JOIN chapters ch ON ch.id = latest.chapter_id
         WHERE  m.favorite = 1
         ORDER  BY latest.max_read_at DESC
         LIMIT  12

@@ -16,7 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.Feed
+import androidx.compose.material.icons.filled.Feed
 import androidx.compose.material.icons.filled.BackupTable
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Extension
@@ -58,7 +58,13 @@ fun MoreScreen(
     val context = LocalContext.current
     val versionName = remember {
         try {
-            context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: ""
+            val info = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                context.packageManager.getPackageInfo(context.packageName, PackageManager.PackageInfoFlags.of(0))
+            } else {
+                @Suppress("DEPRECATION")
+                context.packageManager.getPackageInfo(context.packageName, 0)
+            }
+            info.versionName ?: ""
         } catch (_: PackageManager.NameNotFoundException) {
             ""
         }
@@ -101,7 +107,7 @@ fun MoreScreen(
             HorizontalDivider()
 
             MoreListItem(
-                icon = Icons.AutoMirrored.Filled.Feed,
+                icon = Icons.Default.Feed,
                 iconContainerColor = MaterialTheme.colorScheme.secondaryContainer,
                 iconTint = MaterialTheme.colorScheme.onSecondaryContainer,
                 headline = stringResource(R.string.more_feed),

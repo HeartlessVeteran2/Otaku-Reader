@@ -538,7 +538,7 @@ class LibraryViewModel @Inject constructor(
                 }
             }
             .onEach { items -> _state.update { it.copy(continueReadingItems = items) } }
-            .catch { /* silently ignore — continue reading is non-critical */ }
+            .catch { e -> android.util.Log.w("LibraryViewModel", "observeContinueReading failed", e) }
             .launchIn(viewModelScope)
     }
 
