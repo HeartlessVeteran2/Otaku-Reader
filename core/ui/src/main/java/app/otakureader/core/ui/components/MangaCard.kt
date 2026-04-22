@@ -36,6 +36,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImagePainter
 import coil3.compose.SubcomposeAsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
@@ -92,10 +93,9 @@ fun MangaCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(2f / 3f),
+                onState = { imageLoadFailed = it is AsyncImagePainter.State.Error },
                 loading = { MangaCardShimmer() },
-                error = { MangaCardError() },
-                onError = { imageLoadFailed = true },
-                onSuccess = { imageLoadFailed = false }
+                error = { MangaCardError() }
             )
 
             // Gradient scrim for title readability
