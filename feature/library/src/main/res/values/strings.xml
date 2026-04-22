@@ -62,4 +62,8 @@
     <string name="library_mark_selected_unread">Mark as unread</string>
     <string name="library_download_selected">Download selected</string>
     <string name="library_remove_selected">Remove from library</string>
+    <!-- Continue Reading -->
+    <string name="library_continue_reading_title">Continue Reading</string>
+    <string name="library_continue_reading_cover">Cover for %1$s</string>
+    <string name="library_continue_reading_chapter">Ch. %.1f</string>
 </resources>

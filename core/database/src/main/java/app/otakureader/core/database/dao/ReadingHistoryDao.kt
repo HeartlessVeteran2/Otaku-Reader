@@ -154,4 +154,44 @@ interface ReadingHistoryDao {
 
     @Query("DELETE FROM reading_history")
     suspend fun deleteAll()
+
+    /**
+     * Returns the most-recently-read chapter for each favorited manga, ordered by most recently
+     * read descending. Used by the "Continue Reading" section in the Library screen.
+     *
+     * The subquery picks the single latest read_at per manga so each manga appears only once,
+     * showing exactly the chapter the user was on when they last read it.
+     */
+    @Query(
+        """
+        SELECT ch.id                AS id,
+               ch.mangaId           AS mangaId,
+               ch.url               AS url,
+               ch.name              AS name,
+               ch.scanlator         AS scanlator,
+               ch.read              AS read,
+               ch.bookmark          AS bookmark,
+               ch.lastPageRead      AS lastPageRead,
+               ch.chapterNumber     AS chapterNumber,
+               ch.dateFetch         AS dateFetch,
+               ch.dateUpload        AS dateUpload,
+               rh.read_at           AS read_at,
+               rh.read_duration_ms  AS read_duration_ms,
+               m.title              AS manga_title,
+               m.thumbnailUrl       AS manga_thumbnail
+        FROM   manga m
+        INNER JOIN (
+            SELECT ch2.mangaId, MAX(rh2.read_at) AS max_read_at
+            FROM   reading_history rh2
+            INNER JOIN chapters ch2 ON ch2.id = rh2.chapter_id
+            GROUP  BY ch2.mangaId
+        ) latest ON m.id = latest.mangaId
+        INNER JOIN reading_history rh ON rh.read_at = latest.max_read_at
+        INNER JOIN chapters ch ON ch.id = rh.chapter_id AND ch.mangaId = m.id
+        WHERE  m.favorite = 1
+        ORDER  BY latest.max_read_at DESC
+        LIMIT  12
+        """
+    )
+    fun observeContinueReading(): Flow<List<HistoryWithMangaEntity>>
 }
