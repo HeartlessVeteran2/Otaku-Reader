@@ -1,5 +1,6 @@
 package app.otakureader.domain.model.search
 
+import androidx.compose.runtime.Immutable
 import app.otakureader.domain.model.MangaStatus
 
 /**
@@ -17,6 +18,7 @@ enum class MatchMode {
 /**
  * Sealed class representing different search intents extracted from natural language queries.
  */
+@Immutable
 sealed interface SearchIntent {
     /**
      * Search by manga title.
@@ -120,6 +122,7 @@ sealed interface SearchIntent {
 /**
  * Data class representing the result of parsing a natural language query.
  */
+@Immutable
 data class ParsedSearchQuery(
     val originalQuery: String,
     val intents: List<SearchIntent>,
@@ -132,6 +135,7 @@ data class ParsedSearchQuery(
 /**
  * Data class representing a cached smart search.
  */
+@Immutable
 data class CachedSmartSearch(
     val queryHash: String,
     val originalQuery: String,
