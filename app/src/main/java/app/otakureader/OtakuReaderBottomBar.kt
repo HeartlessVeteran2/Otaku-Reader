@@ -20,7 +20,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.res.stringResource
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -31,7 +30,6 @@ import app.otakureader.core.navigation.HistoryRoute
 import app.otakureader.core.navigation.LibraryRoute
 import app.otakureader.core.navigation.MoreRoute
 import app.otakureader.core.navigation.UpdatesRoute
-import app.otakureader.core.preferences.GeneralPreferences
 
 /**
  * Bottom navigation bar for the main app navigation.
@@ -40,7 +38,6 @@ import app.otakureader.core.preferences.GeneralPreferences
 @Composable
 fun OtakuReaderBottomBar(
     navController: NavController,
-    generalPreferences: GeneralPreferences,
     newUpdatesCount: Int = 0,
     modifier: Modifier = Modifier
 ) {

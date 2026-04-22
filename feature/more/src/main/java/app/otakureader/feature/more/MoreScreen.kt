@@ -16,9 +16,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.Feed
-import androidx.compose.material.icons.filled.BackupTable
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.QueryStats
@@ -107,7 +107,7 @@ fun MoreScreen(
             HorizontalDivider()
 
             MoreListItem(
-                icon = Icons.Default.Feed,
+                icon = Icons.Default.Notifications,
                 iconContainerColor = MaterialTheme.colorScheme.secondaryContainer,
                 iconTint = MaterialTheme.colorScheme.onSecondaryContainer,
                 headline = stringResource(R.string.more_feed),
@@ -118,7 +118,7 @@ fun MoreScreen(
             HorizontalDivider()
 
             MoreListItem(
-                icon = Icons.Default.BackupTable,
+                icon = Icons.Default.CloudUpload,
                 iconContainerColor = MaterialTheme.colorScheme.secondaryContainer,
                 iconTint = MaterialTheme.colorScheme.onSecondaryContainer,
                 headline = stringResource(R.string.more_backup),

@@ -1,5 +1,6 @@
 package app.otakureader.feature.library
 
+import app.otakureader.core.database.dao.ReadingHistoryDao
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.LibraryPreferences
 import app.otakureader.domain.model.Manga
@@ -49,6 +50,7 @@ class LibraryViewModelTest {
     private lateinit var refreshRecommendations: RefreshRecommendationsUseCase
     private lateinit var dismissRecommendation: DismissRecommendationUseCase
     private lateinit var categoryDao: CategoryDao
+    private lateinit var readingHistoryDao: ReadingHistoryDao
 
     private val sampleMangas = listOf(
         Manga(id = 1L, sourceId = 10L, url = "/m/1", title = "Naruto", favorite = true, unreadCount = 3, lastRead = 1000L, status = MangaStatus.ONGOING),
@@ -94,6 +96,9 @@ class LibraryViewModelTest {
             every { getCategories() } returns flowOf(emptyList())
             every { getMangaIdsByCategoryId(any()) } returns flowOf(emptyList())
         }
+        readingHistoryDao = mockk {
+            every { observeContinueReading() } returns flowOf(emptyList())
+        }
     }
 
     @After
@@ -111,6 +116,7 @@ class LibraryViewModelTest {
             downloadRepository,
             trackRepository,
             categoryDao,
+            readingHistoryDao,
             getForYouRecommendations,
             refreshRecommendations,
             dismissRecommendation

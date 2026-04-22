@@ -1,7 +1,6 @@
 package app.otakureader.feature.library
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Arrangement
@@ -61,6 +60,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
@@ -72,7 +72,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.otakureader.core.ui.components.MangaCard
 import app.otakureader.domain.model.MangaRecommendation
 import coil3.compose.AsyncImage
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.remember
@@ -102,7 +101,7 @@ fun LibraryScreen(
         viewModel.effect.collectLatest { effect ->
             when (effect) {
                 is LibraryEffect.NavigateToManga -> onMangaClick(effect.mangaId)
-                is LibraryEffect.NavigateToReader -> onNavigateToReader(effect.mangaId, effect.chapterId ?: 0L)
+                is LibraryEffect.NavigateToReader -> onNavigateToReader(effect.mangaId, effect.chapterId)
                 is LibraryEffect.ShowError -> {
                     scope.launch {
                         snackbarHostState.showSnackbar(effect.message)
@@ -691,7 +690,7 @@ private fun ContinueReadingSection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = androidx.compose.material.icons.Icons.Default.Favorite,
+                imageVector = Icons.Default.Favorite,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
@@ -756,7 +755,7 @@ private fun ContinueReadingCard(
                     .fillMaxWidth()
                     .aspectRatio(2f / 3f)
                     .background(
-                        brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                        brush = Brush.verticalGradient(
                             colors = listOf(
                                 Color.Transparent,
                                 Color.Black.copy(alpha = 0.85f)

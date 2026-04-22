@@ -93,11 +93,9 @@ fun MangaCard(
                     .fillMaxWidth()
                     .aspectRatio(2f / 3f),
                 loading = { MangaCardShimmer() },
-                error = {
-                    imageLoadFailed = true
-                    MangaCardError()
-                },
-                success = { imageLoadFailed = false }
+                error = { MangaCardError() },
+                onError = { imageLoadFailed = true },
+                onSuccess = { imageLoadFailed = false }
             )
 
             // Gradient scrim for title readability
