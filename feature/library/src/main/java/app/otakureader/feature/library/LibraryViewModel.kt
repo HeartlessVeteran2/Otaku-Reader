@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import app.otakureader.core.database.dao.ReadingHistoryDao
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.LibraryPreferences
+import app.otakureader.domain.model.ContentRating
 import app.otakureader.domain.model.ContinueReadingItem
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MangaRecommendation
@@ -568,7 +569,7 @@ class LibraryViewModel @Inject constructor(
         sourceId = sourceId,
         isDownloaded = isDownloaded,
         hasTracking = hasTracking,
-        isNsfw = false, // Requires source/extension metadata not yet available in the Manga model
+        isNsfw = contentRating == ContentRating.EROTICA || contentRating == ContentRating.PORNOGRAPHIC,
         lastRead = lastRead,
         dateAdded = dateAdded,
         status = status,

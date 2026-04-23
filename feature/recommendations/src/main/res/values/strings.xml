@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="recommendations_title">AI Recommendations</string>
+    <string name="recommendations_empty">No recommendations yet.\nKeep reading to get personalized picks.</string>
+    <string name="recommendations_ai_unavailable">AI recommendations are not available in this build.</string>
+    <string name="recommendations_refresh">Refresh</string>
+    <string name="recommendations_force_refresh">Force Refresh</string>
+    <string name="recommendations_dismiss">Dismiss</string>
+    <string name="recommendations_confidence">Confidence</string>
+    <string name="recommendations_based_on">Based on your reading</string>
+    <string name="recommendations_stale_cache">Your recommendations may be outdated.</string>
+    <string name="recommendations_search_hint">Search for this manga</string>
+    <string name="recommendations_type_similar">Similar</string>
+    <string name="recommendations_type_discovery">Discovery</string>
+    <string name="recommendations_type_trending">Trending</string>
+    <string name="recommendations_type_theme_based">Theme-based</string>
+    <string name="recommendations_type_author_based">By Author</string>
+    <string name="recommendations_type_hidden_gem">Hidden Gem</string>
+</resources>

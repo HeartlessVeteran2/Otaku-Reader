@@ -30,6 +30,10 @@
     <string name="more_feed">Feed</string>
     <string name="more_feed_desc">Latest updates from followed manga</string>
 
+    <!-- AI Recommendations -->
+    <string name="more_recommendations">AI Recommendations</string>
+    <string name="more_recommendations_desc">Personalized manga picks based on your reading</string>
+
     <!-- Version footer -->
     <string name="more_version_label">Otaku Reader v%s</string>
 </resources>

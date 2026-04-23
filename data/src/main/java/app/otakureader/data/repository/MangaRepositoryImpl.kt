@@ -3,6 +3,7 @@ package app.otakureader.data.repository
 import app.otakureader.core.database.dao.ChapterDao
 import app.otakureader.core.database.dao.MangaDao
 import app.otakureader.core.database.entity.MangaEntity
+import app.otakureader.domain.model.ContentRating
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.repository.MangaRepository
@@ -188,7 +189,8 @@ class MangaRepositoryImpl @Inject constructor(
         readerBackgroundColor = readerBackgroundColor,
         // Page preloading settings (#264)
         preloadPagesBefore = preloadPagesBefore,
-        preloadPagesAfter = preloadPagesAfter
+        preloadPagesAfter = preloadPagesAfter,
+        contentRating = ContentRating.fromOrdinal(contentRating),
     )
 
     private fun Manga.toEntity() = MangaEntity(
@@ -216,6 +218,7 @@ class MangaRepositoryImpl @Inject constructor(
         readerBackgroundColor = readerBackgroundColor,
         // Page preloading settings (#264)
         preloadPagesBefore = preloadPagesBefore,
-        preloadPagesAfter = preloadPagesAfter
+        preloadPagesAfter = preloadPagesAfter,
+        contentRating = contentRating.ordinal,
     )
 }

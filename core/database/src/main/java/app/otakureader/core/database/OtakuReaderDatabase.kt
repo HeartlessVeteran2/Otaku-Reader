@@ -55,7 +55,7 @@ import app.otakureader.core.database.entity.TrackerSyncStateEntity
         ReadingPatternEntity::class,
         RecommendationRefreshEntity::class,
     ],
-    version = 13,
+    version = 14,
     exportSchema = true
 )
 @TypeConverters(DatabaseConverters::class)
