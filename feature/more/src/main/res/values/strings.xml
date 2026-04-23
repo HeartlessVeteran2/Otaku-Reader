@@ -25,4 +25,11 @@
     <!-- Backup & Restore -->
     <string name="more_backup">Backup &amp; Restore</string>
     <string name="more_backup_desc">Back up and restore your library data</string>
+
+    <!-- Feed -->
+    <string name="more_feed">Feed</string>
+    <string name="more_feed_desc">Latest updates from followed manga</string>
+
+    <!-- Version footer -->
+    <string name="more_version_label">Otaku Reader v%s</string>
 </resources>

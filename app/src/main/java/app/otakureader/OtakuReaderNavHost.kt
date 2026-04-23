@@ -146,18 +146,6 @@ fun OtakuReaderNavHost(
             onMangaClick = { mangaId ->
                 navController.navigate(MangaDetailRoute(mangaId))
             },
-            onNavigateToUpdates = {
-                navController.navigate(UpdatesRoute)
-            },
-            onNavigateToBrowse = {
-                navController.navigate(BrowseRoute)
-            },
-            onNavigateToHistory = {
-                navController.navigate(HistoryRoute)
-            },
-            onNavigateToStatistics = {
-                navController.navigate(StatisticsRoute)
-            },
             onNavigateToSettings = {
                 navController.navigate(SettingsRoute)
             },
@@ -169,6 +157,9 @@ fun OtakuReaderNavHost(
             },
             onNavigateToCategoryManagement = {
                 navController.navigate(CategoryManagementRoute)
+            },
+            onNavigateToReader = { mangaId, chapterId ->
+                navController.navigate(ReaderRoute(mangaId, chapterId))
             }
         )
 
@@ -360,7 +351,7 @@ fun OtakuReaderNavHost(
             }
         )
 
-        // More screen - access to settings, downloads, statistics, about
+        // More screen - access to settings, downloads, statistics, about, extensions, feed
         moreScreen(
             onNavigateToSettings = {
                 navController.navigate(SettingsRoute)
@@ -373,6 +364,12 @@ fun OtakuReaderNavHost(
             },
             onNavigateToAbout = {
                 navController.navigate(AboutRoute)
+            },
+            onNavigateToExtensions = {
+                navController.navigate(ExtensionsRoute)
+            },
+            onNavigateToFeed = {
+                navController.navigate(FeedRoute)
             }
         )
 

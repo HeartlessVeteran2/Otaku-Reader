@@ -3,6 +3,7 @@
     <string name="core_ui_retry">Retry</string>
     <string name="core_ui_error_title">Something went wrong</string>
     <string name="manga_cover_content_description">Cover image for %1$s</string>
+    <string name="manga_card_selected">Selected</string>
 
     <!-- Empty State Titles -->
     <string name="empty_library_title">Your library is empty</string>

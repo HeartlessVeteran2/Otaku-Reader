@@ -1,5 +1,6 @@
 package app.otakureader.feature.library
 
+import app.otakureader.domain.model.ContinueReadingItem
 import app.otakureader.domain.model.MangaRecommendation
 import app.otakureader.domain.model.MangaStatus
 
@@ -42,7 +43,9 @@ data class LibraryState(
     val recommendations: List<MangaRecommendation> = emptyList(),
     val isLoadingRecommendations: Boolean = false,
     val recommendationsError: String? = null,
-    val hasEnoughMangaForRecommendations: Boolean = false
+    val hasEnoughMangaForRecommendations: Boolean = false,
+    // Continue Reading
+    val continueReadingItems: List<ContinueReadingItem> = emptyList()
 )
 
 data class LibraryMangaItem(
@@ -58,7 +61,8 @@ data class LibraryMangaItem(
     val isNsfw: Boolean = false,
     val lastRead: Long? = null,
     val dateAdded: Long = 0L,
-    val status: MangaStatus = MangaStatus.UNKNOWN
+    val status: MangaStatus = MangaStatus.UNKNOWN,
+    val totalChapterCount: Int = 0
 )
 
 data class CategoryItem(
@@ -91,11 +95,13 @@ sealed class LibraryEvent {
     data object RefreshRecommendations : LibraryEvent()
     data class DismissRecommendation(val recommendationTitle: String) : LibraryEvent()
     data class OnRecommendationClick(val recommendation: MangaRecommendation) : LibraryEvent()
+    // Continue Reading
+    data class ContinueReadingClick(val mangaId: Long, val chapterId: Long) : LibraryEvent()
 }
 
 sealed class LibraryEffect {
     data class NavigateToManga(val mangaId: Long) : LibraryEffect()
-    data class NavigateToReader(val mangaId: Long, val chapterId: Long?) : LibraryEffect()
+    data class NavigateToReader(val mangaId: Long, val chapterId: Long) : LibraryEffect()
     data class ShowError(val message: String) : LibraryEffect()
     data class NavigateToMigration(val selectedMangaIds: List<Long>) : LibraryEffect()
     data class NavigateToRecommendationSearch(val title: String) : LibraryEffect()

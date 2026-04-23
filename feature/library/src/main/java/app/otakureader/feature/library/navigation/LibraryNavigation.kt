@@ -7,28 +7,22 @@ import app.otakureader.feature.library.LibraryScreen
 
 fun NavGraphBuilder.libraryScreen(
     onMangaClick: (Long) -> Unit,
-    onNavigateToUpdates: () -> Unit,
-    onNavigateToBrowse: () -> Unit,
-    onNavigateToHistory: () -> Unit,
-    onNavigateToStatistics: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToDownloads: () -> Unit,
     onNavigateToMigration: (List<Long>) -> Unit = {},
     onNavigateToCategoryManagement: () -> Unit = {},
-    onRecommendationClick: (String) -> Unit = { onNavigateToBrowse() }
+    onRecommendationClick: (String) -> Unit = {},
+    onNavigateToReader: (mangaId: Long, chapterId: Long) -> Unit = { _, _ -> }
 ) {
     composable<LibraryRoute> {
         LibraryScreen(
             onMangaClick = onMangaClick,
-            onNavigateToUpdates = onNavigateToUpdates,
-            onNavigateToBrowse = onNavigateToBrowse,
-            onNavigateToHistory = onNavigateToHistory,
-            onNavigateToStatistics = onNavigateToStatistics,
             onNavigateToSettings = onNavigateToSettings,
             onNavigateToDownloads = onNavigateToDownloads,
             onNavigateToMigration = onNavigateToMigration,
             onNavigateToCategoryManagement = onNavigateToCategoryManagement,
-            onRecommendationClick = onRecommendationClick
+            onRecommendationClick = onRecommendationClick,
+            onNavigateToReader = onNavigateToReader
         )
     }
 }

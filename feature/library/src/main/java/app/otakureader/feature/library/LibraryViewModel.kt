@@ -2,8 +2,10 @@ package app.otakureader.feature.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.otakureader.core.database.dao.ReadingHistoryDao
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.LibraryPreferences
+import app.otakureader.domain.model.ContinueReadingItem
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MangaRecommendation
 import app.otakureader.domain.model.MangaStatus
@@ -47,6 +49,7 @@ class LibraryViewModel @Inject constructor(
     private val downloadRepository: DownloadRepository,
     private val trackRepository: TrackRepository,
     private val categoryDao: app.otakureader.core.database.dao.CategoryDao,
+    private val readingHistoryDao: ReadingHistoryDao,
     private val getForYouRecommendations: GetForYouRecommendationsUseCase,
     private val refreshRecommendations: RefreshRecommendationsUseCase,
     private val dismissRecommendation: DismissRecommendationUseCase
@@ -68,6 +71,7 @@ class LibraryViewModel @Inject constructor(
         observeFilteredItems()
         observeNewUpdatesCount()
         observeLibraryForRecommendations()
+        observeContinueReading()
     }
 
     fun onEvent(event: LibraryEvent) {
@@ -93,6 +97,7 @@ class LibraryViewModel @Inject constructor(
             is LibraryEvent.RefreshRecommendations -> loadRecommendations(forceRefresh = true)
             is LibraryEvent.DismissRecommendation -> onDismissRecommendation(event.recommendationTitle)
             is LibraryEvent.OnRecommendationClick -> onRecommendationClick(event.recommendation)
+            is LibraryEvent.ContinueReadingClick -> onContinueReadingClick(event.mangaId, event.chapterId)
         }
     }
 
@@ -516,6 +521,36 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
+    private fun observeContinueReading() {
+        readingHistoryDao.observeContinueReading()
+            .map { entities ->
+                entities
+                    .distinctBy { it.mangaId }
+                    .take(12)
+                    .map { e ->
+                        ContinueReadingItem(
+                            mangaId = e.mangaId,
+                            chapterId = e.chapterId,
+                            mangaTitle = e.mangaTitle ?: "",
+                            thumbnailUrl = e.mangaThumbnailUrl,
+                            chapterName = e.name,
+                            chapterNumber = e.chapterNumber,
+                            lastPageRead = e.lastPageRead,
+                            readAt = e.readAt
+                        )
+                    }
+            }
+            .onEach { items -> _state.update { it.copy(continueReadingItems = items) } }
+            .catch { e -> android.util.Log.w("LibraryViewModel", "observeContinueReading failed", e) }
+            .launchIn(viewModelScope)
+    }
+
+    private fun onContinueReadingClick(mangaId: Long, chapterId: Long) {
+        viewModelScope.launch {
+            _effect.send(LibraryEffect.NavigateToReader(mangaId, chapterId))
+        }
+    }
+
     companion object {
         private const val MIN_LIBRARY_SIZE_FOR_RECOMMENDATIONS = 3
     }
@@ -536,6 +571,7 @@ class LibraryViewModel @Inject constructor(
         isNsfw = false, // Requires source/extension metadata not yet available in the Manga model
         lastRead = lastRead,
         dateAdded = dateAdded,
-        status = status
+        status = status,
+        totalChapterCount = totalChapters
     )
 }

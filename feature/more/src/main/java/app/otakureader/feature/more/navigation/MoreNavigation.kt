@@ -9,14 +9,18 @@ fun NavGraphBuilder.moreScreen(
     onNavigateToSettings: () -> Unit,
     onNavigateToDownloads: () -> Unit,
     onNavigateToStatistics: () -> Unit,
-    onNavigateToAbout: () -> Unit
+    onNavigateToAbout: () -> Unit,
+    onNavigateToExtensions: () -> Unit = {},
+    onNavigateToFeed: () -> Unit = {}
 ) {
     composable<MoreRoute> {
         MoreScreen(
             onNavigateToSettings = onNavigateToSettings,
             onNavigateToDownloads = onNavigateToDownloads,
             onNavigateToStatistics = onNavigateToStatistics,
-            onNavigateToAbout = onNavigateToAbout
+            onNavigateToAbout = onNavigateToAbout,
+            onNavigateToExtensions = onNavigateToExtensions,
+            onNavigateToFeed = onNavigateToFeed
         )
     }
 }

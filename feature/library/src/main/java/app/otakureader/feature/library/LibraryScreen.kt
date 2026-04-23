@@ -1,7 +1,6 @@
 package app.otakureader.feature.library
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Arrangement
@@ -61,6 +60,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
@@ -69,6 +69,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.otakureader.core.ui.components.MangaCard
 import app.otakureader.domain.model.MangaRecommendation
 import coil3.compose.AsyncImage
 import androidx.compose.material3.SnackbarHost
@@ -82,15 +83,12 @@ import kotlinx.coroutines.launch
 @Composable
 fun LibraryScreen(
     onMangaClick: (Long) -> Unit,
-    onNavigateToUpdates: () -> Unit,
-    onNavigateToBrowse: () -> Unit,
-    onNavigateToHistory: () -> Unit,
-    onNavigateToStatistics: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToDownloads: () -> Unit,
     onNavigateToMigration: (List<Long>) -> Unit = {},
     onNavigateToCategoryManagement: () -> Unit = {},
-    onRecommendationClick: (String) -> Unit = { onNavigateToBrowse() },
+    onRecommendationClick: (String) -> Unit = {},
+    onNavigateToReader: (mangaId: Long, chapterId: Long) -> Unit = { _, _ -> },
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -103,6 +101,7 @@ fun LibraryScreen(
         viewModel.effect.collectLatest { effect ->
             when (effect) {
                 is LibraryEffect.NavigateToManga -> onMangaClick(effect.mangaId)
+                is LibraryEffect.NavigateToReader -> onNavigateToReader(effect.mangaId, effect.chapterId)
                 is LibraryEffect.ShowError -> {
                     scope.launch {
                         snackbarHostState.showSnackbar(effect.message)
@@ -114,7 +113,6 @@ fun LibraryScreen(
                 is LibraryEffect.NavigateToRecommendationSearch -> {
                     onRecommendationClick(effect.title)
                 }
-                else -> {}
             }
         }
     }
@@ -246,18 +244,6 @@ fun LibraryScreen(
                 )
             }
         },
-        bottomBar = {
-            LibraryBottomNavigation(
-                selectedRoute = "library",
-                onNavigateToLibrary = { /* Already here */ },
-                onNavigateToUpdates = onNavigateToUpdates,
-                onNavigateToBrowse = onNavigateToBrowse,
-                onNavigateToHistory = onNavigateToHistory,
-                onNavigateToStatistics = onNavigateToStatistics,
-                onNavigateToSettings = onNavigateToSettings,
-                newUpdatesCount = state.newUpdatesCount
-            )
-        },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         LibraryContent(
@@ -318,6 +304,18 @@ private fun MangaGrid(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier.fillMaxSize()
     ) {
+        // Continue Reading (full-width span, only shown when there are items)
+        if (state.continueReadingItems.isNotEmpty()) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                ContinueReadingSection(
+                    items = state.continueReadingItems,
+                    onItemClick = { mangaId, chapterId ->
+                        onEvent(LibraryEvent.ContinueReadingClick(mangaId, chapterId))
+                    }
+                )
+            }
+        }
+
         // "For You" recommendations header (full-width span)
         item(span = { GridItemSpan(maxLineSpan) }) {
             ForYouSection(
@@ -346,11 +344,22 @@ private fun MangaGrid(
             items = state.mangaList,
             key = { it.id }
         ) { manga ->
-            MangaGridItem(
-                manga = manga,
-                showBadges = state.showBadges,
+            val readProgress = if (manga.totalChapterCount > 0) {
+                (manga.totalChapterCount - manga.unreadCount)
+                    .coerceAtLeast(0)
+                    .toFloat() / manga.totalChapterCount
+            } else null
+            MangaCard(
+                title = manga.title,
+                coverUrl = manga.thumbnailUrl,
                 onClick = { onEvent(LibraryEvent.OnMangaClick(manga.id)) },
-                onLongClick = { onEvent(LibraryEvent.OnMangaLongClick(manga.id)) }
+                onLongClick = { onEvent(LibraryEvent.OnMangaLongClick(manga.id)) },
+                isSelected = manga.id in state.selectedManga,
+                readProgress = readProgress,
+                badge = if (state.showBadges && manga.unreadCount > 0) {
+                    { UnreadBadge(count = manga.unreadCount) }
+                } else null,
+                modifier = Modifier.fillMaxWidth()
             )
         }
     }
@@ -563,52 +572,6 @@ private fun RecommendationCard(
 }
 
 @Composable
-private fun MangaGridItem(
-    manga: LibraryMangaItem,
-    showBadges: Boolean,
-    onClick: () -> Unit,
-    onLongClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick
-            )
-    ) {
-        Column {
-            Box {
-                AsyncImage(
-                    model = manga.thumbnailUrl,
-                    contentDescription = manga.title,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(3f / 4f)
-                )
-                
-                if (showBadges && manga.unreadCount > 0) {
-                    UnreadBadge(
-                        count = manga.unreadCount,
-                        modifier = Modifier.align(Alignment.TopEnd)
-                    )
-                }
-            }
-            
-            Text(
-                text = manga.title,
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(8.dp)
-            )
-        }
-    }
-}
-
-@Composable
 private fun UnreadBadge(
     count: Int,
     modifier: Modifier = Modifier
@@ -709,5 +672,123 @@ private fun FilterChip(
         label = label,
         modifier = modifier
     )
+}
+
+// ── Continue Reading ────────────────────────────────────────────────────────
+
+@Composable
+private fun ContinueReadingSection(
+    items: List<app.otakureader.domain.model.ContinueReadingItem>,
+    onItemClick: (mangaId: Long, chapterId: Long) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 8.dp, top = 16.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Favorite,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .size(18.dp)
+                    .padding(end = 4.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = stringResource(R.string.library_continue_reading_title),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            items(
+                items = items,
+                key = { it.mangaId }
+            ) { item ->
+                ContinueReadingCard(
+                    item = item,
+                    onClick = { onItemClick(item.mangaId, item.chapterId) }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+    }
+}
+
+@Composable
+private fun ContinueReadingCard(
+    item: app.otakureader.domain.model.ContinueReadingItem,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .width(130.dp)
+            .clickable(onClick = onClick),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+    ) {
+        Box {
+            coil3.compose.AsyncImage(
+                model = item.thumbnailUrl,
+                contentDescription = stringResource(
+                    R.string.library_continue_reading_cover,
+                    item.mangaTitle
+                ),
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(2f / 3f)
+            )
+
+            // Gradient + text overlay
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(2f / 3f)
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.85f)
+                            ),
+                            startY = 80f
+                        )
+                    )
+            )
+
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(8.dp)
+            ) {
+                Text(
+                    text = item.mangaTitle,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color.White,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = stringResource(
+                        R.string.library_continue_reading_chapter,
+                        item.chapterNumber
+                    ),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White.copy(alpha = 0.75f),
+                    maxLines = 1
+                )
+            }
+        }
+    }
 }
 

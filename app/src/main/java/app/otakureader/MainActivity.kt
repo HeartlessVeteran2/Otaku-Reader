@@ -224,7 +224,6 @@ fun OtakuReaderApp(
         bottomBar = {
             OtakuReaderBottomBar(
                 navController = navController,
-                generalPreferences = generalPreferences,
                 newUpdatesCount = newUpdatesCount
             )
         }

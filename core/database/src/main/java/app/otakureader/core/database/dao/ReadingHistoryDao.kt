@@ -154,4 +154,38 @@ interface ReadingHistoryDao {
 
     @Query("DELETE FROM reading_history")
     suspend fun deleteAll()
+
+    /**
+     * Returns recent reading history entries for favorited manga, ordered by most recently read.
+     * Used by the "Continue Reading" section in the Library screen.
+     *
+     * Callers are responsible for deduplicating by mangaId to show one entry per manga
+     * (use distinctBy { it.mangaId }.take(12) on the result).
+     */
+    @Query(
+        """
+        SELECT ch.id                AS id,
+               ch.mangaId           AS mangaId,
+               ch.url               AS url,
+               ch.name              AS name,
+               ch.scanlator         AS scanlator,
+               ch.read              AS read,
+               ch.bookmark          AS bookmark,
+               ch.lastPageRead      AS lastPageRead,
+               ch.chapterNumber     AS chapterNumber,
+               ch.dateFetch         AS dateFetch,
+               ch.dateUpload        AS dateUpload,
+               rh.read_at           AS read_at,
+               rh.read_duration_ms  AS read_duration_ms,
+               m.title              AS manga_title,
+               m.thumbnailUrl       AS manga_thumbnail
+        FROM   reading_history rh
+        INNER JOIN chapters ch ON ch.id = rh.chapter_id
+        INNER JOIN manga    m  ON m.id  = ch.mangaId
+        WHERE  m.favorite = 1
+        ORDER  BY rh.read_at DESC
+        LIMIT  100
+        """
+    )
+    fun observeContinueReading(): Flow<List<HistoryWithMangaEntity>>
 }
