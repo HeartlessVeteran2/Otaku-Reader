@@ -3,6 +3,7 @@ package app.otakureader.data.mapper
 import app.otakureader.core.database.entity.ChapterEntity
 import app.otakureader.core.database.entity.MangaEntity
 import app.otakureader.domain.model.Chapter
+import app.otakureader.domain.model.ContentRating
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MangaStatus
 
@@ -32,7 +33,8 @@ fun MangaEntity.toManga(): Manga = Manga(
     readerBackgroundColor = readerBackgroundColor,
     // Page preloading settings (#264)
     preloadPagesBefore = preloadPagesBefore,
-    preloadPagesAfter = preloadPagesAfter
+    preloadPagesAfter = preloadPagesAfter,
+    contentRating = ContentRating.fromOrdinal(contentRating),
 )
 
 /** Maps domain [Manga] to [MangaEntity]. */
@@ -61,7 +63,8 @@ fun Manga.toEntity(): MangaEntity = MangaEntity(
     readerBackgroundColor = readerBackgroundColor,
     // Page preloading settings (#264)
     preloadPagesBefore = preloadPagesBefore,
-    preloadPagesAfter = preloadPagesAfter
+    preloadPagesAfter = preloadPagesAfter,
+    contentRating = contentRating.ordinal,
 )
 
 /** Maps [ChapterEntity] to domain [Chapter]. */

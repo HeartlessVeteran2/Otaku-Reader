@@ -30,6 +30,7 @@ import app.otakureader.core.navigation.ReaderRoute
 import app.otakureader.core.navigation.SettingsRoute
 import app.otakureader.core.navigation.SourceDetailRoute
 import app.otakureader.core.navigation.SourceMangaDetailRoute
+import app.otakureader.core.navigation.RecommendationsRoute
 import app.otakureader.core.navigation.StatisticsRoute
 import app.otakureader.core.navigation.TrackingRoute
 import app.otakureader.core.navigation.OpdsRoute
@@ -49,6 +50,7 @@ import app.otakureader.feature.library.navigation.libraryScreen
 import app.otakureader.feature.migration.navigation.migrationEntryScreen
 import app.otakureader.feature.migration.navigation.migrationScreen
 import app.otakureader.feature.more.navigation.moreScreen
+import app.otakureader.feature.recommendations.navigation.recommendationsScreen
 import app.otakureader.feature.onboarding.navigation.onboardingScreen
 import app.otakureader.feature.opds.navigation.opdsScreen
 import app.otakureader.feature.reader.navigation.readerScreen
@@ -370,7 +372,20 @@ fun OtakuReaderNavHost(
             },
             onNavigateToFeed = {
                 navController.navigate(FeedRoute)
-            }
+            },
+            onNavigateToRecommendations = {
+                navController.navigate(RecommendationsRoute)
+            },
+        )
+
+        // AI Recommendations screen
+        recommendationsScreen(
+            onNavigateBack = {
+                navController.popBackStack()
+            },
+            onNavigateToSearch = { query ->
+                navController.navigate(GlobalSearchRoute(query = query))
+            },
         )
 
         // Category management

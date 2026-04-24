@@ -94,6 +94,10 @@ object CategoryManagementRoute : OtakuReaderDestination
 @Serializable
 object FeedRoute : OtakuReaderDestination
 
+/** AI-powered manga recommendations screen. */
+@Serializable
+object RecommendationsRoute : OtakuReaderDestination
+
 /** More screen – access to settings, downloads, statistics, about. */
 @Serializable
 object MoreRoute : OtakuReaderDestination

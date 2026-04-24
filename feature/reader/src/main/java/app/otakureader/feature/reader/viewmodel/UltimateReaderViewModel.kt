@@ -540,7 +540,7 @@ class UltimateReaderViewModel @Inject constructor(
             // SFX Translation
             ReaderEvent.OpenSfxDialog -> _state.update { it.copy(showSfxDialog = true) }
             ReaderEvent.CloseSfxDialog -> _state.update { it.copy(showSfxDialog = false) }
-            is ReaderEvent.TranslateSfx -> loadSfxTranslationsForPage(_state.value.currentPage)
+            is ReaderEvent.TranslateSfx -> translateManualSfxText(event.sfxText)
         }
     }
 
@@ -1288,6 +1288,35 @@ class UltimateReaderViewModel @Inject constructor(
             }
         }.also { job ->
             job.invokeOnCompletion { sfxPageJobs.remove(pageIndex) }
+        }
+    }
+
+    /**
+     * Translates a single user-typed SFX text via the AI and merges the result into
+     * [ReaderState.sfxTranslations] under the [TranslateSfxUseCase.MANUAL_PAGE_INDEX]
+     * sentinel so the dialog can look it up by the original text string.
+     */
+    private fun translateManualSfxText(sfxText: String) {
+        if (sfxText.isBlank()) return
+        viewModelScope.launch {
+            _state.update { it.copy(isSfxTranslating = true) }
+            try {
+                val result = translateSfx(sfxText = sfxText)
+                _state.update { state ->
+                    val manualTranslations = state.sfxTranslations[TranslateSfxUseCase.MANUAL_PAGE_INDEX]
+                        ?.toMutableList() ?: mutableListOf()
+                    result.getOrNull()?.let { translation ->
+                        val idx = manualTranslations.indexOfFirst { it.originalText == translation.originalText }
+                        if (idx >= 0) manualTranslations[idx] = translation else manualTranslations.add(translation)
+                    }
+                    state.copy(
+                        sfxTranslations = state.sfxTranslations +
+                            (TranslateSfxUseCase.MANUAL_PAGE_INDEX to manualTranslations.toList()),
+                    )
+                }
+            } finally {
+                _state.update { it.copy(isSfxTranslating = false) }
+            }
         }
     }
 }

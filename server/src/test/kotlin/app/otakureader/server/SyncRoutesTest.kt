@@ -105,6 +105,42 @@ class SyncRoutesTest {
     }
 
     @Test
+    fun `get timestamp returns null when no snapshot exists`() = testApplication {
+        setupTestApp()
+
+        val response = client.get("/sync/timestamp") {
+            header("Authorization", "Bearer $testToken")
+        }
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        val body = response.bodyAsText()
+        assertTrue(body.contains("\"exists\": false"))
+        assertTrue(body.contains("\"timestamp\": null"))
+    }
+
+    @Test
+    fun `get timestamp returns correct value after upload`() = testApplication {
+        setupTestApp()
+
+        val timestamp = 9876543210L
+
+        client.post("/sync/upload") {
+            header("Authorization", "Bearer $testToken")
+            contentType(ContentType.Application.Json)
+            setBody("""{"data":"dGVzdA==","timestamp":$timestamp}""")
+        }
+
+        val response = client.get("/sync/timestamp") {
+            header("Authorization", "Bearer $testToken")
+        }
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        val body = response.bodyAsText()
+        assertTrue(body.contains("\"exists\": true"))
+        assertTrue(body.contains("$timestamp"))
+    }
+
+    @Test
     fun `delete snapshot works with auth`() = testApplication {
         setupTestApp()
 

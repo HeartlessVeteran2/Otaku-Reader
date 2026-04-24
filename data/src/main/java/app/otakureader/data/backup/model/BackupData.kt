@@ -43,7 +43,8 @@ data class BackupManga(
     val chapters: List<BackupChapter> = emptyList(),
     val categoryIds: List<Long> = emptyList(),
     val notes: String? = null,
-    val readerBackgroundColor: Long? = null
+    val readerBackgroundColor: Long? = null,
+    val contentRating: Int = 0,
 )
 
 /**

@@ -10,11 +10,18 @@ data class AppConfig(
     val host: String,
     val port: Int,
     val authToken: String,
-    val storagePath: String
+    val storagePath: String,
+    val allowedOrigins: List<String>
 ) {
     companion object {
         fun load(): AppConfig {
             val authToken = System.getenv("AUTH_TOKEN")
+            val allowedOrigins = System.getenv("ALLOWED_ORIGINS")
+                ?.split(",")
+                ?.map { it.trim() }
+                ?.filter { it.isNotBlank() }
+                ?: emptyList()
+
             if (authToken.isNullOrBlank()) {
                 // Generate a random token and log it once
                 val generatedToken = UUID.randomUUID().toString()
@@ -25,7 +32,8 @@ data class AppConfig(
                     host = System.getenv("HOST") ?: "0.0.0.0",
                     port = System.getenv("PORT")?.toIntOrNull() ?: 8080,
                     authToken = generatedToken,
-                    storagePath = System.getenv("STORAGE_PATH") ?: "/app/data"
+                    storagePath = System.getenv("STORAGE_PATH") ?: "/app/data",
+                    allowedOrigins = allowedOrigins
                 )
             }
 
@@ -33,7 +41,8 @@ data class AppConfig(
                 host = System.getenv("HOST") ?: "0.0.0.0",
                 port = System.getenv("PORT")?.toIntOrNull() ?: 8080,
                 authToken = authToken,
-                storagePath = System.getenv("STORAGE_PATH") ?: "/app/data"
+                storagePath = System.getenv("STORAGE_PATH") ?: "/app/data",
+                allowedOrigins = allowedOrigins
             )
         }
     }

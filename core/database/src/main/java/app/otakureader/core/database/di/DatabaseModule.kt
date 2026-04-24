@@ -338,6 +338,16 @@ object DatabaseModule {
         }
     }
 
+    /**
+     * Adds contentRating column to the manga table in database version 14.
+     * 0 = SAFE, 1 = SUGGESTIVE, 2 = EROTICA, 3 = PORNOGRAPHIC.
+     */
+    private val MIGRATION_13_14 = object : Migration(13, 14) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `manga` ADD COLUMN `contentRating` INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+
     @Provides
     @Singleton
     fun provideDatabase(
@@ -348,7 +358,7 @@ object DatabaseModule {
             OtakuReaderDatabase::class.java,
             OtakuReaderDatabase.DATABASE_NAME
         )
-            .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13)
+            .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14)
         // Only allow destructive migration in debug builds to avoid silently wiping
         // user data (including notes) in production if a migration is missing.
         if (BuildConfig.DEBUG) {

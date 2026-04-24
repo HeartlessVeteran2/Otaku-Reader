@@ -19,6 +19,7 @@ dependencies {
     implementation(projects.core.preferences)
     implementation(projects.core.discord)
     implementation(projects.data)
+    implementation(libs.play.services.auth)
     implementation(projects.feature.reader)
     implementation(libs.paging.compose)
     implementation(libs.lifecycle.viewmodel.ktx)

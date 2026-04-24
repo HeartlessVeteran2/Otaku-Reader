@@ -513,6 +513,10 @@ class SettingsViewModel @Inject constructor(
                 is SettingsEvent.SetSyncIntervalHours -> syncPreferences.setSyncIntervalHours(event.hours)
                 is SettingsEvent.SetSyncOnlyOnWifi -> syncPreferences.setSyncOnlyOnWifi(event.onlyWifi)
                 is SettingsEvent.SetConflictResolutionStrategy -> syncPreferences.setConflictResolutionStrategy(event.strategy)
+                is SettingsEvent.SetSelfHostedServerUrl -> syncPreferences.setSelfHostedServerUrl(event.url)
+                is SettingsEvent.SetSelfHostedAuthToken -> syncPreferences.setSelfHostedAuthToken(event.token)
+                is SettingsEvent.GoogleSignInResult -> handleGoogleSignInResult(event.email)
+                SettingsEvent.DisconnectGoogleDrive -> handleDisconnectGoogleDrive()
 
                 // App Update Checker
                 is SettingsEvent.SetAppUpdateCheckEnabled -> generalPreferences.setAppUpdateCheckEnabled(event.enabled)
@@ -802,7 +806,7 @@ class SettingsViewModel @Inject constructor(
 
     private fun observeSyncPreferences() {
         viewModelScope.launch {
-            // Combine first 5 flows, then zip in the 6th to stay within the typed overload limit.
+            // Combine first 5 flows, then zip in additional ones to stay within the typed overload limit.
             combine(
                 syncPreferences.isSyncEnabled,
                 syncPreferences.providerId,
@@ -826,6 +830,24 @@ class SettingsViewModel @Inject constructor(
                 }
             }.collect { }
         }
+        // Self-hosted and Google Drive settings (separate flows to keep combine limit manageable)
+        viewModelScope.launch {
+            combine(
+                syncPreferences.selfHostedServerUrlFlow,
+                syncPreferences.selfHostedAuthTokenFlow,
+                syncPreferences.googleDriveEmailFlow
+            ) { url, token, driveEmail ->
+                Triple(url ?: "", token ?: "", driveEmail)
+            }.collect { (url, token, driveEmail) ->
+                _state.update { current ->
+                    current.copy(
+                        selfHostedServerUrl = url,
+                        selfHostedAuthToken = token,
+                        googleDriveAccountEmail = driveEmail
+                    )
+                }
+            }
+        }
     }
 
     private fun observeAppUpdatePreferences() {
@@ -847,6 +869,11 @@ class SettingsViewModel @Inject constructor(
     private fun handleSetSyncEnabled(enabled: Boolean, providerId: String?) {
         viewModelScope.launch {
             if (enabled && providerId != null) {
+                // For Google Drive, launch sign-in if not yet connected
+                if (providerId == "google_drive" && _state.value.googleDriveAccountEmail.isNullOrBlank()) {
+                    _effect.send(SettingsEffect.LaunchGoogleSignIn)
+                    return@launch
+                }
                 syncManager.enableSync(providerId)
             } else {
                 syncManager.disableSync()
@@ -857,6 +884,24 @@ class SettingsViewModel @Inject constructor(
     private fun handleTriggerManualSync() {
         viewModelScope.launch {
             syncManager.sync()
+        }
+    }
+
+    private fun handleGoogleSignInResult(email: String) {
+        viewModelScope.launch {
+            syncPreferences.setGoogleDriveEmail(email)
+            _state.update { it.copy(googleDriveAccountEmail = email) }
+            syncManager.enableSync("google_drive")
+        }
+    }
+
+    private fun handleDisconnectGoogleDrive() {
+        viewModelScope.launch {
+            syncPreferences.clearGoogleDriveAccount()
+            _state.update { it.copy(googleDriveAccountEmail = null) }
+            if (_state.value.syncProviderId == "google_drive") {
+                syncManager.disableSync()
+            }
         }
     }
 

@@ -52,6 +52,7 @@ dependencies {
     implementation(projects.feature.tracking)
     implementation(projects.feature.onboarding)
     implementation(projects.feature.about)
+    implementation(projects.feature.recommendations)
     implementation(projects.feature.opds)
 
     // Core modules

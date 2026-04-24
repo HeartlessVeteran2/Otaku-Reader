@@ -41,6 +41,42 @@ class TranslateSfxUseCase @Inject constructor(
      *   Returns an empty-list success instead of failure when AI is unavailable,
      *   so the reader can continue loading without disruption.
      */
+    /**
+     * Translate a single user-supplied SFX text string directly.
+     *
+     * Unlike the page-scan overload, this path skips caching and uses a lightweight
+     * single-text prompt. Intended for the manual input dialog in the reader.
+     *
+     * @param sfxText The raw SFX text typed by the user (e.g. "ドカン").
+     * @param targetLanguage Human-readable target language (default: "English").
+     * @return [Result] containing a single [SfxTranslation], or failure if AI is unavailable.
+     */
+    suspend operator fun invoke(
+        sfxText: String,
+        targetLanguage: String = "English",
+    ): Result<SfxTranslation> {
+        if (!aiFeatureGate.isFeatureAvailable(AiFeature.SFX_TRANSLATION)) {
+            return Result.failure(IllegalStateException("AI SFX translation not available"))
+        }
+        val prompt = buildManualPrompt(sfxText, targetLanguage)
+        val aiResult = aiRepository.generateContent(prompt)
+        if (aiResult.isFailure) return Result.failure(aiResult.exceptionOrNull() ?: IllegalStateException("AI generation failed"))
+
+        val response = aiResult.getOrNull().orEmpty().trim()
+        val parts = response.split("|", limit = 3)
+        val translated = if (parts.size >= 2) parts[1].trim() else response
+        val confidence = if (parts.size >= 3) parts[2].trim().toFloatOrNull() ?: 1f else 1f
+        return Result.success(
+            SfxTranslation(
+                pageIndex = MANUAL_PAGE_INDEX,
+                originalText = sfxText,
+                translatedText = translated,
+                confidence = confidence.coerceIn(0f, 1f),
+                positionHint = null,
+            )
+        )
+    }
+
     suspend operator fun invoke(
         chapterId: Long,
         pageIndex: Int,
@@ -69,6 +105,17 @@ class TranslateSfxUseCase @Inject constructor(
         val translations = parseAiResponse(aiResult.getOrNull().orEmpty(), pageIndex)
         sfxTranslationRepository.saveTranslations(chapterId, pageIndex, translations)
         return Result.success(translations)
+    }
+
+    private fun buildManualPrompt(sfxText: String, targetLanguage: String): String = buildString {
+        appendLine("Translate the following manga sound effect (SFX / onomatopoeia) into $targetLanguage.")
+        appendLine("Input: $sfxText")
+        appendLine()
+        appendLine("Respond in this exact format (pipe-separated, one line):")
+        appendLine("ORIGINAL|TRANSLATION|CONFIDENCE")
+        appendLine("where CONFIDENCE is a float from 0.00 to 1.00.")
+        appendLine()
+        appendLine("Example: ドカン|BOOM|0.97")
     }
 
     private fun buildPrompt(pageImageUrl: String, targetLanguage: String): String = buildString {
@@ -120,5 +167,7 @@ class TranslateSfxUseCase @Inject constructor(
         private const val TRANSLATION_INDEX = 1
         private const val CONFIDENCE_INDEX = 2
         private const val POSITION_INDEX = 3
+        /** Sentinel page index used to store manually entered SFX translations in state. */
+        const val MANUAL_PAGE_INDEX = -1
     }
 }

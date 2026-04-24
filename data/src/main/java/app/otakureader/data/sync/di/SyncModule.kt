@@ -4,6 +4,7 @@ import app.otakureader.core.database.dao.CategoryDao
 import app.otakureader.core.database.dao.ChapterDao
 import app.otakureader.core.database.dao.MangaDao
 import app.otakureader.core.preferences.SyncPreferences
+import app.otakureader.data.sync.GoogleDriveSyncProvider
 import app.otakureader.data.sync.SelfHostedSyncProvider
 import app.otakureader.data.sync.SyncManagerImpl
 import app.otakureader.data.sync.remote.SelfHostedSyncApiFactory
@@ -31,8 +32,9 @@ object SyncModule {
     @Provides
     @Singleton
     fun provideSyncProviders(
-        selfHostedProvider: SelfHostedSyncProvider
-    ): Set<SyncProvider> = setOf<SyncProvider>(selfHostedProvider)
+        selfHostedProvider: SelfHostedSyncProvider,
+        googleDriveProvider: GoogleDriveSyncProvider
+    ): Set<SyncProvider> = setOf(selfHostedProvider, googleDriveProvider)
 
     @Provides
     @Singleton
