@@ -1300,20 +1300,22 @@ class UltimateReaderViewModel @Inject constructor(
         if (sfxText.isBlank()) return
         viewModelScope.launch {
             _state.update { it.copy(isSfxTranslating = true) }
-            val result = translateSfx(sfxText = sfxText)
-            _state.update { state ->
-                val manualTranslations = state.sfxTranslations[TranslateSfxUseCase.MANUAL_PAGE_INDEX]
-                    ?.toMutableList() ?: mutableListOf()
-                result.getOrNull()?.let { translation ->
-                    // Replace existing entry for the same original text, or append
-                    val idx = manualTranslations.indexOfFirst { it.originalText == translation.originalText }
-                    if (idx >= 0) manualTranslations[idx] = translation else manualTranslations.add(translation)
+            try {
+                val result = translateSfx(sfxText = sfxText)
+                _state.update { state ->
+                    val manualTranslations = state.sfxTranslations[TranslateSfxUseCase.MANUAL_PAGE_INDEX]
+                        ?.toMutableList() ?: mutableListOf()
+                    result.getOrNull()?.let { translation ->
+                        val idx = manualTranslations.indexOfFirst { it.originalText == translation.originalText }
+                        if (idx >= 0) manualTranslations[idx] = translation else manualTranslations.add(translation)
+                    }
+                    state.copy(
+                        sfxTranslations = state.sfxTranslations +
+                            (TranslateSfxUseCase.MANUAL_PAGE_INDEX to manualTranslations.toList()),
+                    )
                 }
-                state.copy(
-                    sfxTranslations = state.sfxTranslations +
-                        (TranslateSfxUseCase.MANUAL_PAGE_INDEX to manualTranslations),
-                    isSfxTranslating = false,
-                )
+            } finally {
+                _state.update { it.copy(isSfxTranslating = false) }
             }
         }
     }

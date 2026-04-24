@@ -133,10 +133,10 @@ private fun RecommendationsList(
                 StaleCacheBanner(onRefresh = onRefresh)
             }
         }
-        items(recommendations, key = { it.title + it.sourceId }) { rec ->
+        items(recommendations, key = { "${it.title}|${it.sourceId}" }) { rec ->
             RecommendationCard(
                 recommendation = rec,
-                onDismiss = { onDismiss(rec.title) },
+                onDismiss = { onDismiss("${rec.title}|${rec.sourceId}") },
                 onSearch = { onSearch(rec) },
             )
         }

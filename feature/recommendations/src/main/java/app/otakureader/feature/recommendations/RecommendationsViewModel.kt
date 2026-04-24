@@ -79,18 +79,12 @@ class RecommendationsViewModel @Inject constructor(
     }
 
     private fun refresh(forceRefresh: Boolean) {
-        if (_state.value.isLoading && !forceRefresh) return
+        if (_state.value.isLoading && !forceRefresh && _state.value.recommendations.isNotEmpty()) return
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
             val result = recommendationRepository.getRecommendations(forceRefresh = forceRefresh)
             result.onFailure { error ->
-                _state.update {
-                    it.copy(
-                        isLoading = false,
-                        isAiEnabled = false,
-                        error = error.message,
-                    )
-                }
+                _state.update { it.copy(isLoading = false, error = error.message) }
             }
         }
     }
@@ -99,7 +93,7 @@ class RecommendationsViewModel @Inject constructor(
         viewModelScope.launch {
             recommendationRepository.dismissRecommendation(id)
             _state.update { state ->
-                state.copy(recommendations = state.recommendations.filterNot { it.title == id })
+                state.copy(recommendations = state.recommendations.filterNot { "${it.title}|${it.sourceId}" == id })
             }
         }
     }

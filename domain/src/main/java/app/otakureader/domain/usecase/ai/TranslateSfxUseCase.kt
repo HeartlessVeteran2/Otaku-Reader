@@ -60,7 +60,7 @@ class TranslateSfxUseCase @Inject constructor(
         }
         val prompt = buildManualPrompt(sfxText, targetLanguage)
         val aiResult = aiRepository.generateContent(prompt)
-        if (aiResult.isFailure) return Result.failure(aiResult.exceptionOrNull()!!)
+        if (aiResult.isFailure) return Result.failure(aiResult.exceptionOrNull() ?: IllegalStateException("AI generation failed"))
 
         val response = aiResult.getOrNull().orEmpty().trim()
         val parts = response.split("|", limit = 3)

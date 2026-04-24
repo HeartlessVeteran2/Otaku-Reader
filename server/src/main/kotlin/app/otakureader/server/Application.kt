@@ -18,7 +18,6 @@ import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.cors.routing.CORS
 import io.ktor.server.plugins.ratelimit.RateLimit
-import io.ktor.server.plugins.ratelimit.RateLimitName
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.respond
 import io.ktor.server.routing.get
@@ -38,7 +37,11 @@ fun Application.module(config: AppConfig) {
     install(CallLogging)
 
     install(CORS) {
-        anyHost()
+        if (config.allowedOrigins.isEmpty()) {
+            anyHost()
+        } else {
+            config.allowedOrigins.forEach { allowHost(it) }
+        }
         allowMethod(HttpMethod.Options)
         allowMethod(HttpMethod.Get)
         allowMethod(HttpMethod.Post)

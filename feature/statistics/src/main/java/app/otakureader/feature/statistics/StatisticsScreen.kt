@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -228,7 +229,7 @@ private fun AiInsightsSection(
             if (!isLoading && insights.isNotEmpty()) {
                 IconButton(onClick = onRefresh, modifier = Modifier.size(32.dp)) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        imageVector = Icons.Default.Refresh,
                         contentDescription = stringResource(R.string.statistics_ai_insights_refresh),
                         modifier = Modifier.size(16.dp)
                     )

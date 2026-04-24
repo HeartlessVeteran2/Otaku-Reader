@@ -6,6 +6,7 @@ import com.google.android.gms.auth.GoogleAuthUtil
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
@@ -16,7 +17,6 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import app.otakureader.core.preferences.SyncPreferences
 import app.otakureader.domain.model.SyncSnapshot
 import app.otakureader.domain.sync.SyncProvider
-import android.util.Base64
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,6 +25,12 @@ private const val DRIVE_FILES_URL = "https://www.googleapis.com/drive/v3/files"
 private const val DRIVE_UPLOAD_URL = "https://www.googleapis.com/upload/drive/v3/files"
 private const val SNAPSHOT_FILE_NAME = "otakureader_sync.json"
 private const val GOOGLE_ACCOUNT_TYPE = "com.google"
+
+@Serializable
+private data class DriveFileList(val files: List<DriveFile> = emptyList())
+
+@Serializable
+private data class DriveFile(val id: String = "", val modifiedTime: String = "")
 
 /**
  * Sync provider backed by Google Drive app-data folder.
@@ -73,15 +79,12 @@ class GoogleDriveSyncProvider @Inject constructor(
         return withContext(Dispatchers.IO) {
             try {
                 val snapshotJson = json.encodeToString(snapshot)
-                val encoded = Base64.encodeToString(snapshotJson.toByteArray(), Base64.NO_WRAP)
-
-                // Check if file already exists to decide between create and update
                 val existingId = findSnapshotFileId(token)
 
                 val result = if (existingId != null) {
-                    updateDriveFile(token, existingId, encoded)
+                    updateDriveFile(token, existingId, snapshotJson)
                 } else {
-                    createDriveFile(token, encoded)
+                    createDriveFile(token, snapshotJson)
                 }
 
                 if (result) {
@@ -101,10 +104,8 @@ class GoogleDriveSyncProvider @Inject constructor(
         return withContext(Dispatchers.IO) {
             try {
                 val fileId = findSnapshotFileId(token) ?: return@withContext Result.success(null)
-                val encoded = downloadDriveFileContent(token, fileId)
+                val snapshotJson = downloadDriveFileContent(token, fileId)
                     ?: return@withContext Result.success(null)
-
-                val snapshotJson = String(Base64.decode(encoded, Base64.NO_WRAP))
                 val snapshot = json.decodeFromString<SyncSnapshot>(snapshotJson)
                 Result.success(snapshot)
             } catch (e: Exception) {
@@ -126,10 +127,10 @@ class GoogleDriveSyncProvider @Inject constructor(
                 okHttpClient.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) return@withContext null
                     val body = response.body?.string() ?: return@withContext null
-                    // Parse modifiedTime from JSON (simple string extraction)
-                    val match = Regex("\"modifiedTime\"\\s*:\\s*\"([^\"]+)\"").find(body)
-                    val timeStr = match?.groupValues?.get(1) ?: return@withContext null
-                    java.time.Instant.parse(timeStr).toEpochMilli()
+                    val fileList = json.decodeFromString<DriveFileList>(body)
+                    val modifiedTime = fileList.files.firstOrNull()?.modifiedTime
+                        ?: return@withContext null
+                    java.time.Instant.parse(modifiedTime).toEpochMilli()
                 }
             } catch (e: Exception) {
                 null
@@ -185,11 +186,11 @@ class GoogleDriveSyncProvider @Inject constructor(
         return okHttpClient.newCall(request).execute().use { response ->
             if (!response.isSuccessful) return null
             val body = response.body?.string() ?: return null
-            Regex("\"id\"\\s*:\\s*\"([^\"]+)\"").find(body)?.groupValues?.get(1)
+            json.decodeFromString<DriveFileList>(body).files.firstOrNull()?.id?.takeIf { it.isNotBlank() }
         }
     }
 
-    private fun createDriveFile(token: String, encodedContent: String): Boolean {
+    private fun createDriveFile(token: String, snapshotJson: String): Boolean {
         val metadata = """{"name":"$SNAPSHOT_FILE_NAME","parents":["appDataFolder"]}"""
         val body = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
@@ -199,7 +200,7 @@ class GoogleDriveSyncProvider @Inject constructor(
             )
             .addFormDataPart(
                 "file", SNAPSHOT_FILE_NAME,
-                encodedContent.toRequestBody("application/octet-stream".toMediaType())
+                snapshotJson.toRequestBody("application/json".toMediaType())
             )
             .build()
         val request = Request.Builder()
@@ -210,8 +211,8 @@ class GoogleDriveSyncProvider @Inject constructor(
         return okHttpClient.newCall(request).execute().use { it.isSuccessful }
     }
 
-    private fun updateDriveFile(token: String, fileId: String, encodedContent: String): Boolean {
-        val requestBody = encodedContent.toRequestBody("application/octet-stream".toMediaType())
+    private fun updateDriveFile(token: String, fileId: String, snapshotJson: String): Boolean {
+        val requestBody = snapshotJson.toRequestBody("application/json".toMediaType())
         val request = Request.Builder()
             .url("$DRIVE_UPLOAD_URL/$fileId?uploadType=media")
             .header("Authorization", "Bearer $token")

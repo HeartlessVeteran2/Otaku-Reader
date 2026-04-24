@@ -53,6 +53,9 @@ class StatisticsViewModel @Inject constructor(
         viewModelScope.launch {
             val available = aiFeatureGate.isFeatureAvailable(AiFeature.READING_INSIGHTS)
             _state.update { it.copy(isAiInsightsEnabled = available) }
+            if (available && _state.value.stats.totalChaptersRead > 0 && _state.value.insights.isEmpty()) {
+                loadInsights(_state.value.stats)
+            }
         }
     }
 
