@@ -186,6 +186,24 @@ class SyncPreferences(private val dataStore: DataStore<Preferences>) {
         }
     }
 
+    // Google Drive sync settings
+    val googleDriveEmailFlow: Flow<String?> = dataStore.data.map { it[Keys.GOOGLE_DRIVE_EMAIL] }
+
+    suspend fun getGoogleDriveEmail(): String = googleDriveEmailFlow.first() ?: ""
+
+    suspend fun setGoogleDriveEmail(email: String?) {
+        dataStore.edit { prefs ->
+            if (email.isNullOrBlank()) prefs.remove(Keys.GOOGLE_DRIVE_EMAIL)
+            else prefs[Keys.GOOGLE_DRIVE_EMAIL] = email
+        }
+    }
+
+    suspend fun clearGoogleDriveAccount() {
+        dataStore.edit { prefs ->
+            prefs.remove(Keys.GOOGLE_DRIVE_EMAIL)
+        }
+    }
+
     private object Keys {
         val SYNC_ENABLED = booleanPreferencesKey("sync_enabled")
         val PROVIDER_ID = stringPreferencesKey("sync_provider_id")
@@ -198,5 +216,6 @@ class SyncPreferences(private val dataStore: DataStore<Preferences>) {
         val SELF_HOSTED_URL = stringPreferencesKey("self_hosted_url")
         val SELF_HOSTED_TOKEN = stringPreferencesKey("self_hosted_token")
         val LAST_SYNC_TIMESTAMP = longPreferencesKey("last_sync_timestamp")
+        val GOOGLE_DRIVE_EMAIL = stringPreferencesKey("google_drive_email")
     }
 }

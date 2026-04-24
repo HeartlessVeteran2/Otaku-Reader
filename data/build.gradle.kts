@@ -48,6 +48,7 @@ dependencies {
     implementation(projects.domain)
     implementation(projects.sourceApi)
 
+    implementation(libs.play.services.auth)
     implementation(libs.paging.runtime)
     implementation(libs.workmanager.ktx)
     implementation(libs.hilt.work)

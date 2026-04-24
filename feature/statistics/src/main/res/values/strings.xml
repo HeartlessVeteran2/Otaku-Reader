@@ -17,4 +17,7 @@
     <string name="statistics_weekly_goal">Weekly Goal</string>
     <string name="statistics_goal_complete">✓ Complete!</string>
     <string name="statistics_goal_progress">%1$d / %2$d chapters</string>
+    <string name="statistics_ai_insights">AI Insights</string>
+    <string name="statistics_ai_insights_refresh">Refresh insights</string>
+    <string name="statistics_ai_insights_empty">No insights yet. Read more manga to get AI-powered analysis of your habits.</string>
 </resources>

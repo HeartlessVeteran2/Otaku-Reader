@@ -168,6 +168,12 @@ data class SettingsState(
     val syncIntervalHours: Int = 24,
     val syncOnlyOnWifi: Boolean = true,
     val conflictResolutionStrategy: String = "PREFER_NEWER",
+    // Self-hosted
+    val selfHostedServerUrl: String = "",
+    val selfHostedAuthToken: String = "",
+    // Google Drive
+    val googleDriveAccountEmail: String? = null,
+    val isGoogleDriveSigningIn: Boolean = false,
 
     // App Update Checker
     val appUpdateCheckEnabled: Boolean = true,
@@ -321,6 +327,12 @@ sealed interface SettingsEvent : UiEvent {
     data class SetSyncIntervalHours(val hours: Int) : SettingsEvent
     data class SetSyncOnlyOnWifi(val onlyWifi: Boolean) : SettingsEvent
     data class SetConflictResolutionStrategy(val strategy: String) : SettingsEvent
+    // Self-hosted
+    data class SetSelfHostedServerUrl(val url: String) : SettingsEvent
+    data class SetSelfHostedAuthToken(val token: String) : SettingsEvent
+    // Google Drive
+    data class GoogleSignInResult(val email: String) : SettingsEvent
+    data object DisconnectGoogleDrive : SettingsEvent
 
     // App Update Checker
     data class SetAppUpdateCheckEnabled(val enabled: Boolean) : SettingsEvent
@@ -341,4 +353,5 @@ sealed interface SettingsEffect : UiEffect {
     data object NavigateToMigrationEntry : SettingsEffect
     data object NavigateToAbout : SettingsEffect
     data class ShowDownloadLocationPicker(val currentLocation: String?) : SettingsEffect
+    data object LaunchGoogleSignIn : SettingsEffect
 }

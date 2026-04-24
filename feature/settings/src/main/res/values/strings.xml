@@ -343,4 +343,29 @@
     <string name="settings_download_ahead_wifi_only_description">Restrict ahead downloads to Wi-Fi</string>
     <string name="settings_delete_after_reading">Delete After Reading</string>
     <string name="settings_delete_after_reading_description">Remove downloaded chapters once finished</string>
+
+    <!-- Cloud Sync -->
+    <string name="settings_cloud_sync">Cloud Sync</string>
+    <string name="settings_sync_provider">Sync Provider</string>
+    <string name="settings_sync_provider_none">None (disabled)</string>
+    <string name="settings_sync_provider_self_hosted">Self-Hosted Server</string>
+    <string name="settings_sync_provider_google_drive">Google Drive</string>
+    <string name="settings_sync_self_hosted_config">Self-Hosted Configuration</string>
+    <string name="settings_sync_server_url">Server URL</string>
+    <string name="settings_sync_server_url_hint">https://your-server.example.com</string>
+    <string name="settings_sync_auth_token">Auth Token</string>
+    <string name="settings_sync_auth_token_hint">Bearer token from server config</string>
+    <string name="settings_sync_save">Save</string>
+    <string name="settings_sync_google_drive_config">Google Drive Configuration</string>
+    <string name="settings_sync_google_connected">Connected to Google Drive</string>
+    <string name="settings_sync_google_not_connected">Not connected</string>
+    <string name="settings_sync_google_not_connected_desc">Sign in with Google to sync your library to Google Drive</string>
+    <string name="settings_sync_google_sign_in">Sign In</string>
+    <string name="settings_sync_google_disconnect">Disconnect</string>
+    <string name="settings_sync_options">Sync Options</string>
+    <string name="settings_sync_auto">Auto Sync</string>
+    <string name="settings_sync_auto_desc">Automatically sync on a schedule</string>
+    <string name="settings_sync_manual">Manual Sync</string>
+    <string name="settings_sync_now">Sync Now</string>
+    <string name="settings_sync_last_sync">Last Synced</string>
 </resources>

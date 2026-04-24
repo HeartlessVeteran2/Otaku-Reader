@@ -4,6 +4,9 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.Scope
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -29,6 +32,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -112,6 +116,17 @@ fun SettingsScreen(
         uri?.let { viewModel.onEvent(SettingsEvent.SetDownloadLocation(it.toString())) }
     }
 
+    // Google Sign-In launcher for Google Drive
+    val context = LocalContext.current
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { _ ->
+        val email = GoogleSignIn.getLastSignedInAccount(context)?.email
+        if (!email.isNullOrBlank()) {
+            viewModel.onEvent(SettingsEvent.GoogleSignInResult(email))
+        }
+    }
+
     // Collect effects
     LaunchedEffect(Unit) {
         viewModel.onEvent(SettingsEvent.RefreshLocalBackups)
@@ -130,6 +145,14 @@ fun SettingsScreen(
                 SettingsEffect.NavigateToAbout -> onNavigateToAbout()
                 is SettingsEffect.ShowDownloadLocationPicker -> {
                     downloadLocationLauncher.launch(null)
+                }
+                SettingsEffect.LaunchGoogleSignIn -> {
+                    val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                        .requestEmail()
+                        .requestScopes(Scope("https://www.googleapis.com/auth/drive.appdata"))
+                        .build()
+                    val client = GoogleSignIn.getClient(context, gso)
+                    googleSignInLauncher.launch(client.signInIntent)
                 }
             }
         }
@@ -173,6 +196,8 @@ fun SettingsScreen(
             ReadingGoalsSection(state = state, onEvent = viewModel::onEvent)
             HorizontalDivider()
             DataStorageSection(state = state, onEvent = viewModel::onEvent)
+            HorizontalDivider()
+            CloudSyncSection(state = state, onEvent = viewModel::onEvent)
             HorizontalDivider()
             MigrationSection(state = state, onEvent = viewModel::onEvent)
             HorizontalDivider()
@@ -1638,7 +1663,7 @@ private fun DataStorageSection(state: SettingsState, onEvent: (SettingsEvent) ->
                 trailingContent = {
                     OutlinedButton(
                         onClick = { onEvent(SettingsEvent.ClearHistory) },
-                        colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                        colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = MaterialTheme.colorScheme.error
                         )
                     ) {
@@ -1646,6 +1671,172 @@ private fun DataStorageSection(state: SettingsState, onEvent: (SettingsEvent) ->
                     }
                 }
             )
+}
+
+@Composable
+private fun CloudSyncSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
+    SectionHeader(title = stringResource(R.string.settings_cloud_sync))
+
+    var serverUrl by remember(state.selfHostedServerUrl) { mutableStateOf(state.selfHostedServerUrl) }
+    var authToken by remember(state.selfHostedAuthToken) { mutableStateOf(state.selfHostedAuthToken) }
+    var tokenVisible by remember { mutableStateOf(false) }
+
+    // Provider selection
+    val providers = listOf(
+        stringResource(R.string.settings_sync_provider_none) to null,
+        stringResource(R.string.settings_sync_provider_self_hosted) to "self_hosted",
+        stringResource(R.string.settings_sync_provider_google_drive) to "google_drive"
+    )
+
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.settings_sync_provider)) },
+        supportingContent = {
+            Column(modifier = Modifier.selectableGroup()) {
+                providers.forEach { (label, id) ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .selectable(
+                                selected = state.syncProviderId == id,
+                                onClick = { onEvent(SettingsEvent.SetSyncEnabled(id != null, id)) },
+                                role = Role.RadioButton
+                            )
+                            .padding(vertical = 4.dp)
+                    ) {
+                        RadioButton(selected = state.syncProviderId == id, onClick = null)
+                        Text(text = label, modifier = Modifier.padding(start = 8.dp))
+                    }
+                }
+            }
+        }
+    )
+
+    // Self-hosted configuration
+    if (state.syncProviderId == "self_hosted") {
+        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+        SectionHeader(title = stringResource(R.string.settings_sync_self_hosted_config))
+
+        ListItem(
+            headlineContent = { Text(stringResource(R.string.settings_sync_server_url)) },
+            supportingContent = {
+                Column {
+                    OutlinedTextField(
+                        value = serverUrl,
+                        onValueChange = { serverUrl = it },
+                        label = { Text(stringResource(R.string.settings_sync_server_url_hint)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Button(
+                        onClick = { onEvent(SettingsEvent.SetSelfHostedServerUrl(serverUrl)) },
+                        enabled = serverUrl.isNotBlank(),
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
+                    ) { Text(stringResource(R.string.settings_sync_save)) }
+                }
+            }
+        )
+
+        ListItem(
+            headlineContent = { Text(stringResource(R.string.settings_sync_auth_token)) },
+            supportingContent = {
+                Column {
+                    OutlinedTextField(
+                        value = authToken,
+                        onValueChange = { authToken = it },
+                        label = { Text(stringResource(R.string.settings_sync_auth_token_hint)) },
+                        singleLine = true,
+                        visualTransformation = if (tokenVisible) VisualTransformation.None
+                        else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            IconButton(onClick = { tokenVisible = !tokenVisible }) {
+                                Icon(
+                                    imageVector = if (tokenVisible) Icons.Filled.VisibilityOff
+                                    else Icons.Filled.Visibility,
+                                    contentDescription = null
+                                )
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Button(
+                        onClick = { onEvent(SettingsEvent.SetSelfHostedAuthToken(authToken)) },
+                        enabled = authToken.isNotBlank(),
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
+                    ) { Text(stringResource(R.string.settings_sync_save)) }
+                }
+            }
+        )
+    }
+
+    // Google Drive configuration
+    if (state.syncProviderId == "google_drive") {
+        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+        SectionHeader(title = stringResource(R.string.settings_sync_google_drive_config))
+
+        if (state.googleDriveAccountEmail != null) {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_sync_google_connected)) },
+                supportingContent = { Text(state.googleDriveAccountEmail) },
+                trailingContent = {
+                    OutlinedButton(
+                        onClick = { onEvent(SettingsEvent.DisconnectGoogleDrive) },
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        )
+                    ) { Text(stringResource(R.string.settings_sync_google_disconnect)) }
+                }
+            )
+        } else {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_sync_google_not_connected)) },
+                supportingContent = { Text(stringResource(R.string.settings_sync_google_not_connected_desc)) },
+                trailingContent = {
+                    Button(onClick = { onEvent(SettingsEvent.SetSyncEnabled(true, "google_drive")) }) {
+                        Text(stringResource(R.string.settings_sync_google_sign_in))
+                    }
+                }
+            )
+        }
+    }
+
+    // Sync controls (when enabled)
+    if (state.syncEnabled && state.syncProviderId != null) {
+        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+        SectionHeader(title = stringResource(R.string.settings_sync_options))
+
+        ListItem(
+            headlineContent = { Text(stringResource(R.string.settings_sync_auto)) },
+            supportingContent = { Text(stringResource(R.string.settings_sync_auto_desc)) },
+            trailingContent = {
+                Switch(
+                    checked = state.autoSyncEnabled,
+                    onCheckedChange = { onEvent(SettingsEvent.SetAutoSyncEnabled(it)) }
+                )
+            }
+        )
+
+        ListItem(
+            headlineContent = { Text(stringResource(R.string.settings_sync_manual)) },
+            trailingContent = {
+                val status = when (state.syncStatus) {
+                    SyncStatus.SYNCING -> { { CircularProgressIndicator(modifier = Modifier.size(24.dp)) } }
+                    else -> { { Button(onClick = { onEvent(SettingsEvent.TriggerManualSync) }) {
+                        Text(stringResource(R.string.settings_sync_now)) } } }
+                }
+                status()
+            }
+        )
+
+        if (state.lastSyncTime != null) {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_sync_last_sync)) },
+                supportingContent = {
+                    Text(java.text.DateFormat.getDateTimeInstance().format(java.util.Date(state.lastSyncTime)))
+                }
+            )
+        }
+    }
 }
 
 @Composable

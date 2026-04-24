@@ -60,6 +60,9 @@ glance = "1.1.1"
 # Discord
 # Discord RPC is implemented natively in core/discord; no external library needed.
 
+# Google
+play-services-auth = "21.3.0"
+
 # AI
 generativeai = "0.9.0"
 mlkit-text-recognition = "16.0.1"
@@ -195,6 +198,9 @@ ktor-server-websockets = { group = "io.ktor", name = "ktor-server-websockets-jvm
 ktor-server-call-logging = { group = "io.ktor", name = "ktor-server-call-logging-jvm", version.ref = "ktor" }
 ktor-server-test-host = { group = "io.ktor", name = "ktor-server-test-host-jvm", version.ref = "ktor" }
 logback-classic = { group = "ch.qos.logback", name = "logback-classic", version.ref = "logback" }
+
+# Google
+play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "play-services-auth" }
 
 # AI
 generativeai = { group = "com.google.ai.client.generativeai", name = "generativeai", version.ref = "generativeai" }
