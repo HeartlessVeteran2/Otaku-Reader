@@ -21,7 +21,9 @@ class GenerateReadingInsightsUseCase @Inject constructor(
     private val aiRepository: AiRepository,
     private val aiFeatureGate: AiFeatureGate,
 ) {
-    private val json = Json { ignoreUnknownKeys = true }
+    companion object {
+        private val json = Json { ignoreUnknownKeys = true }
+    }
     suspend operator fun invoke(stats: ReadingStats): Result<ReadingInsightsResult> {
         if (!aiFeatureGate.isFeatureAvailable(AiFeature.READING_INSIGHTS)) {
             return Result.failure(IllegalStateException("Reading insights feature is not available."))
