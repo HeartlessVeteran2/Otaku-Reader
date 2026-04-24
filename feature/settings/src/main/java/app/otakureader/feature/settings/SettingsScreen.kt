@@ -1832,7 +1832,12 @@ private fun CloudSyncSection(state: SettingsState, onEvent: (SettingsEvent) -> U
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_sync_last_sync)) },
                 supportingContent = {
-                    Text(java.text.DateFormat.getDateTimeInstance().format(java.util.Date(state.lastSyncTime)))
+                    Text(
+                        java.time.format.DateTimeFormatter.ofLocalizedDateTime(
+                            java.time.format.FormatStyle.MEDIUM
+                        ).withZone(java.time.ZoneId.systemDefault())
+                            .format(java.time.Instant.ofEpochMilli(state.lastSyncTime))
+                    )
                 }
             )
         }

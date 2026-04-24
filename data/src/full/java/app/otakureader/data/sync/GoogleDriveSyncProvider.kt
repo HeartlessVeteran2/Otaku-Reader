@@ -1,10 +1,12 @@
 package app.otakureader.data.sync
 
-import android.accounts.Account
 import android.content.Context
-import com.google.android.gms.auth.GoogleAuthUtil
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.Scope
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -20,11 +22,10 @@ import app.otakureader.domain.sync.SyncProvider
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private const val DRIVE_SCOPE = "oauth2:https://www.googleapis.com/auth/drive.appdata"
+private const val DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.appdata"
 private const val DRIVE_FILES_URL = "https://www.googleapis.com/drive/v3/files"
 private const val DRIVE_UPLOAD_URL = "https://www.googleapis.com/upload/drive/v3/files"
 private const val SNAPSHOT_FILE_NAME = "otakureader_sync.json"
-private const val GOOGLE_ACCOUNT_TYPE = "com.google"
 
 @Serializable
 private data class DriveFileList(val files: List<DriveFile> = emptyList())
@@ -35,11 +36,12 @@ private data class DriveFile(val id: String = "", val modifiedTime: String = "")
 /**
  * Sync provider backed by Google Drive app-data folder.
  *
- * Uses [GoogleAuthUtil] to obtain OAuth2 access tokens on the fly — no server-side
- * token exchange is needed. The user signs in once from the Settings screen, and their
- * account email is stored in [SyncPreferences]. Each sync operation calls
- * [GoogleAuthUtil.getToken] to get a fresh (auto-refreshed) token before making
- * Drive REST API calls.
+ * Uses [GoogleSignIn] to obtain OAuth2 access tokens — the user signs in once from the
+ * Settings screen and their account email is stored in [SyncPreferences]. Each sync
+ * operation calls [GoogleSignIn.getLastSignedInAccount] and then refreshes the token
+ * via [com.google.android.gms.auth.api.signin.GoogleSignInAccount.serverAuthCode] /
+ * the account's `idToken`, falling back to a fresh sign-in request via [GoogleSignInOptions]
+ * when the token cannot be retrieved.
  *
  * Snapshots are stored in the Drive app-data folder which is hidden from the user and
  * only accessible by this app.
@@ -164,8 +166,19 @@ class GoogleDriveSyncProvider @Inject constructor(
 
     private suspend fun getAccessToken(email: String): String? = withContext(Dispatchers.IO) {
         try {
-            val account = Account(email, GOOGLE_ACCOUNT_TYPE)
-            GoogleAuthUtil.getToken(context, account, DRIVE_SCOPE)
+            val account = GoogleSignIn.getLastSignedInAccount(context)
+                ?: return@withContext null
+            if (account.email != email) return@withContext null
+            // Request a fresh token using the GoogleSignIn API. If the account's
+            // cached token has expired GoogleSignIn will refresh it automatically.
+            val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                .requestEmail()
+                .requestScopes(Scope(DRIVE_SCOPE))
+                .build()
+            GoogleSignIn.getClient(context, gso)
+                .silentSignIn()
+                .await()
+                ?.serverAuthCode
         } catch (e: Exception) {
             null
         }
@@ -190,8 +203,11 @@ class GoogleDriveSyncProvider @Inject constructor(
         }
     }
 
+    @Serializable
+    private data class DriveFileMetadata(val name: String, val parents: List<String>)
+
     private fun createDriveFile(token: String, snapshotJson: String): Boolean {
-        val metadata = """{"name":"$SNAPSHOT_FILE_NAME","parents":["appDataFolder"]}"""
+        val metadata = json.encodeToString(DriveFileMetadata(SNAPSHOT_FILE_NAME, listOf("appDataFolder")))
         val body = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
             .addFormDataPart(
