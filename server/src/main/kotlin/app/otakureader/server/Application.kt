@@ -37,11 +37,7 @@ fun Application.module(config: AppConfig) {
     install(CallLogging)
 
     install(CORS) {
-        if (config.allowedOrigins.isEmpty()) {
-            anyHost()
-        } else {
-            config.allowedOrigins.forEach { allowHost(it) }
-        }
+        config.allowedOrigins.forEach { allowHost(it) }
         allowMethod(HttpMethod.Options)
         allowMethod(HttpMethod.Get)
         allowMethod(HttpMethod.Post)

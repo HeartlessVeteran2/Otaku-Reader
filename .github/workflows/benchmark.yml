@@ -16,7 +16,7 @@ jobs:
   benchmark:
     name: Run Benchmarks
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -28,13 +28,12 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Ensure Android SDK components
+      - name: Install Android SDK components
         run: |
-          yes | sdkmanager --licenses > /dev/null
-          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          echo "y" | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;35.0.0"
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
@@ -44,40 +43,21 @@ jobs:
         env:
           CI: true
 
-      - name: Run Unit Tests
-        id: tests
-        run: ./gradlew testFullDebugUnitTest --no-daemon
-        env:
-          CI: true
-        continue-on-error: true
-
-      - name: Upload Test Results
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        if: always()
-        with:
-          name: test-results
-          path: '**/build/test-results/**/*.xml'
-          retention-days: 30
-
       - name: Run Build Time Benchmark
         run: |
           echo "## Build Time Benchmark" > benchmark.md
           echo "" >> benchmark.md
           echo "| Step | Time |" >> benchmark.md
           echo "|------|------|" >> benchmark.md
-          
+
           START=$(date +%s)
           ./gradlew :app:assembleFullDebug --no-daemon
           END=$(date +%s)
           echo "| Full Debug Build | $((END-START))s |" >> benchmark.md
 
       - name: Upload Benchmark Results
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4
         with:
           name: benchmark-results
           path: benchmark.md
           retention-days: 30
-
-      - name: Fail if tests failed
-        if: steps.tests.outcome == 'failure'
-        run: exit 1

@@ -9,6 +9,7 @@ plugins {
     alias(libs.plugins.hilt) apply false
     alias(libs.plugins.ksp) apply false
     alias(libs.plugins.room) apply false
+    alias(libs.plugins.shadow) apply false
     // R-4: detekt static analysis applied to all subprojects
     alias(libs.plugins.detekt)
 }

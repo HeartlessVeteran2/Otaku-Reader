@@ -1,6 +1,6 @@
 plugins {
-    id("otakureader.android.library")
-    id("otakureader.android.hilt")
+    alias(libs.plugins.otakureader.android.library)
+    alias(libs.plugins.otakureader.android.hilt)
 }
 
 android {
@@ -12,15 +12,15 @@ android {
 }
 
 dependencies {
-    implementation(project(":source-api"))
-    implementation(project(":domain"))
-    implementation(project(":core:common"))
-    implementation(project(":core:preferences"))
-    implementation(project(":core:network"))
+    implementation(projects.sourceApi)
+    implementation(projects.domain)
+    implementation(projects.core.common)
+    implementation(projects.core.preferences)
+    implementation(projects.core.network)
 
     // RxJava 1.x — required by the Tachiyomi extension API (Observable-based methods)
-    implementation("io.reactivex:rxjava:1.3.8")
-    implementation("io.reactivex:rxandroid:1.2.1")
+    implementation(libs.rxjava)
+    implementation(libs.rxandroid)
 
     // OkHttp (shared with Tachiyomi extensions)
     implementation(libs.okhttp.core)

@@ -17,5 +17,5 @@ enum class InsightCategory {
 @Immutable
 data class ReadingInsightsResult(
     val insights: List<ReadingInsight>,
-    val generatedAt: Long = System.currentTimeMillis()
+    val generatedAt: Long,
 )
