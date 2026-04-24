@@ -49,6 +49,7 @@ dependencies {
     implementation(projects.sourceApi)
 
     "fullImplementation"(libs.play.services.auth)
+    "fullImplementation"(libs.kotlinx.coroutines.play.services)
     implementation(libs.paging.runtime)
     implementation(libs.workmanager.ktx)
     implementation(libs.hilt.work)

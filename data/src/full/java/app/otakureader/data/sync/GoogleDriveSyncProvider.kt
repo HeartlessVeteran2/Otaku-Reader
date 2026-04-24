@@ -22,6 +22,9 @@ import app.otakureader.domain.sync.SyncProvider
 import javax.inject.Inject
 import javax.inject.Singleton
 
+@Serializable
+private data class DriveFileMetadata(val name: String, val parents: List<String>)
+
 private const val DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.appdata"
 private const val DRIVE_FILES_URL = "https://www.googleapis.com/drive/v3/files"
 private const val DRIVE_UPLOAD_URL = "https://www.googleapis.com/upload/drive/v3/files"
@@ -202,9 +205,6 @@ class GoogleDriveSyncProvider @Inject constructor(
             json.decodeFromString<DriveFileList>(body).files.firstOrNull()?.id?.takeIf { it.isNotBlank() }
         }
     }
-
-    @Serializable
-    private data class DriveFileMetadata(val name: String, val parents: List<String>)
 
     private fun createDriveFile(token: String, snapshotJson: String): Boolean {
         val metadata = json.encodeToString(DriveFileMetadata(SNAPSHOT_FILE_NAME, listOf("appDataFolder")))

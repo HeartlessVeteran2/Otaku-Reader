@@ -1,10 +1,13 @@
 package app.otakureader.feature.statistics
 
 import app.otakureader.core.preferences.ReadingGoalPreferences
+import app.otakureader.domain.ai.AiFeature
+import app.otakureader.domain.ai.AiFeatureGate
 import app.otakureader.domain.model.ReadingGoal
 import app.otakureader.domain.model.ReadingStats
 import app.otakureader.domain.repository.StatisticsRepository
 import app.otakureader.domain.usecase.GetReadingStatsUseCase
+import app.otakureader.domain.usecase.ai.GenerateReadingInsightsUseCase
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -31,6 +34,8 @@ class StatisticsViewModelTest {
     private lateinit var getReadingStatsUseCase: GetReadingStatsUseCase
     private lateinit var statisticsRepository: StatisticsRepository
     private lateinit var readingGoalPreferences: ReadingGoalPreferences
+    private lateinit var generateReadingInsightsUseCase: GenerateReadingInsightsUseCase
+    private lateinit var aiFeatureGate: AiFeatureGate
 
     private val sampleStats = ReadingStats(
         totalMangaInLibrary = 15,
@@ -56,6 +61,10 @@ class StatisticsViewModelTest {
             every { dailyChapterGoal } returns flowOf(5)
             every { weeklyChapterGoal } returns flowOf(30)
         }
+        generateReadingInsightsUseCase = mockk()
+        aiFeatureGate = mockk {
+            every { isFeatureAvailable(AiFeature.READING_INSIGHTS) } returns false
+        }
     }
 
     @After
@@ -64,7 +73,13 @@ class StatisticsViewModelTest {
     }
 
     private fun createViewModel(): StatisticsViewModel {
-        return StatisticsViewModel(getReadingStatsUseCase, statisticsRepository, readingGoalPreferences)
+        return StatisticsViewModel(
+            getReadingStatsUseCase,
+            statisticsRepository,
+            readingGoalPreferences,
+            generateReadingInsightsUseCase,
+            aiFeatureGate,
+        )
     }
 
     @Test
