@@ -27,12 +27,6 @@ dependencies {
     // Encrypted storage (used by SecureApiKeyDataStore)
     implementation(libs.androidx.security.crypto)
 
-    // DataStore (used by AiConfigManager)
-    implementation(libs.datastore.preferences)
-
-    // Encrypted storage (used by SecureApiKeyDataStore)
-    implementation(libs.androidx.security.crypto)
-
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
 

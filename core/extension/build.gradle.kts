@@ -19,9 +19,7 @@ dependencies {
     implementation(projects.core.preferences)
     implementation(projects.domain)
     implementation(projects.sourceApi)
-    implementation(project(":core:tachiyomi-compat"))
-    implementation(libs.androidx.core.ktx)
-
+    implementation(projects.core.tachiyomiCompat)
     implementation(libs.androidx.core.ktx)
     implementation(libs.datastore.preferences)
     implementation(libs.kotlinx.serialization.json)

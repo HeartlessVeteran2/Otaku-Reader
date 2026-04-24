@@ -2,6 +2,8 @@ import com.android.build.api.dsl.ApplicationExtension
 import com.android.build.api.dsl.CommonExtension
 import org.gradle.api.JavaVersion
 import org.gradle.api.Project
+import org.gradle.api.artifacts.VersionCatalogsExtension
+import org.gradle.kotlin.dsl.the
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinAndroidProjectExtension
 
@@ -45,5 +47,6 @@ internal fun Project.configureKotlinAndroid(
         }
     }
 
-    dependencies.add("coreLibraryDesugaring", "com.android.tools:desugar_jdk_libs:2.1.4")
+    val libs = the<VersionCatalogsExtension>().named("libs")
+    dependencies.add("coreLibraryDesugaring", libs.findLibrary("android.desugar.jdk.libs").get())
 }
