@@ -306,7 +306,10 @@ private fun MangaGrid(
     ) {
         // Continue Reading (full-width span, only shown when there are items)
         if (state.continueReadingItems.isNotEmpty()) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
+            item(
+                span = { GridItemSpan(maxLineSpan) },
+                contentType = "continue_reading_section"
+            ) {
                 ContinueReadingSection(
                     items = state.continueReadingItems,
                     onItemClick = { mangaId, chapterId ->
@@ -317,7 +320,10 @@ private fun MangaGrid(
         }
 
         // "For You" recommendations header (full-width span)
-        item(span = { GridItemSpan(maxLineSpan) }) {
+        item(
+            span = { GridItemSpan(maxLineSpan) },
+            contentType = "for_you_section"
+        ) {
             ForYouSection(
                 recommendations = state.recommendations,
                 isLoading = state.isLoadingRecommendations,
@@ -330,7 +336,10 @@ private fun MangaGrid(
         }
 
         // Category filter chips (full-width span)
-        item(span = { GridItemSpan(maxLineSpan) }) {
+        item(
+            span = { GridItemSpan(maxLineSpan) },
+            contentType = "category_filter_section"
+        ) {
             CategoryFilterChips(
                 categories = state.categories,
                 selectedCategory = state.selectedCategory,
@@ -342,7 +351,8 @@ private fun MangaGrid(
         // Manga grid items
         items(
             items = state.mangaList,
-            key = { it.id }
+            key = { it.id },
+            contentType = { "manga_card" }
         ) { manga ->
             val readProgress = if (manga.totalChapterCount > 0) {
                 (manga.totalChapterCount - manga.unreadCount)
