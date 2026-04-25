@@ -48,6 +48,9 @@ interface TrackerSyncDao {
     suspend fun deleteSyncStateForManga(mangaId: Long)
 
     // Bulk operations
+    @Query("SELECT * FROM tracker_sync_state")
+    fun getAllSyncStates(): Flow<List<TrackerSyncStateEntity>>
+
     @Query("SELECT * FROM tracker_sync_state WHERE syncStatus = 0") // PENDING = 0
     fun getPendingSyncs(): Flow<List<TrackerSyncStateEntity>>
 
