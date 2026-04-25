@@ -144,6 +144,8 @@ data class ReaderState(
     // --- Webtoon Settings ---
     /** Side padding for webtoon: 0 = None, 1 = Small, 2 = Medium, 3 = Large */
     val webtoonSidePadding: Int = 0,
+    /** Gap between webtoon pages in dp (0–16, default 4) */
+    val webtoonGapDp: Int = 4,
     /** Menu hide sensitivity: 0 = Low, 1 = Medium, 2 = High */
     val webtoonMenuHideSensitivity: Int = 0,
     /** Enable double-tap zoom in webtoon mode */

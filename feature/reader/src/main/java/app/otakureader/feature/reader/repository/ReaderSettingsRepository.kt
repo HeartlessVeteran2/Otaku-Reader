@@ -432,6 +432,15 @@ class ReaderSettingsRepository @Inject constructor(
         safeEdit { it[Keys.WEBTOON_SIDE_PADDING] = padding.coerceIn(0, 3) }
     }
 
+    /** Gap between webtoon pages in dp. Range: 0–16, default 4. */
+    val webtoonGapDp: Flow<Int> = dataStore.data.map { prefs ->
+        prefs[Keys.WEBTOON_GAP_DP] ?: 4
+    }
+
+    suspend fun setWebtoonGapDp(gap: Int) {
+        safeEdit { it[Keys.WEBTOON_GAP_DP] = gap.coerceIn(0, 16) }
+    }
+
     /** Menu hide sensitivity: 0 = Low, 1 = Medium, 2 = High */
     val webtoonMenuHideSensitivity: Flow<Int> = dataStore.data.map { prefs ->
         prefs[Keys.WEBTOON_MENU_HIDE_SENSITIVITY] ?: 0
@@ -601,6 +610,7 @@ class ReaderSettingsRepository @Inject constructor(
         
         // --- Webtoon Settings ---
         val WEBTOON_SIDE_PADDING = intPreferencesKey("reader_webtoon_side_padding")
+        val WEBTOON_GAP_DP = intPreferencesKey("reader_webtoon_gap_dp")
         val WEBTOON_MENU_HIDE_SENSITIVITY = intPreferencesKey("reader_webtoon_menu_hide_sensitivity")
         val WEBTOON_DOUBLE_TAP_ZOOM = booleanPreferencesKey("reader_webtoon_double_tap_zoom")
         val WEBTOON_DISABLE_ZOOM_OUT = booleanPreferencesKey("reader_webtoon_disable_zoom_out")

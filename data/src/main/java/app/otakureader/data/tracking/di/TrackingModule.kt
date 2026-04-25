@@ -25,6 +25,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import dagger.multibindings.IntoSet
 import kotlinx.serialization.json.Json
+import app.otakureader.core.network.di.TrackerOkHttp
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
@@ -73,7 +74,7 @@ object TrackingNetworkModule {
     @Provides
     @Singleton
     @KitsuOAuth
-    fun provideKitsuOAuthRetrofit(okHttpClient: OkHttpClient, json: Json): Retrofit =
+    fun provideKitsuOAuthRetrofit(@TrackerOkHttp okHttpClient: OkHttpClient, json: Json): Retrofit =
         Retrofit.Builder()
             .client(okHttpClient)
             .baseUrl("https://kitsu.app/")
@@ -83,7 +84,7 @@ object TrackingNetworkModule {
     @Provides
     @Singleton
     @KitsuEdge
-    fun provideKitsuEdgeRetrofit(okHttpClient: OkHttpClient, json: Json): Retrofit =
+    fun provideKitsuEdgeRetrofit(@TrackerOkHttp okHttpClient: OkHttpClient, json: Json): Retrofit =
         Retrofit.Builder()
             .client(okHttpClient)
             .baseUrl("https://kitsu.app/api/edge/")
@@ -93,7 +94,7 @@ object TrackingNetworkModule {
     @Provides
     @Singleton
     @MalOAuth
-    fun provideMalOAuthRetrofit(okHttpClient: OkHttpClient, json: Json): Retrofit =
+    fun provideMalOAuthRetrofit(@TrackerOkHttp okHttpClient: OkHttpClient, json: Json): Retrofit =
         Retrofit.Builder()
             .client(okHttpClient)
             .baseUrl("https://myanimelist.net/v1/oauth2/")
@@ -103,7 +104,7 @@ object TrackingNetworkModule {
     @Provides
     @Singleton
     @MalApi
-    fun provideMalApiRetrofit(okHttpClient: OkHttpClient, json: Json): Retrofit =
+    fun provideMalApiRetrofit(@TrackerOkHttp okHttpClient: OkHttpClient, json: Json): Retrofit =
         Retrofit.Builder()
             .client(okHttpClient)
             .baseUrl("https://api.myanimelist.net/v2/")
@@ -113,7 +114,7 @@ object TrackingNetworkModule {
     @Provides
     @Singleton
     @ShikimoriOAuth
-    fun provideShikimoriOAuthRetrofit(okHttpClient: OkHttpClient, json: Json): Retrofit =
+    fun provideShikimoriOAuthRetrofit(@TrackerOkHttp okHttpClient: OkHttpClient, json: Json): Retrofit =
         Retrofit.Builder()
             .client(okHttpClient)
             .baseUrl("https://shikimori.one/")
@@ -123,7 +124,7 @@ object TrackingNetworkModule {
     @Provides
     @Singleton
     @ShikimoriApiQ
-    fun provideShikimoriApiRetrofit(okHttpClient: OkHttpClient, json: Json): Retrofit =
+    fun provideShikimoriApiRetrofit(@TrackerOkHttp okHttpClient: OkHttpClient, json: Json): Retrofit =
         Retrofit.Builder()
             .client(okHttpClient)
             .baseUrl("https://shikimori.one/api/")
@@ -133,7 +134,7 @@ object TrackingNetworkModule {
     @Provides
     @Singleton
     @AniListApiQ
-    fun provideAniListRetrofit(okHttpClient: OkHttpClient, json: Json): Retrofit =
+    fun provideAniListRetrofit(@TrackerOkHttp okHttpClient: OkHttpClient, json: Json): Retrofit =
         Retrofit.Builder()
             .client(okHttpClient)
             .baseUrl("https://graphql.anilist.co/")
@@ -143,7 +144,7 @@ object TrackingNetworkModule {
     @Provides
     @Singleton
     @MangaUpdatesApiQ
-    fun provideMangaUpdatesRetrofit(okHttpClient: OkHttpClient, json: Json): Retrofit =
+    fun provideMangaUpdatesRetrofit(@TrackerOkHttp okHttpClient: OkHttpClient, json: Json): Retrofit =
         Retrofit.Builder()
             .client(okHttpClient)
             .baseUrl("https://api.mangaupdates.com/v1/")

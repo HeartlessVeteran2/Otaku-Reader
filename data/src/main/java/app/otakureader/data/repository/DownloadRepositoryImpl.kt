@@ -5,14 +5,13 @@ import app.otakureader.data.download.CbzCreator
 import app.otakureader.data.download.ChapterDownloadRequest
 import app.otakureader.data.download.DownloadManager
 import app.otakureader.data.download.DownloadProvider
+import app.otakureader.core.common.di.ApplicationScope
 import app.otakureader.domain.model.DownloadItem
 import app.otakureader.domain.repository.DownloadRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -21,11 +20,10 @@ import kotlinx.coroutines.withContext
 @Singleton
 class DownloadRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val downloadManager: DownloadManager
+    private val downloadManager: DownloadManager,
+    @ApplicationScope private val scope: CoroutineScope
 ) : DownloadRepository {
 
-    // Use a background dispatcher so notification updates don't run on the main thread.
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val notifier = DownloadNotifier(context)
 
     init {
