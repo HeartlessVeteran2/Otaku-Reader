@@ -22,6 +22,9 @@ interface TrackerSyncDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSyncConfiguration(config: SyncConfigurationEntity): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSyncConfigurations(configs: List<SyncConfigurationEntity>)
+
     @Update
     suspend fun updateSyncConfiguration(config: SyncConfigurationEntity)
 
@@ -41,6 +44,9 @@ interface TrackerSyncDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSyncState(state: TrackerSyncStateEntity): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSyncStates(states: List<TrackerSyncStateEntity>)
+
     @Update
     suspend fun updateSyncState(state: TrackerSyncStateEntity)
 
@@ -48,6 +54,9 @@ interface TrackerSyncDao {
     suspend fun deleteSyncStateForManga(mangaId: Long)
 
     // Bulk operations
+    @Query("SELECT * FROM tracker_sync_state")
+    fun getAllSyncStates(): Flow<List<TrackerSyncStateEntity>>
+
     @Query("SELECT * FROM tracker_sync_state WHERE syncStatus = 0") // PENDING = 0
     fun getPendingSyncs(): Flow<List<TrackerSyncStateEntity>>
 

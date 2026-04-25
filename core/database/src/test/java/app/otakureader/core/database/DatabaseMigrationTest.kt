@@ -33,7 +33,7 @@ class DatabaseMigrationTest {
     }
 
     @Test
-    fun allMigrations_formContiguousChain() {
+    fun allMigrations_formsContiguousChain() {
         val sorted = ALL_MIGRATIONS.sortedBy { it.startVersion }
         assertEquals("Migration chain must start at version 2", 2, sorted.first().startVersion)
         assertEquals("Migration chain must end at version 14", 14, sorted.last().endVersion)

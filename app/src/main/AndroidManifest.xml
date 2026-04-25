@@ -18,7 +18,6 @@
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
 
-    <!-- Required to send ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS intent from onboarding -->
     <!-- Package visibility: required to discover and manage Tachiyomi-compatible extension
          packages. Uses targeted <queries> below instead of QUERY_ALL_PACKAGES so this
          does not trigger a Play Store policy review. -->
