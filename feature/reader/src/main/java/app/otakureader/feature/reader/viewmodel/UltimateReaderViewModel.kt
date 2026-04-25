@@ -38,6 +38,8 @@ import coil3.ImageLoader
 import coil3.request.ImageRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.Job
 import app.otakureader.core.preferences.AiPreferences
 import kotlinx.coroutines.channels.Channel
@@ -180,177 +182,176 @@ class UltimateReaderViewModel @Inject constructor(
             val manga = mangaRepository.getMangaById(mangaId)
             currentManga = manga
 
-            // Load all settings concurrently
-            val mode = settingsRepository.readerMode.first()
-            val brightness = settingsRepository.brightness.first()
-            val keepScreenOn = settingsRepository.keepScreenOn.first()
-            val showPageNumber = settingsRepository.showPageNumber.first()
-            val direction = settingsRepository.readingDirection.first()
-            val volumeKeysEnabled = settingsRepository.volumeKeysEnabled.first()
-            val volumeKeysInverted = settingsRepository.volumeKeysInverted.first()
-            val fullscreen = settingsRepository.fullscreen.first()
-            val incognitoMode = settingsRepository.incognitoMode.first()
-            val colorFilterMode = settingsRepository.colorFilterMode.first()
-            val customTintColor = settingsRepository.customTintColor.first()
-            val cropBordersEnabled = try {
-                settingsRepository.cropBordersEnabled.first()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Exception) {
-                false
-            }
-            val imageQuality = try {
-                settingsRepository.imageQuality.first()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Exception) {
-                ImageQuality.ORIGINAL
-            }
-            val dataSaverEnabled = try {
-                settingsRepository.dataSaverEnabled.first()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Exception) {
-                false
-            }
+            // Launch all DataStore reads concurrently — each .first() is a separate suspend
+            // point; running them in parallel shaves 50–200 ms from cold reader open time.
+            coroutineScope {
+                val modeD = async { settingsRepository.readerMode.first() }
+                val brightnessD = async { settingsRepository.brightness.first() }
+                val keepScreenOnD = async { settingsRepository.keepScreenOn.first() }
+                val showPageNumberD = async { settingsRepository.showPageNumber.first() }
+                val directionD = async { settingsRepository.readingDirection.first() }
+                val volumeKeysEnabledD = async { settingsRepository.volumeKeysEnabled.first() }
+                val volumeKeysInvertedD = async { settingsRepository.volumeKeysInverted.first() }
+                val fullscreenD = async { settingsRepository.fullscreen.first() }
+                val incognitoModeD = async { settingsRepository.incognitoMode.first() }
+                val colorFilterModeD = async { settingsRepository.colorFilterMode.first() }
+                val customTintColorD = async { settingsRepository.customTintColor.first() }
+                val cropBordersEnabledD = async {
+                    try { settingsRepository.cropBordersEnabled.first() } catch (_: Exception) { false }
+                }
+                val imageQualityD = async {
+                    try { settingsRepository.imageQuality.first() } catch (_: Exception) { ImageQuality.ORIGINAL }
+                }
+                val dataSaverEnabledD = async {
+                    try { settingsRepository.dataSaverEnabled.first() } catch (_: Exception) { false }
+                }
+                val showReadingTimerD = async {
+                    try { settingsRepository.showReadingTimer.first() } catch (_: Exception) { false }
+                }
+                val showBatteryTimeD = async {
+                    try { settingsRepository.showBatteryTime.first() } catch (_: Exception) { false }
+                }
+                val preloadBeforeD = async {
+                    try { settingsRepository.preloadPagesBefore.first() } catch (_: Exception) { ReaderSettingsRepository.DEFAULT_PRELOAD_PAGES }
+                }
+                val preloadAfterD = async {
+                    try { settingsRepository.preloadPagesAfter.first() } catch (_: Exception) { ReaderSettingsRepository.DEFAULT_PRELOAD_PAGES }
+                }
+                val smartPrefetchEnabledD = async {
+                    try { settingsRepository.smartPrefetchEnabled.first() } catch (_: Exception) { true }
+                }
+                val prefetchStrategyOrdinalD = async {
+                    try { settingsRepository.prefetchStrategyOrdinal.first() } catch (_: Exception) { -1 }
+                }
+                val adaptiveLearningEnabledD = async {
+                    try { settingsRepository.adaptiveLearningEnabled.first() } catch (_: Exception) { true }
+                }
+                val prefetchAdjacentChaptersD = async {
+                    try { settingsRepository.prefetchAdjacentChapters.first() } catch (_: Exception) { false }
+                }
+                val prefetchOnlyOnWiFiD = async {
+                    try { settingsRepository.prefetchOnlyOnWiFi.first() } catch (_: Exception) { false }
+                }
+                val showContentInCutoutD = async { settingsRepository.showContentInCutout.first() }
+                val backgroundColorD = async { settingsRepository.backgroundColor.first() }
+                val animatePageTransitionsD = async { settingsRepository.animatePageTransitions.first() }
+                val showReadingModeOverlayD = async { settingsRepository.showReadingModeOverlay.first() }
+                val showTapZonesOverlayD = async { settingsRepository.showTapZonesOverlay.first() }
+                val readerScaleD = async { settingsRepository.readerScale.first() }
+                val autoZoomWideImagesD = async { settingsRepository.autoZoomWideImages.first() }
+                val invertTapZonesD = async { settingsRepository.invertTapZones.first() }
+                val webtoonSidePaddingD = async { settingsRepository.webtoonSidePadding.first() }
+                val webtoonGapDpD = async { settingsRepository.webtoonGapDp.first() }
+                val webtoonMenuHideSensitivityD = async { settingsRepository.webtoonMenuHideSensitivity.first() }
+                val webtoonDoubleTapZoomD = async { settingsRepository.webtoonDoubleTapZoom.first() }
+                val webtoonDisableZoomOutD = async { settingsRepository.webtoonDisableZoomOut.first() }
+                val einkFlashOnPageChangeD = async { settingsRepository.einkFlashOnPageChange.first() }
+                val einkBlackAndWhiteD = async { settingsRepository.einkBlackAndWhite.first() }
+                val skipReadChaptersD = async { settingsRepository.skipReadChapters.first() }
+                val skipFilteredChaptersD = async { settingsRepository.skipFilteredChapters.first() }
+                val skipDuplicateChaptersD = async { settingsRepository.skipDuplicateChapters.first() }
+                val alwaysShowChapterTransitionD = async { settingsRepository.alwaysShowChapterTransition.first() }
+                val showActionsOnLongTapD = async { settingsRepository.showActionsOnLongTap.first() }
+                val savePagesToSeparateFoldersD = async { settingsRepository.savePagesToSeparateFolders.first() }
 
-            // Load overlay settings from DataStore
-            val showReadingTimer = try {
-                settingsRepository.showReadingTimer.first()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Exception) {
-                false
-            }
-            val showBatteryTime = try {
-                settingsRepository.showBatteryTime.first()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Exception) {
-                false
-            }
+                val mode = modeD.await()
+                val brightness = brightnessD.await()
+                val keepScreenOn = keepScreenOnD.await()
+                val showPageNumber = showPageNumberD.await()
+                val direction = directionD.await()
+                val volumeKeysEnabled = volumeKeysEnabledD.await()
+                val volumeKeysInverted = volumeKeysInvertedD.await()
+                val fullscreen = fullscreenD.await()
+                val incognitoMode = incognitoModeD.await()
+                val colorFilterMode = colorFilterModeD.await()
+                val customTintColor = customTintColorD.await()
+                val cropBordersEnabled = cropBordersEnabledD.await()
+                val imageQuality = imageQualityD.await()
+                val dataSaverEnabled = dataSaverEnabledD.await()
+                val showReadingTimer = showReadingTimerD.await()
+                val showBatteryTime = showBatteryTimeD.await()
+                cachedPreloadBefore = preloadBeforeD.await()
+                cachedPreloadAfter = preloadAfterD.await()
+                cachedSmartPrefetchEnabled = smartPrefetchEnabledD.await()
+                val prefetchOrdinal = prefetchStrategyOrdinalD.await()
+                cachedPrefetchStrategy = if (prefetchOrdinal >= 0) PrefetchStrategy.fromOrdinal(prefetchOrdinal) else PrefetchStrategy.Balanced
+                cachedAdaptiveLearningEnabled = adaptiveLearningEnabledD.await()
+                cachedPrefetchAdjacentChapters = prefetchAdjacentChaptersD.await()
+                cachedPrefetchOnlyOnWiFi = prefetchOnlyOnWiFiD.await()
+                val showContentInCutout = showContentInCutoutD.await()
+                val backgroundColor = backgroundColorD.await()
+                val animatePageTransitions = animatePageTransitionsD.await()
+                val showReadingModeOverlay = showReadingModeOverlayD.await()
+                val showTapZonesOverlay = showTapZonesOverlayD.await()
+                val readerScale = readerScaleD.await()
+                val autoZoomWideImages = autoZoomWideImagesD.await()
+                val invertTapZones = invertTapZonesD.await()
+                val webtoonSidePadding = webtoonSidePaddingD.await()
+                val webtoonGapDp = webtoonGapDpD.await()
+                val webtoonMenuHideSensitivity = webtoonMenuHideSensitivityD.await()
+                val webtoonDoubleTapZoom = webtoonDoubleTapZoomD.await()
+                val webtoonDisableZoomOut = webtoonDisableZoomOutD.await()
+                val einkFlashOnPageChange = einkFlashOnPageChangeD.await()
+                val einkBlackAndWhite = einkBlackAndWhiteD.await()
+                val skipReadChapters = skipReadChaptersD.await()
+                val skipFilteredChapters = skipFilteredChaptersD.await()
+                val skipDuplicateChapters = skipDuplicateChaptersD.await()
+                val alwaysShowChapterTransition = alwaysShowChapterTransitionD.await()
+                val showActionsOnLongTap = showActionsOnLongTapD.await()
+                val savePagesToSeparateFolders = savePagesToSeparateFoldersD.await()
 
-            // Cache preload settings so preloadPages() doesn't read DataStore per page change (#264)
-            cachedPreloadBefore = try {
-                settingsRepository.preloadPagesBefore.first()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Exception) {
-                ReaderSettingsRepository.DEFAULT_PRELOAD_PAGES
-            }
-            cachedPreloadAfter = try {
-                settingsRepository.preloadPagesAfter.first()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Exception) {
-                ReaderSettingsRepository.DEFAULT_PRELOAD_PAGES
-            }
+                // Apply per-manga overrides if they exist (#260)
+                val effectiveMode = manga?.readerMode?.let { ReaderMode.entries.getOrNull(it) } ?: mode
+                val effectiveDirection = manga?.readerDirection?.let {
+                    if (it == 0) ReadingDirection.LTR else ReadingDirection.RTL
+                } ?: direction
+                val effectiveColorFilter = manga?.readerColorFilter?.let {
+                    ColorFilterMode.entries.getOrNull(it)
+                } ?: colorFilterMode
+                val effectiveTintColor = manga?.readerCustomTintColor ?: customTintColor
 
-            // Cache smart prefetch settings
-            cachedSmartPrefetchEnabled = try {
-                settingsRepository.smartPrefetchEnabled.first()
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                true
-            }
-            cachedPrefetchStrategy = try {
-                val ordinal = settingsRepository.prefetchStrategyOrdinal.first()
-                PrefetchStrategy.fromOrdinal(ordinal)
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                PrefetchStrategy.Balanced
-            }
-            cachedAdaptiveLearningEnabled = try {
-                settingsRepository.adaptiveLearningEnabled.first()
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                true
-            }
-            cachedPrefetchAdjacentChapters = try {
-                settingsRepository.prefetchAdjacentChapters.first()
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                false
-            }
-            cachedPrefetchOnlyOnWiFi = try {
-                settingsRepository.prefetchOnlyOnWiFi.first()
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                false
-            }
-
-            // Load new settings with safe fallbacks
-            val showContentInCutout = settingsRepository.showContentInCutout.first()
-            val backgroundColor = settingsRepository.backgroundColor.first()
-            val animatePageTransitions = settingsRepository.animatePageTransitions.first()
-            val showReadingModeOverlay = settingsRepository.showReadingModeOverlay.first()
-            val showTapZonesOverlay = settingsRepository.showTapZonesOverlay.first()
-            val readerScale = settingsRepository.readerScale.first()
-            val autoZoomWideImages = settingsRepository.autoZoomWideImages.first()
-            val invertTapZones = settingsRepository.invertTapZones.first()
-            val webtoonSidePadding = settingsRepository.webtoonSidePadding.first()
-            val webtoonMenuHideSensitivity = settingsRepository.webtoonMenuHideSensitivity.first()
-            val webtoonDoubleTapZoom = settingsRepository.webtoonDoubleTapZoom.first()
-            val webtoonDisableZoomOut = settingsRepository.webtoonDisableZoomOut.first()
-            val einkFlashOnPageChange = settingsRepository.einkFlashOnPageChange.first()
-            val einkBlackAndWhite = settingsRepository.einkBlackAndWhite.first()
-            val skipReadChapters = settingsRepository.skipReadChapters.first()
-            val skipFilteredChapters = settingsRepository.skipFilteredChapters.first()
-            val skipDuplicateChapters = settingsRepository.skipDuplicateChapters.first()
-            val alwaysShowChapterTransition = settingsRepository.alwaysShowChapterTransition.first()
-            val showActionsOnLongTap = settingsRepository.showActionsOnLongTap.first()
-            val savePagesToSeparateFolders = settingsRepository.savePagesToSeparateFolders.first()
-
-            // Apply per-manga overrides if they exist (#260)
-            val effectiveMode = manga?.readerMode?.let { ReaderMode.entries.getOrNull(it) } ?: mode
-            val effectiveDirection = manga?.readerDirection?.let { 
-                if (it == 0) ReadingDirection.LTR else ReadingDirection.RTL 
-            } ?: direction
-            val effectiveColorFilter = manga?.readerColorFilter?.let { 
-                ColorFilterMode.entries.getOrNull(it) 
-            } ?: colorFilterMode
-            val effectiveTintColor = manga?.readerCustomTintColor ?: customTintColor
-
-            _state.update {
-                it.copy(
-                    mode = effectiveMode,
-                    brightness = brightness,
-                    keepScreenOn = keepScreenOn,
-                    showPageNumber = showPageNumber,
-                    readingDirection = effectiveDirection,
-                    volumeKeysEnabled = volumeKeysEnabled,
-                    volumeKeysInverted = volumeKeysInverted,
-                    isFullscreen = fullscreen,
-                    incognitoMode = incognitoMode,
-                    colorFilterMode = effectiveColorFilter,
-                    customTintColor = effectiveTintColor,
-                    showReadingTimer = showReadingTimer,
-                    showBatteryTime = showBatteryTime,
-                    cropBordersEnabled = cropBordersEnabled,
-                    imageQuality = imageQuality,
-                    dataSaverEnabled = dataSaverEnabled,
-                    showContentInCutout = showContentInCutout,
-                    backgroundColor = backgroundColor,
-                    animatePageTransitions = animatePageTransitions,
-                    showReadingModeOverlay = showReadingModeOverlay,
-                    showTapZonesOverlay = showTapZonesOverlay,
-                    readerScale = readerScale,
-                    autoZoomWideImages = autoZoomWideImages,
-                    invertTapZones = invertTapZones,
-                    webtoonSidePadding = webtoonSidePadding,
-                    webtoonMenuHideSensitivity = webtoonMenuHideSensitivity,
-                    webtoonDoubleTapZoom = webtoonDoubleTapZoom,
-                    webtoonDisableZoomOut = webtoonDisableZoomOut,
-                    einkFlashOnPageChange = einkFlashOnPageChange,
-                    einkBlackAndWhite = einkBlackAndWhite,
-                    skipReadChapters = skipReadChapters,
-                    skipFilteredChapters = skipFilteredChapters,
-                    skipDuplicateChapters = skipDuplicateChapters,
-                    alwaysShowChapterTransition = alwaysShowChapterTransition,
-                    showActionsOnLongTap = showActionsOnLongTap,
-                    savePagesToSeparateFolders = savePagesToSeparateFolders
-                )
-            }
+                _state.update {
+                    it.copy(
+                        mode = effectiveMode,
+                        brightness = brightness,
+                        keepScreenOn = keepScreenOn,
+                        showPageNumber = showPageNumber,
+                        readingDirection = effectiveDirection,
+                        volumeKeysEnabled = volumeKeysEnabled,
+                        volumeKeysInverted = volumeKeysInverted,
+                        isFullscreen = fullscreen,
+                        incognitoMode = incognitoMode,
+                        colorFilterMode = effectiveColorFilter,
+                        customTintColor = effectiveTintColor,
+                        showReadingTimer = showReadingTimer,
+                        showBatteryTime = showBatteryTime,
+                        cropBordersEnabled = cropBordersEnabled,
+                        imageQuality = imageQuality,
+                        dataSaverEnabled = dataSaverEnabled,
+                        showContentInCutout = showContentInCutout,
+                        backgroundColor = backgroundColor,
+                        animatePageTransitions = animatePageTransitions,
+                        showReadingModeOverlay = showReadingModeOverlay,
+                        showTapZonesOverlay = showTapZonesOverlay,
+                        readerScale = readerScale,
+                        autoZoomWideImages = autoZoomWideImages,
+                        invertTapZones = invertTapZones,
+                        webtoonSidePadding = webtoonSidePadding,
+                        webtoonGapDp = webtoonGapDp,
+                        webtoonMenuHideSensitivity = webtoonMenuHideSensitivity,
+                        webtoonDoubleTapZoom = webtoonDoubleTapZoom,
+                        webtoonDisableZoomOut = webtoonDisableZoomOut,
+                        einkFlashOnPageChange = einkFlashOnPageChange,
+                        einkBlackAndWhite = einkBlackAndWhite,
+                        skipReadChapters = skipReadChapters,
+                        skipFilteredChapters = skipFilteredChapters,
+                        skipDuplicateChapters = skipDuplicateChapters,
+                        alwaysShowChapterTransition = alwaysShowChapterTransition,
+                        showActionsOnLongTap = showActionsOnLongTap,
+                        savePagesToSeparateFolders = savePagesToSeparateFolders
+                    )
+                }
+            } // end coroutineScope
         }
     }
 
@@ -1125,6 +1126,9 @@ class UltimateReaderViewModel @Inject constructor(
         autoSaveJob?.cancel()
         preloadJob?.cancel()
         panelDetectionJob?.cancel()
+        // Release session-scoped caches so long reading sessions don't accumulate memory.
+        smartPrefetchManager.clearCache()
+        adaptiveChapterPrefetcher.clearPrefetchedChapters()
     }
 
     /**

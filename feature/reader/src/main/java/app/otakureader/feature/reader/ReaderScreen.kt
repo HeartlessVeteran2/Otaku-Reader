@@ -180,17 +180,45 @@ fun ReaderScreen(
             .focusRequester(focusRequester)
             .focusable()
             .onPreviewKeyEvent { event ->
-                if (!state.volumeKeysEnabled) return@onPreviewKeyEvent false
-                if (event.key != Key.VolumeUp && event.key != Key.VolumeDown) return@onPreviewKeyEvent false
-
-                // Consume both down/up to suppress system volume UI
-                if (event.type == KeyEventType.KeyDown) {
-                    val navigateNext = (event.key == Key.VolumeDown && !state.volumeKeysInverted) ||
-                        (event.key == Key.VolumeUp && state.volumeKeysInverted)
-                    val readerEvent = if (navigateNext) ReaderEvent.NextPage else ReaderEvent.PrevPage
-                    viewModel.onEvent(readerEvent)
+                // Volume key navigation (existing behaviour — suppress system volume UI).
+                if (event.key == Key.VolumeUp || event.key == Key.VolumeDown) {
+                    if (!state.volumeKeysEnabled) return@onPreviewKeyEvent false
+                    if (event.type == KeyEventType.KeyDown) {
+                        val navigateNext = (event.key == Key.VolumeDown && !state.volumeKeysInverted) ||
+                            (event.key == Key.VolumeUp && state.volumeKeysInverted)
+                        viewModel.onEvent(if (navigateNext) ReaderEvent.NextPage else ReaderEvent.PrevPage)
+                    }
+                    return@onPreviewKeyEvent true
                 }
-                true
+
+                // DeX / physical keyboard shortcuts — only act on key-down to avoid double firing.
+                if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                when (event.key) {
+                    Key.DirectionRight, Key.D, Key.PageDown, Key.Spacebar -> {
+                        viewModel.onEvent(ReaderEvent.NextPage); true
+                    }
+                    Key.DirectionLeft, Key.A, Key.PageUp -> {
+                        viewModel.onEvent(ReaderEvent.PrevPage); true
+                    }
+                    Key.MoveHome -> {
+                        viewModel.onEvent(ReaderEvent.FirstPage); true
+                    }
+                    Key.MoveEnd -> {
+                        viewModel.onEvent(ReaderEvent.LastPage); true
+                    }
+                    Key.F -> {
+                        viewModel.onEvent(ReaderEvent.ToggleFullscreen); true
+                    }
+                    Key.M, Key.Menu -> {
+                        viewModel.onEvent(ReaderEvent.ToggleMenu); true
+                    }
+                    Key.Escape -> {
+                        if (state.isMenuVisible) viewModel.onEvent(ReaderEvent.ToggleMenu)
+                        else onNavigateBack()
+                        true
+                    }
+                    else -> false
+                }
             }
     ) {
         // Main content based on reading mode
@@ -430,6 +458,7 @@ private fun ReaderContent(
                     cropBordersEnabled = state.cropBordersEnabled,
                     imageQuality = state.imageQuality,
                     dataSaverEnabled = state.dataSaverEnabled,
+                    pageGapDp = state.webtoonGapDp,
                     modifier = Modifier.fillMaxSize()
                 )
             }

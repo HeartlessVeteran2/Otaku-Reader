@@ -99,6 +99,8 @@ class DetailsViewModel @Inject constructor(
             is DetailsContract.Event.ToggleChapterRead -> toggleChapterRead(event.chapterId)
             is DetailsContract.Event.ToggleChapterBookmark -> toggleChapterBookmark(event.chapterId)
             is DetailsContract.Event.DownloadChapter -> downloadChapter(event.chapterId)
+            is DetailsContract.Event.DownloadAllChapters -> downloadAllChapters(unreadOnly = false)
+            is DetailsContract.Event.DownloadUnreadChapters -> downloadAllChapters(unreadOnly = true)
             is DetailsContract.Event.DeleteChapterDownload -> deleteChapterDownload(event.chapterId)
             is DetailsContract.Event.ExportChapterAsCbz -> exportChapterAsCbz(event.chapterId)
             is DetailsContract.Event.MarkPreviousAsRead -> markPreviousAsRead(event.chapterId)
@@ -565,6 +567,30 @@ class DetailsViewModel @Inject constructor(
                 )
                 _effect.send(DetailsContract.Effect.ShowSnackbar("Download added to queue"))
             }
+        }
+    }
+
+    private fun downloadAllChapters(unreadOnly: Boolean) {
+        viewModelScope.launch {
+            val manga = _state.value.manga ?: return@launch
+            val sourceName = manga.sourceId.toString()
+            val chapters = if (unreadOnly) {
+                _state.value.chapters.filter { !it.read }
+            } else {
+                _state.value.chapters
+            }
+            if (chapters.isEmpty()) return@launch
+            chapters.forEach { chapter ->
+                downloadRepository.enqueueChapter(
+                    mangaId = chapter.mangaId,
+                    chapterId = chapter.id,
+                    sourceName = sourceName,
+                    mangaTitle = manga.title,
+                    chapterTitle = chapter.name
+                )
+            }
+            val label = if (unreadOnly) "unread" else "all"
+            _effect.send(DetailsContract.Effect.ShowSnackbar("${chapters.size} $label chapters added to queue"))
         }
     }
 
