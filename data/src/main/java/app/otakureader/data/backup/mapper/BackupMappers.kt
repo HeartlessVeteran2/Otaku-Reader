@@ -200,7 +200,7 @@ fun FeedSavedSearchEntity.toBackupFeedSavedSearch(): BackupFeedSavedSearch = Bac
 )
 
 fun BackupFeedSavedSearch.toFeedSavedSearchEntity(): FeedSavedSearchEntity = FeedSavedSearchEntity(
-    id = 0,
+    id = id,
     sourceId = sourceId,
     sourceName = sourceName,
     query = query,

@@ -22,6 +22,9 @@ interface TrackerSyncDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSyncConfiguration(config: SyncConfigurationEntity): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSyncConfigurations(configs: List<SyncConfigurationEntity>)
+
     @Update
     suspend fun updateSyncConfiguration(config: SyncConfigurationEntity)
 
@@ -40,6 +43,9 @@ interface TrackerSyncDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSyncState(state: TrackerSyncStateEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSyncStates(states: List<TrackerSyncStateEntity>)
 
     @Update
     suspend fun updateSyncState(state: TrackerSyncStateEntity)

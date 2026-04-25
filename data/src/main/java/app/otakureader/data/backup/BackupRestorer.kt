@@ -188,32 +188,37 @@ class BackupRestorer @Inject constructor(
     }
 
     private suspend fun restoreOpdsServers(backupData: BackupData) {
-        backupData.opdsServers.forEach { backup ->
-            opdsServerDao.insert(backup.toOpdsServerEntity())
+        if (backupData.opdsServers.isEmpty()) return
+        database.withTransaction {
+            opdsServerDao.insertAll(backupData.opdsServers.map { it.toOpdsServerEntity() })
         }
     }
 
     private suspend fun restoreFeedSources(backupData: BackupData) {
-        backupData.feedSources.forEach { backup ->
-            feedDao.insertFeedSource(backup.toFeedSourceEntity())
+        if (backupData.feedSources.isEmpty()) return
+        database.withTransaction {
+            feedDao.insertFeedSources(backupData.feedSources.map { it.toFeedSourceEntity() })
         }
     }
 
     private suspend fun restoreFeedSavedSearches(backupData: BackupData) {
-        backupData.feedSavedSearches.forEach { backup ->
-            feedDao.insertSavedSearch(backup.toFeedSavedSearchEntity())
+        if (backupData.feedSavedSearches.isEmpty()) return
+        database.withTransaction {
+            feedDao.insertSavedSearches(backupData.feedSavedSearches.map { it.toFeedSavedSearchEntity() })
         }
     }
 
     private suspend fun restoreSyncConfigurations(backupData: BackupData) {
-        backupData.syncConfigurations.forEach { backup ->
-            trackerSyncDao.insertSyncConfiguration(backup.toSyncConfigurationEntity())
+        if (backupData.syncConfigurations.isEmpty()) return
+        database.withTransaction {
+            trackerSyncDao.insertSyncConfigurations(backupData.syncConfigurations.map { it.toSyncConfigurationEntity() })
         }
     }
 
     private suspend fun restoreTrackerSyncStates(backupData: BackupData) {
-        backupData.trackerSyncStates.forEach { backup ->
-            trackerSyncDao.insertSyncState(backup.toTrackerSyncStateEntity())
+        if (backupData.trackerSyncStates.isEmpty()) return
+        database.withTransaction {
+            trackerSyncDao.insertSyncStates(backupData.trackerSyncStates.map { it.toTrackerSyncStateEntity() })
         }
     }
 }
