@@ -27,7 +27,8 @@ class PanelDetectionService @Inject constructor(
     private val panelDetector: PanelDetector,
     private val panelDetectionRepository: PanelDetectionRepository
 ) {
-    // Cache detection results keyed by imageUrl to avoid re-running ML Kit on revisited pages.
+    // android.util.LruCache is not thread-safe; all reads and writes are synchronized on this lock.
+    private val cacheLock = Any()
     private val resultCache = LruCache<String, List<ComicPanel>>(CACHE_SIZE)
 
     /**
@@ -47,7 +48,7 @@ class PanelDetectionService @Inject constructor(
             if (!isEnabled || imageUrl == null) return@withContext emptyList()
 
             // Return cached result if available.
-            resultCache.get(imageUrl)?.let { return@withContext it }
+            synchronized(cacheLock) { resultCache.get(imageUrl) }?.let { return@withContext it }
 
             // Load bitmap from URL. allowHardware=false is required: hardware-backed bitmaps
             // cannot be read by ML Kit's image analyzer (pixel data is GPU-only).
@@ -61,7 +62,7 @@ class PanelDetectionService @Inject constructor(
 
             if (!bitmap.isRecycled) bitmap.recycle()
 
-            resultCache.put(imageUrl, panels)
+            synchronized(cacheLock) { resultCache.put(imageUrl, panels) }
             panels
         } catch (e: Exception) {
             emptyList()

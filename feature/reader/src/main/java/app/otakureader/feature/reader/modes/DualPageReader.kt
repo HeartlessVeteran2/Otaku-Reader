@@ -15,8 +15,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -86,10 +86,11 @@ fun DualPageReader(
     dataSaverEnabled: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    // Map from page.index → true if detected as a landscape spread
-    val detectedSpreads = remember { mutableStateMapOf<Int, Boolean>() }
+    // Map from page.index → true if detected as a landscape spread.
+    // Keyed on `pages` so the map is cleared automatically when a new chapter loads.
+    val detectedSpreads = remember(pages) { mutableStateMapOf<Int, Boolean>() }
 
-    val spreadGroups by rememberUpdatedState(buildSpreadGroups(pages, detectedSpreads))
+    val spreadGroups by remember(pages) { derivedStateOf { buildSpreadGroups(pages, detectedSpreads) } }
 
     val currentGroupIndex = remember(currentPage, spreadGroups) {
         spreadGroups.indexOfFirst { group -> group.any { it == currentPage } }.coerceAtLeast(0)

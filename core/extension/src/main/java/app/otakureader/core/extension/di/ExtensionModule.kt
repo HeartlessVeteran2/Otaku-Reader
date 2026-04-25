@@ -78,14 +78,6 @@ object ExtensionModule {
 
     @Provides
     @Singleton
-    fun provideTrustedSignatureStore(
-        @ApplicationContext context: Context
-    ): TrustedSignatureStore {
-        return TrustedSignatureStore(context)
-    }
-
-    @Provides
-    @Singleton
     fun provideExtensionLoader(
         @ApplicationContext context: Context,
         trustedSignatureStore: TrustedSignatureStore

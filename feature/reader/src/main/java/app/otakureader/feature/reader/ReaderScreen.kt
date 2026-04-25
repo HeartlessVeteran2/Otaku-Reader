@@ -193,12 +193,13 @@ fun ReaderScreen(
 
                 // DeX / physical keyboard shortcuts — only act on key-down to avoid double firing.
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                val isRtl = state.readingDirection == app.otakureader.feature.reader.model.ReadingDirection.RTL
                 when (event.key) {
                     Key.DirectionRight, Key.D, Key.PageDown, Key.Spacebar -> {
-                        viewModel.onEvent(ReaderEvent.NextPage); true
+                        viewModel.onEvent(if (isRtl) ReaderEvent.PrevPage else ReaderEvent.NextPage); true
                     }
                     Key.DirectionLeft, Key.A, Key.PageUp -> {
-                        viewModel.onEvent(ReaderEvent.PrevPage); true
+                        viewModel.onEvent(if (isRtl) ReaderEvent.NextPage else ReaderEvent.PrevPage); true
                     }
                     Key.MoveHome -> {
                         viewModel.onEvent(ReaderEvent.FirstPage); true

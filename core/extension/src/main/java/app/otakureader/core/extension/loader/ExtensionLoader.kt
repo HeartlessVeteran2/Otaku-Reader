@@ -51,7 +51,7 @@ sealed class ExtensionLoadResult {
  */
 class ExtensionLoader(
     private val context: Context,
-    private val trustedSignatureStore: TrustedSignatureStore = TrustedSignatureStore(context)
+    private val trustedSignatureStore: TrustedSignatureStore
 ) {
 
     companion object {
@@ -372,8 +372,9 @@ class ExtensionLoader(
 
         // Signature trust check: private extensions are verified at install time; shared
         // extensions (installed via system package manager) must be in the user-approved set.
+        // Fail closed: if the signature hash cannot be computed, treat the extension as untrusted.
         val sigHash = extension.signatureHash
-        if (isShared && sigHash != null && !trustedSignatureStore.isTrusted(sigHash)) {
+        if (isShared && (sigHash == null || !trustedSignatureStore.isTrusted(sigHash))) {
             return ExtensionLoadResult.Untrusted(extension)
         }
 

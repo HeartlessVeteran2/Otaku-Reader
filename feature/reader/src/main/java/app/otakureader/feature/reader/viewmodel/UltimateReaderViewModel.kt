@@ -422,6 +422,7 @@ class UltimateReaderViewModel @Inject constructor(
                 }
 
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 _state.update {
                     it.copy(
                         isLoading = false,
@@ -910,8 +911,8 @@ class UltimateReaderViewModel @Inject constructor(
                                 // Enqueue prefetch request (non-blocking, returns immediately)
                                 imageLoader.enqueue(request)
                             } catch (e: Exception) {
+                                if (e is CancellationException) throw e
                                 // Silently ignore prefetch failures - they're not critical
-                                // The image will be loaded on-demand when the user navigates to the page
                             }
                         }
                     }
@@ -1128,7 +1129,7 @@ class UltimateReaderViewModel @Inject constructor(
         panelDetectionJob?.cancel()
         // Release session-scoped caches so long reading sessions don't accumulate memory.
         smartPrefetchManager.clearCache()
-        adaptiveChapterPrefetcher.clearPrefetchedChapters()
+        chapterPrefetcher.clearPrefetchedChapters()
     }
 
     /**

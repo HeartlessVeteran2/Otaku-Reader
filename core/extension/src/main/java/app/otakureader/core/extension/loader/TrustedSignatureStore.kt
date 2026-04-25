@@ -2,6 +2,7 @@ package app.otakureader.core.extension.loader
 
 import android.content.Context
 import androidx.core.content.edit
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -17,7 +18,7 @@ import javax.inject.Singleton
  * Hashes are SHA-256 of the DER-encoded signing certificate, hex-lower-case encoded.
  */
 @Singleton
-class TrustedSignatureStore @Inject constructor(context: Context) {
+class TrustedSignatureStore @Inject constructor(@ApplicationContext context: Context) {
 
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 

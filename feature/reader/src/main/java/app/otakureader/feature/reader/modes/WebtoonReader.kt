@@ -18,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.layout.ContentScale
@@ -92,15 +93,17 @@ fun WebtoonReader(
         ContentScale.Fit
     }
 
-    @Suppress("OPT_IN_USAGE")
+    @OptIn(ExperimentalComposeUiApi::class)
     LazyColumn(
         state = listState,
         modifier = modifier
             .fillMaxSize()
             // Precise mouse-wheel scroll for DeX / external mouse (default Compose delta is too coarse).
+            // scrollBy (non-animating) is used intentionally — animateScrollBy queues animations on
+            // every pointer event and feels sluggish for continuous mouse-wheel input.
             .onPointerEvent(PointerEventType.Scroll) { event ->
                 val delta = event.changes.firstOrNull()?.scrollDelta?.y ?: return@onPointerEvent
-                coroutineScope.launch { listState.animateScrollBy(delta * MOUSE_SCROLL_MULTIPLIER) }
+                coroutineScope.launch { listState.scrollBy(delta * MOUSE_SCROLL_MULTIPLIER) }
             },
         contentPadding = PaddingValues(vertical = pageGapDp.dp),
         verticalArrangement = Arrangement.spacedBy(pageGapDp.dp)
