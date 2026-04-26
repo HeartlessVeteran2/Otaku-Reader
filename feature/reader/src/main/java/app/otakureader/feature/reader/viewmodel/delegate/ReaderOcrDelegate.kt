@@ -2,7 +2,7 @@ package app.otakureader.feature.reader.viewmodel.delegate
 
 import app.otakureader.feature.reader.model.ReaderPage
 import app.otakureader.feature.reader.ocr.TextRecognitionService
-import app.otakureader.feature.reader.viewmodel.ReaderState
+import app.otakureader.feature.reader.ReaderState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job

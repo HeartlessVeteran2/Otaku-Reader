@@ -76,10 +76,10 @@ import app.otakureader.feature.reader.ui.ReadingTimerOverlay
 import app.otakureader.feature.reader.ui.ReaderMenuOverlay
 import app.otakureader.feature.reader.ui.SimpleTapZoneOverlay
 import app.otakureader.feature.reader.ui.ZoomIndicator
-import app.otakureader.feature.reader.viewmodel.ReaderEffect
-import app.otakureader.feature.reader.viewmodel.ReaderEvent
-import app.otakureader.feature.reader.viewmodel.TapZone
-import app.otakureader.feature.reader.viewmodel.UltimateReaderViewModel
+import app.otakureader.feature.reader.ReaderEffect
+import app.otakureader.feature.reader.ReaderEvent
+import app.otakureader.feature.reader.TapZone
+import app.otakureader.feature.reader.ReaderViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -104,7 +104,7 @@ fun ReaderScreen(
     chapterId: Long,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: UltimateReaderViewModel = hiltViewModel()
+    viewModel: ReaderViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }

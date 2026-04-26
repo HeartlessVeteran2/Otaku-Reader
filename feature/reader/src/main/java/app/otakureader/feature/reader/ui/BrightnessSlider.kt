@@ -24,7 +24,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import app.otakureader.feature.reader.PageRotation
 import app.otakureader.feature.reader.R
+import app.otakureader.feature.reader.TapZone
 
 /**
  * Brightness slider overlay that appears on the left side of the screen.

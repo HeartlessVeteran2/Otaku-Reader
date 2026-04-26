@@ -1,6 +1,7 @@
 package app.otakureader.feature.reader.ui
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.*
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
@@ -18,7 +19,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.animation.core.*
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
 
 /**
  * Floating indicator showing current zoom level.
