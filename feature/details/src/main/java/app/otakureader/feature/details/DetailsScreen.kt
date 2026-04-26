@@ -103,6 +103,12 @@ import app.otakureader.core.ui.adaptive.rememberWindowWidthSizeClass
 
 private val MARKDOWN_BOLD_REGEX = Regex("""\*\*(.+?)\*\*""")
 private val MARKDOWN_ITALIC_REGEX = Regex("""(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)""")
+
+// Two-pane split for the Expanded width class. The info pane is given slightly
+// more horizontal space than the chapter list because the manga header and
+// description benefit from extra width; the two weights must sum to 1f.
+private const val INFO_PANE_WEIGHT = 0.55f
+private const val CHAPTER_PANE_WEIGHT = 0.45f
 private val MARKDOWN_LINK_REGEX = Regex("""\[(.+?)]\((.+?)\)""")
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -254,7 +260,7 @@ private fun DetailsContent(
         Row(modifier = modifier.fillMaxSize()) {
             LazyColumn(
                 modifier = Modifier
-                    .weight(0.55f)
+                    .weight(INFO_PANE_WEIGHT)
                     .fillMaxHeight(),
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -264,7 +270,7 @@ private fun DetailsContent(
             VerticalDivider()
             LazyColumn(
                 modifier = Modifier
-                    .weight(0.45f)
+                    .weight(CHAPTER_PANE_WEIGHT)
                     .fillMaxHeight(),
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
