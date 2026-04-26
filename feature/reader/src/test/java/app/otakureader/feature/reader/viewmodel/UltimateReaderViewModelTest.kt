@@ -872,4 +872,48 @@ class UltimateReaderViewModelTest {
 
         coVerify(exactly = 0) { downloadManager.enqueue(any()) }
     }
+
+    // ── OCR text search tests ────────────────────────────────────────────────
+
+    @Test
+    fun `OpenOcrSearch sets showOcrSearch to true and clears query`() = runTest {
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        vm.setPages(listOf(ReaderPage(index = 0, imageUrl = "https://example.com/page0.jpg")))
+
+        vm.onEvent(ReaderEvent.OpenOcrSearch)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = vm.state.value
+        assertTrue(state.showOcrSearch)
+        assertEquals("", state.ocrQuery)
+    }
+
+    @Test
+    fun `CloseOcrSearch sets showOcrSearch to false and cancels OCR jobs`() = runTest {
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        vm.setPages(listOf(ReaderPage(index = 0, imageUrl = "https://example.com/page0.jpg")))
+
+        vm.onEvent(ReaderEvent.OpenOcrSearch)
+        testDispatcher.scheduler.advanceUntilIdle()
+        vm.onEvent(ReaderEvent.CloseOcrSearch)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = vm.state.value
+        assertFalse(state.showOcrSearch)
+        assertFalse(state.isOcrRunning)
+    }
+
+    @Test
+    fun `UpdateOcrQuery updates the search query`() = runTest {
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        vm.onEvent(ReaderEvent.OpenOcrSearch)
+        vm.onEvent(ReaderEvent.UpdateOcrQuery("test query"))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals("test query", vm.state.value.ocrQuery)
+    }
 }
