@@ -2,11 +2,11 @@ package app.otakureader.feature.reader.viewmodel.delegate
 
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.PrefetchStrategy
-import app.otakureader.feature.reader.model.ColorFilterMode
-import app.otakureader.feature.reader.model.ImageQuality
-import app.otakureader.feature.reader.model.ReaderMode
-import app.otakureader.feature.reader.model.ReadingDirection
-import app.otakureader.feature.reader.repository.ReaderSettingsRepository
+import app.otakureader.domain.model.ColorFilterMode
+import app.otakureader.domain.model.ImageQuality
+import app.otakureader.domain.model.ReaderMode
+import app.otakureader.domain.model.ReadingDirection
+import app.otakureader.data.repository.ReaderSettingsRepository
 import app.otakureader.feature.reader.viewmodel.ReaderState
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope

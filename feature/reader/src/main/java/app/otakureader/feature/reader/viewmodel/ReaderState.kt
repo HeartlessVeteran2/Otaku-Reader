@@ -1,11 +1,11 @@
 package app.otakureader.feature.reader.viewmodel
 
-import app.otakureader.feature.reader.model.ColorFilterMode
-import app.otakureader.feature.reader.model.ImageQuality
-import app.otakureader.feature.reader.model.ReaderMode
-import app.otakureader.feature.reader.model.ReadingDirection
+import app.otakureader.domain.model.ColorFilterMode
+import app.otakureader.domain.model.ImageQuality
+import app.otakureader.domain.model.ReaderMode
+import app.otakureader.domain.model.ReadingDirection
 import app.otakureader.feature.reader.model.ReaderPage
-import app.otakureader.feature.reader.model.TapZoneConfig
+import app.otakureader.domain.model.TapZoneConfig
 
 /**
  * Page rotation applied to all pages in the current reading session.

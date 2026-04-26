@@ -32,7 +32,9 @@ dependencies {
 }
 
 kotlin {
-    jvmToolchain(21)
+    // Standardised to JVM 17 to match the project-wide target set in KotlinAndroid.kt.
+    // JDK 17+ is required to build; CI uses JDK 21 which is fully compatible.
+    jvmToolchain(17)
 }
 
 application {

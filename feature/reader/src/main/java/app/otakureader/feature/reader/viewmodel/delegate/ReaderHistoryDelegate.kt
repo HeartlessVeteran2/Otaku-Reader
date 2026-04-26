@@ -5,7 +5,7 @@ import android.util.Log
 import androidx.work.WorkManager
 import app.otakureader.data.worker.RecordReadingHistoryWorker
 import app.otakureader.domain.repository.ChapterRepository
-import app.otakureader.feature.reader.repository.ReaderSettingsRepository
+import app.otakureader.data.repository.ReaderSettingsRepository
 import app.otakureader.feature.reader.viewmodel.ReaderState
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope

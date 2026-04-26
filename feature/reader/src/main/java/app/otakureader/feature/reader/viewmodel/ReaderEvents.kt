@@ -1,9 +1,9 @@
 package app.otakureader.feature.reader.viewmodel
 
-import app.otakureader.feature.reader.model.ColorFilterMode
-import app.otakureader.feature.reader.model.ReaderMode
-import app.otakureader.feature.reader.model.ReadingDirection
-import app.otakureader.feature.reader.model.TapZoneConfig
+import app.otakureader.domain.model.ColorFilterMode
+import app.otakureader.domain.model.ReaderMode
+import app.otakureader.domain.model.ReadingDirection
+import app.otakureader.domain.model.TapZoneConfig
 
 /**
  * Sealed interface representing all possible user interactions in the reader.

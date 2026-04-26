@@ -1,8 +1,8 @@
 package app.otakureader.feature.reader.viewmodel.delegate
 
-import app.otakureader.feature.reader.model.ReaderMode
+import app.otakureader.domain.model.ReaderMode
 import app.otakureader.feature.reader.model.ReaderPage
-import app.otakureader.feature.reader.model.ReadingDirection
+import app.otakureader.domain.model.ReadingDirection
 import app.otakureader.feature.reader.panel.PanelDetectionService
 import app.otakureader.feature.reader.viewmodel.ReaderState
 import kotlinx.coroutines.CoroutineScope
