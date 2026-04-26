@@ -42,8 +42,24 @@ class ReaderSettingsRepository @Inject constructor(
     private val _writeFailureEvents = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val writeFailureEvents: Flow<Unit> = _writeFailureEvents.asSharedFlow()
 
-    // Guards the one-time ImageQuality migration so it runs at most once per process lifetime.
-    @Volatile private var imageQualityMigrationDone = false
+    init {
+        // Migrate legacy image-quality ordinal key to the stable string key once on startup,
+        // outside of any Flow transformation to avoid side effects in map().
+        repositoryScope.launch {
+            try {
+                dataStore.edit { prefs ->
+                    if (prefs[Keys.IMAGE_QUALITY] == null && prefs[Keys.IMAGE_QUALITY_LEGACY] != null) {
+                        val ordinal = prefs[Keys.IMAGE_QUALITY_LEGACY]!!
+                        val quality = ImageQuality.entries.getOrNull(ordinal) ?: ImageQuality.ORIGINAL
+                        prefs[Keys.IMAGE_QUALITY] = quality.name
+                        prefs.remove(Keys.IMAGE_QUALITY_LEGACY)
+                    }
+                }
+            } catch (_: Exception) {
+                // Migration will be retried next session.
+            }
+        }
+    }
 
     // ==================== Reader Mode ====================
     
@@ -296,26 +312,9 @@ class ReaderSettingsRepository @Inject constructor(
         if (name != null) {
             ImageQuality.entries.firstOrNull { it.name == name } ?: ImageQuality.ORIGINAL
         } else {
-            // Migrate from legacy ordinal stored under the old int key.
+            // Migration runs in init; this branch handles reads before migration completes.
             val legacyOrdinal = prefs[Keys.IMAGE_QUALITY_LEGACY]
-            val migratedQuality = ImageQuality.entries.getOrNull(legacyOrdinal ?: 0) ?: ImageQuality.ORIGINAL
-            
-            // Proactively persist the migrated value (fire-and-forget, runs at most once per process).
-            if (!imageQualityMigrationDone) {
-                imageQualityMigrationDone = true
-                repositoryScope.launch {
-                    try {
-                        safeEdit { editPrefs ->
-                            editPrefs[Keys.IMAGE_QUALITY] = migratedQuality.name
-                            editPrefs.remove(Keys.IMAGE_QUALITY_LEGACY)
-                        }
-                    } catch (_: Exception) {
-                        imageQualityMigrationDone = false // allow retry next session
-                    }
-                }
-            }
-            
-            migratedQuality
+            ImageQuality.entries.getOrNull(legacyOrdinal ?: 0) ?: ImageQuality.ORIGINAL
         }
     }
 

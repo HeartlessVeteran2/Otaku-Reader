@@ -105,7 +105,7 @@ class AiSettingsDelegate @Inject constructor(
         }
 
         // Rate-limit live validation to once per 10 seconds.
-        val now = System.currentTimeMillis()
+        val now = android.os.SystemClock.elapsedRealtime()
         val canValidate = (now - lastKeyValidationTimeMs) >= KEY_VALIDATION_COOLDOWN_MS
 
         aiPreferences.setGeminiApiKey(key)

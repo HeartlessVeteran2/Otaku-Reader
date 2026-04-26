@@ -74,9 +74,9 @@ object CrashHandler {
         return "Thread: ${thread.name}\n\n$body"
     }
 
-    private val sensitivePattern = Regex(
-        "(token|api[_-]?key|password|secret|credential|authorization)",
-        RegexOption.IGNORE_CASE
+    // Matches key=value or key: value where key is a sensitive term; replaces only the value.
+    private val sensitiveValuePattern = Regex(
+        """(?i)(token|api[_-]?key|password|secret|credential|authorization)(\s*[:=]\s*)\S+"""
     )
 
     private fun sanitizeTrace(trace: String): String {
@@ -86,9 +86,10 @@ object CrashHandler {
                 // Replace absolute filesystem paths before the app package to avoid
                 // leaking device-specific paths (e.g. /data/data/...).
                 val stripped = line.replace(Regex("/[^\\s]*app\\.otakureader"), ".../app.otakureader")
-                // Redact any line that looks like it contains a credential value.
-                if (sensitivePattern.containsMatchIn(stripped)) "[redacted — sensitive field]"
-                else stripped
+                // Stack frames (lines starting with "at ") only need path stripping;
+                // redacting by keyword would hide class/method names like getAccessToken.
+                if (stripped.trimStart().startsWith("at ")) stripped
+                else sensitiveValuePattern.replace(stripped) { m -> "${m.groupValues[1]}${m.groupValues[2]}[redacted]" }
             }
     }
 

@@ -257,8 +257,9 @@ fun ExtensionInstallScreen(
 private fun validateApkUrl(url: String): String? {
     if (url.isBlank()) return "URL cannot be empty"
     if (!url.startsWith("https://")) return "URL must use HTTPS"
-    if (!url.endsWith(".apk")) return "URL must point to an .apk file"
-    return runCatching { URI(url).toURL() }.fold(
+    val uri = runCatching { URI(url) }.getOrNull() ?: return "Invalid URL format"
+    if (!(uri.path ?: "").lowercase().endsWith(".apk")) return "URL must point to an .apk file"
+    return runCatching { uri.toURL() }.fold(
         onSuccess = { null },
         onFailure = { "Invalid URL format" }
     )
