@@ -197,7 +197,7 @@ class SmartPrefetchManager @Inject constructor(
 
     /**
      * Cancels any active prefetch job and clears all caches. Call from
-     * [UltimateReaderViewModel.onCleared] to release session state promptly.
+     * [ReaderViewModel.onCleared] to release session state promptly.
      */
     fun clearCache() {
         synchronized(prefetchedPages) {

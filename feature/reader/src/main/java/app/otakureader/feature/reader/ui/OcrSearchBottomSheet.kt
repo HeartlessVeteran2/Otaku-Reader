@@ -38,7 +38,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.otakureader.feature.reader.PageRotation
 import app.otakureader.feature.reader.R
+import app.otakureader.feature.reader.TapZone
 
 /**
  * Bottom sheet that lets the user search for text within the current chapter's pages.

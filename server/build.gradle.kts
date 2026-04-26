@@ -1,3 +1,4 @@
+// Standalone JVM Ktor server — NOT bundled in Android APK. Optional module for self-hosted sync.
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.serialization)

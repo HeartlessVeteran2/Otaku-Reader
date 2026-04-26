@@ -25,6 +25,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import app.otakureader.domain.model.ReadingDirection
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
 
 /**
  * Draggable page slider (seekbar) for the reader.

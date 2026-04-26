@@ -5,7 +5,7 @@ import app.otakureader.core.discord.ReadingStatus
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
-import app.otakureader.feature.reader.viewmodel.ReaderState
+import app.otakureader.feature.reader.ReaderState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch

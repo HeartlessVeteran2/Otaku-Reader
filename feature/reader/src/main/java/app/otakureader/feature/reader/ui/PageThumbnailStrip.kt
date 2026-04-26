@@ -33,7 +33,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import app.otakureader.feature.reader.PageRotation
 import app.otakureader.feature.reader.R
+import app.otakureader.feature.reader.TapZone
 import app.otakureader.feature.reader.model.ReaderPage
 import coil3.compose.AsyncImage
 
