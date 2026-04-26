@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import app.otakureader.core.database.dao.ReadingHistoryDao
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.LibraryPreferences
+import app.otakureader.core.preferences.ReadingGoalPreferences
 import app.otakureader.domain.model.ContentRating
 import app.otakureader.domain.model.ContinueReadingItem
 import app.otakureader.domain.model.Manga
@@ -12,6 +13,7 @@ import app.otakureader.domain.model.MangaRecommendation
 import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
+import app.otakureader.domain.repository.StatisticsRepository
 import app.otakureader.domain.tracking.TrackRepository
 import app.otakureader.domain.usecase.DismissRecommendationUseCase
 import app.otakureader.domain.usecase.GetForYouRecommendationsUseCase
@@ -53,7 +55,9 @@ class LibraryViewModel @Inject constructor(
     private val readingHistoryDao: ReadingHistoryDao,
     private val getForYouRecommendations: GetForYouRecommendationsUseCase,
     private val refreshRecommendations: RefreshRecommendationsUseCase,
-    private val dismissRecommendation: DismissRecommendationUseCase
+    private val dismissRecommendation: DismissRecommendationUseCase,
+    private val readingGoalPreferences: ReadingGoalPreferences,
+    private val statisticsRepository: StatisticsRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(LibraryState())
@@ -73,6 +77,7 @@ class LibraryViewModel @Inject constructor(
         observeNewUpdatesCount()
         observeLibraryForRecommendations()
         observeContinueReading()
+        observeGoalProgress()
     }
 
     fun onEvent(event: LibraryEvent) {
@@ -543,6 +548,22 @@ class LibraryViewModel @Inject constructor(
             }
             .onEach { items -> _state.update { it.copy(continueReadingItems = items) } }
             .catch { e -> android.util.Log.w("LibraryViewModel", "observeContinueReading failed", e) }
+            .launchIn(viewModelScope)
+    }
+
+    private fun observeGoalProgress() {
+        combine(
+            readingGoalPreferences.dailyChapterGoal,
+            readingGoalPreferences.weeklyChapterGoal
+        ) { daily, weekly -> Pair(daily, weekly) }
+            .flatMapLatest { (dailyGoal, weeklyGoal) ->
+                statisticsRepository.getReadingGoalProgress(dailyGoal, weeklyGoal)
+            }
+            .onEach { goal -> _state.update { it.copy(readingGoal = goal) } }
+            .catch { e ->
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                android.util.Log.w("LibraryViewModel", "observeGoalProgress failed", e)
+            }
             .launchIn(viewModelScope)
     }
 
