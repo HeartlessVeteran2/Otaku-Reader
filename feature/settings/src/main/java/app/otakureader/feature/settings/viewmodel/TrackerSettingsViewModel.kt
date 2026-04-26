@@ -1,5 +1,6 @@
 package app.otakureader.feature.settings.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.otakureader.feature.settings.SettingsEffect
@@ -43,7 +44,14 @@ class TrackerSettingsViewModel @Inject constructor(
 
     fun onEvent(event: SettingsEvent) {
         viewModelScope.launch {
-            trackerSyncDelegate.handleEvent(event) { _effect.send(it) }
+            val handled = trackerSyncDelegate.handleEvent(event) { _effect.send(it) }
+            if (!handled) {
+                Log.w(TAG, "Unhandled event in TrackerSettingsViewModel: $event")
+            }
         }
+    }
+
+    companion object {
+        private const val TAG = "TrackerSettingsViewModel"
     }
 }

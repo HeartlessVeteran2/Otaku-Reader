@@ -1,5 +1,6 @@
 package app.otakureader.feature.settings.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.otakureader.feature.settings.SettingsEffect
@@ -43,7 +44,14 @@ class DownloadViewModel @Inject constructor(
 
     fun onEvent(event: SettingsEvent) {
         viewModelScope.launch {
-            downloadDelegate.handleEvent(event) { _effect.send(it) }
+            val handled = downloadDelegate.handleEvent(event) { _effect.send(it) }
+            if (!handled) {
+                Log.w(TAG, "Unhandled event in DownloadViewModel: $event")
+            }
         }
+    }
+
+    companion object {
+        private const val TAG = "DownloadViewModel"
     }
 }

@@ -1,6 +1,7 @@
 package app.otakureader.feature.settings.viewmodel
 
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.otakureader.feature.settings.SettingsEffect
@@ -48,7 +49,10 @@ class BackupSyncViewModel @Inject constructor(
 
     fun onEvent(event: SettingsEvent) {
         viewModelScope.launch {
-            backupDelegate.handleEvent(event) { _effect.send(it) }
+            val handled = backupDelegate.handleEvent(event) { _effect.send(it) }
+            if (!handled) {
+                Log.w(TAG, "Unhandled event in BackupSyncViewModel: $event")
+            }
         }
     }
 
@@ -66,5 +70,9 @@ class BackupSyncViewModel @Inject constructor(
      */
     fun restoreBackup(uri: Uri) {
         onEvent(SettingsEvent.RestoreBackupFromUri(uri))
+    }
+
+    companion object {
+        private const val TAG = "BackupSyncViewModel"
     }
 }

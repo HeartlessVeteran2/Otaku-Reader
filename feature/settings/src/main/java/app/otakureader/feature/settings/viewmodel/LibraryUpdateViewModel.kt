@@ -1,5 +1,6 @@
 package app.otakureader.feature.settings.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.otakureader.feature.settings.SettingsEffect
@@ -43,7 +44,14 @@ class LibraryUpdateViewModel @Inject constructor(
 
     fun onEvent(event: SettingsEvent) {
         viewModelScope.launch {
-            libraryDelegate.handleEvent(event) { _effect.send(it) }
+            val handled = libraryDelegate.handleEvent(event) { _effect.send(it) }
+            if (!handled) {
+                Log.w(TAG, "Unhandled event in LibraryUpdateViewModel: $event")
+            }
         }
+    }
+
+    companion object {
+        private const val TAG = "LibraryUpdateViewModel"
     }
 }
