@@ -225,6 +225,7 @@
     <string name="settings_ai_remove_key_confirm">Remove</string>
     <string name="settings_ai_remove_key_cancel">Cancel</string>
     <string name="settings_ai_api_key_invalid_format">Invalid key format. Gemini API keys should start with "AIza" and be at least 20 characters.</string>
+    <string name="settings_ai_load_failed">Failed to load AI settings. You may need to re-enter your API key.</string>
 
     <!-- Reader Display -->
     <string name="settings_reader_display">Reader Display</string>

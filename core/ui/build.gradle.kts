@@ -33,4 +33,6 @@ dependencies {
     api(libs.accompanist.navigation.animation)
 
     debugImplementation(libs.compose.ui.tooling)
+
+    testImplementation(libs.junit)
 }
