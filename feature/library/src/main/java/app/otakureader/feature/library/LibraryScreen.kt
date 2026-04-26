@@ -952,6 +952,8 @@ private fun DailyGoalBanner(
     readingGoal: ReadingGoal,
     modifier: Modifier = Modifier
 ) {
+    // Guard: dailyGoal must be positive before computing the fraction to avoid division by zero.
+    if (readingGoal.dailyGoal <= 0) return
     val isComplete = readingGoal.dailyProgress >= readingGoal.dailyGoal
     val fraction = (readingGoal.dailyProgress.toFloat() / readingGoal.dailyGoal.toFloat())
         .coerceIn(0f, 1f)

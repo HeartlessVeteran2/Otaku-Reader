@@ -86,7 +86,7 @@ class GoalCompletionNotifier @Inject constructor(
         )
 
         val notification = NotificationCompat.Builder(context, GOAL_CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.star_big_on)
+            .setSmallIcon(android.R.drawable.ic_popup_reminder)
             .setContentTitle("Daily goal reached! 🎉")
             .setContentText("You've read $dailyGoal chapter(s) today. Great work!")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
