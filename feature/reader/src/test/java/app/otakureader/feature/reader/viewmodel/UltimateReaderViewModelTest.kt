@@ -23,6 +23,7 @@ import app.otakureader.feature.reader.model.ReadingDirection
 import app.otakureader.feature.reader.model.ComicPanel
 import app.otakureader.feature.reader.model.PanelBounds
 import app.otakureader.feature.reader.panel.PanelDetectionService
+import app.otakureader.feature.reader.ocr.TextRecognitionService
 import app.otakureader.feature.reader.prefetch.AdaptiveChapterPrefetcher
 import app.otakureader.feature.reader.prefetch.ReadingBehaviorTracker
 import app.otakureader.feature.reader.prefetch.SmartPrefetchManager
@@ -31,6 +32,7 @@ import app.otakureader.feature.reader.viewmodel.delegate.ReaderChapterLoaderDele
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderDiscordDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderDownloadAheadDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderHistoryDelegate
+import app.otakureader.feature.reader.viewmodel.delegate.ReaderOcrDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderPanelDetectionDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderPrefetchDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderSettingsLoaderDelegate
@@ -93,6 +95,7 @@ class UltimateReaderViewModelTest {
     private lateinit var panelDetectionService: PanelDetectionService
     private lateinit var aiPreferences: AiPreferences
     private lateinit var translateSfx: TranslateSfxUseCase
+    private lateinit var textRecognitionService: TextRecognitionService
 
     @Before
     fun setUp() {
@@ -125,6 +128,7 @@ class UltimateReaderViewModelTest {
         panelDetectionService = mockk()
         aiPreferences = mockk(relaxed = true)
         translateSfx = mockk<TranslateSfxUseCase>()
+        textRecognitionService = mockk(relaxed = true)
         coEvery { translateSfx(any(), any(), any(), any()) } returns Result.success(emptyList())
         coEvery { panelDetectionService.detectPanelsFromUrl(any(), any()) } returns emptyList()
         every { generalPreferences.discordRpcEnabled } returns flowOf(false)
@@ -247,6 +251,9 @@ class UltimateReaderViewModelTest {
                 sourceRepository = sourceRepository,
                 chapterRepository = chapterRepository,
                 mangaRepository = mangaRepository,
+            ),
+            ocrDelegate = ReaderOcrDelegate(
+                textRecognitionService = textRecognitionService,
             ),
             savedStateHandle = SavedStateHandle(
                 mapOf("mangaId" to mangaId, "chapterId" to chapterId)

@@ -186,6 +186,16 @@ data class ReaderState(
     val showSfxDialog: Boolean = false,
     /** Whether the SFX translation overlay is currently visible. */
     val sfxOverlayVisible: Boolean = false,
+
+    // --- OCR Text Search ---
+    /** Whether the OCR text search bottom sheet is visible. */
+    val showOcrSearch: Boolean = false,
+    /** Current search query entered by the user. */
+    val ocrQuery: String = "",
+    /** OCR-extracted text keyed by zero-based page index (populated lazily as pages are scanned). */
+    val ocrPageTexts: Map<Int, String> = emptyMap(),
+    /** True while background OCR scanning is in progress. */
+    val isOcrRunning: Boolean = false,
 ) {
     /** Total pages in chapter (derived from pages.size) */
     val totalPages: Int get() = pages.size
@@ -292,6 +302,29 @@ data class ReaderState(
             webtoonDoubleTapZoom = webtoonDoubleTapZoom,
             webtoonDisableZoomOut = webtoonDisableZoomOut
         )
+
+    /** OCR text-search state — changes when the search sheet is opened/closed or results arrive. */
+    val ocrState: OcrState
+        get() = OcrState(
+            showOcrSearch = showOcrSearch,
+            ocrQuery = ocrQuery,
+            ocrPageTexts = ocrPageTexts,
+            isOcrRunning = isOcrRunning,
+        )
+
+    /**
+     * Pages (by 0-based index) whose recognized text contains [ocrQuery] (case-insensitive).
+     * Empty when the query is blank or no pages have been indexed yet.
+     */
+    val ocrMatchingPageIndices: List<Int>
+        get() {
+            val q = ocrQuery.trim()
+            if (q.isBlank()) return emptyList()
+            return ocrPageTexts
+                .filter { (_, text) -> text.contains(q, ignoreCase = true) }
+                .keys
+                .sorted()
+        }
 }
 
 /** Projection of page content and navigation fields. */
@@ -353,6 +386,14 @@ data class WebtoonState(
     val webtoonMenuHideSensitivity: Int,
     val webtoonDoubleTapZoom: Boolean,
     val webtoonDisableZoomOut: Boolean
+)
+
+/** Projection of OCR text-search state. */
+data class OcrState(
+    val showOcrSearch: Boolean,
+    val ocrQuery: String,
+    val ocrPageTexts: Map<Int, String>,
+    val isOcrRunning: Boolean,
 )
 
 /**

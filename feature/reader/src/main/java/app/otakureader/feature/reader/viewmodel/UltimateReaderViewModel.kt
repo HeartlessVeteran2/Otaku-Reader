@@ -20,6 +20,7 @@ import app.otakureader.feature.reader.viewmodel.delegate.ReaderChapterLoaderDele
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderDiscordDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderDownloadAheadDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderHistoryDelegate
+import app.otakureader.feature.reader.viewmodel.delegate.ReaderOcrDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderPanelDetectionDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderPrefetchDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderSettingsLoaderDelegate
@@ -58,6 +59,7 @@ import javax.inject.Inject
  *  | [ReaderPrefetchDelegate]       | Prefetch / preload                            |
  *  | [ReaderPanelDetectionDelegate] | Smart-panel detection                         |
  *  | [ReaderSfxDelegate]            | SFX translation jobs                          |
+ *  | [ReaderOcrDelegate]            | OCR text-search jobs                          |
  *  | [ReaderDiscordDelegate]        | Discord rich presence                         |
  *  | [ReaderDownloadAheadDelegate]  | Download-ahead trigger                        |
  */
@@ -76,6 +78,7 @@ class UltimateReaderViewModel @Inject constructor(
     private val panelDelegate: ReaderPanelDetectionDelegate,
     private val prefetchDelegate: ReaderPrefetchDelegate,
     private val downloadAheadDelegate: ReaderDownloadAheadDelegate,
+    private val ocrDelegate: ReaderOcrDelegate,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -299,6 +302,7 @@ class UltimateReaderViewModel @Inject constructor(
             is ReaderEvent.SettingsControl -> handleSettings(event)
             is ReaderEvent.ColorFilterControl -> handleColorFilter(event)
             is ReaderEvent.SfxControl -> handleSfx(event)
+            is ReaderEvent.OcrControl -> handleOcr(event)
             is ReaderEvent.ActionEvent -> handleAction(event)
         }
     }
@@ -415,6 +419,28 @@ class UltimateReaderViewModel @Inject constructor(
             ReaderEvent.CloseSfxDialog -> _state.update { it.copy(showSfxDialog = false) }
             is ReaderEvent.TranslateSfx ->
                 sfxDelegate.translateManualText(viewModelScope, event.sfxText) { _state.update(it) }
+        }
+    }
+
+    private fun handleOcr(event: ReaderEvent.OcrControl) {
+        when (event) {
+            ReaderEvent.OpenOcrSearch -> {
+                _state.update { it.copy(showOcrSearch = true, ocrQuery = "") }
+                // Start background OCR for all pages, prioritizing the current page.
+                ocrDelegate.startBatchOcr(
+                    scope = viewModelScope,
+                    pages = _state.value.pages,
+                    currentPageIndex = _state.value.currentPage,
+                    updateState = { _state.update(it) },
+                )
+            }
+            ReaderEvent.CloseOcrSearch -> {
+                ocrDelegate.cancelAll()
+                _state.update { it.copy(showOcrSearch = false, isOcrRunning = false) }
+            }
+            is ReaderEvent.UpdateOcrQuery -> {
+                _state.update { it.copy(ocrQuery = event.query) }
+            }
         }
     }
 
@@ -813,6 +839,7 @@ class UltimateReaderViewModel @Inject constructor(
         prefetchDelegate.cancel()
         panelDelegate.cancel()
         sfxDelegate.clear()
+        ocrDelegate.cancelAll()
         prefetchDelegate.clearCache()
     }
 

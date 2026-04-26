@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -68,6 +69,7 @@ import app.otakureader.feature.reader.modes.WebtoonReader
 import app.otakureader.feature.reader.ui.BatteryTimeOverlay
 import app.otakureader.feature.reader.ui.BrightnessSliderOverlay
 import app.otakureader.feature.reader.ui.FullPageGallery
+import app.otakureader.feature.reader.ui.OcrSearchBottomSheet
 import app.otakureader.feature.reader.ui.PageSlider
 import app.otakureader.feature.reader.ui.PageThumbnailStrip
 import app.otakureader.feature.reader.ui.ReadingTimerOverlay
@@ -365,6 +367,24 @@ fun ReaderScreen(
             }
         }
 
+        // OCR text search FAB – always available when pages are loaded and menu is hidden
+        if (!state.isMenuVisible && !state.isGalleryOpen && !state.isLoading && state.pages.isNotEmpty()) {
+            val sfxOffset = if (state.sfxTranslationEnabled) 136.dp else 80.dp
+            FloatingActionButton(
+                onClick = { viewModel.onEvent(ReaderEvent.OpenOcrSearch) },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(bottom = sfxOffset, end = 16.dp),
+                containerColor = MaterialTheme.colorScheme.tertiaryContainer
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = stringResource(R.string.reader_ocr_search_open),
+                    tint = MaterialTheme.colorScheme.onTertiaryContainer
+                )
+            }
+        }
+
         // Snackbar host
         SnackbarHost(
             hostState = snackbarHostState,
@@ -382,6 +402,22 @@ fun ReaderScreen(
                 onDismiss = { viewModel.onEvent(ReaderEvent.CloseSfxDialog) }
             )
         }
+
+        // OCR text search bottom sheet
+        OcrSearchBottomSheet(
+            isVisible = state.showOcrSearch,
+            query = state.ocrQuery,
+            matchingPageIndices = state.ocrMatchingPageIndices,
+            totalPages = state.totalPages,
+            indexedPageCount = state.ocrPageTexts.size,
+            isOcrRunning = state.isOcrRunning,
+            onQueryChange = { viewModel.onEvent(ReaderEvent.UpdateOcrQuery(it)) },
+            onPageClick = { pageIndex ->
+                viewModel.jumpToPage(pageIndex)
+                viewModel.onEvent(ReaderEvent.CloseOcrSearch)
+            },
+            onDismiss = { viewModel.onEvent(ReaderEvent.CloseOcrSearch) },
+        )
     }
 }
 
