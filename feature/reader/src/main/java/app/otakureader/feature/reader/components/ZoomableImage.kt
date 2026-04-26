@@ -106,6 +106,11 @@ fun ZoomableImage(
                                     val centroidX = centroid.x
                                     val centroidY = centroid.y
 
+                                    // High-frequency pinch path: onZoom/onPan use Animatable.snapTo
+                                    // (NOT animateTo), so this scope.launch does not start an
+                                    // animation coroutine and cannot produce an animation backlog
+                                    // even under rapid repeated pinch input. See ZoomableState
+                                    // KDoc for the full guarantee.
                                     scope.launch {
                                         zoomState.onZoom(
                                             newScale,
@@ -219,14 +224,35 @@ fun ZoomableImage(
 /**
  * Advanced zoomable state with smooth animations and boundary constraints.
  *
- * Thread-safety / animation-queue note: _scale, _offsetX, _offsetY are created once and reused for
- * the lifetime of the state object. High-frequency pinch input calls snapTo() (not animateTo()), so
- * it never queues animations. The animateTo() path is only reached on discrete events (double-tap,
- * fling, reset), and Animatable.animateTo() already cancels any previous running animation before
- * starting a new one — so there is no risk of animation back-log.
+ * Animation-queue / coroutine-backlog guarantees (see issue: high-frequency pinch gestures
+ * queueing Animatable coroutines):
+ *
+ *  1. The three [Animatable] instances ([_scale], [_offsetX], [_offsetY]) are constructed exactly
+ *     once as private fields of this class and reused for the lifetime of the state object. They
+ *     are NOT reallocated per gesture. Combined with [rememberZoomableState] using
+ *     `remember { ZoomableState() }`, this guarantees a single [Animatable] per axis per
+ *     composition, which is the precondition required for [Animatable.animateTo]'s built-in
+ *     cancellation-on-restart behavior to take effect.
+ *
+ *  2. The high-frequency pinch / pan path ([onZoom], [onPan]) uses [Animatable.snapTo], not
+ *     [Animatable.animateTo]. `snapTo` does not start an animation coroutine, so rapid pinch
+ *     input cannot produce an animation backlog — there is no animation to queue.
+ *
+ *  3. The [Animatable.animateTo] path is only reached from discrete user events
+ *     ([animateZoomTo] for double-tap, [fling], [reset]). Because every call targets the same
+ *     long-lived [Animatable] instance, Compose's internal mutator mutex cancels any in-flight
+ *     animation on that instance before starting the new one. Rapid double-taps therefore
+ *     supersede each other rather than fighting; previously launched outer coroutines unwind
+ *     promptly via [kotlinx.coroutines.CancellationException] propagated out of the cancelled child `animateTo`s.
+ *
+ * @Stable: equality is by reference and the public observable values are backed by Compose-aware
+ * state inside the [Animatable]s, so Compose can correctly skip recompositions.
  */
 @Stable
 class ZoomableState {
+    // NOTE: created once and reused for the lifetime of this state object. Do not reallocate
+    // these per gesture — doing so would defeat Animatable.animateTo()'s automatic cancellation
+    // of prior animations and could allow coroutines to queue under high-frequency input.
     private val _scale = Animatable(1f)
     private val _offsetX = Animatable(0f)
     private val _offsetY = Animatable(0f)
