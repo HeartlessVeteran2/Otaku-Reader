@@ -1,4 +1,4 @@
-package app.otakureader.feature.reader.viewmodel
+package app.otakureader.feature.reader
 
 import android.content.Context
 import android.os.SystemClock
@@ -70,7 +70,7 @@ import org.junit.Before
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class UltimateReaderViewModelTest {
+class ReaderViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
     private val mangaId = 1L
@@ -203,7 +203,7 @@ class UltimateReaderViewModelTest {
         unmockkStatic(SystemClock::class)
     }
 
-    private fun createViewModel(): UltimateReaderViewModel {
+    private fun createViewModel(): ReaderViewModel {
         val prefetchDelegate = ReaderPrefetchDelegate(
             context = context,
             smartPrefetchManager = smartPrefetchManager,
@@ -211,7 +211,7 @@ class UltimateReaderViewModelTest {
             chapterPrefetcher = chapterPrefetcher,
             imageLoader = imageLoader,
         )
-        return UltimateReaderViewModel(
+        return ReaderViewModel(
             context = context,
             mangaRepository = mangaRepository,
             chapterRepository = chapterRepository,

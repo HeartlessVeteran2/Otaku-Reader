@@ -1,25 +1,88 @@
 package app.otakureader.feature.reader.ui
 
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import android.os.SystemClock
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.foundation.layout.Row
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.foundation.layout.Spacer
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.foundation.layout.padding
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.foundation.layout.width
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.foundation.shape.RoundedCornerShape
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.material.icons.Icons
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.material.icons.filled.Timer
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.material3.Icon
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.material3.MaterialTheme
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.material3.Surface
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.material3.Text
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.runtime.Composable
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.runtime.LaunchedEffect
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.runtime.getValue
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.runtime.mutableLongStateOf
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.runtime.remember
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.runtime.setValue
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.ui.Alignment
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.ui.Modifier
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 

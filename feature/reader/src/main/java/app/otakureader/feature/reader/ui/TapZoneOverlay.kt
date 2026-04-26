@@ -1,15 +1,51 @@
 package app.otakureader.feature.reader.ui
 
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.foundation.background
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.foundation.clickable
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.foundation.gestures.detectTapGestures
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.foundation.layout.Box
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.foundation.layout.Row
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.foundation.layout.fillMaxHeight
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.foundation.layout.fillMaxSize
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.runtime.Composable
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.ui.Modifier
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.ui.graphics.Color
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.ui.input.pointer.pointerInput
 import app.otakureader.domain.model.TapZoneConfig
 import app.otakureader.feature.reader.viewmodel.TapZone

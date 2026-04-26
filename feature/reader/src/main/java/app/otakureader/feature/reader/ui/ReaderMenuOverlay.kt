@@ -1,32 +1,119 @@
 package app.otakureader.feature.reader.ui
 
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.animation.AnimatedVisibility
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.animation.fadeIn
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.animation.fadeOut
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.animation.slideInVertically
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.animation.slideOutVertically
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.foundation.background
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.foundation.border
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.foundation.clickable
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.foundation.layout.Arrangement
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.foundation.layout.Box
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.foundation.layout.Column
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.foundation.layout.Row
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.foundation.layout.Spacer
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.foundation.layout.fillMaxSize
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.foundation.layout.fillMaxWidth
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.foundation.layout.height
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.foundation.layout.padding
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.foundation.layout.size
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.foundation.layout.width
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.foundation.lazy.LazyRow
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.foundation.lazy.items
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.foundation.shape.CircleShape
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.foundation.shape.RoundedCornerShape
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.material.icons.Icons
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.material.icons.automirrored.filled.NavigateNext
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.material.icons.filled.Brightness6
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
+
 import androidx.compose.material.icons.filled.FitScreen
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.GridView
