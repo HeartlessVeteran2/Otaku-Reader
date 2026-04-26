@@ -80,8 +80,10 @@ import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextAlign
+import app.otakureader.core.ui.adaptive.WindowWidthSizeClass
+import app.otakureader.core.ui.adaptive.isExpanded
+import app.otakureader.core.ui.adaptive.rememberWindowWidthSizeClass
 import app.otakureader.domain.model.MangaStatus
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -268,12 +270,12 @@ private fun LibraryContent(
     onEvent: (LibraryEvent) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val screenWidthDp = LocalConfiguration.current.screenWidthDp
-    val isExpandedWidth = screenWidthDp >= 840
-    val adaptiveColumns = when {
-        screenWidthDp >= 840 -> (state.gridSize + 2).coerceAtLeast(5)
-        screenWidthDp >= 600 -> (state.gridSize + 1).coerceAtLeast(4)
-        else -> state.gridSize
+    val widthSizeClass = rememberWindowWidthSizeClass()
+    val isExpandedWidth = widthSizeClass.isExpanded
+    val adaptiveColumns = when (widthSizeClass) {
+        WindowWidthSizeClass.Expanded -> (state.gridSize + 2).coerceAtLeast(5)
+        WindowWidthSizeClass.Medium -> (state.gridSize + 1).coerceAtLeast(4)
+        WindowWidthSizeClass.Compact -> state.gridSize
     }
     var detailManga by remember { mutableStateOf<LibraryMangaItem?>(null) }
 

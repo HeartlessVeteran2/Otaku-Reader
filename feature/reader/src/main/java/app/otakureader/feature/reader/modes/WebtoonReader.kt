@@ -27,6 +27,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import app.otakureader.feature.reader.R
+import app.otakureader.feature.reader.components.SubsamplingWebtoonDecoder
 import app.otakureader.feature.reader.components.ZoomableImage
 import app.otakureader.feature.reader.model.ImageQuality
 import app.otakureader.feature.reader.model.ReaderPage
@@ -94,6 +95,12 @@ fun WebtoonReader(
         ContentScale.Fit
     }
 
+    // OOM guard for very long single-strip webtoon panels (e.g. 1080×10000 px Korean/Chinese
+    // chapters delivered as one image). The factory peeks the source for bounds and only
+    // engages when the image exceeds the height/pixel budget; normal pages fall through to
+    // Coil's default decoder. Remembered so all pages share one factory instance.
+    val webtoonDecoderFactory = remember { SubsamplingWebtoonDecoder.Factory() }
+
     @OptIn(ExperimentalComposeUiApi::class)
     LazyColumn(
         state = listState,
@@ -129,6 +136,7 @@ fun WebtoonReader(
                     imageQuality = imageQuality,
                     dataSaverEnabled = dataSaverEnabled,
                     onTap = onTap,
+                    decoderFactory = webtoonDecoderFactory,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
