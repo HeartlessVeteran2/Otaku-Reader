@@ -514,7 +514,7 @@ class UltimateReaderViewModel @Inject constructor(
             ReaderEvent.NextPage -> navigatePage(1)
             ReaderEvent.PrevPage -> navigatePage(-1)
             ReaderEvent.FirstPage -> changePage(0)
-            ReaderEvent.LastPage -> changePage((_state.value.pages.size - 1).coerceAtLeast(0))
+            ReaderEvent.LastPage -> changePage(_state.value.pages.size - 1)
         }
     }
 
@@ -526,7 +526,7 @@ class UltimateReaderViewModel @Inject constructor(
             ReaderEvent.FirstPanel -> changePanel(0)
             ReaderEvent.LastPanel -> {
                 val currentPage = _state.value.pages.getOrNull(_state.value.currentPage)
-                changePanel((currentPage?.panels?.size ?: 1) - 1)
+                changePanel((currentPage?.panels?.size ?: 0) - 1)
             }
         }
     }
