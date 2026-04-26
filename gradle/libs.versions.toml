@@ -11,6 +11,7 @@ appcompat = "1.7.1"
 activity-compose = "1.13.0"
 material = "1.13.0"
 palette = "1.0.0"
+exifinterface = "1.3.7"
 
 # Compose
 compose-bom = "2026.03.01"
@@ -119,6 +120,7 @@ androidx-glance-appwidget = { group = "androidx.glance", name = "glance-appwidge
 androidx-glance-material3 = { group = "androidx.glance", name = "glance-material3", version.ref = "glance" }
 androidx-paging-runtime = { group = "androidx.paging", name = "paging-runtime", version.ref = "paging" }
 androidx-paging-compose = { group = "androidx.paging", name = "paging-compose", version.ref = "paging" }
+androidx-exifinterface = { group = "androidx.exifinterface", name = "exifinterface", version.ref = "exifinterface" }
 # Aliases matching code-style references (libs.paging.runtime, libs.paging.compose)
 paging-runtime = { group = "androidx.paging", name = "paging-runtime", version.ref = "paging" }
 paging-compose = { group = "androidx.paging", name = "paging-compose", version.ref = "paging" }

@@ -27,10 +27,13 @@ import app.otakureader.feature.reader.prefetch.AdaptiveChapterPrefetcher
 import app.otakureader.feature.reader.prefetch.ReadingBehaviorTracker
 import app.otakureader.feature.reader.prefetch.SmartPrefetchManager
 import app.otakureader.data.repository.ReaderSettingsRepository
+import app.otakureader.feature.reader.viewmodel.delegate.ReaderChapterLoaderDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderDiscordDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderDownloadAheadDelegate
+import app.otakureader.feature.reader.viewmodel.delegate.ReaderHistoryDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderPanelDetectionDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderPrefetchDelegate
+import app.otakureader.feature.reader.viewmodel.delegate.ReaderSettingsLoaderDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderSfxDelegate
 import coil3.ImageLoader
 import io.mockk.coEvery
@@ -167,6 +170,7 @@ class UltimateReaderViewModelTest {
         every { settingsRepository.autoZoomWideImages } returns flowOf(true)
         every { settingsRepository.invertTapZones } returns flowOf(false)
         every { settingsRepository.webtoonSidePadding } returns flowOf(0)
+        every { settingsRepository.webtoonGapDp } returns flowOf(0)
         every { settingsRepository.webtoonMenuHideSensitivity } returns flowOf(0)
         every { settingsRepository.webtoonDoubleTapZoom } returns flowOf(true)
         every { settingsRepository.webtoonDisableZoomOut } returns flowOf(false)
@@ -195,15 +199,35 @@ class UltimateReaderViewModelTest {
         unmockkStatic(SystemClock::class)
     }
 
-    private fun createViewModel(): UltimateReaderViewModel =
-        UltimateReaderViewModel(
+    private fun createViewModel(): UltimateReaderViewModel {
+        val prefetchDelegate = ReaderPrefetchDelegate(
+            context = context,
+            smartPrefetchManager = smartPrefetchManager,
+            behaviorTracker = behaviorTracker,
+            chapterPrefetcher = chapterPrefetcher,
+            imageLoader = imageLoader,
+        )
+        return UltimateReaderViewModel(
             context = context,
             mangaRepository = mangaRepository,
             chapterRepository = chapterRepository,
-            sourceRepository = sourceRepository,
             settingsRepository = settingsRepository,
-            pageLoader = pageLoader,
             behaviorTracker = behaviorTracker,
+            settingsLoaderDelegate = ReaderSettingsLoaderDelegate(
+                settingsRepository = settingsRepository,
+                prefetchDelegate = prefetchDelegate,
+            ),
+            chapterLoaderDelegate = ReaderChapterLoaderDelegate(
+                mangaRepository = mangaRepository,
+                chapterRepository = chapterRepository,
+                sourceRepository = sourceRepository,
+                pageLoader = pageLoader,
+            ),
+            historyDelegate = ReaderHistoryDelegate(
+                context = context,
+                chapterRepository = chapterRepository,
+                settingsRepository = settingsRepository,
+            ),
             sfxDelegate = ReaderSfxDelegate(
                 aiPreferences = aiPreferences,
                 translateSfx = translateSfx,
@@ -215,13 +239,7 @@ class UltimateReaderViewModelTest {
             panelDelegate = ReaderPanelDetectionDelegate(
                 panelDetectionService = panelDetectionService,
             ),
-            prefetchDelegate = ReaderPrefetchDelegate(
-                context = context,
-                smartPrefetchManager = smartPrefetchManager,
-                behaviorTracker = behaviorTracker,
-                chapterPrefetcher = chapterPrefetcher,
-                imageLoader = imageLoader,
-            ),
+            prefetchDelegate = prefetchDelegate,
             downloadAheadDelegate = ReaderDownloadAheadDelegate(
                 context = context,
                 downloadPreferences = downloadPreferences,
@@ -234,6 +252,7 @@ class UltimateReaderViewModelTest {
                 mapOf("mangaId" to mangaId, "chapterId" to chapterId)
             )
         )
+    }
 
     // ---- Gallery toggle ----
 

@@ -30,4 +30,6 @@ dependencies {
     api(libs.coil.okhttp)
 
     debugImplementation(libs.compose.ui.tooling)
+
+    testImplementation(libs.junit)
 }
