@@ -1,4 +1,4 @@
-package app.otakureader.feature.reader.repository
+package app.otakureader.data.repository
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.MutablePreferences
@@ -9,11 +9,11 @@ import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import app.otakureader.feature.reader.model.ColorFilterMode
-import app.otakureader.feature.reader.model.ImageQuality
-import app.otakureader.feature.reader.model.ReaderMode
-import app.otakureader.feature.reader.model.ReadingDirection
-import app.otakureader.feature.reader.model.TapZoneConfig
+import app.otakureader.domain.model.ColorFilterMode
+import app.otakureader.domain.model.ImageQuality
+import app.otakureader.domain.model.ReaderMode
+import app.otakureader.domain.model.ReadingDirection
+import app.otakureader.domain.model.TapZoneConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow

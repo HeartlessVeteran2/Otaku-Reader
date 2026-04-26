@@ -61,8 +61,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.otakureader.feature.reader.R
-import app.otakureader.feature.reader.model.ColorFilterMode
-import app.otakureader.feature.reader.model.ReaderMode
+import app.otakureader.domain.model.ColorFilterMode
+import app.otakureader.domain.model.ReaderMode
 import app.otakureader.feature.reader.viewmodel.PageRotation
 
 /** Default custom tint color (semi-transparent blue) used when no custom color is set. */
@@ -476,7 +476,13 @@ fun ColorFilterControl(
                     onClick = { onModeChange(mode) },
                     label = {
                         Text(
-                            text = stringResource(ColorFilterMode.displayNameResId(mode)),
+                            text = stringResource(when (mode) {
+                                ColorFilterMode.NONE -> R.string.reader_color_filter_none
+                                ColorFilterMode.SEPIA -> R.string.reader_color_filter_sepia
+                                ColorFilterMode.GRAYSCALE -> R.string.reader_color_filter_greyscale
+                                ColorFilterMode.INVERT -> R.string.reader_color_filter_invert
+                                ColorFilterMode.CUSTOM_TINT -> R.string.reader_color_filter_custom_tint
+                            }),
                             style = MaterialTheme.typography.labelSmall
                         )
                     }

@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import app.otakureader.feature.reader.R
 import app.otakureader.feature.reader.components.ZoomableImage
-import app.otakureader.feature.reader.model.ImageQuality
+import app.otakureader.domain.model.ImageQuality
 import app.otakureader.feature.reader.model.ReaderPage
 
 private const val MOUSE_SCROLL_MULTIPLIER = 120f

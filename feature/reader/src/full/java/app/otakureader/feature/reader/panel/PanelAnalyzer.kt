@@ -15,7 +15,7 @@ import app.otakureader.feature.reader.model.PanelData
 import app.otakureader.feature.reader.model.PanelType
 import app.otakureader.feature.reader.model.PageAnalysisResult
 import app.otakureader.feature.reader.model.PageType
-import app.otakureader.feature.reader.model.ReadingDirection
+import app.otakureader.domain.model.ReadingDirection
 import coil3.ImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult

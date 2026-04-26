@@ -59,8 +59,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.otakureader.core.ui.component.EmptyScreen
 import app.otakureader.core.ui.component.LoadingScreen
 import app.otakureader.feature.reader.R
-import app.otakureader.feature.reader.model.ColorFilterMode
-import app.otakureader.feature.reader.model.ReaderMode
+import app.otakureader.domain.model.ColorFilterMode
+import app.otakureader.domain.model.ReaderMode
 import app.otakureader.feature.reader.modes.DualPageReader
 import app.otakureader.feature.reader.modes.SinglePageReader
 import app.otakureader.feature.reader.modes.SmartPanelsReader
@@ -193,7 +193,7 @@ fun ReaderScreen(
 
                 // DeX / physical keyboard shortcuts — only act on key-down to avoid double firing.
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                val isRtl = state.readingDirection == app.otakureader.feature.reader.model.ReadingDirection.RTL
+                val isRtl = state.readingDirection == app.otakureader.domain.model.ReadingDirection.RTL
                 when (event.key) {
                     Key.DirectionRight, Key.D, Key.PageDown, Key.Spacebar -> {
                         viewModel.onEvent(if (isRtl) ReaderEvent.PrevPage else ReaderEvent.NextPage); true
@@ -251,7 +251,7 @@ fun ReaderScreen(
                 onLeftTap = { viewModel.onEvent(ReaderEvent.PrevPage) },
                 onCenterTap = { viewModel.onEvent(ReaderEvent.ToggleMenu) },
                 onRightTap = { viewModel.onEvent(ReaderEvent.NextPage) },
-                isRtl = state.readingDirection == app.otakureader.feature.reader.model.ReadingDirection.RTL,
+                isRtl = state.readingDirection == app.otakureader.domain.model.ReadingDirection.RTL,
                 modifier = Modifier.fillMaxSize()
             )
         }
@@ -440,7 +440,7 @@ private fun ReaderContent(
                     currentPage = state.currentPage,
                     onPageChange = onPageChange,
                     onTap = onTap,
-                    isRtl = state.readingDirection == app.otakureader.feature.reader.model.ReadingDirection.RTL,
+                    isRtl = state.readingDirection == app.otakureader.domain.model.ReadingDirection.RTL,
                     rotation = state.pageRotation.degrees,
                     cropBordersEnabled = state.cropBordersEnabled,
                     imageQuality = state.imageQuality,
