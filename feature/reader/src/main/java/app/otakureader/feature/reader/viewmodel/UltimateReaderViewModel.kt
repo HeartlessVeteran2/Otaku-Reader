@@ -323,9 +323,11 @@ class UltimateReaderViewModel @Inject constructor(
                 behaviorTracker.recordNavigation(event)
             }
 
-            // Record page view for telemetry only when smart prefetch is active
-            _state.value.pages.getOrNull(previousPage)?.let { previous ->
-                prefetchDelegate.recordPageView(previous)
+            // Record page view for telemetry only when smart prefetch is active.
+            // We record the page the user is leaving (previousPage) — that's the
+            // page they actually viewed; the new page hasn't been rendered yet.
+            _state.value.pages.getOrNull(previousPage)?.let { viewedPage ->
+                prefetchDelegate.recordPageView(viewedPage)
             }
 
             _state.update { state ->

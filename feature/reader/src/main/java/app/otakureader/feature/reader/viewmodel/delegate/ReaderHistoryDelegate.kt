@@ -80,7 +80,7 @@ class ReaderHistoryDelegate @Inject constructor(
             )
             WorkManager.getInstance(context).enqueue(request)
         }.onFailure { e ->
-            Log.w(TAG, "WorkManager enqueue failed in onCleared", e)
+            Log.w(TAG, "Failed to enqueue RecordReadingHistoryWorker on reader exit", e)
         }
     }
 
