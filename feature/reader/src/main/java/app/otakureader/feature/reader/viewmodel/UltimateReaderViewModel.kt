@@ -473,61 +473,150 @@ class UltimateReaderViewModel @Inject constructor(
     }
 
     /**
-     * Handle all reader events
+     * Handle all reader events.
+     *
+     * Events are grouped into domain-specific sealed sub-interfaces (see [ReaderEvent]).
+     * This dispatcher routes each event to a focused per-domain handler, so adding a
+     * new event only requires touching the relevant handler — and Kotlin's exhaustive
+     * `when` over each sealed sub-interface gives compile-time enforcement that every
+     * leaf in the domain is wired up.
      */
     fun onEvent(event: ReaderEvent) {
         when (event) {
+            is ReaderEvent.Navigation -> handleNavigation(event)
+            is ReaderEvent.ZoomControl -> handleZoom(event)
+            is ReaderEvent.DisplayControl -> handleDisplay(event)
+            is ReaderEvent.OverlayControl -> handleOverlay(event)
+            is ReaderEvent.BrightnessControl -> handleBrightness(event)
+            is ReaderEvent.AutoScrollControl -> handleAutoScroll(event)
+            is ReaderEvent.SettingsControl -> handleSettings(event)
+            is ReaderEvent.ColorFilterControl -> handleColorFilter(event)
+            is ReaderEvent.SfxControl -> handleSfx(event)
+            is ReaderEvent.ActionEvent -> handleAction(event)
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Per-domain event handlers
+    // ──────────────────────────────────────────────────────────────────────────
+
+    private fun handleNavigation(event: ReaderEvent.Navigation) {
+        when (event) {
             is ReaderEvent.OnPageChange -> changePage(event.page)
-            is ReaderEvent.OnPanelChange -> changePanel(event.panel)
-            is ReaderEvent.OnZoomChange -> updateZoom(event.zoom)
-            is ReaderEvent.OnModeChange -> changeReaderMode(event.mode)
-            is ReaderEvent.OnBrightnessChange -> updateBrightness(event.brightness)
-            is ReaderEvent.OnDirectionChange -> updateReadingDirection(event.direction)
-            ReaderEvent.ToggleMenu -> toggleMenu()
-            ReaderEvent.ToggleGallery -> toggleGallery()
-            is ReaderEvent.SetGalleryColumns -> setGalleryColumns(event.columns)
+            is ReaderEvent.PageNavigation -> handlePageNavigation(event)
+            is ReaderEvent.PanelNavigation -> handlePanelNavigation(event)
+            is ReaderEvent.ChapterNavigation -> handleChapterNavigation(event)
+        }
+    }
+
+    private fun handlePageNavigation(event: ReaderEvent.PageNavigation) {
+        when (event) {
             ReaderEvent.NextPage -> navigatePage(1)
             ReaderEvent.PrevPage -> navigatePage(-1)
+            ReaderEvent.FirstPage -> changePage(0)
+            ReaderEvent.LastPage -> changePage(_state.value.pages.size - 1)
+        }
+    }
+
+    private fun handlePanelNavigation(event: ReaderEvent.PanelNavigation) {
+        when (event) {
+            is ReaderEvent.OnPanelChange -> changePanel(event.panel)
             ReaderEvent.NextPanel -> navigatePanel(1)
             ReaderEvent.PrevPanel -> navigatePanel(-1)
+            ReaderEvent.FirstPanel -> changePanel(0)
+            ReaderEvent.LastPanel -> {
+                val currentPage = _state.value.pages.getOrNull(_state.value.currentPage)
+                changePanel((currentPage?.panels?.size ?: 0) - 1)
+            }
+        }
+    }
+
+    private fun handleChapterNavigation(event: ReaderEvent.ChapterNavigation) {
+        when (event) {
+            is ReaderEvent.LoadChapter -> loadChapterById(event.chapterId)
+            ReaderEvent.NextChapter -> navigateNextChapter()
+            ReaderEvent.PrevChapter -> navigatePreviousChapter()
+        }
+    }
+
+    private fun handleZoom(event: ReaderEvent.ZoomControl) {
+        when (event) {
+            is ReaderEvent.OnZoomChange -> updateZoom(event.zoom)
             ReaderEvent.ZoomIn -> updateZoom(_state.value.zoomLevel + ZOOM_INCREMENT)
             ReaderEvent.ZoomOut -> updateZoom(_state.value.zoomLevel - ZOOM_INCREMENT)
             ReaderEvent.ResetZoom -> updateZoom(1f)
             ReaderEvent.ZoomToWidth -> updateZoom(1.5f)
             ReaderEvent.ZoomToHeight -> updateZoom(1.2f)
+        }
+    }
+
+    private fun handleDisplay(event: ReaderEvent.DisplayControl) {
+        when (event) {
+            is ReaderEvent.OnModeChange -> changeReaderMode(event.mode)
+            is ReaderEvent.OnDirectionChange -> updateReadingDirection(event.direction)
+            ReaderEvent.RotateCW -> cyclePageRotation()
+            ReaderEvent.ResetRotation -> _state.update { it.copy(pageRotation = PageRotation.NONE) }
+        }
+    }
+
+    private fun handleOverlay(event: ReaderEvent.OverlayControl) {
+        when (event) {
+            ReaderEvent.ToggleMenu -> toggleMenu()
+            ReaderEvent.ToggleGallery -> toggleGallery()
+            is ReaderEvent.SetGalleryColumns -> setGalleryColumns(event.columns)
             ReaderEvent.ToggleFullscreen -> toggleFullscreen()
-            ReaderEvent.ToggleAutoScroll -> toggleAutoScroll()
-            ReaderEvent.NextChapter -> navigateNextChapter()
-            ReaderEvent.PrevChapter -> navigatePreviousChapter()
-            ReaderEvent.DismissError -> dismissError()
-            ReaderEvent.Retry -> loadChapter()
-            is ReaderEvent.OnAutoScrollSpeedChange -> updateAutoScrollSpeed(event.speed)
-            is ReaderEvent.ToggleSetting -> toggleSetting(event.setting)
-            is ReaderEvent.LoadChapter -> loadChapterById(event.chapterId)
-            is ReaderEvent.UpdateTapZones -> updateTapZones(event.config)
-            ReaderEvent.ToggleBookmark -> toggleBookmark()
-            ReaderEvent.SharePage -> sharePage()
+        }
+    }
+
+    private fun handleBrightness(event: ReaderEvent.BrightnessControl) {
+        when (event) {
+            is ReaderEvent.OnBrightnessChange -> updateBrightness(event.brightness)
             ReaderEvent.BrightnessUp -> updateBrightness(_state.value.brightness + BRIGHTNESS_INCREMENT)
             ReaderEvent.BrightnessDown -> updateBrightness(_state.value.brightness - BRIGHTNESS_INCREMENT)
+        }
+    }
+
+    private fun handleAutoScroll(event: ReaderEvent.AutoScrollControl) {
+        when (event) {
+            ReaderEvent.ToggleAutoScroll -> toggleAutoScroll()
+            is ReaderEvent.OnAutoScrollSpeedChange -> updateAutoScrollSpeed(event.speed)
+            ReaderEvent.AutoScrollSpeedUp ->
+                updateAutoScrollSpeed(_state.value.autoScrollSpeed + AUTO_SCROLL_INCREMENT)
+            ReaderEvent.AutoScrollSpeedDown ->
+                updateAutoScrollSpeed(_state.value.autoScrollSpeed - AUTO_SCROLL_INCREMENT)
+        }
+    }
+
+    private fun handleSettings(event: ReaderEvent.SettingsControl) {
+        when (event) {
+            is ReaderEvent.ToggleSetting -> toggleSetting(event.setting)
+            is ReaderEvent.UpdateTapZones -> updateTapZones(event.config)
+        }
+    }
+
+    private fun handleColorFilter(event: ReaderEvent.ColorFilterControl) {
+        when (event) {
             is ReaderEvent.SetColorFilterMode -> updateColorFilterMode(event.mode)
             is ReaderEvent.SetCustomTintColor -> updateCustomTintColor(event.color)
             is ReaderEvent.SetReaderBackgroundColor -> updateReaderBackgroundColor(event.color)
-            ReaderEvent.AutoScrollSpeedUp -> updateAutoScrollSpeed(_state.value.autoScrollSpeed + AUTO_SCROLL_INCREMENT)
-            ReaderEvent.AutoScrollSpeedDown -> updateAutoScrollSpeed(_state.value.autoScrollSpeed - AUTO_SCROLL_INCREMENT)
-            ReaderEvent.FirstPage -> changePage(0)
-            ReaderEvent.LastPage -> changePage((_state.value.pages.size - 1).coerceAtLeast(0))
-            ReaderEvent.FirstPanel -> changePanel(0)
-            ReaderEvent.LastPanel -> {
-                val currentPage = _state.value.pages.getOrNull(_state.value.currentPage)
-                changePanel((currentPage?.panels?.size ?: 1) - 1)
-            }
-            ReaderEvent.RotateCW -> cyclePageRotation()
-            ReaderEvent.ResetRotation -> _state.update { it.copy(pageRotation = PageRotation.NONE) }
+        }
+    }
 
-            // SFX Translation
+    private fun handleSfx(event: ReaderEvent.SfxControl) {
+        when (event) {
             ReaderEvent.OpenSfxDialog -> _state.update { it.copy(showSfxDialog = true) }
             ReaderEvent.CloseSfxDialog -> _state.update { it.copy(showSfxDialog = false) }
-            is ReaderEvent.TranslateSfx -> sfxDelegate.translateManualText(viewModelScope, event.sfxText) { _state.update(it) }
+            is ReaderEvent.TranslateSfx ->
+                sfxDelegate.translateManualText(viewModelScope, event.sfxText) { _state.update(it) }
+        }
+    }
+
+    private fun handleAction(event: ReaderEvent.ActionEvent) {
+        when (event) {
+            ReaderEvent.ToggleBookmark -> toggleBookmark()
+            ReaderEvent.SharePage -> sharePage()
+            ReaderEvent.DismissError -> dismissError()
+            ReaderEvent.Retry -> loadChapter()
         }
     }
 
