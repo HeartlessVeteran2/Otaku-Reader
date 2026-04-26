@@ -42,7 +42,10 @@ class ReaderHistoryDelegate @Inject constructor(
         scope.launch {
             val isIncognito = runCatching {
                 settingsRepository.incognitoMode.first()
-            }.getOrElse { fallbackIncognito }
+            }.getOrElse { e ->
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                fallbackIncognito
+            }
 
             if (isIncognito) return@launch
 
@@ -52,6 +55,8 @@ class ReaderHistoryDelegate @Inject constructor(
                     readAt = sessionReadAt,
                     readDurationMs = 0L,
                 )
+            }.onFailure { e ->
+                if (e is kotlinx.coroutines.CancellationException) throw e
             }
         }
     }
@@ -97,7 +102,10 @@ class ReaderHistoryDelegate @Inject constructor(
     ) {
         val isIncognito = runCatching {
             settingsRepository.incognitoMode.first()
-        }.getOrElse { currentState.incognitoMode }
+        }.getOrElse { e ->
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            currentState.incognitoMode
+        }
 
         if (isIncognito) return
 
@@ -107,6 +115,8 @@ class ReaderHistoryDelegate @Inject constructor(
                 readAt = sessionReadAt,
                 readDurationMs = durationMs,
             )
+        }.onFailure { e ->
+            if (e is kotlinx.coroutines.CancellationException) throw e
         }
         runCatching {
             chapterRepository.updateChapterProgress(
@@ -114,6 +124,8 @@ class ReaderHistoryDelegate @Inject constructor(
                 read = currentState.isLastPage,
                 lastPageRead = currentState.currentPage,
             )
+        }.onFailure { e ->
+            if (e is kotlinx.coroutines.CancellationException) throw e
         }
     }
 

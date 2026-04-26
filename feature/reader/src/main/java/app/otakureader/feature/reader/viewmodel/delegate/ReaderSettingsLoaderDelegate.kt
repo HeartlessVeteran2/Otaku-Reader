@@ -50,40 +50,76 @@ class ReaderSettingsLoaderDelegate @Inject constructor(
         val colorFilterModeD = async { settingsRepository.colorFilterMode.first() }
         val customTintColorD = async { settingsRepository.customTintColor.first() }
         val cropBordersEnabledD = async {
-            try { settingsRepository.cropBordersEnabled.first() } catch (_: Exception) { false }
+            try { settingsRepository.cropBordersEnabled.first() } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                false
+            }
         }
         val imageQualityD = async {
-            try { settingsRepository.imageQuality.first() } catch (_: Exception) { ImageQuality.ORIGINAL }
+            try { settingsRepository.imageQuality.first() } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                ImageQuality.ORIGINAL
+            }
         }
         val dataSaverEnabledD = async {
-            try { settingsRepository.dataSaverEnabled.first() } catch (_: Exception) { false }
+            try { settingsRepository.dataSaverEnabled.first() } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                false
+            }
         }
         val showReadingTimerD = async {
-            try { settingsRepository.showReadingTimer.first() } catch (_: Exception) { false }
+            try { settingsRepository.showReadingTimer.first() } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                false
+            }
         }
         val showBatteryTimeD = async {
-            try { settingsRepository.showBatteryTime.first() } catch (_: Exception) { false }
+            try { settingsRepository.showBatteryTime.first() } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                false
+            }
         }
         val preloadBeforeD = async {
-            try { settingsRepository.preloadPagesBefore.first() } catch (_: Exception) { ReaderSettingsRepository.DEFAULT_PRELOAD_PAGES }
+            try { settingsRepository.preloadPagesBefore.first() } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                ReaderSettingsRepository.DEFAULT_PRELOAD_PAGES
+            }
         }
         val preloadAfterD = async {
-            try { settingsRepository.preloadPagesAfter.first() } catch (_: Exception) { ReaderSettingsRepository.DEFAULT_PRELOAD_PAGES }
+            try { settingsRepository.preloadPagesAfter.first() } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                ReaderSettingsRepository.DEFAULT_PRELOAD_PAGES
+            }
         }
         val smartPrefetchEnabledD = async {
-            try { settingsRepository.smartPrefetchEnabled.first() } catch (_: Exception) { true }
+            try { settingsRepository.smartPrefetchEnabled.first() } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                true
+            }
         }
         val prefetchStrategyOrdinalD = async {
-            try { settingsRepository.prefetchStrategyOrdinal.first() } catch (_: Exception) { -1 }
+            try { settingsRepository.prefetchStrategyOrdinal.first() } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                -1
+            }
         }
         val adaptiveLearningEnabledD = async {
-            try { settingsRepository.adaptiveLearningEnabled.first() } catch (_: Exception) { true }
+            try { settingsRepository.adaptiveLearningEnabled.first() } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                true
+            }
         }
         val prefetchAdjacentChaptersD = async {
-            try { settingsRepository.prefetchAdjacentChapters.first() } catch (_: Exception) { false }
+            try { settingsRepository.prefetchAdjacentChapters.first() } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                false
+            }
         }
         val prefetchOnlyOnWiFiD = async {
-            try { settingsRepository.prefetchOnlyOnWiFi.first() } catch (_: Exception) { false }
+            try { settingsRepository.prefetchOnlyOnWiFi.first() } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                false
+            }
         }
         val showContentInCutoutD = async { settingsRepository.showContentInCutout.first() }
         val backgroundColorD = async { settingsRepository.backgroundColor.first() }

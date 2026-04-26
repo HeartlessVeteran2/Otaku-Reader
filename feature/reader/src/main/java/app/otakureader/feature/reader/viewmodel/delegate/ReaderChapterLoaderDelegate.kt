@@ -63,6 +63,8 @@ class ReaderChapterLoaderDelegate @Inject constructor(
      *
      * For each page, [PageLoader.resolveUrl] is called so that already-downloaded
      * pages are served from local storage rather than the network.
+     *
+     * @throws Exception if the page list fetch fails. Caller must handle.
      */
     private suspend fun fetchPagesFromSource(
         manga: Manga,
@@ -74,7 +76,7 @@ class ReaderChapterLoaderDelegate @Inject constructor(
             name = chapter.name,
         )
         val pages = sourceRepository.getPageList(sourceId, sourceChapter)
-            .getOrElse { return emptyList() }
+            .getOrElse { throw it }
 
         return pages.mapIndexed { index, page ->
             ReaderPage(

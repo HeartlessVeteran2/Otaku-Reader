@@ -134,8 +134,50 @@ class UltimateReaderViewModel @Inject constructor(
             // Load manga first to check for per-manga overrides.
             val manga = mangaRepository.getMangaById(mangaId)
             currentManga = manga
-            val newState = settingsLoaderDelegate.load(_state.value, manga)
-            _state.update { newState }
+            val settingsState = settingsLoaderDelegate.load(_state.value, manga)
+            // Merge only settings fields into current state to avoid overwriting
+            // pages/chapter data loaded concurrently by loadChapter().
+            _state.update { current ->
+                current.copy(
+                    mode = settingsState.mode,
+                    brightness = settingsState.brightness,
+                    keepScreenOn = settingsState.keepScreenOn,
+                    showPageNumber = settingsState.showPageNumber,
+                    readingDirection = settingsState.readingDirection,
+                    volumeKeysEnabled = settingsState.volumeKeysEnabled,
+                    volumeKeysInverted = settingsState.volumeKeysInverted,
+                    isFullscreen = settingsState.isFullscreen,
+                    incognitoMode = settingsState.incognitoMode,
+                    colorFilterMode = settingsState.colorFilterMode,
+                    customTintColor = settingsState.customTintColor,
+                    showReadingTimer = settingsState.showReadingTimer,
+                    showBatteryTime = settingsState.showBatteryTime,
+                    cropBordersEnabled = settingsState.cropBordersEnabled,
+                    imageQuality = settingsState.imageQuality,
+                    dataSaverEnabled = settingsState.dataSaverEnabled,
+                    showContentInCutout = settingsState.showContentInCutout,
+                    backgroundColor = settingsState.backgroundColor,
+                    animatePageTransitions = settingsState.animatePageTransitions,
+                    showReadingModeOverlay = settingsState.showReadingModeOverlay,
+                    showTapZonesOverlay = settingsState.showTapZonesOverlay,
+                    readerScale = settingsState.readerScale,
+                    autoZoomWideImages = settingsState.autoZoomWideImages,
+                    invertTapZones = settingsState.invertTapZones,
+                    webtoonSidePadding = settingsState.webtoonSidePadding,
+                    webtoonGapDp = settingsState.webtoonGapDp,
+                    webtoonMenuHideSensitivity = settingsState.webtoonMenuHideSensitivity,
+                    webtoonDoubleTapZoom = settingsState.webtoonDoubleTapZoom,
+                    webtoonDisableZoomOut = settingsState.webtoonDisableZoomOut,
+                    einkFlashOnPageChange = settingsState.einkFlashOnPageChange,
+                    einkBlackAndWhite = settingsState.einkBlackAndWhite,
+                    skipReadChapters = settingsState.skipReadChapters,
+                    skipFilteredChapters = settingsState.skipFilteredChapters,
+                    skipDuplicateChapters = settingsState.skipDuplicateChapters,
+                    alwaysShowChapterTransition = settingsState.alwaysShowChapterTransition,
+                    showActionsOnLongTap = settingsState.showActionsOnLongTap,
+                    savePagesToSeparateFolders = settingsState.savePagesToSeparateFolders,
+                )
+            }
         }
     }
 
