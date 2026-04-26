@@ -196,7 +196,7 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 ./gradlew assembleRelease
 ```
 
-See [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) for full release instructions.
+See [docs/contributing/release-checklist.md](docs/contributing/release-checklist.md) for full release instructions.
 
 ---
 
