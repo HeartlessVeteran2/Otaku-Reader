@@ -3,11 +3,14 @@ package app.otakureader.feature.library
 import app.otakureader.core.database.dao.ReadingHistoryDao
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.LibraryPreferences
+import app.otakureader.core.preferences.ReadingGoalPreferences
 import app.otakureader.domain.model.Manga
+import app.otakureader.domain.model.ReadingGoal
 import app.otakureader.domain.model.RecommendationResult
 import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
+import app.otakureader.domain.repository.StatisticsRepository
 import app.otakureader.domain.tracking.TrackRepository
 import app.otakureader.core.database.dao.CategoryDao
 import app.otakureader.domain.usecase.DismissRecommendationUseCase
@@ -51,6 +54,8 @@ class LibraryViewModelTest {
     private lateinit var dismissRecommendation: DismissRecommendationUseCase
     private lateinit var categoryDao: CategoryDao
     private lateinit var readingHistoryDao: ReadingHistoryDao
+    private lateinit var readingGoalPreferences: ReadingGoalPreferences
+    private lateinit var statisticsRepository: StatisticsRepository
 
     private val sampleMangas = listOf(
         Manga(id = 1L, sourceId = 10L, url = "/m/1", title = "Naruto", favorite = true, unreadCount = 3, lastRead = 1000L, status = MangaStatus.ONGOING),
@@ -98,6 +103,14 @@ class LibraryViewModelTest {
         }
         readingHistoryDao = mockk {
             every { observeContinueReading() } returns flowOf(emptyList())
+            every { getChaptersReadSince(any()) } returns flowOf(0)
+        }
+        readingGoalPreferences = mockk {
+            every { dailyChapterGoal } returns flowOf(0)
+            every { weeklyChapterGoal } returns flowOf(0)
+        }
+        statisticsRepository = mockk {
+            every { getReadingGoalProgress(any(), any()) } returns flowOf(ReadingGoal())
         }
     }
 
@@ -119,7 +132,9 @@ class LibraryViewModelTest {
             readingHistoryDao,
             getForYouRecommendations,
             refreshRecommendations,
-            dismissRecommendation
+            dismissRecommendation,
+            readingGoalPreferences,
+            statisticsRepository,
         )
     }
 

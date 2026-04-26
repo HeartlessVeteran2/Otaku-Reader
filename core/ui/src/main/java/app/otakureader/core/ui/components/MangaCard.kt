@@ -1,8 +1,5 @@
 package app.otakureader.core.ui.components
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -128,11 +125,7 @@ fun MangaCard(
             }
 
             // Selection overlay — semi-transparent tint + checkmark
-            AnimatedVisibility(
-                visible = isSelected,
-                enter = fadeIn(),
-                exit = fadeOut()
-            ) {
+            if (isSelected) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()

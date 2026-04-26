@@ -62,6 +62,11 @@
     <string name="library_mark_selected_unread">Mark as unread</string>
     <string name="library_download_selected">Download selected</string>
     <string name="library_remove_selected">Remove from library</string>
+    <!-- Daily goal banner -->
+    <string name="library_daily_goal_label">Daily Reading Goal</string>
+    <string name="library_daily_goal_complete">Daily goal reached! 🎉</string>
+    <string name="library_daily_goal_progress">%1$d / %2$d chapters today</string>
+
     <!-- Continue Reading -->
     <string name="library_continue_reading_title">Continue Reading</string>
     <string name="library_continue_reading_cover">Cover for %1$s</string>
