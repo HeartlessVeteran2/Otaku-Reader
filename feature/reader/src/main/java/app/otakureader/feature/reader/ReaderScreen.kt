@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -59,8 +60,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.otakureader.core.ui.component.EmptyScreen
 import app.otakureader.core.ui.component.LoadingScreen
 import app.otakureader.feature.reader.R
-import app.otakureader.feature.reader.model.ColorFilterMode
-import app.otakureader.feature.reader.model.ReaderMode
+import app.otakureader.domain.model.ColorFilterMode
+import app.otakureader.domain.model.ReaderMode
 import app.otakureader.feature.reader.modes.DualPageReader
 import app.otakureader.feature.reader.modes.SinglePageReader
 import app.otakureader.feature.reader.modes.SmartPanelsReader
@@ -68,18 +69,23 @@ import app.otakureader.feature.reader.modes.WebtoonReader
 import app.otakureader.feature.reader.ui.BatteryTimeOverlay
 import app.otakureader.feature.reader.ui.BrightnessSliderOverlay
 import app.otakureader.feature.reader.ui.FullPageGallery
+import app.otakureader.feature.reader.ui.OcrSearchBottomSheet
 import app.otakureader.feature.reader.ui.PageSlider
 import app.otakureader.feature.reader.ui.PageThumbnailStrip
 import app.otakureader.feature.reader.ui.ReadingTimerOverlay
 import app.otakureader.feature.reader.ui.ReaderMenuOverlay
 import app.otakureader.feature.reader.ui.SimpleTapZoneOverlay
 import app.otakureader.feature.reader.ui.ZoomIndicator
-import app.otakureader.feature.reader.viewmodel.ReaderEffect
-import app.otakureader.feature.reader.viewmodel.ReaderEvent
-import app.otakureader.feature.reader.viewmodel.TapZone
-import app.otakureader.feature.reader.viewmodel.UltimateReaderViewModel
+import app.otakureader.feature.reader.ReaderEffect
+import app.otakureader.feature.reader.ReaderEvent
+import app.otakureader.feature.reader.TapZone
+import app.otakureader.feature.reader.ReaderViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+// FAB positioning constants
+private val FAB_BASE_OFFSET = 80.dp
+private val FAB_STACKING_INCREMENT = 56.dp
 
 /**
  * Ultimate Reader Screen with full gallery view, tap zones, and all 4 reading modes.
@@ -98,7 +104,7 @@ fun ReaderScreen(
     chapterId: Long,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: UltimateReaderViewModel = hiltViewModel()
+    viewModel: ReaderViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -193,7 +199,7 @@ fun ReaderScreen(
 
                 // DeX / physical keyboard shortcuts — only act on key-down to avoid double firing.
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                val isRtl = state.readingDirection == app.otakureader.feature.reader.model.ReadingDirection.RTL
+                val isRtl = state.readingDirection == app.otakureader.domain.model.ReadingDirection.RTL
                 when (event.key) {
                     Key.DirectionRight, Key.D, Key.PageDown, Key.Spacebar -> {
                         viewModel.onEvent(if (isRtl) ReaderEvent.PrevPage else ReaderEvent.NextPage); true
@@ -251,7 +257,7 @@ fun ReaderScreen(
                 onLeftTap = { viewModel.onEvent(ReaderEvent.PrevPage) },
                 onCenterTap = { viewModel.onEvent(ReaderEvent.ToggleMenu) },
                 onRightTap = { viewModel.onEvent(ReaderEvent.NextPage) },
-                isRtl = state.readingDirection == app.otakureader.feature.reader.model.ReadingDirection.RTL,
+                isRtl = state.readingDirection == app.otakureader.domain.model.ReadingDirection.RTL,
                 modifier = Modifier.fillMaxSize()
             )
         }
@@ -354,13 +360,35 @@ fun ReaderScreen(
                 onClick = { viewModel.onEvent(ReaderEvent.OpenSfxDialog) },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(bottom = 80.dp, end = 16.dp),
+                    .padding(bottom = FAB_BASE_OFFSET, end = 16.dp),
                 containerColor = MaterialTheme.colorScheme.secondaryContainer
             ) {
                 Icon(
                     imageVector = Icons.Default.Translate,
                     contentDescription = stringResource(R.string.reader_sfx_translate),
                     tint = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
+        }
+
+        // OCR text search FAB – always available when pages are loaded and menu is hidden
+        if (!state.isMenuVisible && !state.isGalleryOpen && !state.isLoading && state.pages.isNotEmpty()) {
+            val ocrFabOffset = if (state.sfxTranslationEnabled) {
+                FAB_BASE_OFFSET + FAB_STACKING_INCREMENT
+            } else {
+                FAB_BASE_OFFSET
+            }
+            FloatingActionButton(
+                onClick = { viewModel.onEvent(ReaderEvent.OpenOcrSearch) },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(bottom = ocrFabOffset, end = 16.dp),
+                containerColor = MaterialTheme.colorScheme.tertiaryContainer
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = stringResource(R.string.reader_ocr_search_open),
+                    tint = MaterialTheme.colorScheme.onTertiaryContainer
                 )
             }
         }
@@ -382,6 +410,22 @@ fun ReaderScreen(
                 onDismiss = { viewModel.onEvent(ReaderEvent.CloseSfxDialog) }
             )
         }
+
+        // OCR text search bottom sheet
+        OcrSearchBottomSheet(
+            isVisible = state.showOcrSearch,
+            query = state.ocrQuery,
+            matchingPageIndices = state.ocrMatchingPageIndices,
+            totalPages = state.totalPages,
+            indexedPageCount = state.ocrPageTexts.size,
+            isOcrRunning = state.isOcrRunning,
+            onQueryChange = { viewModel.onEvent(ReaderEvent.UpdateOcrQuery(it)) },
+            onPageClick = { pageIndex ->
+                viewModel.jumpToPage(pageIndex)
+                viewModel.onEvent(ReaderEvent.CloseOcrSearch)
+            },
+            onDismiss = { viewModel.onEvent(ReaderEvent.CloseOcrSearch) },
+        )
     }
 }
 
@@ -440,7 +484,7 @@ private fun ReaderContent(
                     currentPage = state.currentPage,
                     onPageChange = onPageChange,
                     onTap = onTap,
-                    isRtl = state.readingDirection == app.otakureader.feature.reader.model.ReadingDirection.RTL,
+                    isRtl = state.readingDirection == app.otakureader.domain.model.ReadingDirection.RTL,
                     rotation = state.pageRotation.degrees,
                     cropBordersEnabled = state.cropBordersEnabled,
                     imageQuality = state.imageQuality,

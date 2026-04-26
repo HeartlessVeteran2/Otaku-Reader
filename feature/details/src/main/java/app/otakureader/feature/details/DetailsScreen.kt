@@ -93,11 +93,22 @@ import coil3.compose.AsyncImage
 import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.VerticalDivider
+import app.otakureader.core.ui.adaptive.isExpanded
+import app.otakureader.core.ui.adaptive.rememberWindowWidthSizeClass
 
 private val MARKDOWN_BOLD_REGEX = Regex("""\*\*(.+?)\*\*""")
 private val MARKDOWN_ITALIC_REGEX = Regex("""(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)""")
+
+// Two-pane split for the Expanded width class. The info pane is given slightly
+// more horizontal space than the chapter list because the manga header and
+// description benefit from extra width; the two weights must sum to 1f.
+private const val INFO_PANE_WEIGHT = 0.55f
+private const val CHAPTER_PANE_WEIGHT = 0.45f
 private val MARKDOWN_LINK_REGEX = Regex("""\[(.+?)]\((.+?)\)""")
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -239,97 +250,44 @@ private fun DetailsContent(
     modifier: Modifier = Modifier
 ) {
     val manga = state.manga ?: return
+    val widthSizeClass = rememberWindowWidthSizeClass()
 
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        item {
-            MangaHeader(
-                manga = manga,
-                isFavorite = state.isFavorite,
-                showPanoramaCover = state.showPanoramaCover,
-                onToggleFavorite = { onEvent(DetailsContract.Event.ToggleFavorite) },
-                onTogglePanoramaCover = { onEvent(DetailsContract.Event.TogglePanoramaCover) }
-            )
+    if (widthSizeClass.isExpanded) {
+        // Tablet / DeX / desktop: split the screen so the chapter list isn't
+        // wasted vertical space below a long header. Each pane scrolls
+        // independently. We give the info pane slightly more room because
+        // the manga header and description benefit from extra width.
+        Row(modifier = modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier
+                    .weight(INFO_PANE_WEIGHT)
+                    .fillMaxHeight(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                detailsInfoItems(manga = manga, state = state, onEvent = onEvent)
+            }
+            VerticalDivider()
+            LazyColumn(
+                modifier = Modifier
+                    .weight(CHAPTER_PANE_WEIGHT)
+                    .fillMaxHeight(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                detailsChapterItems(state = state, onEvent = onEvent)
+            }
         }
-
-        item {
-            MangaDescription(
-                description = manga.description,
-                expanded = state.descriptionExpanded,
-                onToggle = { onEvent(DetailsContract.Event.ToggleDescription) },
-                aiSummary = state.aiSummary,
-                isGeneratingSummary = state.isGeneratingSummary,
-                aiSummaryEnabled = state.aiSummaryEnabled,
-                onGenerateAiSummary = { onEvent(DetailsContract.Event.GenerateAiSummary) }
-            )
-        }
-
-        item {
-            MangaNotes(
-                notes = manga.notes,
-                onEditClick = { onEvent(DetailsContract.Event.ShowNoteEditor) }
-            )
-        }
-
-        item {
-            SourceSuggestionsSection(
-                suggestions = state.sourceSuggestions,
-                isLoading = state.isLoadingSourceSuggestions,
-                error = state.sourceSuggestionsError,
-                onSuggestionClick = { suggestion ->
-                    onEvent(DetailsContract.Event.OnSourceSuggestionClick(suggestion))
-                },
-                onLoadClick = { onEvent(DetailsContract.Event.LoadSourceSuggestions) }
-            )
-        }
-
-        item {
-            HorizontalDivider()
-        }
-
-        item {
-            DeleteAfterReadOption(
-                override = state.deleteAfterReadOverride,
-                globalEnabled = state.globalDeleteAfterRead,
-                onChange = { onEvent(DetailsContract.Event.SetDeleteAfterReadOverride(it)) }
-            )
-        }
-
-        item {
-            NotificationOption(
-                notifyEnabled = manga.notifyNewChapters,
-                onToggle = { onEvent(DetailsContract.Event.ToggleNotifications) }
-            )
-        }
-
-        item {
-            ReaderSettingsSection(
-                manga = manga,
-                onEvent = onEvent
-            )
-        }
-
-        item {
-            ChapterListHeader(
-                chapterCount = state.chapters.size,
-                sortOrder = state.chapterSortOrder,
-                isFilterActive = state.chapterFilter.isActive,
-                onToggleSort = { onEvent(DetailsContract.Event.ToggleSortOrder) },
-                onShowFilter = { onEvent(DetailsContract.Event.ShowChapterFilter) }
-            )
-        }
-
-        items(state.sortedChapters, key = { it.id }) { chapter ->
-            ChapterListItem(
-                chapter = chapter,
-                isSelected = state.selectedChapters.contains(chapter.id),
-                onClick = { onEvent(DetailsContract.Event.ChapterClick(chapter.id)) },
-                onLongClick = { onEvent(DetailsContract.Event.ChapterLongClick(chapter.id)) },
-                onExportAsCbz = { onEvent(DetailsContract.Event.ExportChapterAsCbz(chapter.id)) }
-            )
+    } else {
+        // Phone / small tablet: single scrolling column with info above chapters,
+        // matching the original behavior.
+        LazyColumn(
+            modifier = modifier.fillMaxSize(),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            detailsInfoItems(manga = manga, state = state, onEvent = onEvent)
+            detailsChapterItems(state = state, onEvent = onEvent)
         }
     }
 
@@ -348,6 +306,104 @@ private fun DetailsContent(
             scanlators = state.chapters.mapNotNull { it.scanlator }.distinct().sorted(),
             onApply = { newFilter -> onEvent(DetailsContract.Event.SetChapterFilter(newFilter)) },
             onDismiss = { onEvent(DetailsContract.Event.HideChapterFilter) }
+        )
+    }
+}
+
+/** Manga header, description, notes, source suggestions, and per-manga options. */
+private fun LazyListScope.detailsInfoItems(
+    manga: app.otakureader.domain.model.Manga,
+    state: DetailsContract.State,
+    onEvent: (DetailsContract.Event) -> Unit,
+) {
+    item {
+        MangaHeader(
+            manga = manga,
+            isFavorite = state.isFavorite,
+            showPanoramaCover = state.showPanoramaCover,
+            onToggleFavorite = { onEvent(DetailsContract.Event.ToggleFavorite) },
+            onTogglePanoramaCover = { onEvent(DetailsContract.Event.TogglePanoramaCover) }
+        )
+    }
+
+    item {
+        MangaDescription(
+            description = manga.description,
+            expanded = state.descriptionExpanded,
+            onToggle = { onEvent(DetailsContract.Event.ToggleDescription) },
+            aiSummary = state.aiSummary,
+            isGeneratingSummary = state.isGeneratingSummary,
+            aiSummaryEnabled = state.aiSummaryEnabled,
+            onGenerateAiSummary = { onEvent(DetailsContract.Event.GenerateAiSummary) }
+        )
+    }
+
+    item {
+        MangaNotes(
+            notes = manga.notes,
+            onEditClick = { onEvent(DetailsContract.Event.ShowNoteEditor) }
+        )
+    }
+
+    item {
+        SourceSuggestionsSection(
+            suggestions = state.sourceSuggestions,
+            isLoading = state.isLoadingSourceSuggestions,
+            error = state.sourceSuggestionsError,
+            onSuggestionClick = { suggestion ->
+                onEvent(DetailsContract.Event.OnSourceSuggestionClick(suggestion))
+            },
+            onLoadClick = { onEvent(DetailsContract.Event.LoadSourceSuggestions) }
+        )
+    }
+
+    item { HorizontalDivider() }
+
+    item {
+        DeleteAfterReadOption(
+            override = state.deleteAfterReadOverride,
+            globalEnabled = state.globalDeleteAfterRead,
+            onChange = { onEvent(DetailsContract.Event.SetDeleteAfterReadOverride(it)) }
+        )
+    }
+
+    item {
+        NotificationOption(
+            notifyEnabled = manga.notifyNewChapters,
+            onToggle = { onEvent(DetailsContract.Event.ToggleNotifications) }
+        )
+    }
+
+    item {
+        ReaderSettingsSection(
+            manga = manga,
+            onEvent = onEvent
+        )
+    }
+}
+
+/** Chapter list header followed by the sorted chapter rows. */
+private fun LazyListScope.detailsChapterItems(
+    state: DetailsContract.State,
+    onEvent: (DetailsContract.Event) -> Unit,
+) {
+    item {
+        ChapterListHeader(
+            chapterCount = state.chapters.size,
+            sortOrder = state.chapterSortOrder,
+            isFilterActive = state.chapterFilter.isActive,
+            onToggleSort = { onEvent(DetailsContract.Event.ToggleSortOrder) },
+            onShowFilter = { onEvent(DetailsContract.Event.ShowChapterFilter) }
+        )
+    }
+
+    items(state.sortedChapters, key = { it.id }) { chapter ->
+        ChapterListItem(
+            chapter = chapter,
+            isSelected = state.selectedChapters.contains(chapter.id),
+            onClick = { onEvent(DetailsContract.Event.ChapterClick(chapter.id)) },
+            onLongClick = { onEvent(DetailsContract.Event.ChapterLongClick(chapter.id)) },
+            onExportAsCbz = { onEvent(DetailsContract.Event.ExportChapterAsCbz(chapter.id)) }
         )
     }
 }

@@ -1,4 +1,4 @@
-package app.otakureader.feature.reader.viewmodel
+package app.otakureader.feature.reader
 
 import android.content.Context
 import android.os.SystemClock
@@ -15,22 +15,27 @@ import app.otakureader.core.discord.DiscordRpcService
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.DownloadPreferences
 import app.otakureader.core.preferences.AiPreferences
-import app.otakureader.feature.reader.model.ColorFilterMode
-import app.otakureader.feature.reader.model.ImageQuality
-import app.otakureader.feature.reader.model.ReaderMode
+import app.otakureader.domain.model.ColorFilterMode
+import app.otakureader.domain.model.ImageQuality
+import app.otakureader.domain.model.ReaderMode
 import app.otakureader.feature.reader.model.ReaderPage
-import app.otakureader.feature.reader.model.ReadingDirection
+import app.otakureader.domain.model.ReadingDirection
 import app.otakureader.feature.reader.model.ComicPanel
 import app.otakureader.feature.reader.model.PanelBounds
 import app.otakureader.feature.reader.panel.PanelDetectionService
+import app.otakureader.feature.reader.ocr.TextRecognitionService
 import app.otakureader.feature.reader.prefetch.AdaptiveChapterPrefetcher
 import app.otakureader.feature.reader.prefetch.ReadingBehaviorTracker
 import app.otakureader.feature.reader.prefetch.SmartPrefetchManager
-import app.otakureader.feature.reader.repository.ReaderSettingsRepository
+import app.otakureader.data.repository.ReaderSettingsRepository
+import app.otakureader.feature.reader.viewmodel.delegate.ReaderChapterLoaderDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderDiscordDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderDownloadAheadDelegate
+import app.otakureader.feature.reader.viewmodel.delegate.ReaderHistoryDelegate
+import app.otakureader.feature.reader.viewmodel.delegate.ReaderOcrDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderPanelDetectionDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderPrefetchDelegate
+import app.otakureader.feature.reader.viewmodel.delegate.ReaderSettingsLoaderDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderSfxDelegate
 import coil3.ImageLoader
 import io.mockk.coEvery
@@ -65,7 +70,7 @@ import org.junit.Before
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class UltimateReaderViewModelTest {
+class ReaderViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
     private val mangaId = 1L
@@ -90,6 +95,7 @@ class UltimateReaderViewModelTest {
     private lateinit var panelDetectionService: PanelDetectionService
     private lateinit var aiPreferences: AiPreferences
     private lateinit var translateSfx: TranslateSfxUseCase
+    private lateinit var textRecognitionService: TextRecognitionService
 
     @Before
     fun setUp() {
@@ -122,6 +128,7 @@ class UltimateReaderViewModelTest {
         panelDetectionService = mockk()
         aiPreferences = mockk(relaxed = true)
         translateSfx = mockk<TranslateSfxUseCase>()
+        textRecognitionService = mockk(relaxed = true)
         coEvery { translateSfx(any(), any(), any(), any()) } returns Result.success(emptyList())
         coEvery { panelDetectionService.detectPanelsFromUrl(any(), any()) } returns emptyList()
         every { generalPreferences.discordRpcEnabled } returns flowOf(false)
@@ -167,6 +174,7 @@ class UltimateReaderViewModelTest {
         every { settingsRepository.autoZoomWideImages } returns flowOf(true)
         every { settingsRepository.invertTapZones } returns flowOf(false)
         every { settingsRepository.webtoonSidePadding } returns flowOf(0)
+        every { settingsRepository.webtoonGapDp } returns flowOf(0)
         every { settingsRepository.webtoonMenuHideSensitivity } returns flowOf(0)
         every { settingsRepository.webtoonDoubleTapZoom } returns flowOf(true)
         every { settingsRepository.webtoonDisableZoomOut } returns flowOf(false)
@@ -195,15 +203,35 @@ class UltimateReaderViewModelTest {
         unmockkStatic(SystemClock::class)
     }
 
-    private fun createViewModel(): UltimateReaderViewModel =
-        UltimateReaderViewModel(
+    private fun createViewModel(): ReaderViewModel {
+        val prefetchDelegate = ReaderPrefetchDelegate(
+            context = context,
+            smartPrefetchManager = smartPrefetchManager,
+            behaviorTracker = behaviorTracker,
+            chapterPrefetcher = chapterPrefetcher,
+            imageLoader = imageLoader,
+        )
+        return ReaderViewModel(
             context = context,
             mangaRepository = mangaRepository,
             chapterRepository = chapterRepository,
-            sourceRepository = sourceRepository,
             settingsRepository = settingsRepository,
-            pageLoader = pageLoader,
             behaviorTracker = behaviorTracker,
+            settingsLoaderDelegate = ReaderSettingsLoaderDelegate(
+                settingsRepository = settingsRepository,
+                prefetchDelegate = prefetchDelegate,
+            ),
+            chapterLoaderDelegate = ReaderChapterLoaderDelegate(
+                mangaRepository = mangaRepository,
+                chapterRepository = chapterRepository,
+                sourceRepository = sourceRepository,
+                pageLoader = pageLoader,
+            ),
+            historyDelegate = ReaderHistoryDelegate(
+                context = context,
+                chapterRepository = chapterRepository,
+                settingsRepository = settingsRepository,
+            ),
             sfxDelegate = ReaderSfxDelegate(
                 aiPreferences = aiPreferences,
                 translateSfx = translateSfx,
@@ -215,13 +243,7 @@ class UltimateReaderViewModelTest {
             panelDelegate = ReaderPanelDetectionDelegate(
                 panelDetectionService = panelDetectionService,
             ),
-            prefetchDelegate = ReaderPrefetchDelegate(
-                context = context,
-                smartPrefetchManager = smartPrefetchManager,
-                behaviorTracker = behaviorTracker,
-                chapterPrefetcher = chapterPrefetcher,
-                imageLoader = imageLoader,
-            ),
+            prefetchDelegate = prefetchDelegate,
             downloadAheadDelegate = ReaderDownloadAheadDelegate(
                 context = context,
                 downloadPreferences = downloadPreferences,
@@ -230,10 +252,14 @@ class UltimateReaderViewModelTest {
                 chapterRepository = chapterRepository,
                 mangaRepository = mangaRepository,
             ),
+            ocrDelegate = ReaderOcrDelegate(
+                textRecognitionService = textRecognitionService,
+            ),
             savedStateHandle = SavedStateHandle(
                 mapOf("mangaId" to mangaId, "chapterId" to chapterId)
             )
         )
+    }
 
     // ---- Gallery toggle ----
 
@@ -845,5 +871,49 @@ class UltimateReaderViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         coVerify(exactly = 0) { downloadManager.enqueue(any()) }
+    }
+
+    // ── OCR text search tests ────────────────────────────────────────────────
+
+    @Test
+    fun `OpenOcrSearch sets showOcrSearch to true and clears query`() = runTest {
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        vm.setPages(listOf(ReaderPage(index = 0, imageUrl = "https://example.com/page0.jpg")))
+
+        vm.onEvent(ReaderEvent.OpenOcrSearch)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = vm.state.value
+        assertTrue(state.showOcrSearch)
+        assertEquals("", state.ocrQuery)
+    }
+
+    @Test
+    fun `CloseOcrSearch sets showOcrSearch to false and cancels OCR jobs`() = runTest {
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        vm.setPages(listOf(ReaderPage(index = 0, imageUrl = "https://example.com/page0.jpg")))
+
+        vm.onEvent(ReaderEvent.OpenOcrSearch)
+        testDispatcher.scheduler.advanceUntilIdle()
+        vm.onEvent(ReaderEvent.CloseOcrSearch)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = vm.state.value
+        assertFalse(state.showOcrSearch)
+        assertFalse(state.isOcrRunning)
+    }
+
+    @Test
+    fun `UpdateOcrQuery updates the search query`() = runTest {
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        vm.onEvent(ReaderEvent.OpenOcrSearch)
+        vm.onEvent(ReaderEvent.UpdateOcrQuery("test query"))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals("test query", vm.state.value.ocrQuery)
     }
 }

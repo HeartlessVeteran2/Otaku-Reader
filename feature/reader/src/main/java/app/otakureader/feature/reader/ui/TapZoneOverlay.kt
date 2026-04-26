@@ -11,8 +11,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
-import app.otakureader.feature.reader.model.TapZoneConfig
-import app.otakureader.feature.reader.viewmodel.TapZone
+import app.otakureader.domain.model.TapZoneConfig
+import app.otakureader.feature.reader.PageRotation
+import app.otakureader.feature.reader.TapZone
 
 /**
  * Overlay for tap zone navigation.

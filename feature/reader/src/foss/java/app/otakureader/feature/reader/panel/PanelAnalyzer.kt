@@ -4,7 +4,7 @@ import android.content.Context
 import app.otakureader.feature.reader.model.PanelAnalysisException
 import app.otakureader.feature.reader.model.PanelAnalysisRequest
 import app.otakureader.feature.reader.model.PanelAnalysisResultWrapper
-import app.otakureader.feature.reader.model.ReadingDirection
+import app.otakureader.domain.model.ReadingDirection
 import coil3.ImageLoader
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject

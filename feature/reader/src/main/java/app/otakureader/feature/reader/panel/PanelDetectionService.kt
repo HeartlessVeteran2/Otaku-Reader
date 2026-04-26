@@ -4,7 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.util.LruCache
 import app.otakureader.feature.reader.model.ComicPanel
-import app.otakureader.feature.reader.model.ReadingDirection
+import app.otakureader.domain.model.ReadingDirection
 import coil3.ImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult

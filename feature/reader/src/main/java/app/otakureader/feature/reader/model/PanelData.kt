@@ -1,5 +1,6 @@
 package app.otakureader.feature.reader.model
 
+import app.otakureader.domain.model.ReadingDirection
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json

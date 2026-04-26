@@ -3,6 +3,7 @@ package app.otakureader.feature.library
 import app.otakureader.domain.model.ContinueReadingItem
 import app.otakureader.domain.model.MangaRecommendation
 import app.otakureader.domain.model.MangaStatus
+import app.otakureader.domain.model.ReadingGoal
 
 enum class LibrarySortMode {
     ALPHABETICAL,
@@ -45,7 +46,9 @@ data class LibraryState(
     val recommendationsError: String? = null,
     val hasEnoughMangaForRecommendations: Boolean = false,
     // Continue Reading
-    val continueReadingItems: List<ContinueReadingItem> = emptyList()
+    val continueReadingItems: List<ContinueReadingItem> = emptyList(),
+    // Daily reading goal progress (shown in header when a goal is set)
+    val readingGoal: ReadingGoal = ReadingGoal()
 )
 
 data class LibraryMangaItem(

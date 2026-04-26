@@ -1,3 +1,4 @@
+// Standalone JVM Ktor server — NOT bundled in Android APK. Optional module for self-hosted sync.
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.serialization)
@@ -32,7 +33,9 @@ dependencies {
 }
 
 kotlin {
-    jvmToolchain(21)
+    // Standardised to JVM 17 to match the project-wide target set in KotlinAndroid.kt.
+    // JDK 17+ is required to build; CI uses JDK 21 which is fully compatible.
+    jvmToolchain(17)
 }
 
 application {

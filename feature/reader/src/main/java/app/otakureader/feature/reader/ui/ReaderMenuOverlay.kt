@@ -52,18 +52,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import app.otakureader.domain.model.ColorFilterMode
+import app.otakureader.domain.model.ReaderMode
+import app.otakureader.feature.reader.PageRotation
 import app.otakureader.feature.reader.R
-import app.otakureader.feature.reader.model.ColorFilterMode
-import app.otakureader.feature.reader.model.ReaderMode
-import app.otakureader.feature.reader.viewmodel.PageRotation
+import app.otakureader.feature.reader.TapZone
 
 /** Default custom tint color (semi-transparent blue) used when no custom color is set. */
 private const val DEFAULT_CUSTOM_TINT_COLOR = 0x4000AAFFL
@@ -476,7 +477,13 @@ fun ColorFilterControl(
                     onClick = { onModeChange(mode) },
                     label = {
                         Text(
-                            text = stringResource(ColorFilterMode.displayNameResId(mode)),
+                            text = stringResource(when (mode) {
+                                ColorFilterMode.NONE -> R.string.reader_color_filter_none
+                                ColorFilterMode.SEPIA -> R.string.reader_color_filter_sepia
+                                ColorFilterMode.GRAYSCALE -> R.string.reader_color_filter_greyscale
+                                ColorFilterMode.INVERT -> R.string.reader_color_filter_invert
+                                ColorFilterMode.CUSTOM_TINT -> R.string.reader_color_filter_custom_tint
+                            }),
                             style = MaterialTheme.typography.labelSmall
                         )
                     }

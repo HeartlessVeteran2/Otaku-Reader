@@ -7,7 +7,7 @@ import app.otakureader.feature.reader.model.ReaderPage
 import app.otakureader.feature.reader.prefetch.AdaptiveChapterPrefetcher
 import app.otakureader.feature.reader.prefetch.ReadingBehaviorTracker
 import app.otakureader.feature.reader.prefetch.SmartPrefetchManager
-import app.otakureader.feature.reader.repository.ReaderSettingsRepository
+import app.otakureader.data.repository.ReaderSettingsRepository
 import coil3.ImageLoader
 import coil3.request.ImageRequest
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -84,6 +84,15 @@ class ReaderPrefetchDelegate @Inject constructor(
                 }
             }
         }
+    }
+
+    /**
+     * Record a page view for smart-prefetch telemetry. No-op when smart prefetch
+     * is disabled to avoid unnecessary work.
+     */
+    fun recordPageView(page: ReaderPage) {
+        if (!cachedSmartPrefetchEnabled) return
+        smartPrefetchManager.recordPageView(page)
     }
 
     fun cancel() {

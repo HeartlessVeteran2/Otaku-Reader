@@ -2,7 +2,7 @@ package app.otakureader.feature.reader.viewmodel.delegate
 
 import app.otakureader.core.preferences.AiPreferences
 import app.otakureader.domain.usecase.ai.TranslateSfxUseCase
-import app.otakureader.feature.reader.viewmodel.ReaderState
+import app.otakureader.feature.reader.ReaderState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.combine
