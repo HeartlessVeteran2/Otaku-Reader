@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 14,
-    "identityHash": "contentrating_migration_v14",
+    "identityHash": "a0d1de19b893d759642af0752824ae5c",
     "entities": [
       {
         "tableName": "manga",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sourceId` INTEGER NOT NULL, `url` TEXT NOT NULL, `title` TEXT NOT NULL, `thumbnailUrl` TEXT, `author` TEXT, `artist` TEXT, `description` TEXT, `genre` TEXT, `status` INTEGER NOT NULL, `favorite` INTEGER NOT NULL, `lastUpdate` INTEGER NOT NULL, `initialized` INTEGER NOT NULL, `viewerFlags` INTEGER NOT NULL, `chapterFlags` INTEGER NOT NULL, `coverLastModified` INTEGER NOT NULL, `dateAdded` INTEGER NOT NULL, `autoDownload` INTEGER NOT NULL, `notes` TEXT, `notifyNewChapters` INTEGER NOT NULL, `readerDirection` INTEGER, `readerMode` INTEGER, `readerColorFilter` INTEGER, `readerCustomTintColor` INTEGER, `readerBackgroundColor` INTEGER, `preloadPagesBefore` INTEGER, `preloadPagesAfter` INTEGER)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sourceId` INTEGER NOT NULL, `url` TEXT NOT NULL, `title` TEXT NOT NULL, `thumbnailUrl` TEXT, `author` TEXT, `artist` TEXT, `description` TEXT, `genre` TEXT, `status` INTEGER NOT NULL, `favorite` INTEGER NOT NULL, `lastUpdate` INTEGER NOT NULL, `initialized` INTEGER NOT NULL, `viewerFlags` INTEGER NOT NULL, `chapterFlags` INTEGER NOT NULL, `coverLastModified` INTEGER NOT NULL, `dateAdded` INTEGER NOT NULL, `autoDownload` INTEGER NOT NULL, `notes` TEXT, `notifyNewChapters` INTEGER NOT NULL, `readerDirection` INTEGER, `readerMode` INTEGER, `readerColorFilter` INTEGER, `readerCustomTintColor` INTEGER, `readerBackgroundColor` INTEGER, `preloadPagesBefore` INTEGER, `preloadPagesAfter` INTEGER, `contentRating` INTEGER NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -161,8 +161,7 @@
             "fieldPath": "contentRating",
             "columnName": "contentRating",
             "affinity": "INTEGER",
-            "notNull": true,
-            "defaultValue": "0"
+            "notNull": true
           }
         ],
         "primaryKey": {
@@ -1392,7 +1391,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'e3467a56121cff5dc7d98163f82ced11')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'a0d1de19b893d759642af0752824ae5c')"
     ]
   }
 }

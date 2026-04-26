@@ -19,36 +19,25 @@ import app.otakureader.feature.reader.model.ReaderPage
 import app.otakureader.feature.reader.model.ReadingDirection
 import app.otakureader.feature.reader.repository.ReaderSettingsRepository
 import app.otakureader.feature.reader.prefetch.ReadingBehaviorTracker
-import app.otakureader.feature.reader.prefetch.SmartPrefetchManager
-import app.otakureader.feature.reader.prefetch.AdaptiveChapterPrefetcher
 import app.otakureader.domain.model.PageNavigationEvent
 import app.otakureader.domain.model.PrefetchStrategy
-import app.otakureader.core.discord.DiscordRpcService
-import app.otakureader.core.discord.ReadingStatus
-import app.otakureader.core.preferences.GeneralPreferences
-import app.otakureader.core.preferences.DownloadPreferences
-import app.otakureader.data.download.DownloadManager
-import app.otakureader.data.download.ChapterDownloadRequest
-import app.otakureader.data.download.DownloadProvider
 import app.otakureader.data.worker.RecordReadingHistoryWorker
-import app.otakureader.feature.reader.panel.PanelDetectionService
-import app.otakureader.domain.usecase.ai.TranslateSfxUseCase
+import app.otakureader.feature.reader.viewmodel.delegate.ReaderDiscordDelegate
+import app.otakureader.feature.reader.viewmodel.delegate.ReaderDownloadAheadDelegate
+import app.otakureader.feature.reader.viewmodel.delegate.ReaderPanelDetectionDelegate
+import app.otakureader.feature.reader.viewmodel.delegate.ReaderPrefetchDelegate
+import app.otakureader.feature.reader.viewmodel.delegate.ReaderSfxDelegate
 import androidx.work.WorkManager
-import coil3.ImageLoader
-import coil3.request.ImageRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.Job
-import app.otakureader.core.preferences.AiPreferences
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -57,8 +46,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
-import kotlin.math.abs
-import app.otakureader.sourceapi.Page
 import app.otakureader.sourceapi.SourceChapter
 
 /**
@@ -74,17 +61,12 @@ class UltimateReaderViewModel @Inject constructor(
     private val sourceRepository: SourceRepository,
     private val settingsRepository: ReaderSettingsRepository,
     private val pageLoader: PageLoader,
-    private val imageLoader: ImageLoader,
-    private val downloadManager: DownloadManager,
-    private val downloadPreferences: DownloadPreferences,
-    private val discordRpcService: DiscordRpcService,
-    private val generalPreferences: GeneralPreferences,
     private val behaviorTracker: ReadingBehaviorTracker,
-    private val smartPrefetchManager: SmartPrefetchManager,
-    private val chapterPrefetcher: AdaptiveChapterPrefetcher,
-    private val panelDetectionService: PanelDetectionService,
-    private val aiPreferences: AiPreferences,
-    private val translateSfx: TranslateSfxUseCase,
+    private val sfxDelegate: ReaderSfxDelegate,
+    private val discordDelegate: ReaderDiscordDelegate,
+    private val panelDelegate: ReaderPanelDetectionDelegate,
+    private val prefetchDelegate: ReaderPrefetchDelegate,
+    private val downloadAheadDelegate: ReaderDownloadAheadDelegate,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -101,23 +83,7 @@ class UltimateReaderViewModel @Inject constructor(
     private var currentChapter: Chapter? = null
     private var hasTriggeredDeletion = false
 
-    /** Cached global preload settings, loaded once during init to avoid repeated DataStore reads. */
-    private var cachedPreloadBefore: Int = ReaderSettingsRepository.DEFAULT_PRELOAD_PAGES
-    private var cachedPreloadAfter: Int = ReaderSettingsRepository.DEFAULT_PRELOAD_PAGES
-
-    /** Cached smart prefetch settings. */
-    private var cachedSmartPrefetchEnabled: Boolean = false
-    private var cachedPrefetchStrategy: PrefetchStrategy = PrefetchStrategy.Balanced
-    private var cachedAdaptiveLearningEnabled: Boolean = false
-    private var cachedPrefetchAdjacentChapters: Boolean = false
-    private var cachedPrefetchOnlyOnWiFi: Boolean = true
-
-    /** Cached Discord RPC enabled state, loaded once to avoid DataStore reads on every page change. */
-    private var cachedDiscordRpcEnabled: Boolean = false
-
     private var autoSaveJob: Job? = null
-    private var preloadJob: Job? = null
-    private var panelDetectionJob: Job? = null
 
     /** Timestamp when last page change occurred, for tracking page duration. */
     private var lastPageChangeMs: Long = SystemClock.elapsedRealtime()
@@ -140,8 +106,13 @@ class UltimateReaderViewModel @Inject constructor(
     init {
         loadSettings()
         loadChapter()
-        cacheDiscordPreference()
-        observeSfxSettings()
+        discordDelegate.startObserving(
+            scope = viewModelScope,
+            getCurrentManga = { currentManga },
+            getCurrentChapter = { currentChapter },
+            getState = { _state.value },
+        )
+        sfxDelegate.observeSettings(viewModelScope) { _state.update(it) }
         observeSettingsWriteFailures()
     }
 
@@ -270,14 +241,14 @@ class UltimateReaderViewModel @Inject constructor(
                 val dataSaverEnabled = dataSaverEnabledD.await()
                 val showReadingTimer = showReadingTimerD.await()
                 val showBatteryTime = showBatteryTimeD.await()
-                cachedPreloadBefore = preloadBeforeD.await()
-                cachedPreloadAfter = preloadAfterD.await()
-                cachedSmartPrefetchEnabled = smartPrefetchEnabledD.await()
+                prefetchDelegate.cachedPreloadBefore = preloadBeforeD.await()
+                prefetchDelegate.cachedPreloadAfter = preloadAfterD.await()
+                prefetchDelegate.cachedSmartPrefetchEnabled = smartPrefetchEnabledD.await()
                 val prefetchOrdinal = prefetchStrategyOrdinalD.await()
-                cachedPrefetchStrategy = if (prefetchOrdinal >= 0) PrefetchStrategy.fromOrdinal(prefetchOrdinal) else PrefetchStrategy.Balanced
-                cachedAdaptiveLearningEnabled = adaptiveLearningEnabledD.await()
-                cachedPrefetchAdjacentChapters = prefetchAdjacentChaptersD.await()
-                cachedPrefetchOnlyOnWiFi = prefetchOnlyOnWiFiD.await()
+                prefetchDelegate.cachedPrefetchStrategy = if (prefetchOrdinal >= 0) PrefetchStrategy.fromOrdinal(prefetchOrdinal) else PrefetchStrategy.Balanced
+                prefetchDelegate.cachedAdaptiveLearningEnabled = adaptiveLearningEnabledD.await()
+                prefetchDelegate.cachedPrefetchAdjacentChapters = prefetchAdjacentChaptersD.await()
+                prefetchDelegate.cachedPrefetchOnlyOnWiFi = prefetchOnlyOnWiFiD.await()
                 val showContentInCutout = showContentInCutoutD.await()
                 val backgroundColor = backgroundColorD.await()
                 val animatePageTransitions = animatePageTransitionsD.await()
@@ -409,16 +380,30 @@ class UltimateReaderViewModel @Inject constructor(
                 recordHistoryOpen()
 
                 // Update Discord Rich Presence with reading info
-                updateDiscordPresence(manga.title, chapter.name, pages.size)
+                discordDelegate.updatePresence(manga.title, chapter.name, pages.size)
 
                 // Start preloading adjacent pages
                 if (pages.isNotEmpty()) {
-                    preloadPages(_state.value.currentPage)
+                    prefetchDelegate.preloadPages(
+                        scope = viewModelScope,
+                        pages = pages,
+                        currentPage = _state.value.currentPage,
+                        mangaId = mangaId,
+                        chapterId = chapterId,
+                        currentManga = currentManga,
+                    )
                 }
 
                 // Start panel detection when in Smart Panels mode
                 if (_state.value.mode == ReaderMode.SMART_PANELS && pages.isNotEmpty()) {
-                    detectPanelsForPages(pages)
+                    panelDelegate.detectForPages(
+                        scope = viewModelScope,
+                        pages = pages,
+                        currentPageIndex = _state.value.currentPage,
+                        readingDirection = _state.value.readingDirection,
+                        isSmartPanelsMode = { _state.value.mode == ReaderMode.SMART_PANELS },
+                        updateState = { _state.update(it) },
+                    )
                 }
 
             } catch (e: Exception) {
@@ -542,7 +527,7 @@ class UltimateReaderViewModel @Inject constructor(
             // SFX Translation
             ReaderEvent.OpenSfxDialog -> _state.update { it.copy(showSfxDialog = true) }
             ReaderEvent.CloseSfxDialog -> _state.update { it.copy(showSfxDialog = false) }
-            is ReaderEvent.TranslateSfx -> translateManualSfxText(event.sfxText)
+            is ReaderEvent.TranslateSfx -> sfxDelegate.translateManualText(viewModelScope, event.sfxText) { _state.update(it) }
         }
     }
 
@@ -552,7 +537,7 @@ class UltimateReaderViewModel @Inject constructor(
             val previousPage = _state.value.currentPage
 
             // Record navigation event for behavior tracking
-            if (cachedAdaptiveLearningEnabled) {
+            if (prefetchDelegate.cachedAdaptiveLearningEnabled) {
                 val nowElapsed = SystemClock.elapsedRealtime()
                 val pageDuration = nowElapsed - lastPageChangeMs
                 lastPageChangeMs = nowElapsed
@@ -574,7 +559,7 @@ class UltimateReaderViewModel @Inject constructor(
             }
 
             // Record page view for telemetry only when smart prefetch is active
-            if (cachedSmartPrefetchEnabled) {
+            if (prefetchDelegate.cachedSmartPrefetchEnabled) {
                 val currentPage = _state.value.pages.getOrNull(previousPage)
                 if (currentPage != null) {
                     smartPrefetchManager.recordPageView(currentPage)
@@ -586,26 +571,44 @@ class UltimateReaderViewModel @Inject constructor(
                 val newPanel = if (state.mode == ReaderMode.SMART_PANELS) 0 else state.currentPanel
                 state.copy(currentPage = validPage, currentPanel = newPanel)
             }
-            preloadPages(validPage)
+            val pages = _state.value.pages
+            prefetchDelegate.preloadPages(
+                scope = viewModelScope,
+                pages = pages,
+                currentPage = validPage,
+                mangaId = mangaId,
+                chapterId = chapterId,
+                currentManga = currentManga,
+            )
             scheduleProgressSave()
-            loadSfxTranslationsForPage(validPage)
+            sfxDelegate.loadTranslationsForPage(
+                scope = viewModelScope,
+                pageIndex = validPage,
+                pageUrl = pages.getOrNull(validPage)?.imageUrl,
+                chapterId = chapterId,
+                updateState = { _state.update(it) },
+            )
 
             // Update Discord presence with current page
             val manga = currentManga
             val chapter = currentChapter
             if (manga != null && chapter != null) {
-                updateDiscordPresence(
-                    manga.title, chapter.name, _state.value.pages.size, validPage + 1
-                )
+                discordDelegate.updatePresence(manga.title, chapter.name, pages.size, validPage + 1)
             }
 
-            val pages = _state.value.pages
             if (pages.isNotEmpty() && validPage == pages.lastIndex) {
                 maybeDeleteAfterReading()
             }
 
             // Trigger download-ahead when user is near end of chapter
-            maybeDownloadNextChapter(validPage, pages.size)
+            downloadAheadDelegate.maybeDownloadNextChapter(
+                scope = viewModelScope,
+                currentPage = validPage,
+                totalPages = pages.size,
+                mangaId = mangaId,
+                chapterId = chapterId,
+                getCurrentManga = { currentManga },
+            )
         }
     }
 
@@ -695,11 +698,17 @@ class UltimateReaderViewModel @Inject constructor(
         if (mode == ReaderMode.SMART_PANELS) {
             val pages = _state.value.pages
             if (pages.isNotEmpty()) {
-                detectPanelsForPages(pages)
+                panelDelegate.detectForPages(
+                    scope = viewModelScope,
+                    pages = pages,
+                    currentPageIndex = _state.value.currentPage,
+                    readingDirection = _state.value.readingDirection,
+                    isSmartPanelsMode = { _state.value.mode == ReaderMode.SMART_PANELS },
+                    updateState = { _state.update(it) },
+                )
             }
         } else {
-            // Cancel any in-progress panel detection when leaving Smart Panels mode
-            panelDetectionJob?.cancel()
+            panelDelegate.cancel()
         }
         
         // Save mode setting
@@ -809,117 +818,6 @@ class UltimateReaderViewModel @Inject constructor(
         // Implementation for sharing current page
     }
 
-    /**
-     * Detect panels for a list of pages when Smart Panels mode is active.
-     *
-     * Pages are processed in order of proximity to the current page so the user
-     * sees panel navigation as soon as possible. Detection continues in the
-     * background for the remaining pages until the mode changes or the ViewModel
-     * is cleared.
-     */
-    private fun detectPanelsForPages(pages: List<ReaderPage>) {
-        panelDetectionJob?.cancel()
-        panelDetectionJob = viewModelScope.launch {
-            val readingDirection = _state.value.readingDirection
-
-            // Process pages nearest to the current page first for a fast first result
-            val currentPageIndex = _state.value.currentPage
-            val sortedIndices = pages.indices.sortedBy { abs(it - currentPageIndex) }
-
-            for (index in sortedIndices) {
-                // Stop if the user has left Smart Panels mode
-                if (_state.value.mode != ReaderMode.SMART_PANELS) break
-
-                val page = _state.value.pages.getOrNull(index) ?: continue
-                // Skip pages that already have panels detected or lack an image URL
-                if (page.panels.isNotEmpty() || page.imageUrl == null) continue
-
-                val detectedPanels = panelDetectionService.detectPanelsFromUrl(
-                    imageUrl = page.imageUrl,
-                    readingDirection = readingDirection
-                )
-
-                if (detectedPanels.isNotEmpty()) {
-                    _state.update { currentState ->
-                        if (index >= currentState.pages.size) return@update currentState
-                        currentState.copy(
-                            pages = currentState.pages.mapIndexed { i, p ->
-                                if (i == index) p.copy(panels = detectedPanels) else p
-                            }
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * Preload pages ahead and behind current page for smooth scrolling.
-     * Uses smart prefetch if enabled, otherwise falls back to manual preload settings.
-     * Integrates with Coil's image prefetch to warm up the image cache for upcoming pages.
-     */
-    private fun preloadPages(currentPage: Int) {
-        preloadJob?.cancel()
-        preloadJob = viewModelScope.launch {
-            val pages = _state.value.pages
-            val manga = currentManga
-
-            if (cachedSmartPrefetchEnabled) {
-                // Use smart prefetch manager with behavior-based strategy
-                val behavior = behaviorTracker.getBehaviorForManga(mangaId)
-                smartPrefetchManager.prefetchPages(
-                    pages = pages,
-                    currentPage = currentPage,
-                    strategy = cachedPrefetchStrategy,
-                    behavior = behavior,
-                    onlyOnWiFi = cachedPrefetchOnlyOnWiFi,
-                    scope = viewModelScope
-                )
-
-                // Prefetch adjacent chapters if enabled
-                if (cachedPrefetchAdjacentChapters) {
-                    chapterPrefetcher.prefetchAdjacentChapters(
-                        currentChapterId = chapterId,
-                        mangaId = mangaId,
-                        currentPage = currentPage,
-                        totalPages = pages.size,
-                        strategy = cachedPrefetchStrategy,
-                        behavior = behavior,
-                        scope = viewModelScope,
-                        sourceId = currentManga?.sourceId?.toString()
-                    )
-                }
-            } else {
-                // Fallback to manual preload settings (legacy behavior)
-                val preloadBefore = manga?.preloadPagesBefore ?: cachedPreloadBefore
-                val preloadAfter = manga?.preloadPagesAfter ?: cachedPreloadAfter
-
-                val preloadRange = (currentPage - preloadBefore)..(currentPage + preloadAfter)
-
-                preloadRange.forEach { index ->
-                    if (index in pages.indices && index != currentPage) {
-                        val page = pages[index]
-                        val imageUrl = page.imageUrl
-
-                        // Prefetch image using Coil's prefetch API
-                        if (!imageUrl.isNullOrBlank()) {
-                            try {
-                                val request = ImageRequest.Builder(context)
-                                    .data(imageUrl)
-                                    .build()
-
-                                // Enqueue prefetch request (non-blocking, returns immediately)
-                                imageLoader.enqueue(request)
-                            } catch (e: Exception) {
-                                if (e is CancellationException) throw e
-                                // Silently ignore prefetch failures - they're not critical
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
 
     /**
      * Schedule auto-save of reading progress with debouncing to prevent excessive database writes.
@@ -998,107 +896,6 @@ class UltimateReaderViewModel @Inject constructor(
         hasTriggeredDeletion = true
     }
 
-    /**
-     * Downloads the next chapter when the user is near the end of the current chapter
-     * and download-ahead preference is enabled.
-     */
-    private fun maybeDownloadNextChapter(currentPage: Int, totalPages: Int) {
-        if (totalPages == 0) return
-
-        // Only trigger when user is in the last 20% of the chapter
-        val progressThreshold = 0.8
-        val currentProgress = currentPage.toFloat() / totalPages
-        if (currentProgress < progressThreshold) return
-
-        viewModelScope.launch {
-            val downloadAheadChapters = downloadPreferences.downloadAheadWhileReading.first()
-            if (downloadAheadChapters <= 0) return@launch
-
-            // Check WiFi requirement if set
-            val onlyOnWifi = downloadPreferences.downloadAheadOnlyOnWifi.first()
-            if (onlyOnWifi) {
-                val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) 
-                    as android.net.ConnectivityManager
-                val networkInfo = connectivityManager.activeNetworkInfo
-                val isWifi = networkInfo?.type == android.net.ConnectivityManager.TYPE_WIFI
-                if (!isWifi) return@launch
-            }
-
-            // Get all chapters to find the next one
-            val chapters = chapterRepository.getChaptersByMangaId(mangaId).first()
-            val currentChapterIndex = chapters.indexOfFirst { it.id == chapterId }
-            if (currentChapterIndex == -1 || currentChapterIndex >= chapters.size - 1) return@launch
-            
-            val nextChapter = chapters[currentChapterIndex + 1]
-
-            // Check if already downloaded or queued
-            val existingDownload = downloadManager.downloads.first()
-                .find { it.chapterId == nextChapter.id }
-            if (existingDownload != null) return@launch
-
-            // Check if already downloaded to storage
-            val manga = currentManga ?: mangaRepository.getMangaById(mangaId) ?: return@launch
-            val sourceName = manga.sourceId.toString()
-            
-            val isDownloaded = DownloadProvider.isChapterDownloaded(
-                context, sourceName, manga.title, nextChapter.name
-            )
-            if (isDownloaded) return@launch
-
-            val sourceChapter = SourceChapter(
-                url = nextChapter.url,
-                name = nextChapter.name,
-                dateUpload = nextChapter.dateUpload,
-                chapterNumber = nextChapter.chapterNumber,
-                scanlator = nextChapter.scanlator
-            )
-
-            val pageListResult = sourceRepository.getPageList(sourceName, sourceChapter)
-            pageListResult.onFailure { throwable ->
-                runCatching {
-                    Log.w(
-                        TAG,
-                        "Failed to fetch page list for download-ahead " +
-                            "(mangaId=${manga.id}, chapterId=${nextChapter.id}, sourceName=$sourceName)",
-                        throwable
-                    )
-                }
-            }
-
-            val pageUrls = pageListResult
-                .getOrNull()
-                ?.mapNotNull { page -> page.effectiveUrl() }
-                .orEmpty()
-            if (pageUrls.isEmpty()) return@launch
-
-            downloadManager.enqueue(
-                ChapterDownloadRequest(
-                    mangaId = manga.id,
-                    chapterId = nextChapter.id,
-                    sourceName = sourceName,
-                    mangaTitle = manga.title,
-                    chapterTitle = nextChapter.name,
-                    pageUrls = pageUrls
-                )
-            )
-        }
-    }
-
-    /**
-     * Returns the best downloadable URL for a source page.
-     *
-     * Preference order:
-     * 1) [Page.imageUrl] when the source provides a direct image URL.
-     * 2) [Page.url] as a fallback for sources that populate only the generic page URL field.
-     * 3) `null` when neither field contains a usable value.
-     */
-    private fun Page.effectiveUrl(): String? {
-        return when {
-            !imageUrl.isNullOrBlank() -> imageUrl
-            url.isNotBlank() -> url
-            else -> null
-        }
-    }
 
     override fun onCleared() {
         super.onCleared()
@@ -1122,14 +919,12 @@ class UltimateReaderViewModel @Inject constructor(
             android.util.Log.w(TAG, "WorkManager enqueue failed in onCleared", e)
         }
 
-        // Clear Discord Rich Presence when reader closes
-        discordRpcService.clearReadingPresence(showBrowsing = true)
+        discordDelegate.clearPresence(showBrowsing = true)
         autoSaveJob?.cancel()
-        preloadJob?.cancel()
-        panelDetectionJob?.cancel()
-        // Release session-scoped caches so long reading sessions don't accumulate memory.
-        smartPrefetchManager.clearCache()
-        chapterPrefetcher.clearPrefetchedChapters()
+        prefetchDelegate.cancel()
+        panelDelegate.cancel()
+        sfxDelegate.clear()
+        prefetchDelegate.clearCache()
     }
 
     /**
@@ -1165,55 +960,6 @@ class UltimateReaderViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Update Discord Rich Presence if the feature is enabled.
-     * Uses the cached preference value to avoid DataStore reads on every call.
-     */
-    private fun updateDiscordPresence(
-        mangaTitle: String,
-        chapterName: String,
-        totalPages: Int,
-        currentPage: Int? = null
-    ) {
-        if (!cachedDiscordRpcEnabled) return
-        if (currentPage == null) {
-            discordRpcService.resetSessionTimer()
-        }
-        discordRpcService.updateReadingPresence(
-            mangaTitle = mangaTitle,
-            chapterName = chapterName,
-            status = ReadingStatus.READING,
-            page = currentPage,
-            totalPages = totalPages
-        )
-    }
-
-    /** Load Discord RPC preference once to avoid repeated DataStore reads. */
-    private fun cacheDiscordPreference() {
-        viewModelScope.launch {
-            generalPreferences.discordRpcEnabled.collectLatest { enabled ->
-                cachedDiscordRpcEnabled = enabled
-
-                if (!enabled) {
-                    discordRpcService.clearReadingPresence(showBrowsing = false)
-                    return@collectLatest
-                }
-
-                val manga = currentManga
-                val chapter = currentChapter
-                val pages = _state.value.pages
-                if (manga != null && chapter != null) {
-                    val page = if (pages.isNotEmpty()) _state.value.currentPage + 1 else null
-                    updateDiscordPresence(
-                        mangaTitle = manga.title,
-                        chapterName = chapter.name,
-                        totalPages = pages.size,
-                        currentPage = page
-                    )
-                }
-            }
-        }
-    }
 
     companion object {
         private const val TAG = "UltimateReaderViewModel"
@@ -1223,22 +969,6 @@ class UltimateReaderViewModel @Inject constructor(
         const val ZOOM_INCREMENT = 0.25f
         const val BRIGHTNESS_INCREMENT = 0.1f
         const val AUTO_SCROLL_INCREMENT = 50f
-    }
-
-    /**
-     * Observes the combined AI master toggle + SFX translation toggle from preferences.
-     * The [ReaderState.sfxTranslationEnabled] flag is kept in sync so the UI can
-     * conditionally show/hide the SFX overlay.
-     */
-    private fun observeSfxSettings() {
-        combine(
-            aiPreferences.aiEnabled,
-            aiPreferences.aiSfxTranslation,
-        ) { aiEnabled, sfxEnabled ->
-            aiEnabled && sfxEnabled
-        }.onEach { enabled ->
-            _state.update { it.copy(sfxTranslationEnabled = enabled) }
-        }.launchIn(viewModelScope)
     }
 
     private fun observeSettingsWriteFailures() {
@@ -1253,77 +983,6 @@ class UltimateReaderViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
-    /**
-     * In-flight jobs per page index, used to avoid duplicate AI calls when the user
-     * scrolls quickly or a page is revisited before its first request completes.
-     * Keyed by [pageIndex]; an active entry means a request is already in progress.
-     */
-    private val sfxPageJobs = mutableMapOf<Int, kotlinx.coroutines.Job>()
-
-    /**
-     * Asynchronously loads SFX translations for the given page index.
-     *
-     * If a job is already in progress for [pageIndex] (e.g., rapid back-and-forth
-     * scrolling), this function is a no-op to avoid duplicate AI calls.
-     * The result is merged into [ReaderState.sfxTranslations] keyed by [pageIndex].
-     * When AI is disabled or unavailable the use case returns an empty list
-     * and no state update is emitted, so the reader is unaffected.
-     */
-    private fun loadSfxTranslationsForPage(pageIndex: Int) {
-        // Skip if a request for this page is already in-flight
-        if (sfxPageJobs[pageIndex]?.isActive == true) return
-
-        val chapter = currentChapter ?: return
-        val pageUrl = _state.value.pages.getOrNull(pageIndex)?.imageUrl ?: return
-
-        sfxPageJobs[pageIndex] = viewModelScope.launch {
-            _state.update { it.copy(isSfxTranslating = true) }
-            val result = translateSfx(
-                chapterId = chapter.id,
-                pageIndex = pageIndex,
-                pageImageUrl = pageUrl,
-            )
-            val translations = result.getOrNull() ?: emptyList()
-            _state.update { state ->
-                val updatedTranslations = state.sfxTranslations + (pageIndex to translations)
-                state.copy(
-                    sfxTranslations = updatedTranslations,
-                    isSfxTranslating = false,
-                )
-            }
-        }.also { job ->
-            job.invokeOnCompletion { sfxPageJobs.remove(pageIndex) }
-        }
-    }
-
-    /**
-     * Translates a single user-typed SFX text via the AI and merges the result into
-     * [ReaderState.sfxTranslations] under the [TranslateSfxUseCase.MANUAL_PAGE_INDEX]
-     * sentinel so the dialog can look it up by the original text string.
-     */
-    private fun translateManualSfxText(sfxText: String) {
-        if (sfxText.isBlank()) return
-        viewModelScope.launch {
-            _state.update { it.copy(isSfxTranslating = true) }
-            try {
-                val result = translateSfx(sfxText = sfxText)
-                _state.update { state ->
-                    val manualTranslations = state.sfxTranslations[TranslateSfxUseCase.MANUAL_PAGE_INDEX]
-                        ?.toMutableList() ?: mutableListOf()
-                    result.getOrNull()?.let { translation ->
-                        val idx = manualTranslations.indexOfFirst { it.originalText == translation.originalText }
-                        if (idx >= 0) manualTranslations[idx] = translation else manualTranslations.add(translation)
-                    }
-                    state.copy(
-                        sfxTranslations = state.sfxTranslations +
-                            (TranslateSfxUseCase.MANUAL_PAGE_INDEX to manualTranslations.toList()),
-                    )
-                }
-            } finally {
-                _state.update { it.copy(isSfxTranslating = false) }
-            }
-        }
-    }
 }
 
 /**

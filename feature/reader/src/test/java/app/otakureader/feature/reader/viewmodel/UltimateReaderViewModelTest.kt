@@ -27,6 +27,11 @@ import app.otakureader.feature.reader.prefetch.AdaptiveChapterPrefetcher
 import app.otakureader.feature.reader.prefetch.ReadingBehaviorTracker
 import app.otakureader.feature.reader.prefetch.SmartPrefetchManager
 import app.otakureader.feature.reader.repository.ReaderSettingsRepository
+import app.otakureader.feature.reader.viewmodel.delegate.ReaderDiscordDelegate
+import app.otakureader.feature.reader.viewmodel.delegate.ReaderDownloadAheadDelegate
+import app.otakureader.feature.reader.viewmodel.delegate.ReaderPanelDetectionDelegate
+import app.otakureader.feature.reader.viewmodel.delegate.ReaderPrefetchDelegate
+import app.otakureader.feature.reader.viewmodel.delegate.ReaderSfxDelegate
 import coil3.ImageLoader
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -198,17 +203,33 @@ class UltimateReaderViewModelTest {
             sourceRepository = sourceRepository,
             settingsRepository = settingsRepository,
             pageLoader = pageLoader,
-            imageLoader = imageLoader,
-            downloadManager = downloadManager,
-            downloadPreferences = downloadPreferences,
-            discordRpcService = discordRpcService,
-            generalPreferences = generalPreferences,
             behaviorTracker = behaviorTracker,
-            smartPrefetchManager = smartPrefetchManager,
-            chapterPrefetcher = chapterPrefetcher,
-            panelDetectionService = panelDetectionService,
-            aiPreferences = aiPreferences,
-            translateSfx = translateSfx,
+            sfxDelegate = ReaderSfxDelegate(
+                aiPreferences = aiPreferences,
+                translateSfx = translateSfx,
+            ),
+            discordDelegate = ReaderDiscordDelegate(
+                generalPreferences = generalPreferences,
+                discordRpcService = discordRpcService,
+            ),
+            panelDelegate = ReaderPanelDetectionDelegate(
+                panelDetectionService = panelDetectionService,
+            ),
+            prefetchDelegate = ReaderPrefetchDelegate(
+                context = context,
+                smartPrefetchManager = smartPrefetchManager,
+                behaviorTracker = behaviorTracker,
+                chapterPrefetcher = chapterPrefetcher,
+                imageLoader = imageLoader,
+            ),
+            downloadAheadDelegate = ReaderDownloadAheadDelegate(
+                context = context,
+                downloadPreferences = downloadPreferences,
+                downloadManager = downloadManager,
+                sourceRepository = sourceRepository,
+                chapterRepository = chapterRepository,
+                mangaRepository = mangaRepository,
+            ),
             savedStateHandle = SavedStateHandle(
                 mapOf("mangaId" to mangaId, "chapterId" to chapterId)
             )
