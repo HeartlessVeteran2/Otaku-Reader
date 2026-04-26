@@ -24,6 +24,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -476,5 +477,45 @@ class LibraryViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         assertEquals(3, viewModel.state.value.newUpdatesCount)
+    }
+
+    // --- Reading goal tests ---
+
+    @Test
+    fun observeGoalProgress_updatesStateWithGoal() = runTest {
+        every { getLibraryManga() } returns flowOf(emptyList())
+        val testGoal = ReadingGoal(dailyGoal = 5, dailyProgress = 3, weeklyGoal = 20, weeklyProgress = 10)
+        every { readingGoalPreferences.dailyChapterGoal } returns flowOf(5)
+        every { readingGoalPreferences.weeklyChapterGoal } returns flowOf(20)
+        every { statisticsRepository.getReadingGoalProgress(5, 20) } returns flowOf(testGoal)
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(testGoal, viewModel.state.value.readingGoal)
+    }
+
+    @Test
+    fun observeGoalProgress_reactsToGoalChanges() = runTest {
+        every { getLibraryManga() } returns flowOf(emptyList())
+        val initialGoal = ReadingGoal(dailyGoal = 5, dailyProgress = 2)
+        val updatedGoal = ReadingGoal(dailyGoal = 10, dailyProgress = 2)
+
+        val dailyGoalFlow = MutableStateFlow(5)
+        every { readingGoalPreferences.dailyChapterGoal } returns dailyGoalFlow
+        every { readingGoalPreferences.weeklyChapterGoal } returns flowOf(0)
+        every { statisticsRepository.getReadingGoalProgress(5, 0) } returns flowOf(initialGoal)
+        every { statisticsRepository.getReadingGoalProgress(10, 0) } returns flowOf(updatedGoal)
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(initialGoal, viewModel.state.value.readingGoal)
+
+        // Change goal
+        dailyGoalFlow.value = 10
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(updatedGoal, viewModel.state.value.readingGoal)
     }
 }

@@ -63,6 +63,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -991,8 +992,9 @@ private fun DailyGoalBanner(
                     text = if (isComplete)
                         stringResource(R.string.library_daily_goal_complete)
                     else
-                        stringResource(
-                            R.string.library_daily_goal_progress,
+                        pluralStringResource(
+                            R.plurals.library_daily_goal_progress,
+                            readingGoal.dailyGoal,
                             readingGoal.dailyProgress,
                             readingGoal.dailyGoal
                         ),

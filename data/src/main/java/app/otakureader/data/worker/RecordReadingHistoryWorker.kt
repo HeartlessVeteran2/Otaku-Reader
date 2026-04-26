@@ -66,7 +66,12 @@ class RecordReadingHistoryWorker @AssistedInject constructor(
                 )
             }
             // Check if the daily reading goal was just reached and notify if so.
-            goalCompletionNotifier.checkAndNotify()
+            // Isolate notifier failures so they don't cause the worker to retry.
+            try {
+                goalCompletionNotifier.checkAndNotify()
+            } catch (e: Exception) {
+                android.util.Log.w("RecordReadingHistoryWorker", "Goal completion check failed", e)
+            }
             Result.success()
         } catch (e: Exception) {
             // Retry on transient errors (e.g., DB locked).  WorkManager will back off

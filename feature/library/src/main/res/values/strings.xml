@@ -65,7 +65,10 @@
     <!-- Daily goal banner -->
     <string name="library_daily_goal_label">Daily Reading Goal</string>
     <string name="library_daily_goal_complete">Daily goal reached! 🎉</string>
-    <string name="library_daily_goal_progress">%1$d / %2$d chapters today</string>
+    <plurals name="library_daily_goal_progress">
+        <item quantity="one">%1$d / %2$d chapter today</item>
+        <item quantity="other">%1$d / %2$d chapters today</item>
+    </plurals>
 
     <!-- Continue Reading -->
     <string name="library_continue_reading_title">Continue Reading</string>

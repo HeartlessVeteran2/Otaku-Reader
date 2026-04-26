@@ -560,7 +560,10 @@ class LibraryViewModel @Inject constructor(
                 statisticsRepository.getReadingGoalProgress(dailyGoal, weeklyGoal)
             }
             .onEach { goal -> _state.update { it.copy(readingGoal = goal) } }
-            .catch { e -> android.util.Log.w("LibraryViewModel", "observeGoalProgress failed", e) }
+            .catch { e ->
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                android.util.Log.w("LibraryViewModel", "observeGoalProgress failed", e)
+            }
             .launchIn(viewModelScope)
     }
 
