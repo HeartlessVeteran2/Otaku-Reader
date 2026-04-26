@@ -1,6 +1,7 @@
 package app.otakureader.feature.reader.components
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -38,9 +39,10 @@ class SubsamplingWebtoonDecoderTest {
         // Memory budget assertion: decoded bitmap must fit within the 32 MB ARGB_8888 budget
         // (270 * 2500 * 4 bytes ≈ 2.6 MB — well below) so we never OOM on this image.
         val bytesArgb8888 = sampledWidth.toLong() * sampledHeight.toLong() * 4L
-        assert(bytesArgb8888 <= SubsamplingWebtoonDecoder.DEFAULT_MAX_BITMAP_PIXELS * 4L) {
-            "decoded size $bytesArgb8888 bytes exceeds 32 MB budget"
-        }
+        assertTrue(
+            "decoded size $bytesArgb8888 bytes exceeds 32 MB budget",
+            bytesArgb8888 <= SubsamplingWebtoonDecoder.DEFAULT_MAX_BITMAP_PIXELS * 4L
+        )
     }
 
     @Test
@@ -49,7 +51,7 @@ class SubsamplingWebtoonDecoderTest {
         // 40000 needs sample where 40000/sample <= 4096 → sample >= 9.77 → 16.
         val sample = SubsamplingWebtoonDecoder.computeSampleSize(width = 1080, height = 40000)
         assertEquals(16, sample)
-        assert(40000 / sample <= SubsamplingWebtoonDecoder.DEFAULT_MAX_BITMAP_HEIGHT)
+        assertTrue(40000 / sample <= SubsamplingWebtoonDecoder.DEFAULT_MAX_BITMAP_HEIGHT)
     }
 
     @Test
@@ -60,7 +62,7 @@ class SubsamplingWebtoonDecoderTest {
         assertEquals(2, sample)
         val w = 8000 / sample
         val h = 4000 / sample
-        assert(w.toLong() * h.toLong() <= SubsamplingWebtoonDecoder.DEFAULT_MAX_BITMAP_PIXELS)
+        assertTrue(w.toLong() * h.toLong() <= SubsamplingWebtoonDecoder.DEFAULT_MAX_BITMAP_PIXELS)
     }
 
     @Test

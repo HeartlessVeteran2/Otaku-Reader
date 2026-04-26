@@ -1,12 +1,16 @@
 package app.otakureader.feature.reader.components
 
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Matrix
+import androidx.exifinterface.media.ExifInterface
 import coil3.ImageLoader
 import coil3.asImage
 import coil3.decode.DecodeResult
 import coil3.decode.Decoder
 import coil3.fetch.SourceFetchResult
 import coil3.request.Options
+import java.io.IOException
 
 /**
  * Coil [Decoder.Factory] that subsamples oversized webtoon strip images at decode time
@@ -30,22 +34,86 @@ import coil3.request.Options
  */
 class SubsamplingWebtoonDecoder(
     private val source: coil3.decode.ImageSource,
+    private val options: Options,
     private val sampleSize: Int,
 ) : Decoder {
 
     override suspend fun decode(): DecodeResult? {
+        // Read EXIF orientation before decoding the bitmap. We peek the source to read EXIF
+        // without consuming it, so the same stream can be used for bitmap decoding.
+        val exifOrientation = try {
+            val exifInterface = ExifInterface(source.source().peek().inputStream())
+            exifInterface.getAttributeInt(
+                ExifInterface.TAG_ORIENTATION,
+                ExifInterface.ORIENTATION_UNDEFINED
+            )
+        } catch (e: IOException) {
+            // If EXIF reading fails, assume no rotation needed
+            ExifInterface.ORIENTATION_UNDEFINED
+        }
+
         val opts = BitmapFactory.Options().apply {
             inSampleSize = sampleSize
-            // Coil's default decoder honors hardware bitmaps and other niceties; for the
-            // subsample path we keep it simple — software ARGB_8888 is broadly compatible
-            // with the existing `ZoomableImage` zoom/pan/transform pipeline.
-            inPreferredConfig = android.graphics.Bitmap.Config.ARGB_8888
+            // Honor Coil's bitmap config (e.g., RGB_565 for opaque images when allowRgb565
+            // is enabled, or ARGB_8888 otherwise). This preserves Coil's global memory
+            // optimizations while adding subsampling for oversized images.
+            inPreferredConfig = when (options.bitmapConfig) {
+                Bitmap.Config.HARDWARE -> Bitmap.Config.ARGB_8888  // Hardware bitmaps cannot be created via BitmapFactory.decodeStream
+                else -> options.bitmapConfig
+            }
         }
-        val bitmap = source.use { src ->
+
+        var bitmap = source.use { src ->
             BitmapFactory.decodeStream(src.source().inputStream(), null, opts)
         } ?: return null
 
+        // Apply EXIF orientation transformation if needed
+        bitmap = applyExifOrientation(bitmap, exifOrientation)
+
         return DecodeResult(image = bitmap.asImage(), isSampled = sampleSize > 1)
+    }
+
+    /**
+     * Applies EXIF orientation transformation to a bitmap.
+     * Returns a new bitmap if transformation is needed, otherwise returns the original.
+     */
+    private fun applyExifOrientation(bitmap: Bitmap, exifOrientation: Int): Bitmap {
+        if (exifOrientation == ExifInterface.ORIENTATION_UNDEFINED ||
+            exifOrientation == ExifInterface.ORIENTATION_NORMAL
+        ) {
+            return bitmap
+        }
+
+        val matrix = Matrix()
+        when (exifOrientation) {
+            ExifInterface.ORIENTATION_ROTATE_90 -> matrix.postRotate(90f)
+            ExifInterface.ORIENTATION_ROTATE_180 -> matrix.postRotate(180f)
+            ExifInterface.ORIENTATION_ROTATE_270 -> matrix.postRotate(270f)
+            ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> matrix.postScale(-1f, 1f)
+            ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.postScale(1f, -1f)
+            ExifInterface.ORIENTATION_TRANSPOSE -> {
+                matrix.postRotate(90f)
+                matrix.postScale(-1f, 1f)
+            }
+            ExifInterface.ORIENTATION_TRANSVERSE -> {
+                matrix.postRotate(-90f)
+                matrix.postScale(-1f, 1f)
+            }
+            else -> return bitmap
+        }
+
+        return try {
+            val rotated = Bitmap.createBitmap(
+                bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true
+            )
+            if (rotated !== bitmap) {
+                bitmap.recycle()
+            }
+            rotated
+        } catch (e: OutOfMemoryError) {
+            // If we OOM during rotation, return the original bitmap unrotated
+            bitmap
+        }
     }
 
     class Factory(
@@ -81,7 +149,7 @@ class SubsamplingWebtoonDecoder(
             val sampleSize = computeSampleSize(width, height, maxBitmapHeight, maxBitmapPixels)
             if (sampleSize <= 1) return null // fall through to default decoder
 
-            return SubsamplingWebtoonDecoder(result.source, sampleSize)
+            return SubsamplingWebtoonDecoder(result.source, options, sampleSize)
         }
     }
 
