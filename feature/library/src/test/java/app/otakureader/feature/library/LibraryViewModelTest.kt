@@ -3,11 +3,14 @@ package app.otakureader.feature.library
 import app.otakureader.core.database.dao.ReadingHistoryDao
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.LibraryPreferences
+import app.otakureader.core.preferences.ReadingGoalPreferences
 import app.otakureader.domain.model.Manga
+import app.otakureader.domain.model.ReadingGoal
 import app.otakureader.domain.model.RecommendationResult
 import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
+import app.otakureader.domain.repository.StatisticsRepository
 import app.otakureader.domain.tracking.TrackRepository
 import app.otakureader.core.database.dao.CategoryDao
 import app.otakureader.domain.usecase.DismissRecommendationUseCase
@@ -21,6 +24,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -51,6 +55,8 @@ class LibraryViewModelTest {
     private lateinit var dismissRecommendation: DismissRecommendationUseCase
     private lateinit var categoryDao: CategoryDao
     private lateinit var readingHistoryDao: ReadingHistoryDao
+    private lateinit var readingGoalPreferences: ReadingGoalPreferences
+    private lateinit var statisticsRepository: StatisticsRepository
 
     private val sampleMangas = listOf(
         Manga(id = 1L, sourceId = 10L, url = "/m/1", title = "Naruto", favorite = true, unreadCount = 3, lastRead = 1000L, status = MangaStatus.ONGOING),
@@ -98,6 +104,14 @@ class LibraryViewModelTest {
         }
         readingHistoryDao = mockk {
             every { observeContinueReading() } returns flowOf(emptyList())
+            every { getChaptersReadSince(any()) } returns flowOf(0)
+        }
+        readingGoalPreferences = mockk {
+            every { dailyChapterGoal } returns flowOf(0)
+            every { weeklyChapterGoal } returns flowOf(0)
+        }
+        statisticsRepository = mockk {
+            every { getReadingGoalProgress(any(), any()) } returns flowOf(ReadingGoal())
         }
     }
 
@@ -119,7 +133,9 @@ class LibraryViewModelTest {
             readingHistoryDao,
             getForYouRecommendations,
             refreshRecommendations,
-            dismissRecommendation
+            dismissRecommendation,
+            readingGoalPreferences,
+            statisticsRepository,
         )
     }
 
@@ -461,5 +477,45 @@ class LibraryViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         assertEquals(3, viewModel.state.value.newUpdatesCount)
+    }
+
+    // --- Reading goal tests ---
+
+    @Test
+    fun observeGoalProgress_updatesStateWithGoal() = runTest {
+        every { getLibraryManga() } returns flowOf(emptyList())
+        val testGoal = ReadingGoal(dailyGoal = 5, dailyProgress = 3, weeklyGoal = 20, weeklyProgress = 10)
+        every { readingGoalPreferences.dailyChapterGoal } returns flowOf(5)
+        every { readingGoalPreferences.weeklyChapterGoal } returns flowOf(20)
+        every { statisticsRepository.getReadingGoalProgress(5, 20) } returns flowOf(testGoal)
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(testGoal, viewModel.state.value.readingGoal)
+    }
+
+    @Test
+    fun observeGoalProgress_reactsToGoalChanges() = runTest {
+        every { getLibraryManga() } returns flowOf(emptyList())
+        val initialGoal = ReadingGoal(dailyGoal = 5, dailyProgress = 2)
+        val updatedGoal = ReadingGoal(dailyGoal = 10, dailyProgress = 2)
+
+        val dailyGoalFlow = MutableStateFlow(5)
+        every { readingGoalPreferences.dailyChapterGoal } returns dailyGoalFlow
+        every { readingGoalPreferences.weeklyChapterGoal } returns flowOf(0)
+        every { statisticsRepository.getReadingGoalProgress(5, 0) } returns flowOf(initialGoal)
+        every { statisticsRepository.getReadingGoalProgress(10, 0) } returns flowOf(updatedGoal)
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(initialGoal, viewModel.state.value.readingGoal)
+
+        // Change goal
+        dailyGoalFlow.value = 10
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(updatedGoal, viewModel.state.value.readingGoal)
     }
 }

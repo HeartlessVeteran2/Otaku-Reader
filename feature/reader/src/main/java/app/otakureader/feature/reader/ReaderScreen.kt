@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -68,6 +69,7 @@ import app.otakureader.feature.reader.modes.WebtoonReader
 import app.otakureader.feature.reader.ui.BatteryTimeOverlay
 import app.otakureader.feature.reader.ui.BrightnessSliderOverlay
 import app.otakureader.feature.reader.ui.FullPageGallery
+import app.otakureader.feature.reader.ui.OcrSearchBottomSheet
 import app.otakureader.feature.reader.ui.PageSlider
 import app.otakureader.feature.reader.ui.PageThumbnailStrip
 import app.otakureader.feature.reader.ui.ReadingTimerOverlay
@@ -80,6 +82,10 @@ import app.otakureader.feature.reader.viewmodel.TapZone
 import app.otakureader.feature.reader.viewmodel.UltimateReaderViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+// FAB positioning constants
+private val FAB_BASE_OFFSET = 80.dp
+private val FAB_STACKING_INCREMENT = 56.dp
 
 /**
  * Ultimate Reader Screen with full gallery view, tap zones, and all 4 reading modes.
@@ -354,13 +360,35 @@ fun ReaderScreen(
                 onClick = { viewModel.onEvent(ReaderEvent.OpenSfxDialog) },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(bottom = 80.dp, end = 16.dp),
+                    .padding(bottom = FAB_BASE_OFFSET, end = 16.dp),
                 containerColor = MaterialTheme.colorScheme.secondaryContainer
             ) {
                 Icon(
                     imageVector = Icons.Default.Translate,
                     contentDescription = stringResource(R.string.reader_sfx_translate),
                     tint = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
+        }
+
+        // OCR text search FAB – always available when pages are loaded and menu is hidden
+        if (!state.isMenuVisible && !state.isGalleryOpen && !state.isLoading && state.pages.isNotEmpty()) {
+            val ocrFabOffset = if (state.sfxTranslationEnabled) {
+                FAB_BASE_OFFSET + FAB_STACKING_INCREMENT
+            } else {
+                FAB_BASE_OFFSET
+            }
+            FloatingActionButton(
+                onClick = { viewModel.onEvent(ReaderEvent.OpenOcrSearch) },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(bottom = ocrFabOffset, end = 16.dp),
+                containerColor = MaterialTheme.colorScheme.tertiaryContainer
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = stringResource(R.string.reader_ocr_search_open),
+                    tint = MaterialTheme.colorScheme.onTertiaryContainer
                 )
             }
         }
@@ -382,6 +410,22 @@ fun ReaderScreen(
                 onDismiss = { viewModel.onEvent(ReaderEvent.CloseSfxDialog) }
             )
         }
+
+        // OCR text search bottom sheet
+        OcrSearchBottomSheet(
+            isVisible = state.showOcrSearch,
+            query = state.ocrQuery,
+            matchingPageIndices = state.ocrMatchingPageIndices,
+            totalPages = state.totalPages,
+            indexedPageCount = state.ocrPageTexts.size,
+            isOcrRunning = state.isOcrRunning,
+            onQueryChange = { viewModel.onEvent(ReaderEvent.UpdateOcrQuery(it)) },
+            onPageClick = { pageIndex ->
+                viewModel.jumpToPage(pageIndex)
+                viewModel.onEvent(ReaderEvent.CloseOcrSearch)
+            },
+            onDismiss = { viewModel.onEvent(ReaderEvent.CloseOcrSearch) },
+        )
     }
 }
 

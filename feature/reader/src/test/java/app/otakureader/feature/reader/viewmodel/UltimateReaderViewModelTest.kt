@@ -23,6 +23,7 @@ import app.otakureader.domain.model.ReadingDirection
 import app.otakureader.feature.reader.model.ComicPanel
 import app.otakureader.feature.reader.model.PanelBounds
 import app.otakureader.feature.reader.panel.PanelDetectionService
+import app.otakureader.feature.reader.ocr.TextRecognitionService
 import app.otakureader.feature.reader.prefetch.AdaptiveChapterPrefetcher
 import app.otakureader.feature.reader.prefetch.ReadingBehaviorTracker
 import app.otakureader.feature.reader.prefetch.SmartPrefetchManager
@@ -31,6 +32,7 @@ import app.otakureader.feature.reader.viewmodel.delegate.ReaderChapterLoaderDele
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderDiscordDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderDownloadAheadDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderHistoryDelegate
+import app.otakureader.feature.reader.viewmodel.delegate.ReaderOcrDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderPanelDetectionDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderPrefetchDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderSettingsLoaderDelegate
@@ -93,6 +95,7 @@ class UltimateReaderViewModelTest {
     private lateinit var panelDetectionService: PanelDetectionService
     private lateinit var aiPreferences: AiPreferences
     private lateinit var translateSfx: TranslateSfxUseCase
+    private lateinit var textRecognitionService: TextRecognitionService
 
     @Before
     fun setUp() {
@@ -125,6 +128,7 @@ class UltimateReaderViewModelTest {
         panelDetectionService = mockk()
         aiPreferences = mockk(relaxed = true)
         translateSfx = mockk<TranslateSfxUseCase>()
+        textRecognitionService = mockk(relaxed = true)
         coEvery { translateSfx(any(), any(), any(), any()) } returns Result.success(emptyList())
         coEvery { panelDetectionService.detectPanelsFromUrl(any(), any()) } returns emptyList()
         every { generalPreferences.discordRpcEnabled } returns flowOf(false)
@@ -247,6 +251,9 @@ class UltimateReaderViewModelTest {
                 sourceRepository = sourceRepository,
                 chapterRepository = chapterRepository,
                 mangaRepository = mangaRepository,
+            ),
+            ocrDelegate = ReaderOcrDelegate(
+                textRecognitionService = textRecognitionService,
             ),
             savedStateHandle = SavedStateHandle(
                 mapOf("mangaId" to mangaId, "chapterId" to chapterId)
@@ -864,5 +871,49 @@ class UltimateReaderViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         coVerify(exactly = 0) { downloadManager.enqueue(any()) }
+    }
+
+    // ── OCR text search tests ────────────────────────────────────────────────
+
+    @Test
+    fun `OpenOcrSearch sets showOcrSearch to true and clears query`() = runTest {
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        vm.setPages(listOf(ReaderPage(index = 0, imageUrl = "https://example.com/page0.jpg")))
+
+        vm.onEvent(ReaderEvent.OpenOcrSearch)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = vm.state.value
+        assertTrue(state.showOcrSearch)
+        assertEquals("", state.ocrQuery)
+    }
+
+    @Test
+    fun `CloseOcrSearch sets showOcrSearch to false and cancels OCR jobs`() = runTest {
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        vm.setPages(listOf(ReaderPage(index = 0, imageUrl = "https://example.com/page0.jpg")))
+
+        vm.onEvent(ReaderEvent.OpenOcrSearch)
+        testDispatcher.scheduler.advanceUntilIdle()
+        vm.onEvent(ReaderEvent.CloseOcrSearch)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = vm.state.value
+        assertFalse(state.showOcrSearch)
+        assertFalse(state.isOcrRunning)
+    }
+
+    @Test
+    fun `UpdateOcrQuery updates the search query`() = runTest {
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        vm.onEvent(ReaderEvent.OpenOcrSearch)
+        vm.onEvent(ReaderEvent.UpdateOcrQuery("test query"))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals("test query", vm.state.value.ocrQuery)
     }
 }

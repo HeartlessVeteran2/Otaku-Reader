@@ -26,6 +26,10 @@ dependencies {
     api(libs.lifecycle.viewmodel.compose)
     api(libs.lifecycle.runtime.compose)
 
+    // Navigation Compose: provides NavGraphBuilder.composable() with built-in
+    // animated transition support (replaces the removed Accompanist library).
+    api(libs.navigation.compose)
+
     api(libs.coil.compose)
     api(libs.coil.okhttp)
 

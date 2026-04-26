@@ -114,6 +114,21 @@
     <string name="reader_sfx_translate_action">Translate</string>
     <string name="reader_sfx_close">Close</string>
 
+    <!-- OCR Text Search -->
+    <string name="reader_ocr_search_title">Search Page Text</string>
+    <string name="reader_ocr_search_label">Search text</string>
+    <string name="reader_ocr_search_placeholder">e.g. "Where is he?" or "ドカン"</string>
+    <string name="reader_ocr_search_close">Close search</string>
+    <string name="reader_ocr_search_open">Search text in pages</string>
+    <string name="reader_ocr_search_hint">Type to search for text across all pages</string>
+    <string name="reader_ocr_scanning_progress">Scanning pages… %1$d / %2$d indexed</string>
+    <string name="reader_ocr_scanning_done">All %1$d pages indexed</string>
+    <string name="reader_ocr_no_results">No pages contain that text</string>
+    <plurals name="reader_ocr_result_count">
+        <item quantity="one">%1$d matching page</item>
+        <item quantity="other">%1$d matching pages</item>
+    </plurals>
+
     <!-- Settings error -->
     <string name="reader_settings_save_failed">Failed to save reader settings. Please try again.</string>
 </resources>

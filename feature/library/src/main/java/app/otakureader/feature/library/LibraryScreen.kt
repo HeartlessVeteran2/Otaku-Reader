@@ -63,6 +63,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -72,6 +73,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.otakureader.core.ui.components.MangaCard
 import app.otakureader.domain.model.MangaRecommendation
 import coil3.compose.AsyncImage
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SnackbarHost
@@ -80,11 +82,15 @@ import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import app.otakureader.core.ui.adaptive.WindowWidthSizeClass
 import app.otakureader.core.ui.adaptive.isExpanded
 import app.otakureader.core.ui.adaptive.rememberWindowWidthSizeClass
 import app.otakureader.domain.model.MangaStatus
+import app.otakureader.domain.model.ReadingGoal
+import androidx.compose.foundation.shape.RoundedCornerShape
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -343,6 +349,16 @@ private fun MangaGrid(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier.fillMaxSize()
     ) {
+        // Daily reading goal banner (full-width span, only shown when a goal is set)
+        if (state.readingGoal.dailyGoal > 0) {
+            item(
+                span = { GridItemSpan(maxLineSpan) },
+                contentType = "daily_goal_banner"
+            ) {
+                DailyGoalBanner(readingGoal = state.readingGoal)
+            }
+        }
+
         // Continue Reading (full-width span, only shown when there are items)
         if (state.continueReadingItems.isNotEmpty()) {
             item(
@@ -927,3 +943,82 @@ private fun MangaDetailPanel(
         }
     }
 }
+
+/**
+ * Compact banner showing progress toward today's chapter reading goal.
+ * Displayed at the top of the library grid whenever a daily goal is configured.
+ */
+@Composable
+private fun DailyGoalBanner(
+    readingGoal: ReadingGoal,
+    modifier: Modifier = Modifier
+) {
+    // Guard: dailyGoal must be positive before computing the fraction to avoid division by zero.
+    if (readingGoal.dailyGoal <= 0) return
+    val isComplete = readingGoal.dailyProgress >= readingGoal.dailyGoal
+    val fraction = (readingGoal.dailyProgress.toFloat() / readingGoal.dailyGoal.toFloat())
+        .coerceIn(0f, 1f)
+
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isComplete)
+                MaterialTheme.colorScheme.primaryContainer
+            else
+                MaterialTheme.colorScheme.surfaceVariant
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.library_daily_goal_label),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = if (isComplete)
+                        stringResource(R.string.library_daily_goal_complete)
+                    else
+                        pluralStringResource(
+                            R.plurals.library_daily_goal_progress,
+                            readingGoal.dailyGoal,
+                            readingGoal.dailyProgress,
+                            readingGoal.dailyGoal
+                        ),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (isComplete)
+                        MaterialTheme.colorScheme.primary
+                    else
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            LinearProgressIndicator(
+                progress = { fraction },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(3.dp)),
+                color = if (isComplete)
+                    MaterialTheme.colorScheme.primary
+                else
+                    MaterialTheme.colorScheme.secondary,
+                trackColor = MaterialTheme.colorScheme.surface,
+                strokeCap = StrokeCap.Round,
+            )
+        }
+    }
+}
+

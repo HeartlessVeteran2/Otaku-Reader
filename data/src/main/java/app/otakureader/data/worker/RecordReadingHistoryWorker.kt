@@ -30,6 +30,7 @@ class RecordReadingHistoryWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted workerParams: WorkerParameters,
     private val chapterRepository: ChapterRepository,
+    private val goalCompletionNotifier: GoalCompletionNotifier,
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
@@ -63,6 +64,13 @@ class RecordReadingHistoryWorker @AssistedInject constructor(
                     read = isRead,
                     lastPageRead = lastPageRead,
                 )
+            }
+            // Check if the daily reading goal was just reached and notify if so.
+            // Isolate notifier failures so they don't cause the worker to retry.
+            try {
+                goalCompletionNotifier.checkAndNotify()
+            } catch (e: Exception) {
+                android.util.Log.w("RecordReadingHistoryWorker", "Goal completion check failed", e)
             }
             Result.success()
         } catch (e: Exception) {
