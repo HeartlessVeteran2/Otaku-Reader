@@ -114,6 +114,13 @@
     <string name="reader_sfx_translate_action">Translate</string>
     <string name="reader_sfx_close">Close</string>
 
+    <!-- OCR translation (Gemini Vision) -->
+    <string name="reader_ocr_translate_page">Translate page</string>
+    <string name="reader_ocr_translation_title">Page %1$d translation</string>
+    <string name="reader_ocr_translation_free_tier_notice">Free tier: ~15 pages/minute</string>
+    <string name="reader_ocr_translation_loading">Translating page…</string>
+    <string name="reader_ocr_translation_empty">No translatable text detected on this page.</string>
+
     <!-- OCR Text Search -->
     <string name="reader_ocr_search_title">Search Page Text</string>
     <string name="reader_ocr_search_label">Search text</string>

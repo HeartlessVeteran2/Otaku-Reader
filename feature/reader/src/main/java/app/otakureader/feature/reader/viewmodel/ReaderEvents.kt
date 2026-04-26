@@ -57,6 +57,9 @@ sealed interface ReaderEvent {
     /** Events related to OCR text search within chapter pages. */
     sealed interface OcrControl : ReaderEvent
 
+    /** Events related to Gemini Vision OCR translation. */
+    sealed interface OcrTranslationControl : ReaderEvent
+
     /** Miscellaneous action events that don't fit another domain. */
     sealed interface ActionEvent : ReaderEvent
 
@@ -238,6 +241,19 @@ sealed interface ReaderEvent {
 
     /** Update the search query and filter live results. */
     data class UpdateOcrQuery(val query: String) : OcrControl
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // OCR translation (Gemini Vision) — on-demand per page only
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /** Translate the current page using Gemini Vision (single-shot, on demand). */
+    data object TranslateCurrentPage : OcrTranslationControl
+
+    /** Open the bottom sheet displaying OCR translations for the current page. */
+    data object OpenOcrTranslationSheet : OcrTranslationControl
+
+    /** Dismiss the OCR translation results sheet. */
+    data object CloseOcrTranslationSheet : OcrTranslationControl
 
     // ──────────────────────────────────────────────────────────────────────────
     // Action events (existing)

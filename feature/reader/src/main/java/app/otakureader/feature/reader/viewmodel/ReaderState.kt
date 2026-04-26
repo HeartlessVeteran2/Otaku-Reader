@@ -196,6 +196,16 @@ data class ReaderState(
     val ocrPageTexts: Map<Int, String> = emptyMap(),
     /** True while background OCR scanning is in progress. */
     val isOcrRunning: Boolean = false,
+
+    // --- OCR Translation (Gemini Vision) ---
+    /** Whether the Gemini Vision OCR translation feature is enabled in settings. */
+    val ocrTranslationEnabled: Boolean = false,
+    /** AI-generated OCR translations keyed by zero-based page index. */
+    val ocrTranslations: Map<Int, List<app.otakureader.domain.model.OcrTranslation>> = emptyMap(),
+    /** True while a Gemini Vision translation request is in progress for any page. */
+    val isOcrTranslating: Boolean = false,
+    /** Whether the OCR translation results sheet is visible. */
+    val showOcrTranslationSheet: Boolean = false,
 ) {
     /** Total pages in chapter (derived from pages.size) */
     val totalPages: Int get() = pages.size

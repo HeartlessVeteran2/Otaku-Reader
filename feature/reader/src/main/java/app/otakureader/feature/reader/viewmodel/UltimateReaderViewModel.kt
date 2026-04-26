@@ -21,6 +21,7 @@ import app.otakureader.feature.reader.viewmodel.delegate.ReaderDiscordDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderDownloadAheadDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderHistoryDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderOcrDelegate
+import app.otakureader.feature.reader.viewmodel.delegate.ReaderOcrTranslationDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderPanelDetectionDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderPrefetchDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderSettingsLoaderDelegate
@@ -79,6 +80,7 @@ class UltimateReaderViewModel @Inject constructor(
     private val prefetchDelegate: ReaderPrefetchDelegate,
     private val downloadAheadDelegate: ReaderDownloadAheadDelegate,
     private val ocrDelegate: ReaderOcrDelegate,
+    private val ocrTranslationDelegate: ReaderOcrTranslationDelegate,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -126,6 +128,7 @@ class UltimateReaderViewModel @Inject constructor(
             getState = { _state.value },
         )
         sfxDelegate.observeSettings(viewModelScope) { _state.update(it) }
+        ocrTranslationDelegate.observeSettings(viewModelScope) { _state.update(it) }
         observeSettingsWriteFailures()
     }
 
@@ -303,6 +306,7 @@ class UltimateReaderViewModel @Inject constructor(
             is ReaderEvent.ColorFilterControl -> handleColorFilter(event)
             is ReaderEvent.SfxControl -> handleSfx(event)
             is ReaderEvent.OcrControl -> handleOcr(event)
+            is ReaderEvent.OcrTranslationControl -> handleOcrTranslation(event)
             is ReaderEvent.ActionEvent -> handleAction(event)
         }
     }
@@ -440,6 +444,25 @@ class UltimateReaderViewModel @Inject constructor(
             }
             is ReaderEvent.UpdateOcrQuery -> {
                 _state.update { it.copy(ocrQuery = event.query) }
+            }
+        }
+    }
+
+    private fun handleOcrTranslation(event: ReaderEvent.OcrTranslationControl) {
+        when (event) {
+            ReaderEvent.OpenOcrTranslationSheet -> _state.update { it.copy(showOcrTranslationSheet = true) }
+            ReaderEvent.CloseOcrTranslationSheet -> _state.update { it.copy(showOcrTranslationSheet = false) }
+            ReaderEvent.TranslateCurrentPage -> {
+                val state = _state.value
+                val pageIndex = state.currentPage
+                val page = state.pages.getOrNull(pageIndex) ?: return
+                ocrTranslationDelegate.translatePage(
+                    scope = viewModelScope,
+                    pageIndex = pageIndex,
+                    page = page,
+                    chapterId = chapterId,
+                ) { _state.update(it) }
+                _state.update { it.copy(showOcrTranslationSheet = true) }
             }
         }
     }
@@ -840,6 +863,7 @@ class UltimateReaderViewModel @Inject constructor(
         panelDelegate.cancel()
         sfxDelegate.clear()
         ocrDelegate.cancelAll()
+        ocrTranslationDelegate.cancelAll()
         prefetchDelegate.clearCache()
     }
 
