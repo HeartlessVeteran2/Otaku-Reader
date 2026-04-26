@@ -34,6 +34,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import coil3.compose.AsyncImage
+import coil3.decode.Decoder
 import coil3.request.ImageRequest
 import coil3.request.transformations
 import coil3.size.Size
@@ -68,6 +69,7 @@ fun ZoomableImage(
     onTap: ((Offset) -> Unit)? = null,
     onZoomChange: ((Float) -> Unit)? = null,
     onImageSizeKnown: ((width: Int, height: Int) -> Unit)? = null,
+    decoderFactory: Decoder.Factory? = null,
     resetOnChange: Boolean = true
 ) {
     val scope = rememberCoroutineScope()
@@ -157,7 +159,7 @@ fun ZoomableImage(
     ) {
         if (imageUrl != null) {
             val context = LocalContext.current
-            val imageModel = remember(imageUrl, cropBordersEnabled, imageQuality, dataSaverEnabled, containerSize, context) {
+            val imageModel = remember(imageUrl, cropBordersEnabled, imageQuality, dataSaverEnabled, containerSize, decoderFactory, context) {
                 val builder = ImageRequest.Builder(context).data(imageUrl)
                 // Determine the container's longest side in px (0 when not yet measured).
                 val containerMax = if (containerSize != IntSize.Zero)
@@ -180,6 +182,11 @@ fun ZoomableImage(
                 }
                 if (cropBordersEnabled) {
                     builder.transformations(CropBorderTransformation())
+                }
+                if (decoderFactory != null) {
+                    // Prepended so it runs before Coil's default BitmapFactoryDecoder; if the
+                    // factory returns null (image fits the budget) Coil falls through.
+                    builder.decoderFactory(decoderFactory)
                 }
 
                 builder.build()
