@@ -122,6 +122,18 @@ object CbzCreator {
      */
     fun extractCbzPages(cbzFile: File, destDir: File): Result<List<File>> = runCatching {
         destDir.mkdirs()
+        val destCanonical = destDir.canonicalPath + File.separator
+
+        // Pre-scan: reject archives containing path traversal entries before writing any file.
+        ZipFile(cbzFile).use { zip ->
+            zip.entries().asSequence().forEach { entry ->
+                val candidate = File(destDir, entry.name.replace('\\', '/'))
+                if (!candidate.canonicalPath.startsWith(destCanonical)) {
+                    throw SecurityException("Path traversal attempt in CBZ entry: ${entry.name}")
+                }
+            }
+        }
+
         val extracted = mutableListOf<File>()
         ZipFile(cbzFile).use { zip ->
             zip.entries().asSequence()
@@ -134,12 +146,8 @@ object CbzCreator {
                         ?: Int.MAX_VALUE
                 }
                 .forEach { entry ->
-                    val safeName = entry.name.replace('/', '_').replace('\\', '_').trimStart('.')
-                    val outFile = File(destDir, safeName)
-                    // Guard against path traversal: ensure the resolved path stays within destDir
-                    if (!outFile.canonicalPath.startsWith(destDir.canonicalPath + File.separator)) {
-                        return@forEach
-                    }
+                    val outFile = File(destDir, entry.name.replace('\\', '/'))
+                    outFile.parentFile?.mkdirs()
                     zip.getInputStream(entry).use { input -> outFile.outputStream().use { input.copyTo(it) } }
                     extracted += outFile
                 }

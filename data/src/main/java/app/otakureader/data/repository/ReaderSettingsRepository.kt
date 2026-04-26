@@ -16,6 +16,7 @@ import app.otakureader.domain.model.ReadingDirection
 import app.otakureader.domain.model.TapZoneConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -32,12 +33,17 @@ import javax.inject.Singleton
 class ReaderSettingsRepository @Inject constructor(
     private val dataStore: DataStore<Preferences>
 ) {
+    private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     /**
      * Emits an event whenever a DataStore write fails due to disk I/O.
      * Consumers can observe this to surface a user-facing warning.
      */
     private val _writeFailureEvents = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val writeFailureEvents: Flow<Unit> = _writeFailureEvents.asSharedFlow()
+
+    // Guards the one-time ImageQuality migration so it runs at most once per process lifetime.
+    @Volatile private var imageQualityMigrationDone = false
 
     // ==================== Reader Mode ====================
     
@@ -294,15 +300,18 @@ class ReaderSettingsRepository @Inject constructor(
             val legacyOrdinal = prefs[Keys.IMAGE_QUALITY_LEGACY]
             val migratedQuality = ImageQuality.entries.getOrNull(legacyOrdinal ?: 0) ?: ImageQuality.ORIGINAL
             
-            // Proactively persist the migrated value (fire-and-forget)
-            CoroutineScope(Dispatchers.IO).launch {
-                try {
-                    safeEdit { editPrefs ->
-                        editPrefs[Keys.IMAGE_QUALITY] = migratedQuality.name
-                        editPrefs.remove(Keys.IMAGE_QUALITY_LEGACY)
+            // Proactively persist the migrated value (fire-and-forget, runs at most once per process).
+            if (!imageQualityMigrationDone) {
+                imageQualityMigrationDone = true
+                repositoryScope.launch {
+                    try {
+                        safeEdit { editPrefs ->
+                            editPrefs[Keys.IMAGE_QUALITY] = migratedQuality.name
+                            editPrefs.remove(Keys.IMAGE_QUALITY_LEGACY)
+                        }
+                    } catch (_: Exception) {
+                        imageQualityMigrationDone = false // allow retry next session
                     }
-                } catch (_: Exception) {
-                    // Migration failure is non-critical; the in-memory value is still correct
                 }
             }
             

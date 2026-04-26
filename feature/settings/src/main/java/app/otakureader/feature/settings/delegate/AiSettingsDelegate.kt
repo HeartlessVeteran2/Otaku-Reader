@@ -12,6 +12,8 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
+private const val KEY_VALIDATION_COOLDOWN_MS = 10_000L
+
 @Singleton
 class AiSettingsDelegate @Inject constructor(
     private val aiPreferences: AiPreferences,
@@ -19,6 +21,7 @@ class AiSettingsDelegate @Inject constructor(
 ) {
 
     private var updateState: ((SettingsState) -> SettingsState) -> Unit = {}
+    private var lastKeyValidationTimeMs = 0L
 
     /** Perform any one-time migration; call from ViewModel.init before [startObserving]. */
     suspend fun initAiPrefs() {
@@ -100,15 +103,39 @@ class AiSettingsDelegate @Inject constructor(
             sendEffect(SettingsEffect.ShowSnackbar("Invalid API key format"))
             return
         }
+
+        // Rate-limit live validation to once per 10 seconds.
+        val now = System.currentTimeMillis()
+        val canValidate = (now - lastKeyValidationTimeMs) >= KEY_VALIDATION_COOLDOWN_MS
+
         aiPreferences.setGeminiApiKey(key)
         val persistedKey = aiPreferences.getGeminiApiKey()
         val isSet = persistedKey.isNotBlank()
         updateState { it.copy(aiApiKeySet = isSet) }
+
         if (key.isNotBlank() && !isSet) {
             sendEffect(SettingsEffect.ShowSnackbar("Failed to save AI API key"))
-        } else if (isSet) {
-            aiRepository.clearApiKey()
-            aiRepository.initialize(persistedKey)
+            return
+        }
+
+        if (!isSet) return
+
+        aiRepository.clearApiKey()
+        aiRepository.initialize(persistedKey)
+
+        if (canValidate) {
+            lastKeyValidationTimeMs = now
+            // Make a cheap test call to verify the key actually works with the Gemini API.
+            val testResult = runCatching { aiRepository.generateContent("ping") }
+            val keyWorks = testResult.isSuccess && testResult.getOrNull()?.isSuccess == true
+            sendEffect(
+                SettingsEffect.ShowSnackbar(
+                    if (keyWorks) "API key verified and saved"
+                    else "API key saved — could not verify connectivity (check key validity)"
+                )
+            )
+        } else {
+            sendEffect(SettingsEffect.ShowSnackbar("API key saved"))
         }
     }
 

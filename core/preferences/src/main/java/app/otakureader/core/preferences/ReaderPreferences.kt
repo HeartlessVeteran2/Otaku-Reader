@@ -16,7 +16,7 @@ class ReaderPreferences(private val dataStore: DataStore<Preferences>) {
 
     // --- Reading Mode ---
 
-    /** Reader display mode ordinal — matches [app.otakureader.feature.reader.model.ReaderMode]:
+    /** Reader display mode ordinal — matches [app.otakureader.domain.model.ReaderMode]:
      *  0 = SINGLE_PAGE, 1 = DUAL_PAGE, 2 = WEBTOON, 3 = SMART_PANELS. */
     val readerMode: Flow<Int> = dataStore.data.map { it[Keys.READER_MODE] ?: 0 }
     suspend fun setReaderMode(value: Int) = dataStore.edit { it[Keys.READER_MODE] = value }

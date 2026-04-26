@@ -16,8 +16,8 @@ object CrashHandler {
     private const val PREFS_NAME = "crash_report_prefs"
     private const val KEY_CRASH_REPORT = "crash_report"
 
-    // 64 KB cap – large enough for any real stack trace yet safe for SharedPreferences
     private const val MAX_STACK_TRACE_LENGTH = 65_536
+    private const val MAX_TRACE_DEPTH = 30
 
     /**
      * Replace the default [Thread.UncaughtExceptionHandler] with one that persists
@@ -65,12 +65,31 @@ object CrashHandler {
 
     private fun buildReport(thread: Thread, throwable: Throwable): String {
         val trace = throwable.stackTraceToString()
-        val body = if (trace.length > MAX_STACK_TRACE_LENGTH) {
-            trace.take(MAX_STACK_TRACE_LENGTH) + "\n… (truncated)"
+        val sanitized = sanitizeTrace(trace)
+        val body = if (sanitized.length > MAX_STACK_TRACE_LENGTH) {
+            sanitized.take(MAX_STACK_TRACE_LENGTH) + "\n… (truncated)"
         } else {
-            trace
+            sanitized
         }
         return "Thread: ${thread.name}\n\n$body"
+    }
+
+    private val sensitivePattern = Regex(
+        "(token|api[_-]?key|password|secret|credential|authorization)",
+        RegexOption.IGNORE_CASE
+    )
+
+    private fun sanitizeTrace(trace: String): String {
+        return trace.lines()
+            .take(MAX_TRACE_DEPTH)
+            .joinToString("\n") { line ->
+                // Replace absolute filesystem paths before the app package to avoid
+                // leaking device-specific paths (e.g. /data/data/...).
+                val stripped = line.replace(Regex("/[^\\s]*app\\.otakureader"), ".../app.otakureader")
+                // Redact any line that looks like it contains a credential value.
+                if (sensitivePattern.containsMatchIn(stripped)) "[redacted — sensitive field]"
+                else stripped
+            }
     }
 
     private fun saveReport(context: Context, report: String) {
