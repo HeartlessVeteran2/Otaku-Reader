@@ -776,7 +776,11 @@ class ReaderViewModel @Inject constructor(
 
     private fun navigateNextChapter() {
         viewModelScope.launch {
-            _effect.send(ReaderEffect.ShowSnackbar("End of available chapters"))
+            _effect.send(
+                ReaderEffect.ShowSnackbar(
+                    messageResId = app.otakureader.feature.reader.R.string.reader_end_of_chapters
+                )
+            )
         }
     }
 
