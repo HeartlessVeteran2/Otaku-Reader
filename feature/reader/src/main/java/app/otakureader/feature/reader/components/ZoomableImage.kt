@@ -217,7 +217,13 @@ fun ZoomableImage(
 }
 
 /**
- * Advanced zoomable state with smooth animations and boundary constraints
+ * Advanced zoomable state with smooth animations and boundary constraints.
+ *
+ * Thread-safety / animation-queue note: _scale, _offsetX, _offsetY are created once and reused for
+ * the lifetime of the state object. High-frequency pinch input calls snapTo() (not animateTo()), so
+ * it never queues animations. The animateTo() path is only reached on discrete events (double-tap,
+ * fling, reset), and Animatable.animateTo() already cancels any previous running animation before
+ * starting a new one — so there is no risk of animation back-log.
  */
 @Stable
 class ZoomableState {

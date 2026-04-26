@@ -72,10 +72,17 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.otakureader.core.ui.components.MangaCard
 import app.otakureader.domain.model.MangaRecommendation
 import coil3.compose.AsyncImage
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.style.TextAlign
+import app.otakureader.domain.model.MangaStatus
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -261,6 +268,15 @@ private fun LibraryContent(
     onEvent: (LibraryEvent) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val screenWidthDp = LocalConfiguration.current.screenWidthDp
+    val isExpandedWidth = screenWidthDp >= 840
+    val adaptiveColumns = when {
+        screenWidthDp >= 840 -> (state.gridSize + 2).coerceAtLeast(5)
+        screenWidthDp >= 600 -> (state.gridSize + 1).coerceAtLeast(4)
+        else -> state.gridSize
+    }
+    var detailManga by remember { mutableStateOf<LibraryMangaItem?>(null) }
+
     PullToRefreshBox(
         isRefreshing = state.isRefreshing,
         onRefresh = { onEvent(LibraryEvent.Refresh) },
@@ -281,10 +297,29 @@ private fun LibraryContent(
                     )
                 }
             }
+            isExpandedWidth -> {
+                Row(modifier = Modifier.fillMaxSize()) {
+                    MangaGrid(
+                        state = state,
+                        onEvent = onEvent,
+                        adaptiveColumns = adaptiveColumns,
+                        onMangaSelect = { manga -> detailManga = manga },
+                        modifier = Modifier.weight(0.55f)
+                    )
+                    VerticalDivider()
+                    MangaDetailPanel(
+                        manga = detailManga,
+                        onOpenFullDetails = { onEvent(LibraryEvent.OnMangaClick(it)) },
+                        onClose = { detailManga = null },
+                        modifier = Modifier.weight(0.45f)
+                    )
+                }
+            }
             else -> {
                 MangaGrid(
                     state = state,
-                    onEvent = onEvent
+                    onEvent = onEvent,
+                    adaptiveColumns = adaptiveColumns
                 )
             }
         }
@@ -295,10 +330,12 @@ private fun LibraryContent(
 private fun MangaGrid(
     state: LibraryState,
     onEvent: (LibraryEvent) -> Unit,
+    adaptiveColumns: Int = state.gridSize,
+    onMangaSelect: ((LibraryMangaItem) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     LazyVerticalGrid(
-        columns = GridCells.Fixed(state.gridSize),
+        columns = GridCells.Fixed(adaptiveColumns),
         contentPadding = PaddingValues(8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -362,7 +399,10 @@ private fun MangaGrid(
             MangaCard(
                 title = manga.title,
                 coverUrl = manga.thumbnailUrl,
-                onClick = { onEvent(LibraryEvent.OnMangaClick(manga.id)) },
+                onClick = {
+                    if (onMangaSelect != null) onMangaSelect(manga)
+                    else onEvent(LibraryEvent.OnMangaClick(manga.id))
+                },
                 onLongClick = { onEvent(LibraryEvent.OnMangaLongClick(manga.id)) },
                 isSelected = manga.id in state.selectedManga,
                 readProgress = readProgress,
@@ -802,3 +842,86 @@ private fun ContinueReadingCard(
     }
 }
 
+
+@Composable
+private fun MangaDetailPanel(
+    manga: LibraryMangaItem?,
+    onOpenFullDetails: (Long) -> Unit,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (manga == null) {
+        Box(
+            modifier = modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = stringResource(R.string.library_detail_panel_hint),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(32.dp)
+            )
+        }
+        return
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        AsyncImage(
+            model = manga.thumbnailUrl,
+            contentDescription = manga.title,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxWidth(0.6f)
+                .aspectRatio(2f / 3f)
+                .align(Alignment.CenterHorizontally)
+                .clip(MaterialTheme.shapes.medium)
+        )
+        Text(
+            text = manga.title,
+            style = MaterialTheme.typography.titleMedium,
+            maxLines = 3,
+            overflow = TextOverflow.Ellipsis
+        )
+        if (manga.unreadCount > 0) {
+            Text(
+                text = stringResource(R.string.library_detail_unread_chapters, manga.unreadCount),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+        val statusText = when (manga.status) {
+            MangaStatus.ONGOING -> stringResource(R.string.manga_status_ongoing)
+            MangaStatus.COMPLETED -> stringResource(R.string.manga_status_completed)
+            MangaStatus.LICENSED -> stringResource(R.string.manga_status_licensed)
+            MangaStatus.PUBLISHING_FINISHED -> stringResource(R.string.manga_status_publishing_finished)
+            MangaStatus.CANCELLED -> stringResource(R.string.manga_status_cancelled)
+            MangaStatus.ON_HIATUS -> stringResource(R.string.manga_status_on_hiatus)
+            else -> null
+        }
+        if (statusText != null) {
+            Text(
+                text = statusText,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Spacer(modifier = Modifier.weight(1f))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            androidx.compose.material3.Button(
+                onClick = { onOpenFullDetails(manga.id) },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(stringResource(R.string.library_detail_open))
+            }
+            OutlinedButton(onClick = onClose) {
+                Text(stringResource(R.string.library_detail_close))
+            }
+        }
+    }
+}
