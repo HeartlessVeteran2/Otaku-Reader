@@ -2,16 +2,24 @@ package app.otakureader.data.backup
 
 import app.otakureader.core.database.dao.CategoryDao
 import app.otakureader.core.database.dao.ChapterDao
+import app.otakureader.core.database.dao.FeedDao
 import app.otakureader.core.database.dao.MangaDao
+import app.otakureader.core.database.dao.OpdsServerDao
 import app.otakureader.core.database.dao.ReadingHistoryDao
+import app.otakureader.core.database.dao.TrackerSyncDao
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.LibraryPreferences
 import app.otakureader.core.preferences.ReaderPreferences
 import app.otakureader.data.backup.mapper.createBackupPreferences
 import app.otakureader.data.backup.mapper.toBackupCategory
 import app.otakureader.data.backup.mapper.toBackupChapter
+import app.otakureader.data.backup.mapper.toBackupFeedSavedSearch
+import app.otakureader.data.backup.mapper.toBackupFeedSource
 import app.otakureader.data.backup.mapper.toBackupManga
+import app.otakureader.data.backup.mapper.toBackupOpdsServer
 import app.otakureader.data.backup.mapper.toBackupReadingHistory
+import app.otakureader.data.backup.mapper.toBackupSyncConfiguration
+import app.otakureader.data.backup.mapper.toBackupTrackerSyncState
 import app.otakureader.data.backup.model.BackupData
 import app.otakureader.data.backup.model.BackupManga
 import kotlinx.coroutines.flow.first
@@ -27,6 +35,9 @@ class BackupCreator @Inject constructor(
     private val chapterDao: ChapterDao,
     private val categoryDao: CategoryDao,
     private val readingHistoryDao: ReadingHistoryDao,
+    private val trackerSyncDao: TrackerSyncDao,
+    private val opdsServerDao: OpdsServerDao,
+    private val feedDao: FeedDao,
     private val generalPreferences: GeneralPreferences,
     private val libraryPreferences: LibraryPreferences,
     private val readerPreferences: ReaderPreferences
@@ -45,7 +56,12 @@ class BackupCreator @Inject constructor(
         val backupData = BackupData(
             manga = createMangaBackup(),
             categories = createCategoryBackup(),
-            preferences = createPreferencesBackup()
+            preferences = createPreferencesBackup(),
+            opdsServers = createOpdsBackup(),
+            feedSources = createFeedSourceBackup(),
+            feedSavedSearches = createFeedSavedSearchBackup(),
+            trackerSyncStates = createTrackerSyncStateBackup(),
+            syncConfigurations = createSyncConfigBackup()
         )
 
         return json.encodeToString(backupData)
@@ -106,4 +122,19 @@ class BackupCreator @Inject constructor(
         updateCheckInterval = generalPreferences.updateCheckInterval.first(),
         notificationsEnabled = generalPreferences.notificationsEnabled.first()
     )
+
+    private suspend fun createOpdsBackup() =
+        opdsServerDao.getAll().first().map { it.toBackupOpdsServer() }
+
+    private suspend fun createFeedSourceBackup() =
+        feedDao.getFeedSources().first().map { it.toBackupFeedSource() }
+
+    private suspend fun createFeedSavedSearchBackup() =
+        feedDao.getSavedSearches().first().map { it.toBackupFeedSavedSearch() }
+
+    private suspend fun createTrackerSyncStateBackup() =
+        trackerSyncDao.getAllSyncStates().first().map { it.toBackupTrackerSyncState() }
+
+    private suspend fun createSyncConfigBackup() =
+        trackerSyncDao.getSyncConfigurations().first().map { it.toBackupSyncConfiguration() }
 }

@@ -20,6 +20,9 @@ interface OpdsServerDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(server: OpdsServerEntity): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(servers: List<OpdsServerEntity>)
+
     @Update
     suspend fun update(server: OpdsServerEntity)
 

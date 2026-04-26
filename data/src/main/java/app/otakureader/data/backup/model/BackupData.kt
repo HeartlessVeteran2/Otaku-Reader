@@ -12,10 +12,15 @@ data class BackupData(
     val createdAt: Long = System.currentTimeMillis(),
     val manga: List<BackupManga> = emptyList(),
     val categories: List<BackupCategory> = emptyList(),
-    val preferences: BackupPreferences? = null
+    val preferences: BackupPreferences? = null,
+    val opdsServers: List<BackupOpdsServer> = emptyList(),
+    val feedSources: List<BackupFeedSource> = emptyList(),
+    val feedSavedSearches: List<BackupFeedSavedSearch> = emptyList(),
+    val trackerSyncStates: List<BackupTrackerSyncState> = emptyList(),
+    val syncConfigurations: List<BackupSyncConfiguration> = emptyList()
 ) {
     companion object {
-        const val CURRENT_VERSION = 1
+        const val CURRENT_VERSION = 2
     }
 }
 
@@ -102,4 +107,78 @@ data class BackupPreferences(
     val showBadges: Boolean = true,
     val updateCheckInterval: Int = 12,
     val notificationsEnabled: Boolean = true
+)
+
+/**
+ * Backup representation of an OPDS server.
+ * Credentials are stored separately in encrypted storage and are not backed up.
+ */
+@Serializable
+data class BackupOpdsServer(
+    val id: Long,
+    val name: String,
+    val url: String
+)
+
+/**
+ * Backup representation of a feed source configuration.
+ */
+@Serializable
+data class BackupFeedSource(
+    val id: Long,
+    val sourceId: Long,
+    val sourceName: String,
+    val isEnabled: Boolean = true,
+    val itemCount: Int = 20,
+    val order: Int = 0
+)
+
+/**
+ * Backup representation of a saved search in the feed.
+ */
+@Serializable
+data class BackupFeedSavedSearch(
+    val id: Long,
+    val sourceId: Long,
+    val sourceName: String,
+    val query: String,
+    val filtersJson: String? = null,
+    val order: Int = 0
+)
+
+/**
+ * Backup representation of tracker sync state for a single manga+tracker pair.
+ * [java.time.Instant] fields are stored as epoch milliseconds for serialization compatibility.
+ */
+@Serializable
+data class BackupTrackerSyncState(
+    val mangaId: Long,
+    val trackerId: Int,
+    val remoteId: String,
+    val localLastChapterRead: Float,
+    val localTotalChapters: Int,
+    val localStatus: Int,
+    val localLastModifiedEpochMilli: Long,
+    val remoteLastChapterRead: Float,
+    val remoteTotalChapters: Int,
+    val remoteStatus: Int,
+    val remoteLastModifiedEpochMilli: Long? = null,
+    val syncStatus: Int,
+    val lastSyncAttemptEpochMilli: Long? = null,
+    val lastSuccessfulSyncEpochMilli: Long? = null,
+    val syncError: String? = null
+)
+
+/**
+ * Backup representation of per-tracker sync configuration.
+ */
+@Serializable
+data class BackupSyncConfiguration(
+    val trackerId: Int,
+    val enabled: Boolean = true,
+    val syncDirection: Int,
+    val conflictResolution: Int,
+    val autoSyncInterval: Long = 300_000,
+    val syncOnChapterRead: Boolean = true,
+    val syncOnMarkComplete: Boolean = true
 )

@@ -1,6 +1,7 @@
 package app.otakureader
 
 import android.app.Application
+import android.content.ComponentCallbacks2
 import android.content.Context
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
@@ -11,6 +12,7 @@ import coil3.SingletonImageLoader
 import coil3.disk.DiskCache
 import coil3.memory.MemoryCache
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
+import coil3.request.allowRgb565
 import com.google.android.material.color.DynamicColors
 import dagger.hilt.android.HiltAndroidApp
 import okhttp3.OkHttpClient
@@ -51,21 +53,41 @@ class OtakuReaderApplication : Application(), Configuration.Provider, SingletonI
         appShortcutManager.initialize()
     }
 
+    // Trim Coil's memory cache when the OS signals memory pressure, preventing the
+    // app from holding onto image memory that the system urgently needs elsewhere.
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        val cache = SingletonImageLoader.get(this).memoryCache ?: return
+        when (level) {
+            ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN ->
+                cache.trimToSize((cache.maxSize * 0.5).toInt())
+            ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW,
+            ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL,
+            ComponentCallbacks2.TRIM_MEMORY_COMPLETE ->
+                cache.trimToSize(0)
+        }
+    }
+
     /**
      * Configures the global Coil [ImageLoader] singleton used throughout the app.
      *
-     * - Memory cache: capped at 25% of the application's available memory class
-     *   (derived from device RAM via [android.app.ActivityManager.memoryClass]) to
-     *   prevent OOM crashes during rapid manga reading.
+     * - Memory cache: capped at 15% of the application's available memory class with
+     *   a hard ceiling of 256 MB, preventing excessive heap use on large-RAM tablets.
      * - Disk cache: capped at 512 MB to support large manga chapter image caches.
+     * - allowRgb565: opaque images (most manga pages) decode as RGB_565 (2 bytes/pixel)
+     *   instead of ARGB_8888 (4 bytes/pixel), halving per-page memory cost.
      * - Networking: backed by the shared [OkHttpClient] for connection pooling and
      *   consistent headers (e.g. User-Agent, Referer) set by extension interceptors.
      */
     override fun newImageLoader(context: Context): ImageLoader {
+        val maxMemoryCacheBytes = minOf(
+            (Runtime.getRuntime().maxMemory() * 0.15).toLong(),
+            256L * 1024 * 1024
+        ).toInt()
         return ImageLoader.Builder(context)
             .memoryCache {
                 MemoryCache.Builder()
-                    .maxSizePercent(context, 0.25)
+                    .maxSizeBytes(maxMemoryCacheBytes)
                     .build()
             }
             .diskCache {
@@ -77,6 +99,7 @@ class OtakuReaderApplication : Application(), Configuration.Provider, SingletonI
             .components {
                 add(OkHttpNetworkFetcherFactory(callFactory = { okHttpClient }))
             }
+            .allowRgb565(true)
             .build()
     }
 }

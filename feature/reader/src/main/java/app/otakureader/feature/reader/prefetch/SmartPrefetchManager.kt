@@ -34,11 +34,12 @@ class SmartPrefetchManager @Inject constructor(
     private var prefetchJob: Job? = null
 
 
-    // Pages that have been prefetched (URL -> timestamp)
-    private val prefetchedPages = mutableMapOf<String, Long>()
+    // Pages that have been prefetched (URL -> timestamp). Capped to avoid unbounded growth
+    // during long sessions; entries are also evicted after 300 s in prefetchPage().
+    private val prefetchedPages = LinkedHashMap<String, Long>(256, 0.75f, true)
 
-    // Pages that were viewed (for telemetry)
-    private val viewedPages = mutableSetOf<String>()
+    // Pages that were viewed (for telemetry). Capped to prevent session-long accumulation.
+    private val viewedPages = LinkedHashSet<String>()
 
     // Telemetry counters
     private var pagesPrefetched = 0L
@@ -103,6 +104,10 @@ class SmartPrefetchManager @Inject constructor(
         // Decide and record prefetch under lock to avoid races.
         val shouldPrefetch = synchronized(prefetchedPages) {
             prefetchedPages.entries.removeAll { now - it.value >= 300_000L }
+            // Hard cap: if still above limit after TTL eviction, drop oldest entries.
+            while (prefetchedPages.size >= MAX_PREFETCH_CACHE_SIZE) {
+                prefetchedPages.entries.iterator().let { it.next(); it.remove() }
+            }
 
             val lastPrefetchTime = prefetchedPages[imageUrl]
             if (lastPrefetchTime != null && now - lastPrefetchTime < 300_000L) {
@@ -137,12 +142,15 @@ class SmartPrefetchManager @Inject constructor(
         val imageUrl = page.imageUrl ?: return
 
         synchronized(prefetchedPages) {
-            // Check if this was a cache hit (prefetched) or on-demand load
             if (prefetchedPages.containsKey(imageUrl)) {
                 cacheHits++
             } else {
                 onDemandLoads++
             }
+            if (viewedPages.size >= MAX_VIEWED_PAGES_SIZE) {
+                viewedPages.iterator().let { it.next(); it.remove() }
+            }
+            viewedPages.add(imageUrl)
         }
     }
 
@@ -188,6 +196,22 @@ class SmartPrefetchManager @Inject constructor(
     }
 
     /**
+     * Cancels any active prefetch job and clears all caches. Call from
+     * [UltimateReaderViewModel.onCleared] to release session state promptly.
+     */
+    fun clearCache() {
+        synchronized(prefetchedPages) {
+            prefetchedPages.clear()
+            viewedPages.clear()
+            pagesPrefetched = 0L
+            cacheHits = 0L
+            onDemandLoads = 0L
+        }
+        prefetchJob?.cancel()
+        prefetchJob = null
+    }
+
+    /**
      * Cancels any active prefetch job.
      */
     fun cancelPrefetch() {
@@ -209,6 +233,11 @@ class SmartPrefetchManager @Inject constructor(
 
         return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
             capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+    }
+
+    companion object {
+        private const val MAX_PREFETCH_CACHE_SIZE = 500
+        private const val MAX_VIEWED_PAGES_SIZE = 500
     }
 
     /**

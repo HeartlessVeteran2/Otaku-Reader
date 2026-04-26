@@ -50,7 +50,8 @@ sealed class ExtensionLoadResult {
  *    with the `.ext` file extension; only accessible by this app.
  */
 class ExtensionLoader(
-    private val context: Context
+    private val context: Context,
+    private val trustedSignatureStore: TrustedSignatureStore
 ) {
 
     companion object {
@@ -164,6 +165,8 @@ class ExtensionLoader(
             target.delete()
             file.copyTo(target, overwrite = true)
             target.setReadOnly()
+            // Auto-trust private extensions — their signature was already verified above.
+            getSignatureHash(extension)?.let { trustedSignatureStore.trust(it) }
             true
         } catch (e: Exception) {
             target.delete()
@@ -366,7 +369,30 @@ class ExtensionLoader(
             .ifEmpty { return ExtensionLoadResult.Error("No valid sources found in extension $pkgName") }
 
         val extension = buildExtension(apkPath, packageInfo, sources, isNsfw, isShared)
+
+        // Signature trust check: private extensions are verified at install time; shared
+        // extensions (installed via system package manager) must be in the user-approved set.
+        // Fail closed: if the signature hash cannot be computed, treat the extension as untrusted.
+        val sigHash = extension.signatureHash
+        if (isShared && (sigHash == null || !trustedSignatureStore.isTrusted(sigHash))) {
+            return ExtensionLoadResult.Untrusted(extension)
+        }
+
         return ExtensionLoadResult.Success(extension, sources)
+    }
+
+    /**
+     * Permanently trust an extension by its signature hash so future loads return [ExtensionLoadResult.Success].
+     */
+    fun trustExtension(signatureHash: String) {
+        trustedSignatureStore.trust(signatureHash)
+    }
+
+    /**
+     * Revoke trust for an extension signature — future loads will return [ExtensionLoadResult.Untrusted].
+     */
+    fun revokeExtensionTrust(signatureHash: String) {
+        trustedSignatureStore.revoke(signatureHash)
     }
 
     /**
