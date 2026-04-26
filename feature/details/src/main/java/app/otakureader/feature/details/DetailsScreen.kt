@@ -255,8 +255,8 @@ private fun DetailsContent(
     if (widthSizeClass.isExpanded) {
         // Tablet / DeX / desktop: split the screen so the chapter list isn't
         // wasted vertical space below a long header. Each pane scrolls
-        // independently. We give the chapter list slightly more room because
-        // it's the primary action surface on this screen.
+        // independently. We give the info pane slightly more room because
+        // the manga header and description benefit from extra width.
         Row(modifier = modifier.fillMaxSize()) {
             LazyColumn(
                 modifier = Modifier
