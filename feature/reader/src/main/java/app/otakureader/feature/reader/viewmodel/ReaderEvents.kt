@@ -54,6 +54,9 @@ sealed interface ReaderEvent {
     /** Events related to SFX translation. */
     sealed interface SfxControl : ReaderEvent
 
+    /** Events related to OCR text search within chapter pages. */
+    sealed interface OcrControl : ReaderEvent
+
     /** Miscellaneous action events that don't fit another domain. */
     sealed interface ActionEvent : ReaderEvent
 
@@ -221,6 +224,23 @@ sealed interface ReaderEvent {
 
     // ──────────────────────────────────────────────────────────────────────────
     // Action events
+    // ──────────────────────────────────────────────────────────────────────────
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // OCR text search
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /** Open the OCR text search bottom sheet and start background OCR scanning. */
+    data object OpenOcrSearch : OcrControl
+
+    /** Close the OCR text search bottom sheet and cancel background OCR jobs. */
+    data object CloseOcrSearch : OcrControl
+
+    /** Update the search query and filter live results. */
+    data class UpdateOcrQuery(val query: String) : OcrControl
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Action events (existing)
     // ──────────────────────────────────────────────────────────────────────────
 
     /** Toggle bookmark on current page. */
