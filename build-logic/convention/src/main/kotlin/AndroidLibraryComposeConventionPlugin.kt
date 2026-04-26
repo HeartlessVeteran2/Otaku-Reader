@@ -4,6 +4,7 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.dependencies
+import org.jetbrains.kotlin.compose.compiler.gradle.ComposeCompilerGradlePluginExtension
 
 class AndroidLibraryComposeConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) {
@@ -14,6 +15,13 @@ class AndroidLibraryComposeConventionPlugin : Plugin<Project> {
                 buildFeatures {
                     compose = true
                 }
+            }
+
+            // Wire up the project-wide Compose compiler stability configuration.
+            extensions.configure<ComposeCompilerGradlePluginExtension> {
+                stabilityConfigurationFiles.add(
+                    rootProject.layout.projectDirectory.file("compose_compiler_config.conf")
+                )
             }
 
             dependencies {

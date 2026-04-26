@@ -2,8 +2,8 @@
 # Core
 kotlin = "2.3.20"
 agp = "9.1.1"
-# D-3: KSP version must match the Kotlin version prefix. Using 2.3.6 (latest available)
-ksp = "2.3.6"
+# D-3: KSP uses standalone versioning since 2.3.x. 2.3.7 is the latest patch release for the 2.3.x series.
+ksp = "2.3.7"
 
 # AndroidX
 core-ktx = "1.18.0"
@@ -23,11 +23,12 @@ lifecycle = "2.10.0"
 
 # Navigation
 navigation = "2.9.7"
-accompanist-navigation = "0.36.0"
 
 # Hilt
 hilt = "2.59.2"
+# hilt-androidx covers all androidx.hilt artifacts: hilt-navigation-compose, hilt-work, hilt-compiler
 hilt-navigation-compose = "1.3.0"
+hilt-androidx = "1.3.0"
 
 # Room
 room = "2.8.4"
@@ -151,16 +152,15 @@ lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-ru
 # Navigation
 navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigation" }
 navigation-runtime = { group = "androidx.navigation", name = "navigation-runtime", version.ref = "navigation" }
-accompanist-navigation-animation = { group = "com.google.accompanist", name = "accompanist-navigation-animation", version.ref = "accompanist-navigation" }
 
 # Hilt
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
 hilt-compiler = { group = "com.google.dagger", name = "hilt-compiler", version.ref = "hilt" }
-hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "hilt-navigation-compose" }
+hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "hilt-androidx" }
 # Hilt WorkManager integration (libs.hilt.work) - uses androidx.hilt group
-hilt-work = { group = "androidx.hilt", name = "hilt-work", version.ref = "hilt-navigation-compose" }
+hilt-work = { group = "androidx.hilt", name = "hilt-work", version.ref = "hilt-androidx" }
 # androidx.hilt annotation processor for @HiltWorker (libs.hilt.work.compiler)
-hilt-work-compiler = { group = "androidx.hilt", name = "hilt-compiler", version.ref = "hilt-navigation-compose" }
+hilt-work-compiler = { group = "androidx.hilt", name = "hilt-compiler", version.ref = "hilt-androidx" }
 
 # Room
 room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
