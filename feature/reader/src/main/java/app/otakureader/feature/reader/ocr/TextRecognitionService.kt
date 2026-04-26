@@ -56,8 +56,7 @@ class TextRecognitionService @Inject constructor(
 
         val bitmap = loadBitmapFromUrl(imageUrl) ?: return@withContext ""
         val text = runRecognition(bitmap)
-
-        if (!bitmap.isRecycled) bitmap.recycle()
+        // bitmap is recycled inside runRecognition() after ML Kit completes.
 
         synchronized(cacheLock) { textCache.put(imageUrl, text) }
         text
@@ -92,6 +91,7 @@ class TextRecognitionService @Inject constructor(
 
     /**
      * Run ML Kit text recognition on [bitmap] and return the concatenated text.
+     * The bitmap is recycled inside this function after ML Kit has finished processing.
      * Returns an empty string on any failure.
      */
     private suspend fun runRecognition(bitmap: Bitmap): String =
@@ -99,9 +99,16 @@ class TextRecognitionService @Inject constructor(
             try {
                 val image = InputImage.fromBitmap(bitmap, 0)
                 recognizer.process(image)
-                    .addOnSuccessListener { result -> cont.resume(result.text) }
-                    .addOnFailureListener { cont.resume("") }
+                    .addOnSuccessListener { result ->
+                        if (!bitmap.isRecycled) bitmap.recycle()
+                        cont.resume(result.text)
+                    }
+                    .addOnFailureListener {
+                        if (!bitmap.isRecycled) bitmap.recycle()
+                        cont.resume("")
+                    }
             } catch (e: Exception) {
+                if (!bitmap.isRecycled) bitmap.recycle()
                 cont.resume("")
             }
         }

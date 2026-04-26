@@ -73,6 +73,8 @@ class ReaderOcrDelegate @Inject constructor(
 
                 val text = textRecognitionService.recognizeText(page.imageUrl)
                 updateState { state ->
+                    // Skip the update if this page was already indexed (e.g. by recognizePage).
+                    if (state.ocrPageTexts.containsKey(index)) return@updateState state
                     state.copy(
                         ocrPageTexts = state.ocrPageTexts + (index to text),
                     )
