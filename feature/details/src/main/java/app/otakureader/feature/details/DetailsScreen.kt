@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.QueryStats
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
@@ -166,6 +167,29 @@ fun DetailsScreen(
                     }
                     IconButton(onClick = { viewModel.onEvent(DetailsContract.Event.OpenTracking) }) {
                         Icon(Icons.Default.QueryStats, contentDescription = stringResource(R.string.details_tracking))
+                    }
+                    var overflowExpanded by remember { mutableStateOf(false) }
+                    IconButton(onClick = { overflowExpanded = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                    }
+                    DropdownMenu(
+                        expanded = overflowExpanded,
+                        onDismissRequest = { overflowExpanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Download all chapters") },
+                            onClick = {
+                                viewModel.onEvent(DetailsContract.Event.DownloadAllChapters)
+                                overflowExpanded = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Download unread chapters") },
+                            onClick = {
+                                viewModel.onEvent(DetailsContract.Event.DownloadUnreadChapters)
+                                overflowExpanded = false
+                            }
+                        )
                     }
                 }
             )

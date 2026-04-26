@@ -144,6 +144,8 @@ data class ReaderState(
     // --- Webtoon Settings ---
     /** Side padding for webtoon: 0 = None, 1 = Small, 2 = Medium, 3 = Large */
     val webtoonSidePadding: Int = 0,
+    /** Gap between webtoon pages in dp (0–16, default 4) */
+    val webtoonGapDp: Int = 4,
     /** Menu hide sensitivity: 0 = Low, 1 = Medium, 2 = High */
     val webtoonMenuHideSensitivity: Int = 0,
     /** Enable double-tap zoom in webtoon mode */
@@ -218,7 +220,140 @@ data class ReaderState(
         get() = if (mode == ReaderMode.DUAL_PAGE && currentPage + 1 < pages.size) {
             pages[currentPage + 1]
         } else null
+
+    // ── Sub-state views ───────────────────────────────────────────────────────
+    // These are lightweight projections of the monolithic state. They allow
+    // composables and future ViewModels to observe only the slice they care about,
+    // and serve as the intended decomposition targets when the God ViewModel is
+    // split into domain-specific ViewModels (see issue #581).
+
+    /** Page content and navigation state — changes on every page turn. */
+    val pageState: PageState
+        get() = PageState(
+            pages = pages,
+            currentPage = currentPage,
+            currentPanel = currentPanel,
+            mode = mode,
+            readingDirection = readingDirection,
+            isLoading = isLoading,
+            error = error,
+            chapterTitle = chapterTitle
+        )
+
+    /** Overlay and menu visibility state — changes on tap/gesture. */
+    val overlayState: OverlayState
+        get() = OverlayState(
+            isMenuVisible = isMenuVisible,
+            isGalleryOpen = isGalleryOpen,
+            galleryColumns = galleryColumns,
+            isFullscreen = isFullscreen,
+            showTapZonesOverlay = showTapZonesOverlay
+        )
+
+    /** Display and rendering settings — changes infrequently. */
+    val displayState: DisplayState
+        get() = DisplayState(
+            zoomLevel = zoomLevel,
+            pageRotation = pageRotation,
+            brightness = brightness,
+            colorFilterMode = colorFilterMode,
+            customTintColor = customTintColor,
+            readerBackgroundColor = readerBackgroundColor,
+            cropBordersEnabled = cropBordersEnabled,
+            imageQuality = imageQuality,
+            dataSaverEnabled = dataSaverEnabled,
+            readerScale = readerScale,
+            animatePageTransitions = animatePageTransitions,
+            showReadingTimer = showReadingTimer,
+            showBatteryTime = showBatteryTime,
+            showPageNumber = showPageNumber,
+            einkFlashOnPageChange = einkFlashOnPageChange,
+            einkBlackAndWhite = einkBlackAndWhite
+        )
+
+    /** SFX translation state — changes when translation is requested or dialog toggled. */
+    val sfxState: SfxState
+        get() = SfxState(
+            sfxTranslationEnabled = sfxTranslationEnabled,
+            sfxTranslations = sfxTranslations,
+            isSfxTranslating = isSfxTranslating,
+            showSfxDialog = showSfxDialog,
+            sfxOverlayVisible = sfxOverlayVisible
+        )
+
+    /** Webtoon-specific state — only relevant in webtoon mode. */
+    val webtoonState: WebtoonState
+        get() = WebtoonState(
+            isAutoScrollEnabled = isAutoScrollEnabled,
+            autoScrollSpeed = autoScrollSpeed,
+            webtoonSidePadding = webtoonSidePadding,
+            webtoonGapDp = webtoonGapDp,
+            webtoonMenuHideSensitivity = webtoonMenuHideSensitivity,
+            webtoonDoubleTapZoom = webtoonDoubleTapZoom,
+            webtoonDisableZoomOut = webtoonDisableZoomOut
+        )
 }
+
+/** Projection of page content and navigation fields. */
+data class PageState(
+    val pages: List<ReaderPage>,
+    val currentPage: Int,
+    val currentPanel: Int,
+    val mode: ReaderMode,
+    val readingDirection: ReadingDirection,
+    val isLoading: Boolean,
+    val error: String?,
+    val chapterTitle: String
+)
+
+/** Projection of overlay and menu visibility fields. */
+data class OverlayState(
+    val isMenuVisible: Boolean,
+    val isGalleryOpen: Boolean,
+    val galleryColumns: Int,
+    val isFullscreen: Boolean,
+    val showTapZonesOverlay: Boolean
+)
+
+/** Projection of rendering and display preference fields. */
+data class DisplayState(
+    val zoomLevel: Float,
+    val pageRotation: PageRotation,
+    val brightness: Float,
+    val colorFilterMode: ColorFilterMode,
+    val customTintColor: Long,
+    val readerBackgroundColor: Long?,
+    val cropBordersEnabled: Boolean,
+    val imageQuality: ImageQuality,
+    val dataSaverEnabled: Boolean,
+    val readerScale: Int,
+    val animatePageTransitions: Boolean,
+    val showReadingTimer: Boolean,
+    val showBatteryTime: Boolean,
+    val showPageNumber: Boolean,
+    val einkFlashOnPageChange: Boolean,
+    val einkBlackAndWhite: Boolean
+)
+
+/** Projection of SFX translation state. */
+data class SfxState(
+    val sfxTranslationEnabled: Boolean,
+    val sfxTranslations: Map<Int, List<app.otakureader.domain.model.SfxTranslation>>,
+    val isSfxTranslating: Boolean,
+    val showSfxDialog: Boolean,
+    val sfxOverlayVisible: Boolean
+)
+
+/** Projection of webtoon-mode-specific settings. */
+data class WebtoonState(
+    val isAutoScrollEnabled: Boolean,
+    val autoScrollSpeed: Float,
+    val webtoonSidePadding: Int,
+    val webtoonGapDp: Int,
+    val webtoonMenuHideSensitivity: Int,
+    val webtoonDoubleTapZoom: Boolean,
+    val webtoonDisableZoomOut: Boolean
+)
 
 /**
  * Speed settings for smart panel navigation

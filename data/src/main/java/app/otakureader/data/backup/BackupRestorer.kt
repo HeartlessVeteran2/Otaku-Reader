@@ -4,16 +4,24 @@ import androidx.room.withTransaction
 import app.otakureader.core.database.OtakuReaderDatabase
 import app.otakureader.core.database.dao.CategoryDao
 import app.otakureader.core.database.dao.ChapterDao
+import app.otakureader.core.database.dao.FeedDao
 import app.otakureader.core.database.dao.MangaDao
 import app.otakureader.core.database.dao.MangaCategoryDao
+import app.otakureader.core.database.dao.OpdsServerDao
 import app.otakureader.core.database.dao.ReadingHistoryDao
+import app.otakureader.core.database.dao.TrackerSyncDao
 import app.otakureader.core.database.entity.MangaCategoryEntity
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.LibraryPreferences
 import app.otakureader.core.preferences.ReaderPreferences
 import app.otakureader.data.backup.mapper.toCategoryEntity
 import app.otakureader.data.backup.mapper.toChapterEntity
+import app.otakureader.data.backup.mapper.toFeedSavedSearchEntity
+import app.otakureader.data.backup.mapper.toFeedSourceEntity
 import app.otakureader.data.backup.mapper.toMangaEntity
+import app.otakureader.data.backup.mapper.toOpdsServerEntity
+import app.otakureader.data.backup.mapper.toSyncConfigurationEntity
+import app.otakureader.data.backup.mapper.toTrackerSyncStateEntity
 import app.otakureader.data.backup.model.BackupData
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.Json
@@ -29,6 +37,9 @@ class BackupRestorer @Inject constructor(
     private val categoryDao: CategoryDao,
     private val mangaCategoryDao: MangaCategoryDao,
     private val readingHistoryDao: ReadingHistoryDao,
+    private val trackerSyncDao: TrackerSyncDao,
+    private val opdsServerDao: OpdsServerDao,
+    private val feedDao: FeedDao,
     private val generalPreferences: GeneralPreferences,
     private val libraryPreferences: LibraryPreferences,
     private val readerPreferences: ReaderPreferences
@@ -47,10 +58,15 @@ class BackupRestorer @Inject constructor(
     suspend fun restoreBackup(backupJson: String) {
         val backupData = json.decodeFromString<BackupData>(backupJson)
 
-        // Restore in order: categories first, then manga with chapters
+        // Restore in order: categories first, then manga with chapters, then independent data
         restoreCategories(backupData)
         restoreManga(backupData)
         restorePreferences(backupData)
+        restoreOpdsServers(backupData)
+        restoreFeedSources(backupData)
+        restoreFeedSavedSearches(backupData)
+        restoreSyncConfigurations(backupData)
+        restoreTrackerSyncStates(backupData)
     }
 
     /**
@@ -169,5 +185,40 @@ class BackupRestorer @Inject constructor(
         readerPreferences.setKeepScreenOn(prefs.keepScreenOn)
         readerPreferences.setVolumeKeysEnabled(prefs.volumeKeysEnabled)
         readerPreferences.setVolumeKeysInverted(prefs.volumeKeysInverted)
+    }
+
+    private suspend fun restoreOpdsServers(backupData: BackupData) {
+        if (backupData.opdsServers.isEmpty()) return
+        database.withTransaction {
+            opdsServerDao.insertAll(backupData.opdsServers.map { it.toOpdsServerEntity() })
+        }
+    }
+
+    private suspend fun restoreFeedSources(backupData: BackupData) {
+        if (backupData.feedSources.isEmpty()) return
+        database.withTransaction {
+            feedDao.insertFeedSources(backupData.feedSources.map { it.toFeedSourceEntity() })
+        }
+    }
+
+    private suspend fun restoreFeedSavedSearches(backupData: BackupData) {
+        if (backupData.feedSavedSearches.isEmpty()) return
+        database.withTransaction {
+            feedDao.insertSavedSearches(backupData.feedSavedSearches.map { it.toFeedSavedSearchEntity() })
+        }
+    }
+
+    private suspend fun restoreSyncConfigurations(backupData: BackupData) {
+        if (backupData.syncConfigurations.isEmpty()) return
+        database.withTransaction {
+            trackerSyncDao.insertSyncConfigurations(backupData.syncConfigurations.map { it.toSyncConfigurationEntity() })
+        }
+    }
+
+    private suspend fun restoreTrackerSyncStates(backupData: BackupData) {
+        if (backupData.trackerSyncStates.isEmpty()) return
+        database.withTransaction {
+            trackerSyncDao.insertSyncStates(backupData.trackerSyncStates.map { it.toTrackerSyncStateEntity() })
+        }
     }
 }

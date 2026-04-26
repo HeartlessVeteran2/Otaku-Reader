@@ -15,6 +15,7 @@ import app.otakureader.core.extension.domain.repository.ExtensionRepoRepository
 import app.otakureader.core.extension.domain.repository.ExtensionRepository
 import app.otakureader.core.extension.installer.ExtensionInstaller
 import app.otakureader.core.extension.loader.ExtensionLoader
+import app.otakureader.core.extension.loader.TrustedSignatureStore
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -78,9 +79,10 @@ object ExtensionModule {
     @Provides
     @Singleton
     fun provideExtensionLoader(
-        @ApplicationContext context: Context
+        @ApplicationContext context: Context,
+        trustedSignatureStore: TrustedSignatureStore
     ): ExtensionLoader {
-        return ExtensionLoader(context)
+        return ExtensionLoader(context, trustedSignatureStore)
     }
 
     @Provides
