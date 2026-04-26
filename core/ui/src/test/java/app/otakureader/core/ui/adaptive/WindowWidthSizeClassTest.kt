@@ -11,8 +11,7 @@ import org.junit.Test
  *
  * The composable [rememberWindowWidthSizeClass] is exercised indirectly via its
  * pure helper [fromWidthDp]; the composition-aware wrapper only adds remember()
- * over `LocalConfiguration.screenWidthDp` and is covered by Compose UI tests on
- * downstream screens.
+ * over `LocalConfiguration.screenWidthDp`.
  */
 class WindowWidthSizeClassTest {
 
