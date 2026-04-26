@@ -68,14 +68,14 @@ class OtakuReaderApplication : Application(), Configuration.Provider, SingletonI
     // Also evicts stale panel-analysis cache entries on critical pressure.
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
-        val cache = SingletonImageLoader.get(this).memoryCache ?: return
+        val cache = SingletonImageLoader.get(this).memoryCache
         when (level) {
             ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN ->
-                cache.trimToSize((cache.maxSize * 0.5).toInt())
+                cache?.trimToSize((cache.maxSize * 0.5).toInt())
             ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW,
             ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL,
             ComponentCallbacks2.TRIM_MEMORY_COMPLETE -> {
-                cache.trimToSize(0)
+                cache?.trimToSize(0)
                 if (::panelCacheService.isInitialized) {
                     applicationScope.launch { panelCacheService.cleanupStaleEntries() }
                 }

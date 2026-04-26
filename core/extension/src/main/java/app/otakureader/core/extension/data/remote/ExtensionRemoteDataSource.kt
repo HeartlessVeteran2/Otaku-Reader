@@ -420,6 +420,6 @@ private fun resolveIconUrl(baseUrl: String, iconPath: String?, pkgName: String):
     return when {
         iconPath == null -> "$baseUrl/icon/$pkgName.png"
         iconPath.startsWith("http://") || iconPath.startsWith("https://") -> iconPath
-        else -> "$baseUrl/icon/${iconPath.trimStart('/')}"
+        else -> "$baseUrl/${iconPath.trimStart('/')}"
     }
 }
