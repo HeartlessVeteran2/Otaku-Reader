@@ -2,66 +2,75 @@ package app.otakureader.feature.reader.viewmodel
 
 import android.content.Context
 import android.os.SystemClock
-import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import app.otakureader.data.loader.PageLoader
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
+import app.otakureader.domain.model.PageNavigationEvent
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.MangaRepository
-import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.feature.reader.model.ColorFilterMode
-import app.otakureader.feature.reader.model.ImageQuality
 import app.otakureader.feature.reader.model.ReaderMode
 import app.otakureader.feature.reader.model.ReaderPage
 import app.otakureader.feature.reader.model.ReadingDirection
-import app.otakureader.feature.reader.repository.ReaderSettingsRepository
 import app.otakureader.feature.reader.prefetch.ReadingBehaviorTracker
-import app.otakureader.domain.model.PageNavigationEvent
-import app.otakureader.domain.model.PrefetchStrategy
-import app.otakureader.data.worker.RecordReadingHistoryWorker
+import app.otakureader.feature.reader.repository.ReaderSettingsRepository
+import app.otakureader.feature.reader.viewmodel.delegate.ReaderChapterLoaderDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderDiscordDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderDownloadAheadDelegate
+import app.otakureader.feature.reader.viewmodel.delegate.ReaderHistoryDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderPanelDetectionDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderPrefetchDelegate
+import app.otakureader.feature.reader.viewmodel.delegate.ReaderSettingsLoaderDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderSfxDelegate
-import androidx.work.WorkManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import kotlin.coroutines.cancellation.CancellationException
-import app.otakureader.sourceapi.SourceChapter
 
 /**
- * Ultimate ViewModel for the Reader feature.
- * Manages all reader modes, page preloading, progress saving, and settings.
- * Integrates with existing Otaku Reader domain repositories.
+ * Coordinator ViewModel for the Reader feature.
+ *
+ * Responsibilities are intentionally narrow:
+ *  - Aggregate [ReaderState] and emit it via [state].
+ *  - Route [ReaderEvent]s to the appropriate handler / delegate.
+ *  - Persist mutable user-driven settings as they change.
+ *
+ * All other concerns are owned by dedicated delegates so they can be tested
+ * independently and so this class stays small and focused (see issue #581):
+ *
+ *  | Delegate                       | Concern                                       |
+ *  |--------------------------------|-----------------------------------------------|
+ *  | [ReaderSettingsLoaderDelegate] | DataStore reads + per-manga overrides         |
+ *  | [ReaderChapterLoaderDelegate]  | Chapter / manga / page loading                |
+ *  | [ReaderHistoryDelegate]        | Reading-history recording + WorkManager       |
+ *  | [ReaderPrefetchDelegate]       | Prefetch / preload                            |
+ *  | [ReaderPanelDetectionDelegate] | Smart-panel detection                         |
+ *  | [ReaderSfxDelegate]            | SFX translation jobs                          |
+ *  | [ReaderDiscordDelegate]        | Discord rich presence                         |
+ *  | [ReaderDownloadAheadDelegate]  | Download-ahead trigger                        |
  */
 @HiltViewModel
 class UltimateReaderViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val mangaRepository: MangaRepository,
     private val chapterRepository: ChapterRepository,
-    private val sourceRepository: SourceRepository,
     private val settingsRepository: ReaderSettingsRepository,
-    private val pageLoader: PageLoader,
     private val behaviorTracker: ReadingBehaviorTracker,
+    private val settingsLoaderDelegate: ReaderSettingsLoaderDelegate,
+    private val chapterLoaderDelegate: ReaderChapterLoaderDelegate,
+    private val historyDelegate: ReaderHistoryDelegate,
     private val sfxDelegate: ReaderSfxDelegate,
     private val discordDelegate: ReaderDiscordDelegate,
     private val panelDelegate: ReaderPanelDetectionDelegate,
@@ -98,8 +107,9 @@ class UltimateReaderViewModel @Inject constructor(
      * Monotonic timestamp captured at ViewModel creation, used for computing reading session
      * duration. Using [SystemClock.elapsedRealtime] (not wall-clock time) ensures the measured
      * duration is unaffected by clock adjustments, timezone changes, or daylight-saving shifts.
-     * Made internal for [ReadingTimerOverlay] access within the feature:reader module.
-     * This timestamp is never updated and represents the start of the reading session.
+     * Made internal for [app.otakureader.feature.reader.ui.ReadingTimerOverlay] access within
+     * the feature:reader module. This timestamp is never updated and represents the start of
+     * the reading session.
      */
     internal val sessionStartMs: Long = SystemClock.elapsedRealtime()
 
@@ -116,351 +126,148 @@ class UltimateReaderViewModel @Inject constructor(
         observeSettingsWriteFailures()
     }
 
-    private fun recordHistoryOpen() {
-        // Reset page change timestamp when the chapter is opened so that
-        // the first recorded page duration does not include chapter load time.
-        lastPageChangeMs = SystemClock.elapsedRealtime()
-
+    /**
+     * Load saved reader settings with per-manga overrides (#260, #264).
+     */
+    private fun loadSettings() {
         viewModelScope.launch {
-            // Resolve the incognito flag directly from settings to avoid races with loadSettings()
-            val isIncognito = runCatching {
-                // Assuming settingsRepository exposes a Flow of settings
-                settingsRepository.incognitoMode.first()
-            }.getOrElse {
-                // Fall back to the current state if settings cannot be read
-                _state.value.incognitoMode
-            }
-
-            // Don't record history if incognito mode is enabled
-            if (isIncognito) return@launch
-
-            runCatching {
-                chapterRepository.recordHistory(
-                    chapterId = chapterId,
-                    readAt = sessionReadAt,
-                    readDurationMs = 0L
+            // Load manga first to check for per-manga overrides.
+            val manga = mangaRepository.getMangaById(mangaId)
+            currentManga = manga
+            val settingsState = settingsLoaderDelegate.load(_state.value, manga)
+            // Merge only settings fields into current state to avoid overwriting
+            // pages/chapter data loaded concurrently by loadChapter().
+            _state.update { current ->
+                current.copy(
+                    mode = settingsState.mode,
+                    brightness = settingsState.brightness,
+                    keepScreenOn = settingsState.keepScreenOn,
+                    showPageNumber = settingsState.showPageNumber,
+                    readingDirection = settingsState.readingDirection,
+                    volumeKeysEnabled = settingsState.volumeKeysEnabled,
+                    volumeKeysInverted = settingsState.volumeKeysInverted,
+                    isFullscreen = settingsState.isFullscreen,
+                    incognitoMode = settingsState.incognitoMode,
+                    colorFilterMode = settingsState.colorFilterMode,
+                    customTintColor = settingsState.customTintColor,
+                    showReadingTimer = settingsState.showReadingTimer,
+                    showBatteryTime = settingsState.showBatteryTime,
+                    cropBordersEnabled = settingsState.cropBordersEnabled,
+                    imageQuality = settingsState.imageQuality,
+                    dataSaverEnabled = settingsState.dataSaverEnabled,
+                    showContentInCutout = settingsState.showContentInCutout,
+                    backgroundColor = settingsState.backgroundColor,
+                    animatePageTransitions = settingsState.animatePageTransitions,
+                    showReadingModeOverlay = settingsState.showReadingModeOverlay,
+                    showTapZonesOverlay = settingsState.showTapZonesOverlay,
+                    readerScale = settingsState.readerScale,
+                    autoZoomWideImages = settingsState.autoZoomWideImages,
+                    invertTapZones = settingsState.invertTapZones,
+                    webtoonSidePadding = settingsState.webtoonSidePadding,
+                    webtoonGapDp = settingsState.webtoonGapDp,
+                    webtoonMenuHideSensitivity = settingsState.webtoonMenuHideSensitivity,
+                    webtoonDoubleTapZoom = settingsState.webtoonDoubleTapZoom,
+                    webtoonDisableZoomOut = settingsState.webtoonDisableZoomOut,
+                    einkFlashOnPageChange = settingsState.einkFlashOnPageChange,
+                    einkBlackAndWhite = settingsState.einkBlackAndWhite,
+                    skipReadChapters = settingsState.skipReadChapters,
+                    skipFilteredChapters = settingsState.skipFilteredChapters,
+                    skipDuplicateChapters = settingsState.skipDuplicateChapters,
+                    alwaysShowChapterTransition = settingsState.alwaysShowChapterTransition,
+                    showActionsOnLongTap = settingsState.showActionsOnLongTap,
+                    savePagesToSeparateFolders = settingsState.savePagesToSeparateFolders,
                 )
             }
         }
     }
 
     /**
-     * Load saved reader settings with per-manga overrides (#260, #264)
-     */
-    private fun loadSettings() {
-        viewModelScope.launch {
-            // Load manga first to check for per-manga overrides
-            val manga = mangaRepository.getMangaById(mangaId)
-            currentManga = manga
-
-            // Launch all DataStore reads concurrently — each .first() is a separate suspend
-            // point; running them in parallel shaves 50–200 ms from cold reader open time.
-            coroutineScope {
-                val modeD = async { settingsRepository.readerMode.first() }
-                val brightnessD = async { settingsRepository.brightness.first() }
-                val keepScreenOnD = async { settingsRepository.keepScreenOn.first() }
-                val showPageNumberD = async { settingsRepository.showPageNumber.first() }
-                val directionD = async { settingsRepository.readingDirection.first() }
-                val volumeKeysEnabledD = async { settingsRepository.volumeKeysEnabled.first() }
-                val volumeKeysInvertedD = async { settingsRepository.volumeKeysInverted.first() }
-                val fullscreenD = async { settingsRepository.fullscreen.first() }
-                val incognitoModeD = async { settingsRepository.incognitoMode.first() }
-                val colorFilterModeD = async { settingsRepository.colorFilterMode.first() }
-                val customTintColorD = async { settingsRepository.customTintColor.first() }
-                val cropBordersEnabledD = async {
-                    try { settingsRepository.cropBordersEnabled.first() } catch (_: Exception) { false }
-                }
-                val imageQualityD = async {
-                    try { settingsRepository.imageQuality.first() } catch (_: Exception) { ImageQuality.ORIGINAL }
-                }
-                val dataSaverEnabledD = async {
-                    try { settingsRepository.dataSaverEnabled.first() } catch (_: Exception) { false }
-                }
-                val showReadingTimerD = async {
-                    try { settingsRepository.showReadingTimer.first() } catch (_: Exception) { false }
-                }
-                val showBatteryTimeD = async {
-                    try { settingsRepository.showBatteryTime.first() } catch (_: Exception) { false }
-                }
-                val preloadBeforeD = async {
-                    try { settingsRepository.preloadPagesBefore.first() } catch (_: Exception) { ReaderSettingsRepository.DEFAULT_PRELOAD_PAGES }
-                }
-                val preloadAfterD = async {
-                    try { settingsRepository.preloadPagesAfter.first() } catch (_: Exception) { ReaderSettingsRepository.DEFAULT_PRELOAD_PAGES }
-                }
-                val smartPrefetchEnabledD = async {
-                    try { settingsRepository.smartPrefetchEnabled.first() } catch (_: Exception) { true }
-                }
-                val prefetchStrategyOrdinalD = async {
-                    try { settingsRepository.prefetchStrategyOrdinal.first() } catch (_: Exception) { -1 }
-                }
-                val adaptiveLearningEnabledD = async {
-                    try { settingsRepository.adaptiveLearningEnabled.first() } catch (_: Exception) { true }
-                }
-                val prefetchAdjacentChaptersD = async {
-                    try { settingsRepository.prefetchAdjacentChapters.first() } catch (_: Exception) { false }
-                }
-                val prefetchOnlyOnWiFiD = async {
-                    try { settingsRepository.prefetchOnlyOnWiFi.first() } catch (_: Exception) { false }
-                }
-                val showContentInCutoutD = async { settingsRepository.showContentInCutout.first() }
-                val backgroundColorD = async { settingsRepository.backgroundColor.first() }
-                val animatePageTransitionsD = async { settingsRepository.animatePageTransitions.first() }
-                val showReadingModeOverlayD = async { settingsRepository.showReadingModeOverlay.first() }
-                val showTapZonesOverlayD = async { settingsRepository.showTapZonesOverlay.first() }
-                val readerScaleD = async { settingsRepository.readerScale.first() }
-                val autoZoomWideImagesD = async { settingsRepository.autoZoomWideImages.first() }
-                val invertTapZonesD = async { settingsRepository.invertTapZones.first() }
-                val webtoonSidePaddingD = async { settingsRepository.webtoonSidePadding.first() }
-                val webtoonGapDpD = async { settingsRepository.webtoonGapDp.first() }
-                val webtoonMenuHideSensitivityD = async { settingsRepository.webtoonMenuHideSensitivity.first() }
-                val webtoonDoubleTapZoomD = async { settingsRepository.webtoonDoubleTapZoom.first() }
-                val webtoonDisableZoomOutD = async { settingsRepository.webtoonDisableZoomOut.first() }
-                val einkFlashOnPageChangeD = async { settingsRepository.einkFlashOnPageChange.first() }
-                val einkBlackAndWhiteD = async { settingsRepository.einkBlackAndWhite.first() }
-                val skipReadChaptersD = async { settingsRepository.skipReadChapters.first() }
-                val skipFilteredChaptersD = async { settingsRepository.skipFilteredChapters.first() }
-                val skipDuplicateChaptersD = async { settingsRepository.skipDuplicateChapters.first() }
-                val alwaysShowChapterTransitionD = async { settingsRepository.alwaysShowChapterTransition.first() }
-                val showActionsOnLongTapD = async { settingsRepository.showActionsOnLongTap.first() }
-                val savePagesToSeparateFoldersD = async { settingsRepository.savePagesToSeparateFolders.first() }
-
-                val mode = modeD.await()
-                val brightness = brightnessD.await()
-                val keepScreenOn = keepScreenOnD.await()
-                val showPageNumber = showPageNumberD.await()
-                val direction = directionD.await()
-                val volumeKeysEnabled = volumeKeysEnabledD.await()
-                val volumeKeysInverted = volumeKeysInvertedD.await()
-                val fullscreen = fullscreenD.await()
-                val incognitoMode = incognitoModeD.await()
-                val colorFilterMode = colorFilterModeD.await()
-                val customTintColor = customTintColorD.await()
-                val cropBordersEnabled = cropBordersEnabledD.await()
-                val imageQuality = imageQualityD.await()
-                val dataSaverEnabled = dataSaverEnabledD.await()
-                val showReadingTimer = showReadingTimerD.await()
-                val showBatteryTime = showBatteryTimeD.await()
-                prefetchDelegate.cachedPreloadBefore = preloadBeforeD.await()
-                prefetchDelegate.cachedPreloadAfter = preloadAfterD.await()
-                prefetchDelegate.cachedSmartPrefetchEnabled = smartPrefetchEnabledD.await()
-                val prefetchOrdinal = prefetchStrategyOrdinalD.await()
-                prefetchDelegate.cachedPrefetchStrategy = if (prefetchOrdinal >= 0) PrefetchStrategy.fromOrdinal(prefetchOrdinal) else PrefetchStrategy.Balanced
-                prefetchDelegate.cachedAdaptiveLearningEnabled = adaptiveLearningEnabledD.await()
-                prefetchDelegate.cachedPrefetchAdjacentChapters = prefetchAdjacentChaptersD.await()
-                prefetchDelegate.cachedPrefetchOnlyOnWiFi = prefetchOnlyOnWiFiD.await()
-                val showContentInCutout = showContentInCutoutD.await()
-                val backgroundColor = backgroundColorD.await()
-                val animatePageTransitions = animatePageTransitionsD.await()
-                val showReadingModeOverlay = showReadingModeOverlayD.await()
-                val showTapZonesOverlay = showTapZonesOverlayD.await()
-                val readerScale = readerScaleD.await()
-                val autoZoomWideImages = autoZoomWideImagesD.await()
-                val invertTapZones = invertTapZonesD.await()
-                val webtoonSidePadding = webtoonSidePaddingD.await()
-                val webtoonGapDp = webtoonGapDpD.await()
-                val webtoonMenuHideSensitivity = webtoonMenuHideSensitivityD.await()
-                val webtoonDoubleTapZoom = webtoonDoubleTapZoomD.await()
-                val webtoonDisableZoomOut = webtoonDisableZoomOutD.await()
-                val einkFlashOnPageChange = einkFlashOnPageChangeD.await()
-                val einkBlackAndWhite = einkBlackAndWhiteD.await()
-                val skipReadChapters = skipReadChaptersD.await()
-                val skipFilteredChapters = skipFilteredChaptersD.await()
-                val skipDuplicateChapters = skipDuplicateChaptersD.await()
-                val alwaysShowChapterTransition = alwaysShowChapterTransitionD.await()
-                val showActionsOnLongTap = showActionsOnLongTapD.await()
-                val savePagesToSeparateFolders = savePagesToSeparateFoldersD.await()
-
-                // Apply per-manga overrides if they exist (#260)
-                val effectiveMode = manga?.readerMode?.let { ReaderMode.entries.getOrNull(it) } ?: mode
-                val effectiveDirection = manga?.readerDirection?.let {
-                    if (it == 0) ReadingDirection.LTR else ReadingDirection.RTL
-                } ?: direction
-                val effectiveColorFilter = manga?.readerColorFilter?.let {
-                    ColorFilterMode.entries.getOrNull(it)
-                } ?: colorFilterMode
-                val effectiveTintColor = manga?.readerCustomTintColor ?: customTintColor
-
-                _state.update {
-                    it.copy(
-                        mode = effectiveMode,
-                        brightness = brightness,
-                        keepScreenOn = keepScreenOn,
-                        showPageNumber = showPageNumber,
-                        readingDirection = effectiveDirection,
-                        volumeKeysEnabled = volumeKeysEnabled,
-                        volumeKeysInverted = volumeKeysInverted,
-                        isFullscreen = fullscreen,
-                        incognitoMode = incognitoMode,
-                        colorFilterMode = effectiveColorFilter,
-                        customTintColor = effectiveTintColor,
-                        showReadingTimer = showReadingTimer,
-                        showBatteryTime = showBatteryTime,
-                        cropBordersEnabled = cropBordersEnabled,
-                        imageQuality = imageQuality,
-                        dataSaverEnabled = dataSaverEnabled,
-                        showContentInCutout = showContentInCutout,
-                        backgroundColor = backgroundColor,
-                        animatePageTransitions = animatePageTransitions,
-                        showReadingModeOverlay = showReadingModeOverlay,
-                        showTapZonesOverlay = showTapZonesOverlay,
-                        readerScale = readerScale,
-                        autoZoomWideImages = autoZoomWideImages,
-                        invertTapZones = invertTapZones,
-                        webtoonSidePadding = webtoonSidePadding,
-                        webtoonGapDp = webtoonGapDp,
-                        webtoonMenuHideSensitivity = webtoonMenuHideSensitivity,
-                        webtoonDoubleTapZoom = webtoonDoubleTapZoom,
-                        webtoonDisableZoomOut = webtoonDisableZoomOut,
-                        einkFlashOnPageChange = einkFlashOnPageChange,
-                        einkBlackAndWhite = einkBlackAndWhite,
-                        skipReadChapters = skipReadChapters,
-                        skipFilteredChapters = skipFilteredChapters,
-                        skipDuplicateChapters = skipDuplicateChapters,
-                        alwaysShowChapterTransition = alwaysShowChapterTransition,
-                        showActionsOnLongTap = showActionsOnLongTap,
-                        savePagesToSeparateFolders = savePagesToSeparateFolders
-                    )
-                }
-            } // end coroutineScope
-        }
-    }
-
-    /**
-     * Load chapter pages and initialize reader state
+     * Load chapter pages and initialize reader state.
      */
     private fun loadChapter() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null) }
-            try {
-                // Load chapter and manga
-                val chapter = chapterRepository.getChapterById(chapterId)
-                val manga = mangaRepository.getMangaById(mangaId)
-
-                if (chapter == null) {
+            when (val result = chapterLoaderDelegate.load(mangaId, chapterId)) {
+                is ReaderChapterLoaderDelegate.Result.NotFound -> {
                     _state.update {
-                        it.copy(isLoading = false, error = "Chapter not found")
+                        it.copy(isLoading = false, error = result.message)
                     }
-                    return@launch
                 }
-
-                if (manga == null) {
+                is ReaderChapterLoaderDelegate.Result.Failure -> {
                     _state.update {
-                        it.copy(isLoading = false, error = "Manga not found")
+                        it.copy(
+                            isLoading = false,
+                            error = result.cause.message ?: "Failed to load chapter",
+                        )
                     }
-                    return@launch
                 }
+                is ReaderChapterLoaderDelegate.Result.Success -> {
+                    currentManga = result.manga
+                    currentChapter = result.chapter
+                    hasTriggeredDeletion = false
 
-                currentManga = manga
-                currentChapter = chapter
-                hasTriggeredDeletion = false
+                    val pages = result.pages
+                    val initialPage = result.chapter.lastPageRead
+                        .coerceIn(0, (pages.size - 1).coerceAtLeast(0))
 
-                // Fetch pages from source; PageLoader will transparently substitute
-                // local file URIs for any page that has already been downloaded.
-                val sourceName = manga.sourceId.toString()
-                val pages = fetchPagesFromSource(
-                    chapterUrl = chapter.url,
-                    chapterId = chapter.id,
-                    sourceName = sourceName,
-                    mangaTitle = manga.title,
-                    chapterName = chapter.name
-                )
+                    _state.update { current ->
+                        current.copy(
+                            pages = pages,
+                            currentPage = initialPage,
+                            isLoading = false,
+                            chapterTitle = result.chapter.name,
+                            readerBackgroundColor = result.manga.readerBackgroundColor,
+                        )
+                    }
 
-                _state.update { currentState ->
-                    currentState.copy(
-                        pages = pages,
-                        currentPage = chapter.lastPageRead.coerceIn(0, (pages.size - 1).coerceAtLeast(0)),
-                        isLoading = false,
-                        chapterTitle = chapter.name,
-                        readerBackgroundColor = manga.readerBackgroundColor
-                    )
-                }
-
-                // Record history now that the chapter is confirmed to exist.
-                recordHistoryOpen()
-
-                // Update Discord Rich Presence with reading info
-                discordDelegate.updatePresence(manga.title, chapter.name, pages.size)
-
-                // Start preloading adjacent pages
-                if (pages.isNotEmpty()) {
-                    prefetchDelegate.preloadPages(
+                    // Record history now that the chapter is confirmed to exist.
+                    historyDelegate.recordOpen(
                         scope = viewModelScope,
-                        pages = pages,
-                        currentPage = _state.value.currentPage,
-                        mangaId = mangaId,
                         chapterId = chapterId,
-                        currentManga = currentManga,
+                        sessionReadAt = sessionReadAt,
+                        fallbackIncognito = _state.value.incognitoMode,
                     )
-                }
+                    // Reset page-change timestamp so first recorded page duration
+                    // does not include chapter load time.
+                    lastPageChangeMs = SystemClock.elapsedRealtime()
 
-                // Start panel detection when in Smart Panels mode
-                if (_state.value.mode == ReaderMode.SMART_PANELS && pages.isNotEmpty()) {
-                    panelDelegate.detectForPages(
-                        scope = viewModelScope,
-                        pages = pages,
-                        currentPageIndex = _state.value.currentPage,
-                        readingDirection = _state.value.readingDirection,
-                        isSmartPanelsMode = { _state.value.mode == ReaderMode.SMART_PANELS },
-                        updateState = { _state.update(it) },
+                    // Update Discord Rich Presence with reading info.
+                    discordDelegate.updatePresence(
+                        result.manga.title,
+                        result.chapter.name,
+                        pages.size,
                     )
-                }
 
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                _state.update {
-                    it.copy(
-                        isLoading = false,
-                        error = e.message ?: "Failed to load chapter"
-                    )
+                    // Start preloading adjacent pages.
+                    if (pages.isNotEmpty()) {
+                        prefetchDelegate.preloadPages(
+                            scope = viewModelScope,
+                            pages = pages,
+                            currentPage = initialPage,
+                            mangaId = mangaId,
+                            chapterId = chapterId,
+                            currentManga = currentManga,
+                        )
+                    }
+
+                    // Start panel detection when in Smart Panels mode.
+                    if (_state.value.mode == ReaderMode.SMART_PANELS && pages.isNotEmpty()) {
+                        panelDelegate.detectForPages(
+                            scope = viewModelScope,
+                            pages = pages,
+                            currentPageIndex = initialPage,
+                            readingDirection = _state.value.readingDirection,
+                            isSmartPanelsMode = { _state.value.mode == ReaderMode.SMART_PANELS },
+                            updateState = { _state.update(it) },
+                        )
+                    }
                 }
             }
         }
     }
 
     /**
-     * Fetch pages from the manga source.
-     *
-     * For each page, [PageLoader.resolveUrl] is called so that already-downloaded
-     * pages are served from local storage rather than the network.
-     *
-     * In a real implementation this would call the SourceManager to obtain the
-     * remote page URLs before handing them to [PageLoader].
-     */
-    private suspend fun fetchPagesFromSource(
-        chapterUrl: String,
-        chapterId: Long,
-        sourceName: String,
-        mangaTitle: String,
-        chapterName: String
-    ): List<ReaderPage> {
-        val manga = currentManga ?: return emptyList()
-        val sourceChapter = app.otakureader.sourceapi.SourceChapter(
-            url = chapterUrl,
-            name = chapterName
-        )
-        val sourceId = manga.sourceId.toString()
-
-        val pages = sourceRepository.getPageList(sourceId, sourceChapter)
-            .getOrElse { return emptyList() }
-
-        return pages.mapIndexed { index, page ->
-            ReaderPage(
-                index = index,
-                imageUrl = pageLoader.resolveUrl(
-                    page.imageUrl.orEmpty(),
-                    sourceName,
-                    mangaTitle,
-                    chapterName,
-                    index
-                ),
-                chapterName = chapterName
-            )
-        }
-    }
-
-    /**
-     * Set pages directly (useful for testing or when pages are passed from outside)
+     * Set pages directly (useful for testing or when pages are passed from outside).
      */
     fun setPages(pages: List<ReaderPage>) {
         _state.update { currentState ->
@@ -647,12 +454,11 @@ class UltimateReaderViewModel @Inject constructor(
                 behaviorTracker.recordNavigation(event)
             }
 
-            // Record page view for telemetry only when smart prefetch is active
-            if (prefetchDelegate.cachedSmartPrefetchEnabled) {
-                val currentPage = _state.value.pages.getOrNull(previousPage)
-                if (currentPage != null) {
-                    smartPrefetchManager.recordPageView(currentPage)
-                }
+            // Record page view for telemetry only when smart prefetch is active.
+            // We record the page the user is leaving (previousPage) — that's the
+            // page they actually viewed; the new page hasn't been rendered yet.
+            _state.value.pages.getOrNull(previousPage)?.let { viewedPage ->
+                prefetchDelegate.recordPageView(viewedPage)
             }
 
             _state.update { state ->
@@ -729,7 +535,7 @@ class UltimateReaderViewModel @Inject constructor(
     private fun updateBrightness(brightness: Float) {
         val clampedBrightness = brightness.coerceIn(0.1f, 1.5f)
         _state.update { it.copy(brightness = clampedBrightness) }
-        
+
         // Save brightness setting
         viewModelScope.launch {
             settingsRepository.setBrightness(clampedBrightness)
@@ -777,7 +583,7 @@ class UltimateReaderViewModel @Inject constructor(
 
     private fun changeReaderMode(mode: ReaderMode) {
         _state.update { it.copy(mode = mode) }
-        
+
         // Adjust current page for dual page mode
         if (mode == ReaderMode.DUAL_PAGE && _state.value.currentPage % 2 != 0) {
             _state.update { it.copy(currentPage = it.currentPage - 1) }
@@ -799,7 +605,7 @@ class UltimateReaderViewModel @Inject constructor(
         } else {
             panelDelegate.cancel()
         }
-        
+
         // Save mode setting
         viewModelScope.launch {
             settingsRepository.setReaderMode(mode)
@@ -822,7 +628,7 @@ class UltimateReaderViewModel @Inject constructor(
     private fun toggleFullscreen() {
         val newFullscreen = !_state.value.isFullscreen
         _state.update { it.copy(isFullscreen = newFullscreen) }
-        
+
         viewModelScope.launch {
             settingsRepository.setFullscreen(newFullscreen)
         }
@@ -835,7 +641,7 @@ class UltimateReaderViewModel @Inject constructor(
     private fun updateAutoScrollSpeed(speed: Float) {
         val clampedSpeed = speed.coerceIn(10f, 500f)
         _state.update { it.copy(autoScrollSpeed = clampedSpeed) }
-        
+
         viewModelScope.launch {
             settingsRepository.setAutoScrollSpeed(clampedSpeed)
         }
@@ -989,24 +795,18 @@ class UltimateReaderViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         val durationMs = SystemClock.elapsedRealtime() - sessionStartMs
-        // Capture state before viewModelScope is cancelled so we can read incognito/page data.
+        // Capture state before viewModelScope is cancelled so the worker reads
+        // a consistent snapshot of incognito / current page / read flags.
         val currentState = _state.value
 
         // H-5 Fix: Use WorkManager to guarantee history + progress are persisted even if
         // the OS kills the process before a raw coroutine could complete.
-        runCatching {
-            val request = RecordReadingHistoryWorker.buildRequest(
-                chapterId = chapterId,
-                readAt = sessionReadAt,
-                durationMs = durationMs,
-                isIncognito = currentState.incognitoMode,
-                lastPageRead = currentState.currentPage,
-                isRead = currentState.isLastPage,
-            )
-            WorkManager.getInstance(context).enqueue(request)
-        }.onFailure { e ->
-            android.util.Log.w(TAG, "WorkManager enqueue failed in onCleared", e)
-        }
+        historyDelegate.enqueueExit(
+            chapterId = chapterId,
+            sessionReadAt = sessionReadAt,
+            durationMs = durationMs,
+            currentState = currentState,
+        )
 
         discordDelegate.clearPresence(showBrowsing = true)
         autoSaveJob?.cancel()
@@ -1019,39 +819,20 @@ class UltimateReaderViewModel @Inject constructor(
     /**
      * Performs the final persistence work when the reader is closed.
      * Extracted to a suspend function so it can be tested directly without
-     * going through the protected [onCleared] / [cleanupScope] boundary.
+     * going through the protected [onCleared] / WorkManager boundary.
      */
     @androidx.annotation.VisibleForTesting
     suspend fun cleanupOnExit(durationMs: Long, currentState: ReaderState) {
-        val isIncognito = runCatching {
-            settingsRepository.incognitoMode.first()
-        }.getOrElse {
-            currentState.incognitoMode
-        }
-        // Don't record history or progress if incognito mode is enabled
-        if (!isIncognito) {
-            runCatching {
-                chapterRepository.recordHistory(
-                    chapterId = chapterId,
-                    readAt = sessionReadAt,
-                    readDurationMs = durationMs
-                )
-            }
-            // Save final reading progress here rather than calling saveCurrentProgress()
-            // (which uses viewModelScope and would be a no-op after onCleared).
-            runCatching {
-                chapterRepository.updateChapterProgress(
-                    chapterId = chapterId,
-                    read = currentState.isLastPage,
-                    lastPageRead = currentState.currentPage
-                )
-            }
-        }
+        historyDelegate.cleanupOnExit(
+            chapterId = chapterId,
+            sessionReadAt = sessionReadAt,
+            durationMs = durationMs,
+            currentState = currentState,
+        )
     }
 
 
     companion object {
-        private const val TAG = "UltimateReaderViewModel"
         private const val MIN_ZOOM = 0.5f
         private const val MAX_ZOOM = 5f
         private const val PROGRESS_SAVE_DELAY = 3000L // 3 seconds

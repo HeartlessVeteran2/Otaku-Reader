@@ -86,6 +86,15 @@ class ReaderPrefetchDelegate @Inject constructor(
         }
     }
 
+    /**
+     * Record a page view for smart-prefetch telemetry. No-op when smart prefetch
+     * is disabled to avoid unnecessary work.
+     */
+    fun recordPageView(page: ReaderPage) {
+        if (!cachedSmartPrefetchEnabled) return
+        smartPrefetchManager.recordPageView(page)
+    }
+
     fun cancel() {
         preloadJob?.cancel()
         preloadJob = null
