@@ -243,7 +243,7 @@ fun ZoomableImage(
  *     long-lived [Animatable] instance, Compose's internal mutator mutex cancels any in-flight
  *     animation on that instance before starting the new one. Rapid double-taps therefore
  *     supersede each other rather than fighting; previously launched outer coroutines unwind
- *     promptly via [CancellationException] propagated out of the cancelled child `animateTo`s.
+ *     promptly via [kotlinx.coroutines.CancellationException] propagated out of the cancelled child `animateTo`s.
  *
  * @Stable: equality is by reference and the public observable values are backed by Compose-aware
  * state inside the [Animatable]s, so Compose can correctly skip recompositions.
