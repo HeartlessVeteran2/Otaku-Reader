@@ -189,6 +189,8 @@ object DetailsContract {
         data object ClearChapterSelection : Event
         data object SelectAllChapters : Event
         data object DownloadSelectedChapters : Event
+        data object DownloadAllChapters : Event
+        data object DownloadUnreadChapters : Event
         data object DeleteSelectedChapters : Event
         data object MarkSelectedAsRead : Event
         data object MarkSelectedAsUnread : Event

@@ -99,6 +99,8 @@ class DetailsViewModel @Inject constructor(
             is DetailsContract.Event.ToggleChapterRead -> toggleChapterRead(event.chapterId)
             is DetailsContract.Event.ToggleChapterBookmark -> toggleChapterBookmark(event.chapterId)
             is DetailsContract.Event.DownloadChapter -> downloadChapter(event.chapterId)
+            is DetailsContract.Event.DownloadAllChapters -> downloadAllChapters(unreadOnly = false)
+            is DetailsContract.Event.DownloadUnreadChapters -> downloadAllChapters(unreadOnly = true)
             is DetailsContract.Event.DeleteChapterDownload -> deleteChapterDownload(event.chapterId)
             is DetailsContract.Event.ExportChapterAsCbz -> exportChapterAsCbz(event.chapterId)
             is DetailsContract.Event.MarkPreviousAsRead -> markPreviousAsRead(event.chapterId)
@@ -199,17 +201,14 @@ class DetailsViewModel @Inject constructor(
      */
     private fun fetchThumbnailsForDownloadedChapters(chapters: List<Chapter>) {
         viewModelScope.launch {
-            // Get chapters that need thumbnail fetching
             val chaptersNeedingThumbnails = chapters.filter { chapter ->
-                // Only fetch for chapters that have been read or partially read
                 !thumbnailCache.containsKey(chapter.id) && chapter.lastPageRead > 0
-            }.take(10) // Limit to first 10 to avoid overwhelming the source
-            
+            }.take(10)
+
             if (chaptersNeedingThumbnails.isEmpty()) return@launch
-            
+
             val manga = _state.value.manga ?: return@launch
-            val source = sourceRepository.getSource(manga.sourceId.toString()) ?: return@launch
-            
+
             supervisorScope {
                 chaptersNeedingThumbnails.map { chapter ->
                     async {
@@ -222,26 +221,24 @@ class DetailsViewModel @Inject constructor(
                                 scanlator = chapter.scanlator
                             )
 
-                            val pages = source.fetchPageList(sourceChapter)
+                            // Use repository instead of calling source directly (#587)
+                            val pages = sourceRepository.getPageList(manga.sourceId.toString(), sourceChapter)
+                                .getOrNull() ?: return@async
                             if (pages.isNotEmpty()) {
                                 val firstPageUrl = pages.first().imageUrl
                                 thumbnailCache[chapter.id] = firstPageUrl to pages.size
 
-                                // Update the chapter in state with new thumbnail
                                 _state.update { state ->
                                     val updatedChapters = state.chapters.map { item ->
                                         if (item.id == chapter.id) {
-                                            item.copy(
-                                                thumbnailUrl = firstPageUrl,
-                                                totalPages = pages.size
-                                            )
+                                            item.copy(thumbnailUrl = firstPageUrl, totalPages = pages.size)
                                         } else item
                                     }
                                     state.copy(chapters = updatedChapters)
                                 }
                             }
-                        } catch (e: Exception) {
-                            // Silently fail - thumbnails are optional
+                        } catch (_: Exception) {
+                            // Silently fail — thumbnails are optional
                         }
                     }
                 }.awaitAll()
@@ -568,6 +565,30 @@ class DetailsViewModel @Inject constructor(
         }
     }
 
+    private fun downloadAllChapters(unreadOnly: Boolean) {
+        viewModelScope.launch {
+            val manga = _state.value.manga ?: return@launch
+            val sourceName = manga.sourceId.toString()
+            val chapters = if (unreadOnly) {
+                _state.value.chapters.filter { !it.read }
+            } else {
+                _state.value.chapters
+            }
+            if (chapters.isEmpty()) return@launch
+            chapters.forEach { chapter ->
+                downloadRepository.enqueueChapter(
+                    mangaId = chapter.mangaId,
+                    chapterId = chapter.id,
+                    sourceName = sourceName,
+                    mangaTitle = manga.title,
+                    chapterTitle = chapter.name
+                )
+            }
+            val label = if (unreadOnly) "unread" else "all"
+            _effect.send(DetailsContract.Effect.ShowSnackbar("${chapters.size} $label chapters added to queue"))
+        }
+    }
+
     private fun deleteChapterDownload(chapterId: Long) {
         viewModelScope.launch {
             val chapter = _state.value.chapters.firstOrNull { it.id == chapterId }
@@ -812,14 +833,8 @@ class DetailsViewModel @Inject constructor(
             if (thumbnailCache.containsKey(chapterId)) return@launch
             
             _effect.send(DetailsContract.Effect.ShowSnackbar("Loading preview..."))
-            
+
             try {
-                val source = sourceRepository.getSource(manga.sourceId.toString())
-                if (source == null) {
-                    _effect.send(DetailsContract.Effect.ShowError("Source not available"))
-                    return@launch
-                }
-                
                 val sourceChapter = SourceChapter(
                     url = chapter.url,
                     name = chapter.name,
@@ -827,8 +842,13 @@ class DetailsViewModel @Inject constructor(
                     chapterNumber = chapter.chapterNumber,
                     scanlator = chapter.scanlator
                 )
-                
-                val pages = source.fetchPageList(sourceChapter)
+
+                // Use repository to respect caching and abstraction layers (#587)
+                val pages = sourceRepository.getPageList(manga.sourceId.toString(), sourceChapter)
+                    .getOrElse {
+                        _effect.send(DetailsContract.Effect.ShowError("Source not available"))
+                        return@launch
+                    }
                 if (pages.isNotEmpty()) {
                     val firstPageUrl = pages.first().imageUrl
                     thumbnailCache[chapterId] = firstPageUrl to pages.size

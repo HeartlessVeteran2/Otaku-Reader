@@ -67,6 +67,7 @@ fun ZoomableImage(
     onDoubleTap: ((Offset) -> Unit)? = null,
     onTap: ((Offset) -> Unit)? = null,
     onZoomChange: ((Float) -> Unit)? = null,
+    onImageSizeKnown: ((width: Int, height: Int) -> Unit)? = null,
     resetOnChange: Boolean = true
 ) {
     val scope = rememberCoroutineScope()
@@ -186,6 +187,9 @@ fun ZoomableImage(
             AsyncImage(
                 model = imageModel,
                 contentDescription = contentDescription,
+                onSuccess = { state ->
+                    onImageSizeKnown?.invoke(state.result.image.width, state.result.image.height)
+                },
                 modifier = Modifier
                     .let { baseModifier ->
                         if (zoomState.isZoomed) {

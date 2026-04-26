@@ -6,239 +6,246 @@ import app.otakureader.feature.reader.model.ReadingDirection
 import app.otakureader.feature.reader.model.TapZoneConfig
 
 /**
- * Sealed class representing all possible user interactions in the reader.
- * These events are dispatched from the UI and handled by the ViewModel.
+ * Sealed interface representing all possible user interactions in the reader.
+ * Events are grouped into domain-specific sealed sub-interfaces so that the
+ * ViewModel can handle an entire domain with a single `is` check, while the
+ * individual leaf types remain accessible at the top level (e.g.
+ * `ReaderEvent.NextPage`) so existing callers are unaffected.
  */
 sealed interface ReaderEvent {
 
-    // ==================== Navigation Events ====================
+    // ──────────────────────────────────────────────────────────────────────────
+    // Domain markers — sealed so Kotlin knows all implementations at compile time
+    // ──────────────────────────────────────────────────────────────────────────
 
-    /**
-     * Navigate to a specific page by index
-     * @param page Zero-based page index
-     */
-    data class OnPageChange(val page: Int) : ReaderEvent
+    /** Events that directly navigate to a page, panel, or position. */
+    sealed interface Navigation : ReaderEvent
 
-    /**
-     * Navigate to a specific panel within the current page (smart panel mode)
-     * @param panel Zero-based panel index
-     */
-    data class OnPanelChange(val panel: Int) : ReaderEvent
+    /** Events that move sequentially through pages. */
+    sealed interface PageNavigation : Navigation
 
-    /**
-     * Change the zoom level
-     * @param zoom Zoom multiplier (1.0 = 100%, 2.0 = 200%)
-     */
-    data class OnZoomChange(val zoom: Float) : ReaderEvent
+    /** Events that move through panels in Smart Panels mode. */
+    sealed interface PanelNavigation : Navigation
 
-    /**
-     * Change the reader display mode
-     * @param mode New reader mode (single, dual, webtoon, smart panels)
-     */
-    data class OnModeChange(val mode: ReaderMode) : ReaderEvent
+    /** Events that change the reader chapter. */
+    sealed interface ChapterNavigation : Navigation
 
-    /**
-     * Change reading direction (LTR/RTL)
-     * @param direction New reading direction
-     */
-    data class OnDirectionChange(val direction: ReadingDirection) : ReaderEvent
+    /** Events that control zoom level. */
+    sealed interface ZoomControl : ReaderEvent
 
-    // ==================== UI Toggle Events ====================
+    /** Events that change global reader display/settings. */
+    sealed interface DisplayControl : ReaderEvent
 
-    /** Toggle the visibility of the reader menu/controls */
-    data object ToggleMenu : ReaderEvent
+    /** Events that manage the overlay UI (menus, gallery, fullscreen). */
+    sealed interface OverlayControl : ReaderEvent
 
-    /** Toggle the page gallery/thumbnail view */
-    data object ToggleGallery : ReaderEvent
+    /** Events related to screen brightness adjustment. */
+    sealed interface BrightnessControl : ReaderEvent
 
-    /**
-     * Set the number of columns in the gallery grid
-     * @param columns Number of columns (2, 3, or 4)
-     */
-    data class SetGalleryColumns(val columns: Int) : ReaderEvent
+    /** Events related to auto-scroll. */
+    sealed interface AutoScrollControl : ReaderEvent
 
-    /** Toggle fullscreen mode */
-    data object ToggleFullscreen : ReaderEvent
+    /** Events that change persistent reader settings. */
+    sealed interface SettingsControl : ReaderEvent
 
-    /** Toggle auto-scroll (webtoon mode) */
-    data object ToggleAutoScroll : ReaderEvent
+    /** Events that change the color filter or tint applied to pages. */
+    sealed interface ColorFilterControl : ReaderEvent
 
-    // ==================== Page Navigation Events ====================
+    /** Events related to SFX translation. */
+    sealed interface SfxControl : ReaderEvent
 
-    /** Navigate to next page (respects reading direction) */
-    data object NextPage : ReaderEvent
+    /** Miscellaneous action events that don't fit another domain. */
+    sealed interface ActionEvent : ReaderEvent
 
-    /** Navigate to previous page (respects reading direction) */
-    data object PrevPage : ReaderEvent
+    // ──────────────────────────────────────────────────────────────────────────
+    // Navigation — page position changes
+    // ──────────────────────────────────────────────────────────────────────────
 
-    /** Navigate to first page of chapter */
-    data object FirstPage : ReaderEvent
+    /** Navigate to a specific page by index (0-based). */
+    data class OnPageChange(val page: Int) : Navigation
 
-    /** Navigate to last page of chapter */
-    data object LastPage : ReaderEvent
+    /** Navigate to a specific panel within the current page (smart panel mode). */
+    data class OnPanelChange(val panel: Int) : PanelNavigation
 
-    // ==================== Panel Navigation Events ====================
+    /** Change the reader display mode (single, dual, webtoon, smart panels). */
+    data class OnModeChange(val mode: ReaderMode) : DisplayControl
 
-    /** Navigate to next panel (smart panel mode) */
-    data object NextPanel : ReaderEvent
+    /** Change reading direction (LTR/RTL/Vertical). */
+    data class OnDirectionChange(val direction: ReadingDirection) : DisplayControl
 
-    /** Navigate to previous panel (smart panel mode) */
-    data object PrevPanel : ReaderEvent
+    /** Navigate to next page (respects reading direction). */
+    data object NextPage : PageNavigation
 
-    /** Navigate to first panel on current page */
-    data object FirstPanel : ReaderEvent
+    /** Navigate to previous page (respects reading direction). */
+    data object PrevPage : PageNavigation
 
-    /** Navigate to last panel on current page */
-    data object LastPanel : ReaderEvent
+    /** Navigate to first page of chapter. */
+    data object FirstPage : PageNavigation
 
-    // ==================== Zoom Events ====================
+    /** Navigate to last page of chapter. */
+    data object LastPage : PageNavigation
 
-    /** Zoom in by a fixed increment */
-    data object ZoomIn : ReaderEvent
+    /** Navigate to next panel (smart panel mode). */
+    data object NextPanel : PanelNavigation
 
-    /** Zoom out by a fixed increment */
-    data object ZoomOut : ReaderEvent
+    /** Navigate to previous panel (smart panel mode). */
+    data object PrevPanel : PanelNavigation
 
-    /** Reset zoom to 100% */
-    data object ResetZoom : ReaderEvent
+    /** Navigate to first panel on current page. */
+    data object FirstPanel : PanelNavigation
 
-    /** Zoom to fit page width */
-    data object ZoomToWidth : ReaderEvent
+    /** Navigate to last panel on current page. */
+    data object LastPanel : PanelNavigation
 
-    /** Zoom to fit page height */
-    data object ZoomToHeight : ReaderEvent
+    /** Load a new chapter; resume from [resumeFromPage] (default 0). */
+    data class LoadChapter(val chapterId: String, val resumeFromPage: Int = 0) : ChapterNavigation
 
-    // ==================== Chapter Events ====================
+    /** Navigate to next chapter. */
+    data object NextChapter : ChapterNavigation
 
-    /**
-     * Load a new chapter
-     * @param chapterId Chapter identifier
-     * @param resumeFromPage Page to resume from (default: 0)
-     */
-    data class LoadChapter(val chapterId: String, val resumeFromPage: Int = 0) : ReaderEvent
+    /** Navigate to previous chapter. */
+    data object PrevChapter : ChapterNavigation
 
-    /** Navigate to next chapter */
-    data object NextChapter : ReaderEvent
+    // ──────────────────────────────────────────────────────────────────────────
+    // Zoom
+    // ──────────────────────────────────────────────────────────────────────────
 
-    /** Navigate to previous chapter */
-    data object PrevChapter : ReaderEvent
+    /** Change the zoom level to an explicit multiplier (1.0 = 100%). */
+    data class OnZoomChange(val zoom: Float) : ZoomControl
 
-    // ==================== Brightness Events ====================
+    /** Zoom in by a fixed increment. */
+    data object ZoomIn : ZoomControl
 
-    /**
-     * Set screen brightness
-     * @param brightness Brightness level (0.1 - 1.5)
-     */
-    data class OnBrightnessChange(val brightness: Float) : ReaderEvent
+    /** Zoom out by a fixed increment. */
+    data object ZoomOut : ZoomControl
 
-    /** Increase brightness */
-    data object BrightnessUp : ReaderEvent
+    /** Reset zoom to 100%. */
+    data object ResetZoom : ZoomControl
 
-    /** Decrease brightness */
-    data object BrightnessDown : ReaderEvent
+    /** Zoom to fit page width. */
+    data object ZoomToWidth : ZoomControl
 
-    // ==================== Auto-scroll Events ====================
+    /** Zoom to fit page height. */
+    data object ZoomToHeight : ZoomControl
 
-    /**
-     * Set auto-scroll speed
-     * @param speed Pixels per second
-     */
-    data class OnAutoScrollSpeedChange(val speed: Float) : ReaderEvent
+    // ──────────────────────────────────────────────────────────────────────────
+    // Overlay / UI controls
+    // ──────────────────────────────────────────────────────────────────────────
 
-    /** Increase auto-scroll speed */
-    data object AutoScrollSpeedUp : ReaderEvent
+    /** Toggle the visibility of the reader menu/controls. */
+    data object ToggleMenu : OverlayControl
 
-    /** Decrease auto-scroll speed */
-    data object AutoScrollSpeedDown : ReaderEvent
+    /** Toggle the page gallery/thumbnail view. */
+    data object ToggleGallery : OverlayControl
 
-    // ==================== Settings Events ====================
+    /** Set the number of columns in the gallery grid (2, 3, or 4). */
+    data class SetGalleryColumns(val columns: Int) : OverlayControl
 
-    /**
-     * Toggle a boolean setting
-     * @param setting Setting identifier
-     */
-    data class ToggleSetting(val setting: ReaderSetting) : ReaderEvent
+    /** Toggle fullscreen mode. */
+    data object ToggleFullscreen : OverlayControl
 
-    /**
-     * Update tap zone configuration
-     * @param config New tap zone configuration
-     */
-    data class UpdateTapZones(val config: TapZoneConfig) : ReaderEvent
+    /** Toggle auto-scroll (webtoon mode). */
+    data object ToggleAutoScroll : AutoScrollControl
 
-    // ==================== Bookmark Events ====================
+    // ──────────────────────────────────────────────────────────────────────────
+    // Brightness
+    // ──────────────────────────────────────────────────────────────────────────
 
-    /** Toggle bookmark on current page */
-    data object ToggleBookmark : ReaderEvent
+    /** Set screen brightness (0.1 – 1.5). */
+    data class OnBrightnessChange(val brightness: Float) : BrightnessControl
 
-    // ==================== Share Events ====================
+    /** Increase brightness by one increment. */
+    data object BrightnessUp : BrightnessControl
 
-    /** Share current page */
-    data object SharePage : ReaderEvent
+    /** Decrease brightness by one increment. */
+    data object BrightnessDown : BrightnessControl
 
-    // ==================== Error Events ====================
+    // ──────────────────────────────────────────────────────────────────────────
+    // Auto-scroll
+    // ──────────────────────────────────────────────────────────────────────────
 
-    /** Dismiss current error */
-    data object DismissError : ReaderEvent
+    /** Set auto-scroll speed in pixels per second. */
+    data class OnAutoScrollSpeedChange(val speed: Float) : AutoScrollControl
 
-    /** Retry failed operation */
-    data object Retry : ReaderEvent
+    /** Increase auto-scroll speed by one increment. */
+    data object AutoScrollSpeedUp : AutoScrollControl
 
-    // ==================== Color Filter Events ====================
+    /** Decrease auto-scroll speed by one increment. */
+    data object AutoScrollSpeedDown : AutoScrollControl
 
-    /**
-     * Set the color filter overlay mode.
-     * @param mode The new [ColorFilterMode] to apply.
-     */
-    data class SetColorFilterMode(val mode: ColorFilterMode) : ReaderEvent
+    // ──────────────────────────────────────────────────────────────────────────
+    // Settings
+    // ──────────────────────────────────────────────────────────────────────────
 
-    /**
-     * Set the custom tint color (ARGB packed int) used when mode is [ColorFilterMode.CUSTOM_TINT].
-     */
-    data class SetCustomTintColor(val color: Long) : ReaderEvent
+    /** Toggle a boolean reader setting. */
+    data class ToggleSetting(val setting: ReaderSetting) : SettingsControl
 
-    /**
-     * Set the per-manga reader background color (ARGB Long), or null to reset to default.
-     */
-    data class SetReaderBackgroundColor(val color: Long?) : ReaderEvent
+    /** Update tap zone configuration. */
+    data class UpdateTapZones(val config: TapZoneConfig) : SettingsControl
 
-    // ==================== Rotation Events ====================
+    // ──────────────────────────────────────────────────────────────────────────
+    // Color filter
+    // ──────────────────────────────────────────────────────────────────────────
 
-    /** Rotate all pages 90° clockwise (cycles through 0°→90°→180°→270°→0°) */
-    data object RotateCW : ReaderEvent
+    /** Set the color filter overlay mode. */
+    data class SetColorFilterMode(val mode: ColorFilterMode) : ColorFilterControl
 
-    /** Reset page rotation to 0° */
-    data object ResetRotation : ReaderEvent
+    /** Set the custom tint color (ARGB Long) used when mode is [ColorFilterMode.CUSTOM_TINT]. */
+    data class SetCustomTintColor(val color: Long) : ColorFilterControl
 
-    companion object {
-        /** Default zoom increment for zoom in/out operations */
-        const val ZOOM_INCREMENT = 0.25f
+    /** Set the per-manga reader background color (ARGB Long), or null for default. */
+    data class SetReaderBackgroundColor(val color: Long?) : ColorFilterControl
 
-        /** Minimum zoom level allowed */
-        const val MIN_ZOOM = 0.5f
+    // ──────────────────────────────────────────────────────────────────────────
+    // Rotation
+    // ──────────────────────────────────────────────────────────────────────────
 
-        /** Maximum zoom level allowed */
-        const val MAX_ZOOM = 5.0f
+    /** Rotate all pages 90° clockwise (cycles 0°→90°→180°→270°→0°). */
+    data object RotateCW : DisplayControl
 
-        /** Brightness adjustment increment */
-        const val BRIGHTNESS_INCREMENT = 0.1f
+    /** Reset page rotation to 0°. */
+    data object ResetRotation : DisplayControl
 
-        /** Auto-scroll speed increment (pixels per second) */
-        const val AUTO_SCROLL_INCREMENT = 50f
-    }
-
-    // ==================== SFX Translation Events ====================
+    // ──────────────────────────────────────────────────────────────────────────
+    // SFX translation
+    // ──────────────────────────────────────────────────────────────────────────
 
     /** Open the SFX translation dialog. */
-    data object OpenSfxDialog : ReaderEvent
+    data object OpenSfxDialog : SfxControl
 
     /** Dismiss the SFX translation dialog. */
-    data object CloseSfxDialog : ReaderEvent
+    data object CloseSfxDialog : SfxControl
 
-    /**
-     * Request a translation for a sound effect text.
-     * @param sfxText The raw sound effect (e.g. "ドカン")
-     */
-    data class TranslateSfx(val sfxText: String) : ReaderEvent
+    /** Request a translation for a sound effect text (e.g. "ドカン"). */
+    data class TranslateSfx(val sfxText: String) : SfxControl
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Action events
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /** Toggle bookmark on current page. */
+    data object ToggleBookmark : ActionEvent
+
+    /** Share the current page image. */
+    data object SharePage : ActionEvent
+
+    /** Dismiss the current error message. */
+    data object DismissError : ActionEvent
+
+    /** Retry the last failed operation. */
+    data object Retry : ActionEvent
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Constants
+    // ──────────────────────────────────────────────────────────────────────────
+
+    companion object {
+        const val ZOOM_INCREMENT = 0.25f
+        const val MIN_ZOOM = 0.5f
+        const val MAX_ZOOM = 5.0f
+        const val BRIGHTNESS_INCREMENT = 0.1f
+        const val AUTO_SCROLL_INCREMENT = 50f
+    }
 }
 
 /**

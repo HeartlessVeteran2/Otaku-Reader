@@ -20,6 +20,9 @@ interface FeedDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertFeedSource(source: FeedSourceEntity): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertFeedSources(sources: List<FeedSourceEntity>)
+
     @Update
     suspend fun updateFeedSource(source: FeedSourceEntity)
 
@@ -66,6 +69,9 @@ interface FeedDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSavedSearch(search: FeedSavedSearchEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSavedSearches(searches: List<FeedSavedSearchEntity>)
 
     @Update
     suspend fun updateSavedSearch(search: FeedSavedSearchEntity)

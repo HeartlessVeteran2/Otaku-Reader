@@ -1,6 +1,7 @@
 package app.otakureader.core.network.di
 
 import app.otakureader.core.network.BuildConfig
+import app.otakureader.core.network.TrackerCertificatePinner
 import app.otakureader.core.network.interceptor.IgnoreGzipInterceptor
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import dagger.Module
@@ -14,7 +15,13 @@ import okhttp3.brotli.BrotliInterceptor
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import java.util.concurrent.TimeUnit
+import javax.inject.Qualifier
 import javax.inject.Singleton
+
+/** Qualifier for the OkHttpClient with tracker-endpoint certificate pinning. */
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class TrackerOkHttp
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -52,6 +59,14 @@ object NetworkModule {
 
         return builder.build()
     }
+
+    @Provides
+    @Singleton
+    @TrackerOkHttp
+    fun provideTrackerOkHttpClient(okHttpClient: OkHttpClient): OkHttpClient =
+        okHttpClient.newBuilder()
+            .certificatePinner(TrackerCertificatePinner.build())
+            .build()
 
     @Provides
     @Singleton

@@ -2,11 +2,13 @@ package app.otakureader.feature.reader.panel
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.util.LruCache
 import app.otakureader.feature.reader.model.ComicPanel
 import app.otakureader.feature.reader.model.ReadingDirection
 import coil3.ImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
+import coil3.request.allowHardware
 import coil3.toBitmap
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -25,8 +27,13 @@ class PanelDetectionService @Inject constructor(
     private val panelDetector: PanelDetector,
     private val panelDetectionRepository: PanelDetectionRepository
 ) {
+    // android.util.LruCache is not thread-safe; all reads and writes are synchronized on this lock.
+    private val cacheLock = Any()
+    private val resultCache = LruCache<String, List<ComicPanel>>(CACHE_SIZE)
+
     /**
-     * Detect panels in a page given its image URL
+     * Detect panels in a page given its image URL.
+     * Results are cached by URL — revisiting a page does not re-invoke ML Kit.
      *
      * @param imageUrl URL of the page image
      * @param readingDirection Reading direction (RTL for manga, LTR for comics)
@@ -37,43 +44,40 @@ class PanelDetectionService @Inject constructor(
         readingDirection: ReadingDirection = ReadingDirection.RTL
     ): List<ComicPanel> = withContext(Dispatchers.IO) {
         try {
-            // Check if panel detection is enabled
             val isEnabled = panelDetectionRepository.panelDetectionEnabled.first()
+            if (!isEnabled || imageUrl == null) return@withContext emptyList()
 
-            if (!isEnabled || imageUrl == null) {
-                return@withContext emptyList()
-            }
+            // Return cached result if available.
+            synchronized(cacheLock) { resultCache.get(imageUrl) }?.let { return@withContext it }
 
-            // Load bitmap from URL using Coil
+            // Load bitmap from URL. allowHardware=false is required: hardware-backed bitmaps
+            // cannot be read by ML Kit's image analyzer (pixel data is GPU-only).
             val bitmap = loadBitmapFromUrl(imageUrl) ?: return@withContext emptyList()
 
-            // Get panel detection config
             val config = panelDetectionRepository.getPanelDetectionConfig(
                 isRightToLeft = readingDirection == ReadingDirection.RTL
             )
 
-            // Detect panels
             val panels = panelDetector.detectPanels(bitmap, config)
 
-            // Clean up bitmap if needed
-            if (!bitmap.isRecycled) {
-                bitmap.recycle()
-            }
+            if (!bitmap.isRecycled) bitmap.recycle()
 
+            synchronized(cacheLock) { resultCache.put(imageUrl, panels) }
             panels
         } catch (e: Exception) {
-            // Log error and return empty list - graceful fallback
             emptyList()
         }
     }
 
     /**
-     * Load bitmap from image URL using Coil
+     * Load bitmap from image URL using Coil.
+     * Hardware bitmaps are explicitly disabled so ML Kit can read pixel data.
      */
     private suspend fun loadBitmapFromUrl(imageUrl: String): Bitmap? = withContext(Dispatchers.IO) {
         try {
             val request = ImageRequest.Builder(context)
                 .data(imageUrl)
+                .allowHardware(false)
                 .build()
 
             when (val result = imageLoader.execute(request)) {
@@ -83,5 +87,9 @@ class PanelDetectionService @Inject constructor(
         } catch (e: Exception) {
             null
         }
+    }
+
+    companion object {
+        private const val CACHE_SIZE = 50
     }
 }
