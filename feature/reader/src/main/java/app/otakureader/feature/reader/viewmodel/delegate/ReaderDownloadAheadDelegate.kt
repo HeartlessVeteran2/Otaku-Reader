@@ -92,8 +92,9 @@ class ReaderDownloadAheadDelegate @Inject constructor(
 
     private fun isOnWifi(): Boolean {
         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
-        val networkInfo = cm.activeNetworkInfo
-        return networkInfo?.type == android.net.ConnectivityManager.TYPE_WIFI
+        val activeNetwork = cm.activeNetwork ?: return false
+        val networkCapabilities = cm.getNetworkCapabilities(activeNetwork) ?: return false
+        return networkCapabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)
     }
 
     private fun Page.effectiveUrl(): String? = when {
