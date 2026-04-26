@@ -76,6 +76,52 @@ class AiRepositoryImpl @Inject constructor(
     }
 
     /**
+     * Generate content from an image plus a text prompt using Gemini Vision.
+     *
+     * Routes through [GeminiClient.generateContent]'s multimodal overload, which
+     * uses the SDK's native `content { image(bitmap); text(prompt) }` builder and
+     * a free-tier capable vision model.
+     *
+     * Wrapped in the same [withTimeout] and exception handling as [generateContent]
+     * for consistency. Image decoding happens on [Dispatchers.IO] and is bounded by
+     * the same timeout as the network call.
+     */
+    override suspend fun generateContentWithImage(
+        imageBytes: ByteArray,
+        prompt: String,
+    ): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            if (!geminiClient.isInitialized()) {
+                return@withContext Result.failure(
+                    IllegalStateException("AI service is not initialized. Please configure an API key.")
+                )
+            }
+            if (imageBytes.isEmpty()) {
+                return@withContext Result.failure(
+                    IllegalArgumentException("imageBytes must not be empty")
+                )
+            }
+
+            val response = withTimeout(timeoutMillis) {
+                geminiClient.generateContent(imageBytes, prompt)
+            }
+            val generatedText = response.text ?: ""
+
+            if (generatedText.isBlank()) {
+                Result.failure(IllegalStateException("AI generated an empty response"))
+            } else {
+                Result.success(generatedText)
+            }
+        } catch (e: TimeoutCancellationException) {
+            Result.failure(IllegalStateException("AI request timed out after ${timeoutMillis}ms", e))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
      * Check if the AI service is properly configured and available.
      *
      * @return true if the service is initialized and ready to use

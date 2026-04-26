@@ -70,6 +70,11 @@ class AiSettingsDelegate @Inject constructor(
                 updateState { it.copy(aiAutoCategorization = autoCat) }
             }
         }
+        scope.launch {
+            aiPreferences.aiOcrTranslation.collect { ocr ->
+                updateState { it.copy(aiOcrTranslation = ocr) }
+            }
+        }
     }
 
     suspend fun handleEvent(
@@ -91,6 +96,7 @@ class AiSettingsDelegate @Inject constructor(
         is SettingsEvent.SetAiSourceIntelligence -> { aiPreferences.setAiSourceIntelligence(event.enabled); true }
         is SettingsEvent.SetAiSmartNotifications -> { aiPreferences.setAiSmartNotifications(event.enabled); true }
         is SettingsEvent.SetAiAutoCategorization -> { aiPreferences.setAiAutoCategorization(event.enabled); true }
+        is SettingsEvent.SetAiOcrTranslation -> { aiPreferences.setAiOcrTranslation(event.enabled); true }
         SettingsEvent.ClearAiCache -> { handleClearAiCache(sendEffect); true }
         else -> false
     }

@@ -3,6 +3,7 @@ package app.otakureader.core.ainoop.di
 import app.otakureader.core.ainoop.NoOpAiRepository
 import app.otakureader.core.ainoop.NoOpCategorizationRepository
 import app.otakureader.core.ainoop.NoOpChapterSummaryRepository
+import app.otakureader.core.ainoop.NoOpOcrTranslationRepository
 import app.otakureader.core.ainoop.NoOpRecommendationRepository
 import app.otakureader.core.ainoop.NoOpSfxTranslationRepository
 import app.otakureader.core.ainoop.NoOpSmartSearchCacheRepository
@@ -10,6 +11,7 @@ import app.otakureader.core.ainoop.NoOpSourceIntelligenceRepository
 import app.otakureader.domain.repository.AiRepository
 import app.otakureader.domain.repository.CategorizationRepository
 import app.otakureader.domain.repository.ChapterSummaryRepository
+import app.otakureader.domain.repository.OcrTranslationRepository
 import app.otakureader.domain.repository.RecommendationRepository
 import app.otakureader.domain.repository.SfxTranslationRepository
 import app.otakureader.domain.repository.SmartSearchCacheRepository
@@ -49,6 +51,10 @@ abstract class NoOpAiModule {
     @Binds
     @Singleton
     abstract fun bindSfxTranslationRepository(impl: NoOpSfxTranslationRepository): SfxTranslationRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindOcrTranslationRepository(impl: NoOpOcrTranslationRepository): OcrTranslationRepository
 
     @Binds
     @Singleton

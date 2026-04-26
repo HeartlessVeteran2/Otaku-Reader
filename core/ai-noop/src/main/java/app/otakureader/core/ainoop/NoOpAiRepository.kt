@@ -23,6 +23,12 @@ class NoOpAiRepository @Inject constructor() : AiRepository {
     override suspend fun generateContent(prompt: String): Result<String> =
         Result.failure(UnsupportedOperationException("AI is not available in this build."))
 
+    override suspend fun generateContentWithImage(
+        imageBytes: ByteArray,
+        prompt: String,
+    ): Result<String> =
+        Result.failure(UnsupportedOperationException("AI is not available in this build."))
+
     override suspend fun isAvailable(): Boolean = false
 
     override suspend fun initialize(apiKey: String) {
