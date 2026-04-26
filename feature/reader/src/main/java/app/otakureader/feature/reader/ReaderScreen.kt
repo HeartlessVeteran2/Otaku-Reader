@@ -83,6 +83,10 @@ import app.otakureader.feature.reader.viewmodel.UltimateReaderViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+// FAB positioning constants
+private val FAB_BASE_OFFSET = 80.dp
+private val FAB_STACKING_INCREMENT = 56.dp
+
 /**
  * Ultimate Reader Screen with full gallery view, tap zones, and all 4 reading modes.
  * 
@@ -356,7 +360,7 @@ fun ReaderScreen(
                 onClick = { viewModel.onEvent(ReaderEvent.OpenSfxDialog) },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(bottom = 80.dp, end = 16.dp),
+                    .padding(bottom = FAB_BASE_OFFSET, end = 16.dp),
                 containerColor = MaterialTheme.colorScheme.secondaryContainer
             ) {
                 Icon(
@@ -369,12 +373,16 @@ fun ReaderScreen(
 
         // OCR text search FAB – always available when pages are loaded and menu is hidden
         if (!state.isMenuVisible && !state.isGalleryOpen && !state.isLoading && state.pages.isNotEmpty()) {
-            val sfxOffset = if (state.sfxTranslationEnabled) 136.dp else 80.dp
+            val ocrFabOffset = if (state.sfxTranslationEnabled) {
+                FAB_BASE_OFFSET + FAB_STACKING_INCREMENT
+            } else {
+                FAB_BASE_OFFSET
+            }
             FloatingActionButton(
                 onClick = { viewModel.onEvent(ReaderEvent.OpenOcrSearch) },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(bottom = sfxOffset, end = 16.dp),
+                    .padding(bottom = ocrFabOffset, end = 16.dp),
                 containerColor = MaterialTheme.colorScheme.tertiaryContainer
             ) {
                 Icon(

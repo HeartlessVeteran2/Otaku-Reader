@@ -32,14 +32,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import app.otakureader.feature.reader.R
 
@@ -174,8 +171,9 @@ fun OcrSearchBottomSheet(
                     )
                 }
             } else {
-                val resultLabel = stringResource(
-                    R.string.reader_ocr_result_count,
+                val resultLabel = pluralStringResource(
+                    R.plurals.reader_ocr_result_count,
+                    matchingPageIndices.size,
                     matchingPageIndices.size,
                 )
                 Text(
@@ -204,7 +202,7 @@ private fun OcrResultRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val contentDesc = "Page $pageNumber"
+    val contentDesc = stringResource(R.string.reader_page_number, pageNumber)
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -221,12 +219,7 @@ private fun OcrResultRow(
         )
         Spacer(modifier = Modifier.width(12.dp))
         Text(
-            text = buildAnnotatedString {
-                append("Page ")
-                withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) {
-                    append(pageNumber.toString())
-                }
-            },
+            text = stringResource(R.string.reader_page_number, pageNumber),
             style = MaterialTheme.typography.bodyLarge,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,

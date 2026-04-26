@@ -315,16 +315,24 @@ data class ReaderState(
     /**
      * Pages (by 0-based index) whose recognized text contains [ocrQuery] (case-insensitive).
      * Empty when the query is blank or no pages have been indexed yet.
+     *
+     * Computed once per immutable [ReaderState] instance so Compose reads do not
+     * repeatedly scan and sort the full OCR text map during recomposition.
      */
-    val ocrMatchingPageIndices: List<Int>
-        get() {
-            val q = ocrQuery.trim()
-            if (q.isBlank()) return emptyList()
-            return ocrPageTexts
-                .filter { (_, text) -> text.contains(q, ignoreCase = true) }
-                .keys
-                .sorted()
-        }
+    val ocrMatchingPageIndices: List<Int> by lazy {
+        computeOcrMatchingPageIndices()
+    }
+
+    private fun computeOcrMatchingPageIndices(): List<Int> {
+        val q = ocrQuery.trim()
+        if (q.isBlank()) return emptyList()
+        return ocrPageTexts
+            .asSequence()
+            .filter { (_, text) -> text.contains(q, ignoreCase = true) }
+            .map { (pageIndex, _) -> pageIndex }
+            .sorted()
+            .toList()
+    }
 }
 
 /** Projection of page content and navigation fields. */

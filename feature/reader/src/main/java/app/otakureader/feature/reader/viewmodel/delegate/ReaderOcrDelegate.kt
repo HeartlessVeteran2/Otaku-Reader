@@ -4,8 +4,10 @@ import app.otakureader.feature.reader.model.ReaderPage
 import app.otakureader.feature.reader.ocr.TextRecognitionService
 import app.otakureader.feature.reader.viewmodel.ReaderState
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
@@ -52,6 +54,7 @@ class ReaderOcrDelegate @Inject constructor(
      * prioritizing pages closest to [currentPageIndex].
      *
      * Only one batch job runs at a time; calling this again cancels the previous one.
+     * Runs on a background dispatcher to prevent UI jank during per-page bookkeeping.
      */
     fun startBatchOcr(
         scope: CoroutineScope,
@@ -60,8 +63,10 @@ class ReaderOcrDelegate @Inject constructor(
         updateState: ((ReaderState) -> ReaderState) -> Unit,
     ) {
         batchJob?.cancel()
-        batchJob = scope.launch {
-            updateState { it.copy(isOcrRunning = true) }
+        batchJob = scope.launch(Dispatchers.Default) {
+            withContext(Dispatchers.Main) {
+                updateState { it.copy(isOcrRunning = true) }
+            }
 
             // Process pages closest to the current page first so results appear quickly.
             val sortedIndices = pages.indices
@@ -72,16 +77,20 @@ class ReaderOcrDelegate @Inject constructor(
                 if (page.imageUrl == null) continue
 
                 val text = textRecognitionService.recognizeText(page.imageUrl)
-                updateState { state ->
-                    // Skip the update if this page was already indexed (e.g. by recognizePage).
-                    if (state.ocrPageTexts.containsKey(index)) return@updateState state
-                    state.copy(
-                        ocrPageTexts = state.ocrPageTexts + (index to text),
-                    )
+                withContext(Dispatchers.Main) {
+                    updateState { state ->
+                        // Skip the update if this page was already indexed (e.g. by recognizePage).
+                        if (state.ocrPageTexts.containsKey(index)) return@updateState state
+                        state.copy(
+                            ocrPageTexts = state.ocrPageTexts + (index to text),
+                        )
+                    }
                 }
             }
 
-            updateState { it.copy(isOcrRunning = false) }
+            withContext(Dispatchers.Main) {
+                updateState { it.copy(isOcrRunning = false) }
+            }
         }
     }
 

@@ -244,6 +244,7 @@ sealed interface ReaderEvent {
     // ──────────────────────────────────────────────────────────────────────────
 
     /** Toggle bookmark on current page. */
+    data object ToggleBookmark : ActionEvent
 
     /** Share the current page image. */
     data object SharePage : ActionEvent

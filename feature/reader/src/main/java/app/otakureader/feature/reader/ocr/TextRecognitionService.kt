@@ -84,6 +84,9 @@ class TextRecognitionService @Inject constructor(
                 is SuccessResult -> result.image.toBitmap()
                 else -> null
             }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            // Re-throw CancellationException to maintain structured cancellation.
+            throw e
         } catch (e: Exception) {
             null
         }
@@ -101,12 +104,26 @@ class TextRecognitionService @Inject constructor(
                 recognizer.process(image)
                     .addOnSuccessListener { result ->
                         if (!bitmap.isRecycled) bitmap.recycle()
-                        cont.resume(result.text)
+                        // Check if the coroutine is still active before resuming.
+                        if (cont.isActive) {
+                            cont.resume(result.text)
+                        }
                     }
                     .addOnFailureListener {
                         if (!bitmap.isRecycled) bitmap.recycle()
-                        cont.resume("")
+                        // Check if the coroutine is still active before resuming.
+                        if (cont.isActive) {
+                            cont.resume("")
+                        }
                     }
+
+                // Handle cancellation: clean up the bitmap if it hasn't been recycled yet.
+                cont.invokeOnCancellation {
+                    if (!bitmap.isRecycled) bitmap.recycle()
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                if (!bitmap.isRecycled) bitmap.recycle()
+                throw e
             } catch (e: Exception) {
                 if (!bitmap.isRecycled) bitmap.recycle()
                 cont.resume("")
