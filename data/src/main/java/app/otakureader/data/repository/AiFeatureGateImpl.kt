@@ -1,4 +1,4 @@
-package app.otakureader.data.ai
+package app.otakureader.data.repository
 
 import app.otakureader.core.preferences.AiPreferences
 import app.otakureader.domain.ai.AiFeature

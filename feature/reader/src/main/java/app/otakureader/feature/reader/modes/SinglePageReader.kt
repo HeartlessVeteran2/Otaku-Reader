@@ -16,7 +16,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import app.otakureader.feature.reader.R
 import app.otakureader.feature.reader.components.ZoomableImage
-import app.otakureader.feature.reader.model.ImageQuality
+import app.otakureader.domain.model.ImageQuality
 import app.otakureader.feature.reader.model.ReaderPage
 import kotlinx.coroutines.flow.distinctUntilChanged
 

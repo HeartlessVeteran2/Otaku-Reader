@@ -6,7 +6,8 @@ plugins {
 
 android {
     namespace = "app.otakureader.baselineprofile"
-    compileSdk = 35
+    // Keep compileSdk in sync with the rest of the project (KotlinAndroid.kt).
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 28

@@ -5,8 +5,8 @@ import android.util.Log
 import androidx.work.WorkManager
 import app.otakureader.data.worker.RecordReadingHistoryWorker
 import app.otakureader.domain.repository.ChapterRepository
-import app.otakureader.feature.reader.repository.ReaderSettingsRepository
-import app.otakureader.feature.reader.viewmodel.ReaderState
+import app.otakureader.data.repository.ReaderSettingsRepository
+import app.otakureader.feature.reader.ReaderState
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.first
@@ -19,7 +19,7 @@ import javax.inject.Inject
  *  - scheduling a [RecordReadingHistoryWorker] when the reader is closed,
  *  - the testable [cleanupOnExit] suspend implementation.
  *
- * Extracted from [app.otakureader.feature.reader.viewmodel.UltimateReaderViewModel]
+ * Extracted from [app.otakureader.feature.reader.ReaderViewModel]
  * so the ViewModel does not directly orchestrate WorkManager and DataStore reads.
  */
 class ReaderHistoryDelegate @Inject constructor(

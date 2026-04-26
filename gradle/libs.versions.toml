@@ -1,9 +1,9 @@
 [versions]
 # Core
-kotlin = "2.3.20"
+kotlin = "2.3.21"
 agp = "9.1.1"
-# D-3: KSP version must match the Kotlin version prefix. Using 2.3.6 (latest available)
-ksp = "2.3.6"
+# D-3: KSP uses standalone versioning since 2.3.x. 2.3.7 is the latest patch release for the 2.3.x series.
+ksp = "2.3.7"
 
 # AndroidX
 core-ktx = "1.18.0"
@@ -14,7 +14,7 @@ palette = "1.0.0"
 exifinterface = "1.3.7"
 
 # Compose
-compose-bom = "2026.03.01"
+compose-bom = "2026.04.01"
 
 # Coroutines
 coroutines = "1.10.2"
@@ -23,12 +23,13 @@ coroutines = "1.10.2"
 lifecycle = "2.10.0"
 
 # Navigation
-navigation = "2.9.7"
-accompanist-navigation = "0.36.0"
+navigation = "2.9.8"
 
 # Hilt
 hilt = "2.59.2"
+# hilt-androidx covers all androidx.hilt artifacts: hilt-navigation-compose, hilt-work, hilt-compiler
 hilt-navigation-compose = "1.3.0"
+hilt-androidx = "1.3.0"
 
 # Room
 room = "2.8.4"
@@ -62,14 +63,14 @@ glance = "1.1.1"
 # Discord RPC is implemented natively in core/discord; no external library needed.
 
 # Google
-play-services-auth = "21.3.0"
+play-services-auth = "21.5.1"
 
 # RxJava (Tachiyomi extension API)
 rxjava = "1.3.8"
 rxandroid = "1.2.1"
 
 # Desugaring
-desugar-jdk-libs = "2.1.4"
+desugar-jdk-libs = "2.1.5"
 
 # Shadow (fat-jar for server module)
 shadow = "9.4.1"
@@ -80,7 +81,7 @@ mlkit-text-recognition = "16.0.1"
 mlkit-image-labeling = "17.0.9"
 
 # Server (D-4: moved from hardcoded strings in server/build.gradle.kts)
-ktor = "3.4.2"
+ktor = "3.4.3"
 logback = "1.5.32"
 
 # Static Analysis (R-4)
@@ -126,7 +127,7 @@ paging-compose = { group = "androidx.paging", name = "paging-compose", version.r
 # Alias matching libs.workmanager.ktx
 workmanager-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workmanager" }
 # AndroidX Browser
-browser = { group = "androidx.browser", name = "browser", version = "1.8.0" }
+browser = { group = "androidx.browser", name = "browser", version = "1.10.0" }
 
 # Compose BOM
 compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "compose-bom" }
@@ -153,16 +154,15 @@ lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-ru
 # Navigation
 navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigation" }
 navigation-runtime = { group = "androidx.navigation", name = "navigation-runtime", version.ref = "navigation" }
-accompanist-navigation-animation = { group = "com.google.accompanist", name = "accompanist-navigation-animation", version.ref = "accompanist-navigation" }
 
 # Hilt
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
 hilt-compiler = { group = "com.google.dagger", name = "hilt-compiler", version.ref = "hilt" }
-hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "hilt-navigation-compose" }
+hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "hilt-androidx" }
 # Hilt WorkManager integration (libs.hilt.work) - uses androidx.hilt group
-hilt-work = { group = "androidx.hilt", name = "hilt-work", version.ref = "hilt-navigation-compose" }
+hilt-work = { group = "androidx.hilt", name = "hilt-work", version.ref = "hilt-androidx" }
 # androidx.hilt annotation processor for @HiltWorker (libs.hilt.work.compiler)
-hilt-work-compiler = { group = "androidx.hilt", name = "hilt-compiler", version.ref = "hilt-navigation-compose" }
+hilt-work-compiler = { group = "androidx.hilt", name = "hilt-compiler", version.ref = "hilt-androidx" }
 
 # Room
 room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
@@ -281,3 +281,4 @@ shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
 # Extra Android plugins for baselineprofile module
 android-test = { id = "com.android.test", version.ref = "agp" }
 baselineprofile = { id = "androidx.baselineprofile", version = "1.3.4" }
+

@@ -54,10 +54,10 @@ import androidx.compose.ui.unit.dp
 import app.otakureader.feature.reader.R
 import app.otakureader.feature.reader.components.ZoomableImage
 import app.otakureader.feature.reader.model.ComicPanel
-import app.otakureader.feature.reader.model.ImageQuality
+import app.otakureader.domain.model.ImageQuality
 import app.otakureader.feature.reader.model.PanelBounds
 import app.otakureader.feature.reader.model.ReaderPage
-import app.otakureader.feature.reader.model.ReadingDirection
+import app.otakureader.domain.model.ReadingDirection
 import kotlinx.coroutines.launch
 
 /**

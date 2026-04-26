@@ -2,12 +2,12 @@ package app.otakureader.feature.reader.viewmodel.delegate
 
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.PrefetchStrategy
-import app.otakureader.feature.reader.model.ColorFilterMode
-import app.otakureader.feature.reader.model.ImageQuality
-import app.otakureader.feature.reader.model.ReaderMode
-import app.otakureader.feature.reader.model.ReadingDirection
-import app.otakureader.feature.reader.repository.ReaderSettingsRepository
-import app.otakureader.feature.reader.viewmodel.ReaderState
+import app.otakureader.domain.model.ColorFilterMode
+import app.otakureader.domain.model.ImageQuality
+import app.otakureader.domain.model.ReaderMode
+import app.otakureader.domain.model.ReadingDirection
+import app.otakureader.data.repository.ReaderSettingsRepository
+import app.otakureader.feature.reader.ReaderState
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
@@ -17,7 +17,7 @@ import javax.inject.Inject
  * Loads all reader settings from [ReaderSettingsRepository] in parallel and applies
  * them to the reader state, factoring in per-manga overrides.
  *
- * Extracted from [app.otakureader.feature.reader.viewmodel.UltimateReaderViewModel]
+ * Extracted from [app.otakureader.feature.reader.ReaderViewModel]
  * to keep the ViewModel focused on event routing and state aggregation.
  *
  * Each `.first()` is a separate suspend point; running them concurrently shaves

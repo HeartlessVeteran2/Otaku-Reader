@@ -1,4 +1,4 @@
-package app.otakureader.feature.reader.viewmodel
+package app.otakureader.feature.reader
 
 import android.content.Context
 import android.os.SystemClock
@@ -15,11 +15,11 @@ import app.otakureader.core.discord.DiscordRpcService
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.DownloadPreferences
 import app.otakureader.core.preferences.AiPreferences
-import app.otakureader.feature.reader.model.ColorFilterMode
-import app.otakureader.feature.reader.model.ImageQuality
-import app.otakureader.feature.reader.model.ReaderMode
+import app.otakureader.domain.model.ColorFilterMode
+import app.otakureader.domain.model.ImageQuality
+import app.otakureader.domain.model.ReaderMode
 import app.otakureader.feature.reader.model.ReaderPage
-import app.otakureader.feature.reader.model.ReadingDirection
+import app.otakureader.domain.model.ReadingDirection
 import app.otakureader.feature.reader.model.ComicPanel
 import app.otakureader.feature.reader.model.PanelBounds
 import app.otakureader.feature.reader.panel.PanelDetectionService
@@ -27,7 +27,7 @@ import app.otakureader.feature.reader.ocr.TextRecognitionService
 import app.otakureader.feature.reader.prefetch.AdaptiveChapterPrefetcher
 import app.otakureader.feature.reader.prefetch.ReadingBehaviorTracker
 import app.otakureader.feature.reader.prefetch.SmartPrefetchManager
-import app.otakureader.feature.reader.repository.ReaderSettingsRepository
+import app.otakureader.data.repository.ReaderSettingsRepository
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderChapterLoaderDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderDiscordDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderDownloadAheadDelegate
@@ -70,7 +70,7 @@ import org.junit.Before
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class UltimateReaderViewModelTest {
+class ReaderViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
     private val mangaId = 1L
@@ -203,7 +203,7 @@ class UltimateReaderViewModelTest {
         unmockkStatic(SystemClock::class)
     }
 
-    private fun createViewModel(): UltimateReaderViewModel {
+    private fun createViewModel(): ReaderViewModel {
         val prefetchDelegate = ReaderPrefetchDelegate(
             context = context,
             smartPrefetchManager = smartPrefetchManager,
@@ -211,7 +211,7 @@ class UltimateReaderViewModelTest {
             chapterPrefetcher = chapterPrefetcher,
             imageLoader = imageLoader,
         )
-        return UltimateReaderViewModel(
+        return ReaderViewModel(
             context = context,
             mangaRepository = mangaRepository,
             chapterRepository = chapterRepository,

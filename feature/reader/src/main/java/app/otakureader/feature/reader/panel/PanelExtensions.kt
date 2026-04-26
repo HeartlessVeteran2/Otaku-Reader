@@ -1,7 +1,7 @@
 package app.otakureader.feature.reader.panel
 
 import app.otakureader.feature.reader.model.ReaderPage
-import app.otakureader.feature.reader.model.ReadingDirection
+import app.otakureader.domain.model.ReadingDirection
 
 /**
  * Extension functions for panel detection on ReaderPage

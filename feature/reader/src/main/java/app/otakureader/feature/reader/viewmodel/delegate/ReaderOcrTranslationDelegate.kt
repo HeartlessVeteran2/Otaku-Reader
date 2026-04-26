@@ -5,7 +5,7 @@ import android.graphics.Bitmap
 import app.otakureader.core.preferences.AiPreferences
 import app.otakureader.domain.usecase.ai.TranslateOcrPageUseCase
 import app.otakureader.feature.reader.model.ReaderPage
-import app.otakureader.feature.reader.viewmodel.ReaderState
+import app.otakureader.feature.reader.ReaderState
 import coil3.ImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult

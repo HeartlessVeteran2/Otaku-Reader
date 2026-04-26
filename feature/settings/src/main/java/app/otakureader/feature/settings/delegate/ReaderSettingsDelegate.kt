@@ -1,8 +1,8 @@
 package app.otakureader.feature.settings.delegate
 
 import app.otakureader.core.preferences.ReaderPreferences
-import app.otakureader.feature.reader.model.ImageQuality
-import app.otakureader.feature.reader.repository.ReaderSettingsRepository
+import app.otakureader.domain.model.ImageQuality
+import app.otakureader.data.repository.ReaderSettingsRepository
 import app.otakureader.feature.settings.SettingsEffect
 import app.otakureader.feature.settings.SettingsEvent
 import app.otakureader.feature.settings.SettingsState

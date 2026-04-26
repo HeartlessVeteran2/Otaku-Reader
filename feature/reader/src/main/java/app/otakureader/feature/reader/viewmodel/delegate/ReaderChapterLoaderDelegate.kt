@@ -13,7 +13,7 @@ import javax.inject.Inject
 /**
  * Loads chapter metadata, manga metadata and page lists for the reader.
  *
- * Extracted from [app.otakureader.feature.reader.viewmodel.UltimateReaderViewModel]
+ * Extracted from [app.otakureader.feature.reader.ReaderViewModel]
  * so that page-loading logic can be tested in isolation.
  */
 class ReaderChapterLoaderDelegate @Inject constructor(

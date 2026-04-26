@@ -1,4 +1,4 @@
-package app.otakureader.data.ai
+package app.otakureader.data.loader
 
 import android.content.Context
 import app.otakureader.domain.repository.PromptLoader

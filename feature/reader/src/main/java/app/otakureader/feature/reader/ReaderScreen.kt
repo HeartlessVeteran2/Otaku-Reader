@@ -60,8 +60,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.otakureader.core.ui.component.EmptyScreen
 import app.otakureader.core.ui.component.LoadingScreen
 import app.otakureader.feature.reader.R
-import app.otakureader.feature.reader.model.ColorFilterMode
-import app.otakureader.feature.reader.model.ReaderMode
+import app.otakureader.domain.model.ColorFilterMode
+import app.otakureader.domain.model.ReaderMode
 import app.otakureader.feature.reader.modes.DualPageReader
 import app.otakureader.feature.reader.modes.SinglePageReader
 import app.otakureader.feature.reader.modes.SmartPanelsReader
@@ -77,10 +77,10 @@ import app.otakureader.feature.reader.ui.ReadingTimerOverlay
 import app.otakureader.feature.reader.ui.ReaderMenuOverlay
 import app.otakureader.feature.reader.ui.SimpleTapZoneOverlay
 import app.otakureader.feature.reader.ui.ZoomIndicator
-import app.otakureader.feature.reader.viewmodel.ReaderEffect
-import app.otakureader.feature.reader.viewmodel.ReaderEvent
-import app.otakureader.feature.reader.viewmodel.TapZone
-import app.otakureader.feature.reader.viewmodel.UltimateReaderViewModel
+import app.otakureader.feature.reader.ReaderEffect
+import app.otakureader.feature.reader.ReaderEvent
+import app.otakureader.feature.reader.TapZone
+import app.otakureader.feature.reader.ReaderViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -105,7 +105,7 @@ fun ReaderScreen(
     chapterId: Long,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: UltimateReaderViewModel = hiltViewModel()
+    viewModel: ReaderViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -200,7 +200,7 @@ fun ReaderScreen(
 
                 // DeX / physical keyboard shortcuts — only act on key-down to avoid double firing.
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                val isRtl = state.readingDirection == app.otakureader.feature.reader.model.ReadingDirection.RTL
+                val isRtl = state.readingDirection == app.otakureader.domain.model.ReadingDirection.RTL
                 when (event.key) {
                     Key.DirectionRight, Key.D, Key.PageDown, Key.Spacebar -> {
                         viewModel.onEvent(if (isRtl) ReaderEvent.PrevPage else ReaderEvent.NextPage); true
@@ -258,7 +258,7 @@ fun ReaderScreen(
                 onLeftTap = { viewModel.onEvent(ReaderEvent.PrevPage) },
                 onCenterTap = { viewModel.onEvent(ReaderEvent.ToggleMenu) },
                 onRightTap = { viewModel.onEvent(ReaderEvent.NextPage) },
-                isRtl = state.readingDirection == app.otakureader.feature.reader.model.ReadingDirection.RTL,
+                isRtl = state.readingDirection == app.otakureader.domain.model.ReadingDirection.RTL,
                 modifier = Modifier.fillMaxSize()
             )
         }
@@ -465,7 +465,7 @@ fun ReaderScreen(
 
 @Composable
 private fun ReaderContent(
-    state: app.otakureader.feature.reader.viewmodel.ReaderState,
+    state: app.otakureader.feature.reader.ReaderState,
     onPageChange: (Int) -> Unit,
     onPanelChange: (Int) -> Unit,
     onTap: (Offset) -> Unit,
@@ -518,7 +518,7 @@ private fun ReaderContent(
                     currentPage = state.currentPage,
                     onPageChange = onPageChange,
                     onTap = onTap,
-                    isRtl = state.readingDirection == app.otakureader.feature.reader.model.ReadingDirection.RTL,
+                    isRtl = state.readingDirection == app.otakureader.domain.model.ReadingDirection.RTL,
                     rotation = state.pageRotation.degrees,
                     cropBordersEnabled = state.cropBordersEnabled,
                     imageQuality = state.imageQuality,

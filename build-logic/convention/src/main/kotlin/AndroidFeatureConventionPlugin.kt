@@ -4,6 +4,7 @@ import org.gradle.api.Project
 import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.dependencies
 import org.gradle.kotlin.dsl.project
+import org.jetbrains.kotlin.compose.compiler.gradle.ComposeCompilerGradlePluginExtension
 
 /**
  * Convention plugin for feature modules.
@@ -21,6 +22,13 @@ class AndroidFeatureConventionPlugin : Plugin<Project> {
 
             extensions.configure<LibraryExtension> {
                 buildFeatures { compose = true }
+            }
+
+            // Wire up the project-wide Compose compiler stability configuration.
+            extensions.configure<ComposeCompilerGradlePluginExtension> {
+                stabilityConfigurationFiles.add(
+                    rootProject.layout.projectDirectory.file("compose_compiler_config.conf")
+                )
             }
 
             dependencies {

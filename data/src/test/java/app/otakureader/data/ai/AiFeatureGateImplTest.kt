@@ -2,6 +2,7 @@ package app.otakureader.data.ai
 
 import app.otakureader.core.preferences.AiPreferences
 import app.otakureader.data.TestConstants.FAKE_API_KEY
+import app.otakureader.data.repository.AiFeatureGateImpl
 import app.otakureader.domain.ai.AiFeature
 import app.otakureader.domain.repository.AiRepository
 import io.mockk.coEvery
