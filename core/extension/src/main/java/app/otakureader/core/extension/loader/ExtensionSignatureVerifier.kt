@@ -22,13 +22,21 @@ class ExtensionSignatureVerifier @Inject constructor(
 ) {
 
     /**
+     * Override hook for tests: allows exercising the Android P+ `signingInfo`
+     * branch on the JVM (where [Build.VERSION.SDK_INT] is `0`). Production code
+     * always uses the real device SDK level.
+     */
+    @Volatile
+    internal var sdkIntProvider: () -> Int = { Build.VERSION.SDK_INT }
+
+    /**
      * Return a hex-encoded SHA-256 of the first signing certificate, or `null` if
      * the certificate cannot be read. Returning `null` lets callers treat the
      * extension as untrusted (fail-closed).
      */
     fun getSignatureHash(packageInfo: PackageInfo): String? {
         return try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            if (sdkIntProvider() >= Build.VERSION_CODES.P) {
                 val signingInfo = packageInfo.signingInfo ?: return null
                 val cert = if (signingInfo.hasMultipleSigners()) {
                     signingInfo.apkContentsSigners?.firstOrNull()

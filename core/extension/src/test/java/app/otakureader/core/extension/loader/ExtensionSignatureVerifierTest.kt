@@ -2,6 +2,8 @@ package app.otakureader.core.extension.loader
 
 import android.content.pm.PackageInfo
 import android.content.pm.Signature
+import android.content.pm.SigningInfo
+import android.os.Build
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -117,5 +119,95 @@ class ExtensionSignatureVerifierTest {
         assertEquals(first, second)
         // SHA-256 hex is 64 chars
         assertEquals(64, first!!.length)
+    }
+
+    // -------------------------------------------------------------------------
+    // Android P+ signingInfo branch — exercised via the testing seam so the
+    // production-path code is covered without requiring Robolectric.
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `getSignatureHash on P+ uses signingCertificateHistory for single signer`() {
+        verifier.sdkIntProvider = { Build.VERSION_CODES.P }
+
+        val bytes = byteArrayOf(0x0A, 0x0B, 0x0C, 0x0D)
+        val expected = MessageDigest.getInstance("SHA-256")
+            .digest(bytes)
+            .joinToString("") { "%02x".format(it) }
+
+        val signature = mockk<Signature>()
+        every { signature.toByteArray() } returns bytes
+
+        val signingInfo = mockk<SigningInfo>()
+        every { signingInfo.hasMultipleSigners() } returns false
+        every { signingInfo.signingCertificateHistory } returns arrayOf(signature)
+
+        val pi = PackageInfo()
+        pi.signingInfo = signingInfo
+
+        assertEquals(expected, verifier.getSignatureHash(pi))
+    }
+
+    @Test
+    fun `getSignatureHash on P+ uses apkContentsSigners for multiple signers`() {
+        verifier.sdkIntProvider = { Build.VERSION_CODES.TIRAMISU }
+
+        val bytes = byteArrayOf(0x11, 0x22, 0x33)
+        val expected = MessageDigest.getInstance("SHA-256")
+            .digest(bytes)
+            .joinToString("") { "%02x".format(it) }
+
+        val signature = mockk<Signature>()
+        every { signature.toByteArray() } returns bytes
+
+        val signingInfo = mockk<SigningInfo>()
+        every { signingInfo.hasMultipleSigners() } returns true
+        every { signingInfo.apkContentsSigners } returns arrayOf(signature)
+
+        val pi = PackageInfo()
+        pi.signingInfo = signingInfo
+
+        assertEquals(expected, verifier.getSignatureHash(pi))
+    }
+
+    @Test
+    fun `getSignatureHash on P+ returns null when signingInfo is null`() {
+        verifier.sdkIntProvider = { Build.VERSION_CODES.P }
+
+        val pi = PackageInfo()
+        pi.signingInfo = null
+
+        assertNull(verifier.getSignatureHash(pi))
+    }
+
+    @Test
+    fun `getSignatureHash on P+ returns null when certificate history is empty`() {
+        verifier.sdkIntProvider = { Build.VERSION_CODES.P }
+
+        val signingInfo = mockk<SigningInfo>()
+        every { signingInfo.hasMultipleSigners() } returns false
+        every { signingInfo.signingCertificateHistory } returns emptyArray()
+
+        val pi = PackageInfo()
+        pi.signingInfo = signingInfo
+
+        assertNull(verifier.getSignatureHash(pi))
+    }
+
+    @Test
+    fun `getSignatureHash on P+ returns null when toByteArray throws`() {
+        verifier.sdkIntProvider = { Build.VERSION_CODES.P }
+
+        val signature = mockk<Signature>()
+        every { signature.toByteArray() } throws RuntimeException("boom")
+
+        val signingInfo = mockk<SigningInfo>()
+        every { signingInfo.hasMultipleSigners() } returns false
+        every { signingInfo.signingCertificateHistory } returns arrayOf(signature)
+
+        val pi = PackageInfo()
+        pi.signingInfo = signingInfo
+
+        assertNull(verifier.getSignatureHash(pi))
     }
 }
