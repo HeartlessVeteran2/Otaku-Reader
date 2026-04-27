@@ -2,8 +2,12 @@ package app.otakureader.feature.library.category
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import app.otakureader.core.database.dao.CategoryDao
-import app.otakureader.core.database.entity.CategoryEntity
+import app.otakureader.domain.repository.CategoryRepository
+import app.otakureader.domain.usecase.CreateCategoryUseCase
+import app.otakureader.domain.usecase.DeleteCategoryUseCase
+import app.otakureader.domain.usecase.ToggleCategoryHiddenUseCase
+import app.otakureader.domain.usecase.ToggleCategoryNsfwUseCase
+import app.otakureader.domain.usecase.UpdateCategoryUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -11,14 +15,18 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class CategoryManagementViewModel @Inject constructor(
-    private val categoryDao: CategoryDao
+    private val categoryRepository: CategoryRepository,
+    private val createCategoryUseCase: CreateCategoryUseCase,
+    private val updateCategoryUseCase: UpdateCategoryUseCase,
+    private val deleteCategoryUseCase: DeleteCategoryUseCase,
+    private val toggleCategoryHiddenUseCase: ToggleCategoryHiddenUseCase,
+    private val toggleCategoryNsfwUseCase: ToggleCategoryNsfwUseCase,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(CategoryManagementState())
@@ -35,18 +43,18 @@ class CategoryManagementViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
 
-            categoryDao.getCategories()
-                .collect { entities ->
-                    val items = entities.map { entity ->
+            categoryRepository.getCategories()
+                .collect { categories ->
+                    val items = categories.map { category ->
                         // Count manga in category
-                        val mangaIds = categoryDao.getMangaIdsByCategoryId(entity.id).first()
+                        val mangaIds = categoryRepository.getMangaIdsByCategoryId(category.id).first()
 
                         CategoryUiItem(
-                            id = entity.id,
-                            name = entity.name,
+                            id = category.id,
+                            name = category.name,
                             mangaCount = mangaIds.size,
-                            isHidden = entity.flags and 1 != 0,
-                            isNsfw = entity.flags and 2 != 0
+                            isHidden = category.isHidden,
+                            isNsfw = category.isNsfw
                         )
                     }.sortedBy { it.name }
 
@@ -71,14 +79,7 @@ class CategoryManagementViewModel @Inject constructor(
     private fun createCategory(name: String) {
         viewModelScope.launch {
             try {
-                val maxOrder = categoryDao.getMaxCategoryOrder()
-                val entity = CategoryEntity(
-                    id = 0, // Auto-generated
-                    name = name.trim(),
-                    order = maxOrder + 1,
-                    flags = 0
-                )
-                categoryDao.insert(entity)
+                createCategoryUseCase(name)
                 _effect.emit(CategoryEffect.DismissDialog)
                 _effect.emit(CategoryEffect.ShowSnackbar("Category created"))
             } catch (e: Exception) {
@@ -90,12 +91,9 @@ class CategoryManagementViewModel @Inject constructor(
     private fun updateCategory(categoryId: Long, name: String) {
         viewModelScope.launch {
             try {
-                val entity = categoryDao.getCategoryById(categoryId)
-                if (entity != null) {
-                    categoryDao.update(entity.copy(name = name.trim()))
-                    _effect.emit(CategoryEffect.DismissDialog)
-                    _effect.emit(CategoryEffect.ShowSnackbar("Category updated"))
-                }
+                updateCategoryUseCase(categoryId, name)
+                _effect.emit(CategoryEffect.DismissDialog)
+                _effect.emit(CategoryEffect.ShowSnackbar("Category updated"))
             } catch (e: Exception) {
                 _effect.emit(CategoryEffect.ShowSnackbar("Failed to update category: ${e.message}"))
             }
@@ -105,7 +103,7 @@ class CategoryManagementViewModel @Inject constructor(
     private fun deleteCategory(categoryId: Long) {
         viewModelScope.launch {
             try {
-                categoryDao.deleteById(categoryId)
+                deleteCategoryUseCase(categoryId)
                 _effect.emit(CategoryEffect.ShowSnackbar("Category deleted"))
             } catch (e: Exception) {
                 _effect.emit(CategoryEffect.ShowSnackbar("Failed to delete category: ${e.message}"))
@@ -116,7 +114,7 @@ class CategoryManagementViewModel @Inject constructor(
     private fun toggleHidden(categoryId: Long) {
         viewModelScope.launch {
             try {
-                categoryDao.toggleHiddenFlag(categoryId)
+                toggleCategoryHiddenUseCase(categoryId)
             } catch (e: Exception) {
                 _effect.emit(CategoryEffect.ShowSnackbar("Failed to toggle hidden: ${e.message}"))
             }
@@ -126,7 +124,7 @@ class CategoryManagementViewModel @Inject constructor(
     private fun toggleNsfw(categoryId: Long) {
         viewModelScope.launch {
             try {
-                categoryDao.toggleNsfwFlag(categoryId)
+                toggleCategoryNsfwUseCase(categoryId)
             } catch (e: Exception) {
                 _effect.emit(CategoryEffect.ShowSnackbar("Failed to toggle NSFW: ${e.message}"))
             }
