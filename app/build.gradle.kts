@@ -103,6 +103,9 @@ dependencies {
     implementation(libs.androidx.glance.appwidget)
     implementation(libs.androidx.glance.material3)
 
+    // Debug tools (LeakCanary — no-op in release builds)
+    debugImplementation(libs.leakcanary)
+
     // Activity Compose
     implementation(libs.androidx.activity.compose)
 }

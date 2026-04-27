@@ -87,6 +87,7 @@ logback = "1.5.32"
 # Static Analysis (R-4)
 detekt = "1.23.8"
 ktlint-gradle = "12.1.2"
+leakcanary = "2.14"
 
 # Testing
 junit = "4.13.2"
@@ -231,6 +232,9 @@ ksp-gradlePlugin = { group = "com.google.devtools.ksp", name = "symbol-processin
 hilt-gradlePlugin = { group = "com.google.dagger", name = "hilt-android-gradle-plugin", version.ref = "hilt" }
 room-gradlePlugin = { group = "androidx.room", name = "room-gradle-plugin", version.ref = "room" }
 compose-gradlePlugin = { group = "org.jetbrains.kotlin", name = "compose-compiler-gradle-plugin", version.ref = "kotlin" }
+
+# Debug tools
+leakcanary = { group = "com.squareup.leakcanary", name = "leakcanary-android", version.ref = "leakcanary" }
 
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }
