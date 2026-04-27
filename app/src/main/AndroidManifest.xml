@@ -169,6 +169,20 @@
                 android:resource="@xml/continue_reading_widget_info" />
         </receiver>
 
+        <!-- Now Reading Widget -->
+        <receiver
+            android:name=".widget.NowReadingWidgetReceiver"
+            android:exported="true"
+            android:label="@string/now_reading_widget_label"
+            android:permission="android.permission.BIND_APPWIDGET">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/now_reading_widget_info" />
+        </receiver>
+
         <!-- Recent Updates Widget -->
         <receiver
             android:name=".widget.RecentUpdatesWidgetReceiver"

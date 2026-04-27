@@ -3,6 +3,10 @@
     <!-- Widget Labels (shown in widget picker) -->
     <string name="continue_reading_widget_label">Continue Reading</string>
     <string name="recent_updates_widget_label">Recent Updates</string>
+    <string name="now_reading_widget_label">Now Reading</string>
+    <string name="now_reading_widget_description">Shows the manga chapter you most recently read</string>
+    <string name="widget_now_reading_title">NOW READING</string>
+    <string name="widget_now_reading_empty">Start reading a manga to see it here</string>
     
     <!-- Widget Descriptions -->
     <string name="continue_reading_widget_description">Quickly resume reading your manga</string>
