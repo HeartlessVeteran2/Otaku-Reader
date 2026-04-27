@@ -179,8 +179,6 @@ class SettingsViewModelTest {
 
     @Test
     fun `SetReadingRemindersEnabled true schedules reminder`() = runTest {
-        every { readingGoalPreferences.reminderHour } returns flowOf(9)
-
         val viewModel = createViewModel()
         viewModel.onEvent(SettingsEvent.SetReadingRemindersEnabled(true))
         testDispatcher.scheduler.advanceUntilIdle()

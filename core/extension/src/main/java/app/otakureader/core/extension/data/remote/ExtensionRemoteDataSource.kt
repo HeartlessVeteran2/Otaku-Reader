@@ -415,6 +415,9 @@ private fun resolveApkUrl(baseUrl: String, apkPath: String): String {
  * Resolve icon URL from relative path or null.
  * When absent from the index (all four standard repos omit it), fall back to the
  * conventional location: {base}/icon/{pkgName}.png — matching Komikku's behaviour.
+ *
+ * For relative paths (e.g. "icon/pkg.png"), prepends the base URL correctly without
+ * duplicating path segments.
  */
 private fun resolveIconUrl(baseUrl: String, iconPath: String?, pkgName: String): String {
     return when {

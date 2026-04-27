@@ -56,7 +56,10 @@ class ReaderSettingsRepository @Inject constructor(
                     }
                 }
             } catch (_: Exception) {
-                // Migration will be retried next session.
+                // Keep the guard in the attempted state for this process so a failure
+                // does not trigger repeated migration launches on subsequent collectors.
+                // A fresh app start will naturally retry because this in-memory flag
+                // will be reinitialized. Migration will be retried next session.
             }
         }
     }
