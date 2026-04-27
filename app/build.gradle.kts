@@ -1,7 +1,8 @@
 import com.github.jk1.license.filter.LicenseBundleNormalizer
-import com.github.jk1.license.render.MarkdownReportRenderer
+import com.github.jk1.license.render.InventoryMarkdownReportRenderer
 import java.io.FileInputStream
 import java.util.Properties
+import org.cyclonedx.model.schema.SchemaVersion
 
 plugins {
     alias(libs.plugins.otakureader.android.application)
@@ -63,20 +64,20 @@ android {
     }
 }
 
-cyclonedxBom {
+// CycloneDX v3.x API - configure tasks directly
+tasks.cyclonedxBom {
     includeConfigs = listOf("fullReleaseRuntimeClasspath")
     skipConfigs = listOf("debugRuntimeClasspath", "testRuntimeClasspath")
     projectType = "application"
-    schemaVersion = "1.6"
-    destination = file("${rootProject.projectDir}/docs")
-    outputName = "sbom"
-    outputFormat = "json"
+    schemaVersion = SchemaVersion.VERSION_16
+    jsonOutput.set(file("${rootProject.projectDir}/docs/sbom.json"))
+    xmlOutput.unsetConvention() // Only generate JSON
     includeLicenseText = false
 }
 
 licenseReport {
     outputDir = "${rootProject.projectDir}/docs"
-    renderers = arrayOf(MarkdownReportRenderer("DEPENDENCY_LICENSES.md"))
+    renderers = arrayOf(InventoryMarkdownReportRenderer("DEPENDENCY_LICENSES.md", "Otaku Reader Dependencies"))
     filters = arrayOf(LicenseBundleNormalizer())
     // Exclude first-party modules from the license report
     excludeGroups = arrayOf("app.otakureader")
