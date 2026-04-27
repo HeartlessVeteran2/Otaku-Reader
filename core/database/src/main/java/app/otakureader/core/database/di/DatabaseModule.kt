@@ -1,6 +1,7 @@
 package app.otakureader.core.database.di
 
 import android.content.Context
+import android.util.Log
 import androidx.room.Room
 import app.otakureader.core.database.BuildConfig
 import app.otakureader.core.database.OtakuReaderDatabase
@@ -10,6 +11,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import java.util.concurrent.Executors
 import javax.inject.Singleton
 
 @Module
@@ -31,6 +33,10 @@ object DatabaseModule {
         // user data (including notes) in production if a migration is missing.
         if (BuildConfig.DEBUG) {
             builder.fallbackToDestructiveMigration(dropAllTables = true)
+            builder.setQueryCallback(
+                { sqlQuery, _ -> Log.d("RoomQuery", sqlQuery) },
+                Executors.newSingleThreadExecutor()
+            )
         }
         return builder.build()
     }
