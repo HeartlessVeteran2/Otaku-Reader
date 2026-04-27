@@ -41,6 +41,8 @@ import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.feature.browse.R
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
+import java.io.File
+import java.net.URI
 import javax.inject.Inject
 
 /**
@@ -68,13 +70,27 @@ fun ExtensionInstallScreen(
     modifier: Modifier = Modifier,
     viewModel: ExtensionInstallViewModel = hiltViewModel()
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
     var urlText by remember { mutableStateOf("") }
     var filePath by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
-    var installResult by remember { mutableStateOf<String?>(null) }
+    var installResultState by remember { mutableStateOf<InstallResultState?>(null) }
+    var urlError by remember { mutableStateOf<String?>(null) }
+    var fileError by remember { mutableStateOf<String?>(null) }
+
+    // String resources for validation errors
+    val errorUrlEmpty = stringResource(R.string.extensions_install_error_url_empty)
+    val errorUrlHttps = stringResource(R.string.extensions_install_error_url_https)
+    val errorUrlInvalid = stringResource(R.string.extensions_install_error_url_invalid)
+    val errorUrlNotApk = stringResource(R.string.extensions_install_error_url_not_apk)
+    val errorFileEmpty = stringResource(R.string.extensions_install_error_file_empty)
+    val errorFileNotExists = stringResource(R.string.extensions_install_error_file_not_exists)
+    val errorFileNotFile = stringResource(R.string.extensions_install_error_file_not_file)
+    val errorFileNotApk = stringResource(R.string.extensions_install_error_file_not_apk)
+    val successMessage = stringResource(R.string.extensions_install_success)
 
     Scaffold(
         modifier = modifier,
@@ -106,28 +122,44 @@ fun ExtensionInstallScreen(
 
             OutlinedTextField(
                 value = urlText,
-                onValueChange = { urlText = it },
+                onValueChange = {
+                    urlText = it
+                    urlError = null
+                },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text(stringResource(R.string.extensions_install_url_label)) },
                 placeholder = { Text(stringResource(R.string.extensions_install_url_placeholder)) },
-                singleLine = true
+                singleLine = true,
+                isError = urlError != null,
+                supportingText = urlError?.let { { Text(it) } }
             )
 
             Button(
                 onClick = {
-                    if (urlText.isNotBlank()) {
-                        scope.launch {
-                            isLoading = true
-                            val result = viewModel.installFromUrl(urlText)
-                            isLoading = false
-                            result.onSuccess {
-                                installResult = "Extension installed successfully!"
-                                snackbarHostState.showSnackbar("Extension installed successfully!")
-                                urlText = ""
-                            }.onFailure { error ->
-                                installResult = "Error: ${error.message}"
-                                snackbarHostState.showSnackbar("Error: ${error.message}")
-                            }
+                    val trimmed = urlText.trim()
+                    val validationError = validateApkUrl(
+                        trimmed,
+                        errorUrlEmpty,
+                        errorUrlHttps,
+                        errorUrlInvalid,
+                        errorUrlNotApk
+                    )
+                    if (validationError != null) {
+                        urlError = validationError
+                        return@Button
+                    }
+                    scope.launch {
+                        isLoading = true
+                        val result = viewModel.installFromUrl(trimmed)
+                        isLoading = false
+                        result.onSuccess {
+                            installResultState = InstallResultState.Success
+                            snackbarHostState.showSnackbar(successMessage)
+                            urlText = ""
+                        }.onFailure { error ->
+                            val errorMsg = context.getString(R.string.extensions_install_error, error.message ?: "Unknown")
+                            installResultState = InstallResultState.Error(errorMsg)
+                            snackbarHostState.showSnackbar(errorMsg)
                         }
                     }
                 },
@@ -156,28 +188,44 @@ fun ExtensionInstallScreen(
 
             OutlinedTextField(
                 value = filePath,
-                onValueChange = { filePath = it },
+                onValueChange = {
+                    filePath = it
+                    fileError = null
+                },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text(stringResource(R.string.extensions_install_file_label)) },
                 placeholder = { Text(stringResource(R.string.extensions_install_file_placeholder)) },
-                singleLine = true
+                singleLine = true,
+                isError = fileError != null,
+                supportingText = fileError?.let { { Text(it) } }
             )
 
             Button(
                 onClick = {
-                    if (filePath.isNotBlank()) {
-                        scope.launch {
-                            isLoading = true
-                            val result = viewModel.installFromFile(filePath)
-                            isLoading = false
-                            result.onSuccess {
-                                installResult = "Extension installed successfully!"
-                                snackbarHostState.showSnackbar("Extension installed successfully!")
-                                filePath = ""
-                            }.onFailure { error ->
-                                installResult = "Error: ${error.message}"
-                                snackbarHostState.showSnackbar("Error: ${error.message}")
-                            }
+                    val trimmed = filePath.trim()
+                    val validationError = validateApkFile(
+                        trimmed,
+                        errorFileEmpty,
+                        errorFileNotExists,
+                        errorFileNotFile,
+                        errorFileNotApk
+                    )
+                    if (validationError != null) {
+                        fileError = validationError
+                        return@Button
+                    }
+                    scope.launch {
+                        isLoading = true
+                        val result = viewModel.installFromFile(trimmed)
+                        isLoading = false
+                        result.onSuccess {
+                            installResultState = InstallResultState.Success
+                            snackbarHostState.showSnackbar(successMessage)
+                            filePath = ""
+                        }.onFailure { error ->
+                            val errorMsg = context.getString(R.string.extensions_install_error, error.message ?: "Unknown")
+                            installResultState = InstallResultState.Error(errorMsg)
+                            snackbarHostState.showSnackbar(errorMsg)
                         }
                     }
                 },
@@ -199,16 +247,23 @@ fun ExtensionInstallScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             // Result Display
-            installResult?.let { result ->
-                Text(
-                    text = result,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (result.startsWith("Error")) {
-                        MaterialTheme.colorScheme.error
-                    } else {
-                        MaterialTheme.colorScheme.primary
+            installResultState?.let { state ->
+                when (state) {
+                    is InstallResultState.Success -> {
+                        Text(
+                            text = successMessage,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
                     }
-                )
+                    is InstallResultState.Error -> {
+                        Text(
+                            text = state.message,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -230,6 +285,46 @@ fun ExtensionInstallScreen(
             )
         }
     }
+}
+
+/**
+ * Represents the result of an extension install operation.
+ */
+private sealed class InstallResultState {
+    object Success : InstallResultState()
+    data class Error(val message: String) : InstallResultState()
+}
+
+private fun validateApkUrl(
+    url: String,
+    errorUrlEmpty: String,
+    errorUrlHttps: String,
+    errorUrlInvalid: String,
+    errorUrlNotApk: String
+): String? {
+    if (url.isBlank()) return errorUrlEmpty
+    if (!url.startsWith("https://")) return errorUrlHttps
+    val uri = runCatching { URI(url) }.getOrNull() ?: return errorUrlInvalid
+    if (!(uri.path ?: "").lowercase().endsWith(".apk")) return errorUrlNotApk
+    return runCatching { uri.toURL() }.fold(
+        onSuccess = { null },
+        onFailure = { errorUrlInvalid }
+    )
+}
+
+private fun validateApkFile(
+    path: String,
+    errorFileEmpty: String,
+    errorFileNotExists: String,
+    errorFileNotFile: String,
+    errorFileNotApk: String
+): String? {
+    if (path.isBlank()) return errorFileEmpty
+    val file = File(path)
+    if (!file.exists()) return errorFileNotExists
+    if (!file.isFile) return errorFileNotFile
+    if (file.extension.lowercase() != "apk") return errorFileNotApk
+    return null
 }
 
 /**

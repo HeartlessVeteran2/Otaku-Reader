@@ -16,8 +16,8 @@ object CrashHandler {
     private const val PREFS_NAME = "crash_report_prefs"
     private const val KEY_CRASH_REPORT = "crash_report"
 
-    // 64 KB cap – large enough for any real stack trace yet safe for SharedPreferences
     private const val MAX_STACK_TRACE_LENGTH = 65_536
+    private const val MAX_TRACE_DEPTH = 30
 
     /**
      * Replace the default [Thread.UncaughtExceptionHandler] with one that persists
@@ -65,12 +65,32 @@ object CrashHandler {
 
     private fun buildReport(thread: Thread, throwable: Throwable): String {
         val trace = throwable.stackTraceToString()
-        val body = if (trace.length > MAX_STACK_TRACE_LENGTH) {
-            trace.take(MAX_STACK_TRACE_LENGTH) + "\n… (truncated)"
+        val sanitized = sanitizeTrace(trace)
+        val body = if (sanitized.length > MAX_STACK_TRACE_LENGTH) {
+            sanitized.take(MAX_STACK_TRACE_LENGTH) + "\n… (truncated)"
         } else {
-            trace
+            sanitized
         }
         return "Thread: ${thread.name}\n\n$body"
+    }
+
+    // Matches key=value or key: value where key is a sensitive term; replaces only the value.
+    private val sensitiveValuePattern = Regex(
+        """(?i)(token|api[_-]?key|password|secret|credential|authorization)(\s*[:=]\s*)\S+"""
+    )
+
+    private fun sanitizeTrace(trace: String): String {
+        return trace.lines()
+            .take(MAX_TRACE_DEPTH)
+            .joinToString("\n") { line ->
+                // Replace absolute filesystem paths before the app package to avoid
+                // leaking device-specific paths (e.g. /data/data/...).
+                val stripped = line.replace(Regex("/[^\\s]*app\\.otakureader"), ".../app.otakureader")
+                // Stack frames (lines starting with "at ") only need path stripping;
+                // redacting by keyword would hide class/method names like getAccessToken.
+                if (stripped.trimStart().startsWith("at ")) stripped
+                else sensitiveValuePattern.replace(stripped) { m -> "${m.groupValues[1]}${m.groupValues[2]}[redacted]" }
+            }
     }
 
     private fun saveReport(context: Context, report: String) {

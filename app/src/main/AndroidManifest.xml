@@ -8,6 +8,11 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Required for extension installation: allows the app to install extension APKs
+         that the user explicitly downloads from trusted extension repositories.
+         This permission is only exercised via ExtensionInstaller after the user
+         confirms the installation through the Extensions screen. No background or
+         automatic APK installs are performed. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <!-- Storage permissions for legacy chapter downloads, local manga, covers, and CBZ export -->
