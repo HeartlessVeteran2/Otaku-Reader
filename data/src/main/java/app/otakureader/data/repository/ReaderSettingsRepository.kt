@@ -9,18 +9,19 @@ import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import app.otakureader.core.common.di.ApplicationScope
 import app.otakureader.domain.model.ColorFilterMode
 import app.otakureader.domain.model.ImageQuality
 import app.otakureader.domain.model.ReaderMode
 import app.otakureader.domain.model.ReadingDirection
 import app.otakureader.domain.model.TapZoneConfig
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -30,7 +31,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class ReaderSettingsRepository @Inject constructor(
-    private val dataStore: DataStore<Preferences>
+    private val dataStore: DataStore<Preferences>,
+    @ApplicationScope private val scope: CoroutineScope,
 ) {
     /**
      * Emits an event whenever a DataStore write fails due to disk I/O.
@@ -38,6 +40,15 @@ class ReaderSettingsRepository @Inject constructor(
      */
     private val _writeFailureEvents = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val writeFailureEvents: Flow<Unit> = _writeFailureEvents.asSharedFlow()
+
+    /**
+     * Guards the legacy [Keys.IMAGE_QUALITY_LEGACY] → [Keys.IMAGE_QUALITY] migration so it is
+     * attempted at most once per process lifetime. Without this flag, every collector of
+     * [imageQuality] (and every emission caused by an unrelated preference change) would
+     * re-launch the migration coroutine, and a transient write failure would cause the
+     * migration to be retried on every read for the entire session.
+     */
+    private val imageQualityMigrationAttempted = AtomicBoolean(false)
 
     // ==================== Reader Mode ====================
     
@@ -293,19 +304,20 @@ class ReaderSettingsRepository @Inject constructor(
             // Migrate from legacy ordinal stored under the old int key.
             val legacyOrdinal = prefs[Keys.IMAGE_QUALITY_LEGACY]
             val migratedQuality = ImageQuality.entries.getOrNull(legacyOrdinal ?: 0) ?: ImageQuality.ORIGINAL
-            
-            // Proactively persist the migrated value (fire-and-forget)
-            CoroutineScope(Dispatchers.IO).launch {
-                try {
+
+            // Proactively persist the migrated value (fire-and-forget) on the repo's own
+            // application scope. Guarded by [imageQualityMigrationAttempted] so a failed
+            // write does not cause the migration to be retried on every subsequent read
+            // for the rest of the session.
+            if (imageQualityMigrationAttempted.compareAndSet(false, true)) {
+                scope.launch {
                     safeEdit { editPrefs ->
                         editPrefs[Keys.IMAGE_QUALITY] = migratedQuality.name
                         editPrefs.remove(Keys.IMAGE_QUALITY_LEGACY)
                     }
-                } catch (_: Exception) {
-                    // Migration failure is non-critical; the in-memory value is still correct
                 }
             }
-            
+
             migratedQuality
         }
     }
