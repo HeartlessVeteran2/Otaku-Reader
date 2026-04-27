@@ -41,7 +41,17 @@ jobs:
       run: ./gradlew assembleFossRelease --no-daemon
       env:
         CI: true
-      
+
+    - name: 📋 Generate Dependency License Report
+      run: ./gradlew :app:generateLicenseReport --no-daemon
+      env:
+        CI: true
+
+    - name: 🔍 Generate SBOM (CycloneDX)
+      run: ./gradlew :app:cyclonedxBom --no-daemon
+      env:
+        CI: true
+
     - name: 📝 Generate Release Notes
       run: |
         echo "## 🌸 Otaku Reader ${{ github.ref_name }}" > RELEASE_NOTES.md
@@ -56,5 +66,7 @@ jobs:
         files: |
           app/build/outputs/apk/full/release/*.apk
           app/build/outputs/apk/foss/release/*.apk
+          docs/sbom.json
+          docs/DEPENDENCY_LICENSES.md
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

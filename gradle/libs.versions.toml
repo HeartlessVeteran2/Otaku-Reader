@@ -84,6 +84,12 @@ mlkit-image-labeling = "17.0.9"
 ktor = "3.4.3"
 logback = "1.5.32"
 
+# License reporting
+license-report = "2.9"
+
+# SBOM generation
+cyclonedx-bom = "1.10.0"
+
 # Static Analysis (R-4)
 detekt = "1.23.8"
 ktlint-gradle = "12.1.2"
@@ -291,6 +297,8 @@ otakureader-android-room = { id = "otakureader.android.room", version = "unspeci
 otakureader-kotlin-library = { id = "otakureader.kotlin.library", version = "unspecified" }
 # Shadow plugin (fat-jar for the Ktor sync server)
 shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
+license-report = { id = "com.github.jk1.dependency-license-report", version.ref = "license-report" }
+cyclonedx-bom = { id = "org.cyclonedx.bom", version.ref = "cyclonedx-bom" }
 
 # Extra Android plugins for baselineprofile module
 android-test = { id = "com.android.test", version.ref = "agp" }

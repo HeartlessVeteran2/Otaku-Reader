@@ -1,7 +1,12 @@
+import com.github.jk1.license.filter.LicenseBundleNormalizer
+import com.github.jk1.license.render.MarkdownReportRenderer
+
 plugins {
     alias(libs.plugins.otakureader.android.application)
     alias(libs.plugins.otakureader.android.hilt)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.license.report)
+    alias(libs.plugins.cyclonedx.bom)
 }
 
 android {
@@ -35,6 +40,26 @@ android {
         create("full") { dimension = "distribution" }
         create("foss") { dimension = "distribution" }
     }
+}
+
+cyclonedxBom {
+    includeConfigs = listOf("fullReleaseRuntimeClasspath")
+    skipConfigs = listOf("debugRuntimeClasspath", "testRuntimeClasspath")
+    projectType = "application"
+    schemaVersion = "1.6"
+    destination = file("${rootProject.projectDir}/docs")
+    outputName = "sbom"
+    outputFormat = "json"
+    includeLicenseText = false
+}
+
+licenseReport {
+    outputDir = "${rootProject.projectDir}/docs"
+    renderers = arrayOf(MarkdownReportRenderer("DEPENDENCY_LICENSES.md"))
+    filters = arrayOf(LicenseBundleNormalizer())
+    // Exclude first-party modules from the license report
+    excludeGroups = arrayOf("app.otakureader")
+    configurations = arrayOf("fullReleaseRuntimeClasspath")
 }
 
 dependencies {
