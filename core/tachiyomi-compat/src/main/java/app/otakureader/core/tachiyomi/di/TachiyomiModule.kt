@@ -1,10 +1,6 @@
 package app.otakureader.core.tachiyomi.di
 
-import android.content.Context
-import app.otakureader.core.preferences.LocalSourcePreferences
 import app.otakureader.core.tachiyomi.health.SourceHealthMonitor
-import app.otakureader.core.tachiyomi.repository.SourceRepositoryImpl
-import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.domain.usecase.source.GetLatestUpdatesUseCase
 import app.otakureader.domain.usecase.source.GetMangaDetailsUseCase
 import app.otakureader.domain.usecase.source.GetPopularMangaUseCase
@@ -13,12 +9,11 @@ import app.otakureader.domain.usecase.source.GetSourcesUseCase
 import app.otakureader.domain.usecase.source.GlobalSearchUseCase
 import app.otakureader.domain.usecase.source.SearchMangaUseCase
 import app.otakureader.domain.usecase.library.AddMangaToLibraryUseCase
+import app.otakureader.domain.repository.SourceRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
-import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import okhttp3.OkHttpClient
 import javax.inject.Singleton
 
 /**
@@ -34,17 +29,6 @@ object TachiyomiModule {
     @Singleton
     fun provideSourceHealthMonitor(): SourceHealthMonitor {
         return SourceHealthMonitor()
-    }
-
-    @Provides
-    @Singleton
-    fun provideSourceRepository(
-        @ApplicationContext context: Context,
-        localSourcePreferences: LocalSourcePreferences,
-        healthMonitor: SourceHealthMonitor,
-        httpClient: OkHttpClient
-    ): SourceRepository {
-        return SourceRepositoryImpl(context, localSourcePreferences, healthMonitor, httpClient)
     }
 
     @Provides

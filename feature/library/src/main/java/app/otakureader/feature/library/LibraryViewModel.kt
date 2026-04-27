@@ -2,12 +2,10 @@ package app.otakureader.feature.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import app.otakureader.core.database.dao.ReadingHistoryDao
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.LibraryPreferences
 import app.otakureader.core.preferences.ReadingGoalPreferences
 import app.otakureader.domain.model.ContentRating
-import app.otakureader.domain.model.ContinueReadingItem
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MangaRecommendation
 import app.otakureader.domain.model.MangaStatus
@@ -16,6 +14,8 @@ import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.StatisticsRepository
 import app.otakureader.domain.tracking.TrackRepository
 import app.otakureader.domain.usecase.DismissRecommendationUseCase
+import app.otakureader.domain.usecase.GetCategoriesUseCase
+import app.otakureader.domain.usecase.GetContinueReadingUseCase
 import app.otakureader.domain.usecase.GetForYouRecommendationsUseCase
 import app.otakureader.domain.usecase.GetLibraryMangaUseCase
 import app.otakureader.domain.usecase.RefreshRecommendationsUseCase
@@ -51,8 +51,8 @@ class LibraryViewModel @Inject constructor(
     private val chapterRepository: ChapterRepository,
     private val downloadRepository: DownloadRepository,
     private val trackRepository: TrackRepository,
-    private val categoryDao: app.otakureader.core.database.dao.CategoryDao,
-    private val readingHistoryDao: ReadingHistoryDao,
+    private val getCategories: GetCategoriesUseCase,
+    private val getContinueReading: GetContinueReadingUseCase,
     private val getForYouRecommendations: GetForYouRecommendationsUseCase,
     private val refreshRecommendations: RefreshRecommendationsUseCase,
     private val dismissRecommendation: DismissRecommendationUseCase,
@@ -204,15 +204,13 @@ class LibraryViewModel @Inject constructor(
 
     private fun loadCategories() {
         viewModelScope.launch {
-            categoryDao.getCategories()
-                .collect { entities ->
-                    val items = entities.map { entity ->
-                        // Count manga in this category
-                        val mangaIds = categoryDao.getMangaIdsByCategoryId(entity.id).first()
+            getCategories()
+                .collect { categories ->
+                    val items = categories.map { category ->
                         CategoryItem(
-                            id = entity.id,
-                            name = entity.name,
-                            count = mangaIds.size
+                            id = category.id,
+                            name = category.name,
+                            count = category.mangaCount
                         )
                     }
                     _state.update { it.copy(categories = items) }
@@ -239,7 +237,7 @@ class LibraryViewModel @Inject constructor(
                 .distinctUntilChanged()
                 .collect { categoryId ->
                     if (categoryId != null) {
-                        val mangaIds = categoryDao.getMangaIdsByCategoryId(categoryId).first()
+                        val mangaIds = getCategories.getMangaIdsForCategory(categoryId).first()
                         _state.update { it.copy(categoryFilterMangaIds = mangaIds.toSet()) }
                     } else {
                         _state.update { it.copy(categoryFilterMangaIds = emptySet()) }
@@ -528,24 +526,7 @@ class LibraryViewModel @Inject constructor(
     }
 
     private fun observeContinueReading() {
-        readingHistoryDao.observeContinueReading()
-            .map { entities ->
-                entities
-                    .distinctBy { it.mangaId }
-                    .take(12)
-                    .map { e ->
-                        ContinueReadingItem(
-                            mangaId = e.mangaId,
-                            chapterId = e.chapterId,
-                            mangaTitle = e.mangaTitle ?: "",
-                            thumbnailUrl = e.mangaThumbnailUrl,
-                            chapterName = e.name,
-                            chapterNumber = e.chapterNumber,
-                            lastPageRead = e.lastPageRead,
-                            readAt = e.readAt
-                        )
-                    }
-            }
+        getContinueReading()
             .onEach { items -> _state.update { it.copy(continueReadingItems = items) } }
             .catch { e -> android.util.Log.w("LibraryViewModel", "observeContinueReading failed", e) }
             .launchIn(viewModelScope)

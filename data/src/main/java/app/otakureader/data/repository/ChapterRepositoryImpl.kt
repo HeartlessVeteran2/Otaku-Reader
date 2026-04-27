@@ -10,6 +10,7 @@ import app.otakureader.core.database.entity.MangaEntity
 import app.otakureader.core.database.entity.MangaStatus as DbMangaStatus
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.ChapterWithHistory
+import app.otakureader.domain.model.ContinueReadingItem
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.model.MangaUpdate
@@ -76,6 +77,26 @@ class ChapterRepositoryImpl @Inject constructor(
     override fun observeHistory(): Flow<List<ChapterWithHistory>> {
         return readingHistoryDao.observeHistoryWithMangaInfo().map { entities ->
             entities.map { it.toDomain() }
+        }
+    }
+
+    override fun observeContinueReading(): Flow<List<ContinueReadingItem>> {
+        return readingHistoryDao.observeContinueReading().map { entities ->
+            entities
+                .distinctBy { it.mangaId }
+                .take(12)
+                .map { e ->
+                    ContinueReadingItem(
+                        mangaId = e.mangaId,
+                        chapterId = e.chapterId,
+                        mangaTitle = e.mangaTitle ?: "",
+                        thumbnailUrl = e.mangaThumbnailUrl,
+                        chapterName = e.name,
+                        chapterNumber = e.chapterNumber,
+                        lastPageRead = e.lastPageRead,
+                        readAt = e.readAt
+                    )
+                }
         }
     }
 
