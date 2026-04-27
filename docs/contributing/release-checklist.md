@@ -37,7 +37,7 @@ Use this checklist when preparing a new release for distribution.
 
 3. **⚠️ BACKUP YOUR KEYSTORE** — Store `otaku-reader-release.keystore` in a secure location (password manager, encrypted drive). **If you lose this file, you cannot update your app.**
 
-### CI/CD Builds (GitHub Actions)
+### CI/CD Builds (GitHub Actions) — one-time setup
 
 1. Go to GitHub → Settings → Secrets and variables → Actions
 2. Add these repository secrets:
@@ -45,6 +45,12 @@ Use this checklist when preparing a new release for distribution.
    - `KEYSTORE_PASSWORD` — Your keystore password
    - `KEY_ALIAS` — `otaku-reader`
    - `KEY_PASSWORD` — Your key password
+
+Once these secrets are set, **signing is fully automated**. The `release.yml`
+workflow decodes `KEYSTORE_BASE64` into a temporary keystore file, writes
+`keystore.properties`, builds `assembleFullRelease` and `assembleFossRelease`,
+verifies both APKs with `apksigner verify`, then deletes the temporary files
+before uploading signed artifacts to the GitHub Release.
 
 ---
 
@@ -59,10 +65,10 @@ Use this checklist when preparing a new release for distribution.
 # app/build/outputs/apk/foss/release/app-foss-release.apk
 ```
 
-### Option 2: CI Build
-1. Push to `main` with updated version
-2. GitHub Actions builds automatically
-3. Download artifacts from workflow run
+### Option 2: CI Build (automated)
+1. Push a `vX.Y.Z` tag to trigger `release.yml`
+2. The workflow builds and **signs** the APKs automatically using the repository secrets
+3. Signed, verified APKs are attached directly to the GitHub Release — no manual upload needed
 
 ---
 
