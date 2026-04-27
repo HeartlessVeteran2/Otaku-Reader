@@ -57,15 +57,54 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
             
-            <!-- Deep link intent filter for manga URLs -->
-            <!-- Note: Using single intent-filter with specific host+path combinations -->
-            <intent-filter>
+            <!-- Deep links: MangaDex -->
+            <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <!-- MangaDex -->
                 <data android:scheme="https" android:host="mangadex.org" android:pathPrefix="/title" />
                 <data android:scheme="https" android:host="www.mangadex.org" android:pathPrefix="/title" />
+            </intent-filter>
+
+            <!-- Deep links: MangaPlus (Shonen Jump) -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="mangaplus.shueisha.co.jp" android:pathPrefix="/titles" />
+            </intent-filter>
+
+            <!-- Deep links: MangaSee -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="mangasee123.com" android:pathPrefix="/manga" />
+            </intent-filter>
+
+            <!-- Deep links: MangaFire -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="mangafire.to" android:pathPrefix="/manga" />
+            </intent-filter>
+
+            <!-- Deep links: Bato.to -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="bato.to" android:pathPrefix="/title" />
+                <data android:scheme="https" android:host="bato.to" android:pathPrefix="/series" />
+            </intent-filter>
+
+            <!-- Deep links: Webtoons -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="www.webtoons.com" android:pathPattern="/.*/list.*" />
             </intent-filter>
             
             <!-- Share intent filter for text/plain -->
