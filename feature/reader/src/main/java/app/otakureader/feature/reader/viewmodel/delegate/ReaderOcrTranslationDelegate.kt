@@ -85,6 +85,7 @@ class ReaderOcrTranslationDelegate @Inject constructor(
         if (pageJobs[pageIndex]?.isActive == true) return
 
         pageJobs[pageIndex] = scope.launch {
+            // Set isOcrTranslating to true when starting a job
             updateState { it.copy(isOcrTranslating = true) }
             try {
                 val bytes = loadAndDownscaleAsJpeg(imageUrl)
@@ -107,7 +108,11 @@ class ReaderOcrTranslationDelegate @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } finally {
-                updateState { it.copy(isOcrTranslating = false) }
+                // Only set isOcrTranslating to false when all jobs are complete
+                updateState { state ->
+                    val hasActiveJobs = pageJobs.values.any { it.isActive && it != coroutineContext[Job] }
+                    state.copy(isOcrTranslating = hasActiveJobs)
+                }
             }
         }.also { job -> job.invokeOnCompletion { pageJobs.remove(pageIndex) } }
     }

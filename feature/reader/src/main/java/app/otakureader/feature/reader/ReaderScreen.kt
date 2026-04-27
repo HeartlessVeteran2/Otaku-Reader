@@ -395,7 +395,8 @@ fun ReaderScreen(
         }
 
         // OCR translation FAB – visible when the Gemini Vision feature is enabled
-        if (state.ocrTranslationEnabled && !state.isMenuVisible && !state.isGalleryOpen && !state.isLoading && state.pages.isNotEmpty()) {
+        // and the current page has an imageUrl (archive/local pages with localPath/bitmap are not yet supported)
+        if (state.ocrTranslationEnabled && !state.isMenuVisible && !state.isGalleryOpen && !state.isLoading && state.pages.isNotEmpty() && state.currentPageData?.imageUrl != null) {
             val translateFabOffset = run {
                 var offset = FAB_BASE_OFFSET
                 if (state.sfxTranslationEnabled) offset += FAB_STACKING_INCREMENT

@@ -100,7 +100,13 @@ fun OcrTranslationBottomSheet(
                         contentPadding = PaddingValues(vertical = 4.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        items(translations, key = { it.originalText + "|" + it.positionHint }) { entry ->
+                        items(
+                            items = translations,
+                            key = { entry ->
+                                // Use a stable hash of all fields to avoid collisions
+                                "${entry.originalText}|${entry.translatedText}|${entry.positionHint}|${entry.confidence}".hashCode()
+                            }
+                        ) { entry ->
                             TranslationRow(entry)
                         }
                     }

@@ -452,8 +452,8 @@ class AiPreferences(
         fun defaultTargetLanguage(): String {
             return runCatching {
                 val locale = java.util.Locale.getDefault()
-                // Use the locale's own display name (e.g. a Japanese device will get
-                // "日本語"), normalised to ASCII for the AI prompt below if possible.
+                // Use the device locale's language name rendered in English
+                // (e.g., a Japanese device will get "Japanese").
                 val display = locale.getDisplayLanguage(java.util.Locale.ENGLISH)
                 display.takeIf { it.isNotBlank() }?.replaceFirstChar { c -> c.titlecase(java.util.Locale.ENGLISH) }
                     ?: "English"
