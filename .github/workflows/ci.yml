@@ -53,7 +53,7 @@ jobs:
 
     - name: 🧪 Run Unit Tests
       id: tests
-      run: ./gradlew testFullDebugUnitTest --no-daemon
+      run: ./gradlew testFullDebugUnitTest testFossDebugUnitTest --no-daemon
       env:
         CI: true
       continue-on-error: true
