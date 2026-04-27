@@ -12,6 +12,7 @@ plugins {
     alias(libs.plugins.shadow) apply false
     // R-4: detekt static analysis applied to all subprojects
     alias(libs.plugins.detekt)
+    alias(libs.plugins.ktlint)
 }
 
 detekt {

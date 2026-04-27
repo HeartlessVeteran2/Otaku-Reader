@@ -18,12 +18,11 @@ import app.otakureader.domain.sync.ConflictResolutionStrategy
 import app.otakureader.domain.sync.SyncManager
 import app.otakureader.domain.sync.SyncProvider
 import app.otakureader.domain.sync.SyncStatus
+import app.otakureader.core.common.di.ApplicationScope
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.max
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -38,10 +37,9 @@ class SyncManagerImpl @Inject constructor(
     private val chapterDao: ChapterDao,
     private val categoryDao: CategoryDao,
     private val syncPreferences: SyncPreferences,
-    private val providers: Set<@JvmSuppressWildcards SyncProvider>
+    private val providers: Set<@JvmSuppressWildcards SyncProvider>,
+    @ApplicationScope private val scope: CoroutineScope
 ) : SyncManager {
-
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val _syncStatus = MutableStateFlow<SyncStatus>(SyncStatus.Disabled)
 
     override val syncStatus: Flow<SyncStatus> = _syncStatus.asStateFlow()

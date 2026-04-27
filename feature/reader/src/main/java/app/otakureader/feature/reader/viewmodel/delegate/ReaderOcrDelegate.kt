@@ -7,7 +7,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
@@ -64,9 +63,7 @@ class ReaderOcrDelegate @Inject constructor(
     ) {
         batchJob?.cancel()
         batchJob = scope.launch(Dispatchers.Default) {
-            withContext(Dispatchers.Main) {
-                updateState { it.copy(isOcrRunning = true) }
-            }
+            updateState { it.copy(isOcrRunning = true) }
 
             // Process pages closest to the current page first so results appear quickly.
             val sortedIndices = pages.indices
@@ -77,20 +74,16 @@ class ReaderOcrDelegate @Inject constructor(
                 if (page.imageUrl == null) continue
 
                 val text = textRecognitionService.recognizeText(page.imageUrl)
-                withContext(Dispatchers.Main) {
-                    updateState { state ->
-                        // Skip the update if this page was already indexed (e.g. by recognizePage).
-                        if (state.ocrPageTexts.containsKey(index)) return@updateState state
-                        state.copy(
-                            ocrPageTexts = state.ocrPageTexts + (index to text),
-                        )
-                    }
+                updateState { state ->
+                    // Skip the update if this page was already indexed (e.g. by recognizePage).
+                    if (state.ocrPageTexts.containsKey(index)) return@updateState state
+                    state.copy(
+                        ocrPageTexts = state.ocrPageTexts + (index to text),
+                    )
                 }
             }
 
-            withContext(Dispatchers.Main) {
-                updateState { it.copy(isOcrRunning = false) }
-            }
+            updateState { it.copy(isOcrRunning = false) }
         }
     }
 

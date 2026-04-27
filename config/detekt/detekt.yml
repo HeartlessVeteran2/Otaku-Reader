@@ -4,7 +4,7 @@
 # Docs: https://detekt.dev/docs/introduction/configurations
 
 build:
-  maxIssues: 1000
+  maxIssues: 0
   excludeCorrectable: false
   excludes:
     - '**/build/**'
