@@ -4,15 +4,12 @@ import app.otakureader.domain.model.ColorFilterMode
 import app.otakureader.domain.model.ImageQuality
 import app.otakureader.domain.model.ReaderMode
 import app.otakureader.domain.model.ReadingDirection
+import app.otakureader.domain.model.TapZoneConfig
 import kotlinx.coroutines.flow.Flow
 
-/**
- * Read-only view of persisted reader settings consumed by the feature layer.
- *
- * All mutations remain in the data-layer implementation; delegates in
- * `:feature:reader` only need to observe settings, not write them.
- */
 interface ReaderSettingsRepository {
+
+    val writeFailureEvents: Flow<Unit>
 
     val readerMode: Flow<ReaderMode>
     val readingDirection: Flow<ReadingDirection>
@@ -58,6 +55,22 @@ interface ReaderSettingsRepository {
     val alwaysShowChapterTransition: Flow<Boolean>
     val showActionsOnLongTap: Flow<Boolean>
     val savePagesToSeparateFolders: Flow<Boolean>
+
+    suspend fun setReaderMode(mode: ReaderMode)
+    suspend fun setBrightness(brightness: Float)
+    suspend fun setReadingDirection(direction: ReadingDirection)
+    suspend fun setKeepScreenOn(enabled: Boolean)
+    suspend fun setShowPageNumber(enabled: Boolean)
+    suspend fun setVolumeKeysEnabled(enabled: Boolean)
+    suspend fun setVolumeKeysInverted(inverted: Boolean)
+    suspend fun setFullscreen(enabled: Boolean)
+    suspend fun setAutoScrollSpeed(speed: Float)
+    suspend fun setDoubleTapZoomEnabled(enabled: Boolean)
+    suspend fun setTapZoneConfig(config: TapZoneConfig)
+    suspend fun setIncognitoMode(enabled: Boolean)
+    suspend fun setColorFilterMode(mode: ColorFilterMode)
+    suspend fun setCustomTintColor(color: Long)
+    suspend fun setCropBordersEnabled(enabled: Boolean)
 
     companion object {
         const val DEFAULT_PRELOAD_PAGES = 3

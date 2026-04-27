@@ -7,9 +7,9 @@ import app.otakureader.data.loader.PageLoader
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.repository.ChapterRepository
+import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.MangaRepository
-import app.otakureader.data.download.DownloadManager
-import app.otakureader.data.download.DownloadProvider
+import app.otakureader.domain.repository.ReaderSettingsRepository
 import app.otakureader.domain.usecase.ai.TranslateSfxUseCase
 import app.otakureader.core.discord.DiscordRpcService
 import app.otakureader.core.preferences.GeneralPreferences
@@ -27,7 +27,6 @@ import app.otakureader.feature.reader.ocr.TextRecognitionService
 import app.otakureader.feature.reader.prefetch.AdaptiveChapterPrefetcher
 import app.otakureader.feature.reader.prefetch.ReadingBehaviorTracker
 import app.otakureader.feature.reader.prefetch.SmartPrefetchManager
-import app.otakureader.data.repository.ReaderSettingsRepository
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderChapterLoaderDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderDiscordDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderDownloadAheadDelegate
@@ -44,15 +43,12 @@ import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.mockkStatic
-import io.mockk.mockkObject
 import io.mockk.runs
 import io.mockk.slot
-import io.mockk.unmockkObject
 import io.mockk.unmockkStatic
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
@@ -85,7 +81,7 @@ class ReaderViewModelTest {
     private lateinit var settingsRepository: ReaderSettingsRepository
     private lateinit var pageLoader: PageLoader
     private lateinit var imageLoader: ImageLoader
-    private lateinit var downloadManager: DownloadManager
+    private lateinit var downloadRepository: DownloadRepository
     private lateinit var downloadPreferences: DownloadPreferences
     private lateinit var discordRpcService: DiscordRpcService
     private lateinit var generalPreferences: GeneralPreferences
@@ -101,16 +97,7 @@ class ReaderViewModelTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         mockkStatic(SystemClock::class)
-        mockkObject(DownloadProvider)
         every { SystemClock.elapsedRealtime() } returns 0L
-        every {
-            DownloadProvider.isChapterDownloaded(
-                any<Context>(),
-                any<String>(),
-                any<String>(),
-                any<String>()
-            )
-        } returns false
         context = mockk(relaxed = true)
         mangaRepository = mockk()
         chapterRepository = mockk()
@@ -118,7 +105,7 @@ class ReaderViewModelTest {
         settingsRepository = mockk()
         pageLoader = mockk()
         imageLoader = mockk(relaxed = true)
-        downloadManager = mockk()
+        downloadRepository = mockk()
         downloadPreferences = mockk()
         discordRpcService = mockk(relaxed = true)
         generalPreferences = mockk()
@@ -159,10 +146,9 @@ class ReaderViewModelTest {
         every { settingsRepository.prefetchOnlyOnWiFi } returns flowOf(false)
         every { downloadPreferences.downloadAheadWhileReading } returns flowOf(0)
         every { downloadPreferences.downloadAheadOnlyOnWifi } returns flowOf(false)
-        every { downloadManager.downloads } returns MutableStateFlow(
-            emptyList<app.otakureader.domain.model.DownloadItem>()
-        )
-        coEvery { downloadManager.enqueue(any()) } just runs
+        every { downloadRepository.observeDownloads() } returns flowOf(emptyList())
+        coEvery { downloadRepository.enqueueChapter(any(), any(), any(), any(), any(), any(), any()) } just runs
+        coEvery { downloadRepository.isChapterDownloaded(any(), any(), any()) } returns false
 
         // Missing settings for updated loadSettings() - added 2025-04-14
         every { settingsRepository.showContentInCutout } returns flowOf(false)
@@ -199,7 +185,6 @@ class ReaderViewModelTest {
     @After
     fun tearDown() {
         Dispatchers.resetMain()
-        unmockkObject(DownloadProvider)
         unmockkStatic(SystemClock::class)
     }
 
@@ -247,7 +232,7 @@ class ReaderViewModelTest {
             downloadAheadDelegate = ReaderDownloadAheadDelegate(
                 context = context,
                 downloadPreferences = downloadPreferences,
-                downloadManager = downloadManager,
+                downloadRepository = downloadRepository,
                 sourceRepository = sourceRepository,
                 chapterRepository = chapterRepository,
                 mangaRepository = mangaRepository,
@@ -790,9 +775,7 @@ class ReaderViewModelTest {
         coEvery { chapterRepository.getChaptersByMangaId(mangaId) } returns flowOf(listOf(currentChapter, nextChapter))
         every { downloadPreferences.downloadAheadWhileReading } returns flowOf(1)
         every { downloadPreferences.downloadAheadOnlyOnWifi } returns flowOf(false)
-        every { downloadManager.downloads } returns MutableStateFlow(
-            emptyList<app.otakureader.domain.model.DownloadItem>()
-        )
+        every { downloadRepository.observeDownloads() } returns flowOf(emptyList())
         coEvery {
             sourceRepository.getPageList(
                 testSourceIdString,
@@ -807,8 +790,20 @@ class ReaderViewModelTest {
         coEvery { chapterRepository.recordHistory(any(), any(), any()) } just runs
         coEvery { chapterRepository.updateChapterProgress(any<Long>(), any<Boolean>(), any<Int>()) } just runs
 
-        val requestSlot = slot<app.otakureader.data.download.ChapterDownloadRequest>()
-        coEvery { downloadManager.enqueue(capture(requestSlot)) } just runs
+        val chapterIdSlot = slot<Long>()
+        val sourceNameSlot = slot<String>()
+        val pageUrlsSlot = slot<List<String>>()
+        coEvery {
+            downloadRepository.enqueueChapter(
+                mangaId = any(),
+                chapterId = capture(chapterIdSlot),
+                sourceName = capture(sourceNameSlot),
+                mangaTitle = any(),
+                chapterTitle = any(),
+                pageUrls = capture(pageUrlsSlot),
+                priority = any(),
+            )
+        } just runs
 
         val vm = createViewModel()
         testDispatcher.scheduler.advanceUntilIdle()
@@ -817,10 +812,10 @@ class ReaderViewModelTest {
         vm.onEvent(ReaderEvent.OnPageChange(4))
         testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify(exactly = 1) { downloadManager.enqueue(any()) }
-        assertEquals(nextChapter.id, requestSlot.captured.chapterId)
-        assertEquals(testSourceIdString, requestSlot.captured.sourceName)
-        assertEquals(2, requestSlot.captured.pageUrls.size)
+        coVerify(exactly = 1) { downloadRepository.enqueueChapter(any(), any(), any(), any(), any(), any(), any()) }
+        assertEquals(nextChapter.id, chapterIdSlot.captured)
+        assertEquals(testSourceIdString, sourceNameSlot.captured)
+        assertEquals(2, pageUrlsSlot.captured.size)
     }
 
     @Test
@@ -851,9 +846,7 @@ class ReaderViewModelTest {
         coEvery { chapterRepository.getChaptersByMangaId(mangaId) } returns flowOf(listOf(currentChapter, nextChapter))
         every { downloadPreferences.downloadAheadWhileReading } returns flowOf(1)
         every { downloadPreferences.downloadAheadOnlyOnWifi } returns flowOf(false)
-        every { downloadManager.downloads } returns MutableStateFlow(
-            emptyList<app.otakureader.domain.model.DownloadItem>()
-        )
+        every { downloadRepository.observeDownloads() } returns flowOf(emptyList())
         coEvery {
             sourceRepository.getPageList(
                 testSourceIdString,
@@ -870,7 +863,7 @@ class ReaderViewModelTest {
         vm.onEvent(ReaderEvent.OnPageChange(4))
         testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify(exactly = 0) { downloadManager.enqueue(any()) }
+        coVerify(exactly = 0) { downloadRepository.enqueueChapter(any(), any(), any(), any(), any(), any(), any()) }
     }
 
     // ── OCR text search tests ────────────────────────────────────────────────
