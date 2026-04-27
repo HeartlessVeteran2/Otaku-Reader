@@ -26,8 +26,9 @@ dependencies {
     implementation(libs.paging.compose)
     implementation(libs.lifecycle.viewmodel.ktx)
     implementation(libs.kotlinx.serialization.json)
-    // T-1: Unit test dependencies for AiKeyValidationTest
+    // T-1: Unit test dependencies for AiKeyValidationTest and SettingsViewModelTest
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.turbine)
 }
