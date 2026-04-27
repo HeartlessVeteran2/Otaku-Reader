@@ -59,6 +59,20 @@
     <string name="extensions_install_file_placeholder">/storage/emulated/0/Download/extension.apk</string>
     <string name="extensions_install_from_file">Install from File</string>
 
+    <!-- ExtensionInstallScreen validation errors -->
+    <string name="extensions_install_error_url_empty">URL cannot be empty</string>
+    <string name="extensions_install_error_url_https">URL must use HTTPS</string>
+    <string name="extensions_install_error_url_invalid">Invalid URL format</string>
+    <string name="extensions_install_error_url_not_apk">URL must point to an .apk file</string>
+    <string name="extensions_install_error_file_empty">File path cannot be empty</string>
+    <string name="extensions_install_error_file_not_exists">File does not exist</string>
+    <string name="extensions_install_error_file_not_file">Path is not a file</string>
+    <string name="extensions_install_error_file_not_apk">File must be an .apk</string>
+
+    <!-- ExtensionInstallScreen result messages -->
+    <string name="extensions_install_success">Extension installed successfully!</string>
+    <string name="extensions_install_error">Error: %s</string>
+
     <!-- SourceFilterSheet -->
     <string name="browse_filters_reset">Reset</string>
     <string name="browse_filters_cancel">Cancel</string>

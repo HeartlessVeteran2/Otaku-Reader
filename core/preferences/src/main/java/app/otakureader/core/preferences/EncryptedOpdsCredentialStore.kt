@@ -53,7 +53,7 @@ class EncryptedOpdsCredentialStore @Inject constructor(
             sharedPreferences.edit()
                 .putString(usernameKey(serverId), username)
                 .putString(passwordKey(serverId), password)
-                .commit()
+                .apply()
         }
     }
 
@@ -63,7 +63,7 @@ class EncryptedOpdsCredentialStore @Inject constructor(
             sharedPreferences.edit()
                 .remove(usernameKey(serverId))
                 .remove(passwordKey(serverId))
-                .commit()
+                .apply()
         }
     }
 

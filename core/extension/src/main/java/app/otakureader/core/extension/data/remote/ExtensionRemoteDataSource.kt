@@ -145,6 +145,12 @@ data class MinifiedExtensionSourceDto(
 
     @SerialName("baseUrl")
     val baseUrl: String,
+
+    @SerialName("versionId")
+    val versionId: Int = 0,
+
+    @SerialName("hasCloudflare")
+    val hasCloudflare: Int = 0,
 )
 
 /**
@@ -373,7 +379,7 @@ private fun MinifiedExtensionDto.toDomain(baseUrl: String): Extension {
         status = InstallStatus.AVAILABLE,
         apkPath = null,
         apkUrl = resolveApkUrl(baseUrl, apk),
-        iconUrl = icon?.let { resolveIconUrl(baseUrl, it) },
+        iconUrl = resolveIconUrl(baseUrl, icon, pkg),
         lang = lang,
         isNsfw = nsfw == 1,
         installDate = null,
@@ -394,25 +400,29 @@ private fun MinifiedExtensionSourceDto.toDomain(): ExtensionSource {
 }
 
 /**
- * Resolve APK URL from relative or absolute path.
- * If the APK path is relative, prepend the repository base URL.
+ * Resolve APK URL from relative filename.
+ * Komikku/Keiyoushi/Suwayomi repos store APKs under {base}/apks/{filename}.
  */
 private fun resolveApkUrl(baseUrl: String, apkPath: String): String {
     return if (apkPath.startsWith("http://") || apkPath.startsWith("https://")) {
         apkPath
     } else {
-        "$baseUrl/${apkPath.trimStart('/')}"
+        "$baseUrl/apks/${apkPath.trimStart('/')}"
     }
 }
 
 /**
- * Resolve icon URL from relative or absolute path.
- * If the icon path is relative, prepend the repository base URL.
+ * Resolve icon URL from relative path or null.
+ * When absent from the index (all four standard repos omit it), fall back to the
+ * conventional location: {base}/icon/{pkgName}.png — matching Komikku's behaviour.
+ *
+ * For relative paths (e.g. "icon/pkg.png"), prepends the base URL correctly without
+ * duplicating path segments.
  */
-private fun resolveIconUrl(baseUrl: String, iconPath: String): String {
-    return if (iconPath.startsWith("http://") || iconPath.startsWith("https://")) {
-        iconPath
-    } else {
-        "$baseUrl/${iconPath.trimStart('/')}"
+private fun resolveIconUrl(baseUrl: String, iconPath: String?, pkgName: String): String {
+    return when {
+        iconPath == null -> "$baseUrl/icon/$pkgName.png"
+        iconPath.startsWith("http://") || iconPath.startsWith("https://") -> iconPath
+        else -> "$baseUrl/${iconPath.trimStart('/')}"
     }
 }
