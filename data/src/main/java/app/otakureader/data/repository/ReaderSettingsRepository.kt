@@ -48,18 +48,16 @@ class ReaderSettingsRepository @Inject constructor(
         // process: a transient write failure will not retry within the same session — a
         // fresh app start will naturally retry because this is an in-memory init block.
         scope.launch {
-            try {
-                dataStore.edit { prefs ->
-                    if (prefs[Keys.IMAGE_QUALITY] == null && prefs[Keys.IMAGE_QUALITY_LEGACY] != null) {
-                        val ordinal = prefs[Keys.IMAGE_QUALITY_LEGACY]!!
-                        val quality = ImageQuality.entries.getOrNull(ordinal) ?: ImageQuality.ORIGINAL
-                        prefs[Keys.IMAGE_QUALITY] = quality.name
-                        prefs.remove(Keys.IMAGE_QUALITY_LEGACY)
-                    }
+            // Use safeEdit so I/O failures are surfaced via writeFailureEvents,
+            // CancellationException is propagated for cooperative cancellation, and
+            // any non-I/O runtime errors are not silently swallowed.
+            safeEdit { prefs ->
+                if (prefs[Keys.IMAGE_QUALITY] == null && prefs[Keys.IMAGE_QUALITY_LEGACY] != null) {
+                    val ordinal = prefs[Keys.IMAGE_QUALITY_LEGACY]!!
+                    val quality = ImageQuality.entries.getOrNull(ordinal) ?: ImageQuality.ORIGINAL
+                    prefs[Keys.IMAGE_QUALITY] = quality.name
+                    prefs.remove(Keys.IMAGE_QUALITY_LEGACY)
                 }
-            } catch (_: Exception) {
-                // Migration failure is non-critical; the imageQuality flow's else-branch
-                // still returns the correct in-memory value derived from the legacy key.
             }
         }
     }
