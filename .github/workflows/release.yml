@@ -32,6 +32,17 @@ jobs:
     - name: 🔑 Grant execute permission for gradlew
       run: chmod +x gradlew
 
+    - name: 🔐 Set up signing keystore
+      run: |
+        KEYSTORE_PATH=$(mktemp --suffix=.jks)
+        echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > "$KEYSTORE_PATH"
+        printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
+          "$KEYSTORE_PATH" \
+          "${{ secrets.KEYSTORE_PASSWORD }}" \
+          "${{ secrets.KEY_ALIAS }}" \
+          "${{ secrets.KEY_PASSWORD }}" > keystore.properties
+        echo "KEYSTORE_PATH=$KEYSTORE_PATH" >> "$GITHUB_ENV"
+
     - name: 🔨 Build Full Release
       run: ./gradlew assembleFullRelease --no-daemon
       env:
@@ -41,7 +52,22 @@ jobs:
       run: ./gradlew assembleFossRelease --no-daemon
       env:
         CI: true
-      
+
+    - name: ✅ Verify APK signatures
+      run: |
+        shopt -s nullglob
+        APKSIGNER="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/apksigner"
+        for apk in app/build/outputs/apk/full/release/*.apk app/build/outputs/apk/foss/release/*.apk; do
+          echo "Verifying $apk"
+          "$APKSIGNER" verify --verbose "$apk"
+        done
+
+    - name: 🗑️ Clean up keystore
+      if: always()
+      run: |
+        rm -f "${{ env.KEYSTORE_PATH }}"
+        rm -f keystore.properties
+
     - name: 📝 Generate Release Notes
       run: |
         echo "## 🌸 Otaku Reader ${{ github.ref_name }}" > RELEASE_NOTES.md
