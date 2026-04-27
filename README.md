@@ -89,7 +89,13 @@ Browse extensions by language, install/update/uninstall, manage repositories, an
 ## 📸 Screenshots
 
 <div align="center">
-<em>Screenshots coming soon</em>
+
+| Library | Browse | Reader | Downloads |
+|---------|--------|--------|-----------|
+| <img src="docs/screenshots/library.png" width="180" alt="Library screen"/> | <img src="docs/screenshots/browse.png" width="180" alt="Browse screen"/> | <img src="docs/screenshots/reader.png" width="180" alt="Reader screen"/> | <img src="docs/screenshots/downloads.png" width="180" alt="Downloads screen"/> |
+
+<em>Screenshots taken on Pixel 7 (Android 14). See <a href="docs/screenshots/">docs/screenshots/</a> for full-resolution images.</em>
+
 </div>
 
 ---
