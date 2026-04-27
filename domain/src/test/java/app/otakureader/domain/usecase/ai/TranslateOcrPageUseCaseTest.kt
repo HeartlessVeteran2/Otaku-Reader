@@ -99,7 +99,7 @@ class TranslateOcrPageUseCaseTest {
         coEvery { aiFeatureGate.isFeatureAvailable(AiFeature.OCR_TRANSLATION) } returns true
         coEvery { ocrRepository.getTranslations(1L, 0) } returns null
         coEvery { aiRepository.generateContentWithImage(sampleBytes, any()) } returns
-            Result.success("こんにちは|Hello|0.95|top-right\n世界|World|0.80|bottom-centre")
+            Result.success("こんにちは|||Hello|||0.95|||top-right\n世界|||World|||0.80|||bottom-centre")
 
         val result = useCase(chapterId = 1L, pageIndex = 0, imageBytes = sampleBytes)
 
@@ -127,7 +127,7 @@ class TranslateOcrPageUseCaseTest {
     }
 
     @Test
-    fun `returns empty list when AI call fails`() = runTest {
+    fun `propagates failure when AI call fails`() = runTest {
         coEvery { aiFeatureGate.isFeatureAvailable(AiFeature.OCR_TRANSLATION) } returns true
         coEvery { ocrRepository.getTranslations(1L, 0) } returns null
         coEvery { aiRepository.generateContentWithImage(sampleBytes, any()) } returns
@@ -135,8 +135,8 @@ class TranslateOcrPageUseCaseTest {
 
         val result = useCase(chapterId = 1L, pageIndex = 0, imageBytes = sampleBytes)
 
-        assertTrue(result.isSuccess)
-        assertTrue(result.getOrNull()!!.isEmpty())
+        assertTrue(result.isFailure)
+        assertEquals("network error", result.exceptionOrNull()?.message)
         coVerify(exactly = 0) { ocrRepository.saveTranslations(any(), any(), any()) }
     }
 
@@ -144,7 +144,7 @@ class TranslateOcrPageUseCaseTest {
 
     @Test
     fun `parseAiResponse skips malformed lines`() {
-        val response = "only_one_part\nこんにちは|Hello|0.9|top"
+        val response = "only_one_part\nこんにちは|||Hello|||0.9|||top"
         val result = useCase.parseAiResponse(response, pageIndex = 2)
 
         assertEquals(1, result.size)
@@ -154,7 +154,7 @@ class TranslateOcrPageUseCaseTest {
 
     @Test
     fun `parseAiResponse coerces confidence to 0-1 range`() {
-        val response = "A|B|1.5|top"
+        val response = "A|||B|||1.5|||top"
         val result = useCase.parseAiResponse(response, pageIndex = 0)
 
         assertEquals(1.0f, result[0].confidence, 0.001f)
@@ -167,12 +167,20 @@ class TranslateOcrPageUseCaseTest {
     }
 
     @Test
-    fun `parseAiResponse preserves position hint with embedded pipes`() {
-        val response = "A|B|0.9|hint|with|extra"
+    fun `parseAiResponse treats position hint as optional`() {
+        val response = "A|||B|||0.9"
         val result = useCase.parseAiResponse(response, pageIndex = 0)
 
         assertEquals(1, result.size)
-        // Anything after the third pipe is preserved as the position hint.
-        assertEquals("hint|with|extra", result[0].positionHint)
+        assertEquals(null, result[0].positionHint)
+    }
+
+    @Test
+    fun `parseAiResponse preserves pipes inside position hint field`() {
+        val response = "A|||B|||0.9|||hint|with|pipes"
+        val result = useCase.parseAiResponse(response, pageIndex = 0)
+
+        assertEquals(1, result.size)
+        assertEquals("hint|with|pipes", result[0].positionHint)
     }
 }

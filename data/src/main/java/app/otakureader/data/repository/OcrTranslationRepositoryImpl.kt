@@ -4,6 +4,7 @@ import app.otakureader.domain.model.OcrTranslation
 import app.otakureader.domain.repository.OcrTranslationRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import java.util.concurrent.ConcurrentHashMap
@@ -35,7 +36,9 @@ class OcrTranslationRepositoryImpl @Inject constructor() : OcrTranslationReposit
     }
 
     override fun observeTranslations(chapterId: Long, pageIndex: Int): Flow<List<OcrTranslation>> {
-        return cacheVersion.map { cache[chapterId to pageIndex] ?: emptyList() }
+        return cacheVersion
+            .map { cache[chapterId to pageIndex] ?: emptyList() }
+            .distinctUntilChanged()
     }
 
     override suspend fun saveTranslations(

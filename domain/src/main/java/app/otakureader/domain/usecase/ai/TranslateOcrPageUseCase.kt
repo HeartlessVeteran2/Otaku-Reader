@@ -77,7 +77,9 @@ class TranslateOcrPageUseCase @Inject constructor(
         val aiResult = aiRepository.generateContentWithImage(imageBytes, prompt)
 
         if (aiResult.isFailure) {
-            return Result.success(emptyList())
+            return Result.failure(
+                aiResult.exceptionOrNull() ?: RuntimeException("AI OCR translation failed")
+            )
         }
 
         val translations = parseAiResponse(aiResult.getOrNull().orEmpty(), pageIndex)
@@ -98,8 +100,8 @@ class TranslateOcrPageUseCase @Inject constructor(
         appendLine("  3. A confidence score from 0.00 to 1.00.")
         appendLine("  4. A brief position description (e.g. 'top-left bubble', 'centre narration').")
         appendLine()
-        appendLine("Respond in this exact format (one entry per line, pipe-separated):")
-        appendLine("ORIGINAL|TRANSLATION|CONFIDENCE|POSITION")
+        appendLine("Respond in this exact format (one entry per line, triple-pipe-separated):")
+        appendLine("ORIGINAL|||TRANSLATION|||CONFIDENCE|||POSITION")
         appendLine()
         appendLine("Do not include any other commentary, headers, or markdown.")
         appendLine("If the page contains no readable text, respond with exactly: NONE")
@@ -118,8 +120,9 @@ class TranslateOcrPageUseCase @Inject constructor(
 
         return trimmed.lines()
             .mapNotNull { line ->
-                val parts = line.split("|", limit = RESPONSE_PARTS_COUNT)
-                if (parts.size < RESPONSE_PARTS_COUNT) return@mapNotNull null
+                val parts = line.split("|||", limit = RESPONSE_PARTS_COUNT)
+                // Require at least ORIGINAL, TRANSLATION, CONFIDENCE; POSITION is optional.
+                if (parts.size < CONFIDENCE_INDEX + 1) return@mapNotNull null
                 val confidence = parts[CONFIDENCE_INDEX].trim().toFloatOrNull() ?: return@mapNotNull null
                 val original = parts[ORIGINAL_INDEX].trim()
                 val translation = parts[TRANSLATION_INDEX].trim()
@@ -129,7 +132,7 @@ class TranslateOcrPageUseCase @Inject constructor(
                     originalText = original,
                     translatedText = translation,
                     confidence = confidence.coerceIn(0f, 1f),
-                    positionHint = parts[POSITION_INDEX].trim().takeIf { it.isNotBlank() },
+                    positionHint = parts.getOrNull(POSITION_INDEX)?.trim()?.takeIf { it.isNotBlank() },
                 )
             }
     }
