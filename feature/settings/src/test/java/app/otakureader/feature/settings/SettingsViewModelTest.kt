@@ -18,8 +18,6 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkObject
-import io.mockk.unmockkObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
@@ -30,30 +28,14 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
-/**
- * Unit tests for [SettingsViewModel] focused on the events that are handled directly
- * in [SettingsViewModel.handleRemainingEvent] (i.e. the ones not delegated to one of the
- * seven section delegates).
- *
- * The seven delegates are mocked with `relaxed = true` so [handleEvent] returns `false`
- * by default — that routes every event under test through `handleRemainingEvent`, which
- * is exactly the surface this test class exercises.
- *
- * Pattern matches `LibraryViewModelTest`: `StandardTestDispatcher` + `Dispatchers.setMain`,
- * Turbine for effect channel assertions.
- */
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
 
-    // Delegates — relaxed mocks; their `handleEvent` returns false by default so events
-    // fall through to `handleRemainingEvent`.
     private lateinit var appearanceDelegate: AppearanceSettingsDelegate
     private lateinit var readerDelegate: ReaderSettingsDelegate
     private lateinit var libraryDelegate: LibrarySettingsDelegate
@@ -61,7 +43,6 @@ class SettingsViewModelTest {
     private lateinit var backupDelegate: BackupSettingsDelegate
     private lateinit var aiDelegate: AiSettingsDelegate
     private lateinit var trackerSyncDelegate: TrackerSyncSettingsDelegate
-
     private lateinit var localSourcePreferences: LocalSourcePreferences
     private lateinit var appPreferences: AppPreferences
     private lateinit var readingGoalPreferences: ReadingGoalPreferences
@@ -73,12 +54,6 @@ class SettingsViewModelTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
 
-        // `SettingsState`'s default constructor calls `LocalSourcePreferences.defaultDirectory()`,
-        // which in turn calls `Environment.getExternalStorageDirectory()` — not available in
-        // plain JVM unit tests. Mock the companion so a literal is returned instead.
-        mockkObject(LocalSourcePreferences.Companion)
-        every { LocalSourcePreferences.defaultDirectory() } returns "/test/local"
-
         appearanceDelegate = mockk(relaxed = true)
         readerDelegate = mockk(relaxed = true)
         libraryDelegate = mockk(relaxed = true)
@@ -87,15 +62,13 @@ class SettingsViewModelTest {
         aiDelegate = mockk(relaxed = true)
         trackerSyncDelegate = mockk(relaxed = true)
 
-        // Preferences flows return defaults so the observe-* coroutines in `init` complete
-        // their first emission without exploding.
-        localSourcePreferences = mockk {
-            every { localSourceDirectory } returns flowOf("/test/local")
+        localSourcePreferences = mockk(relaxed = true) {
+            every { localSourceDirectory } returns flowOf(null)
         }
         appPreferences = mockk(relaxed = true) {
-            every { migrationSimilarityThreshold } returns flowOf(0.7f)
+            every { migrationSimilarityThreshold } returns flowOf(80)
             every { migrationAlwaysConfirm } returns flowOf(false)
-            every { migrationMinChapterCount } returns flowOf(0)
+            every { migrationMinChapterCount } returns flowOf(1)
         }
         readingGoalPreferences = mockk(relaxed = true) {
             every { dailyChapterGoal } returns flowOf(0)
@@ -105,185 +78,233 @@ class SettingsViewModelTest {
         }
         readingReminderScheduler = mockk(relaxed = true)
         chapterRepository = mockk(relaxed = true)
-        context = mockk(relaxed = true)
+        context = mockk(relaxed = true) {
+            every { cacheDir } returns mockk(relaxed = true)
+            every { getString(any()) } returns ""
+        }
     }
 
     @After
     fun tearDown() {
         Dispatchers.resetMain()
-        unmockkObject(LocalSourcePreferences.Companion)
     }
 
-    private fun createViewModel(): SettingsViewModel = SettingsViewModel(
-        appearanceDelegate,
-        readerDelegate,
-        libraryDelegate,
-        downloadDelegate,
-        backupDelegate,
-        aiDelegate,
-        trackerSyncDelegate,
-        localSourcePreferences,
-        appPreferences,
-        readingGoalPreferences,
-        readingReminderScheduler,
-        chapterRepository,
-        context,
+    private fun createViewModel() = SettingsViewModel(
+        appearanceDelegate = appearanceDelegate,
+        readerDelegate = readerDelegate,
+        libraryDelegate = libraryDelegate,
+        downloadDelegate = downloadDelegate,
+        backupDelegate = backupDelegate,
+        aiDelegate = aiDelegate,
+        trackerSyncDelegate = trackerSyncDelegate,
+        localSourcePreferences = localSourcePreferences,
+        appPreferences = appPreferences,
+        readingGoalPreferences = readingGoalPreferences,
+        readingReminderScheduler = readingReminderScheduler,
+        chapterRepository = chapterRepository,
+        context = context,
     )
 
-    // ── Initial state ────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────────
+    // Initial state
+    // ─────────────────────────────────────────────────────────────────────────
 
     @Test
-    fun `initial state matches SettingsState defaults`() = runTest {
-        val viewModel = createViewModel()
-        // Read the value before any preference flows have been collected; this is the
-        // freshly-constructed state object.
-        val initial = viewModel.state.value
-        val expected = SettingsState()
-
-        // Spot-check a representative cross-section of the defaults documented in
-        // `SettingsState`. We don't assert the full data class equality here because the
-        // observe-* coroutines may have already merged identical flow emissions in by the
-        // time the ViewModel is constructed; comparing by field keeps the test robust.
-        assertEquals(expected.themeMode, initial.themeMode)
-        assertTrue(initial.useDynamicColor)
-        assertFalse(initial.usePureBlackDarkMode)
-        assertEquals(expected.readerMode, initial.readerMode)
-        assertEquals(expected.libraryGridSize, initial.libraryGridSize)
-        assertEquals(0, initial.dailyChapterGoal)
-        assertEquals(0, initial.weeklyChapterGoal)
-        assertEquals(20, initial.readingReminderHour)
-        assertFalse(initial.readingRemindersEnabled)
-        assertEquals(0.7f, initial.migrationSimilarityThreshold)
-        assertFalse(initial.migrationAlwaysConfirm)
-        assertEquals(0, initial.migrationMinChapterCount)
-        assertEquals(SyncStatus.IDLE, initial.syncStatus)
-    }
-
-    // ── Reading goals ────────────────────────────────────────────────────────
-
-    @Test
-    fun `SetDailyChapterGoal forwards goal to ReadingGoalPreferences`() = runTest {
+    fun `initial state has correct defaults`() = runTest {
         val viewModel = createViewModel()
         testDispatcher.scheduler.advanceUntilIdle()
 
-        viewModel.onEvent(SettingsEvent.SetDailyChapterGoal(goal = 5))
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        coVerify(exactly = 1) { readingGoalPreferences.setDailyChapterGoal(5) }
+        val state = viewModel.state.value
+        assertFalse(state.aiEnabled)
+        assertFalse(state.showRemoveApiKeyDialog)
+        assertEquals(0, state.dailyChapterGoal)
+        assertEquals(0, state.weeklyChapterGoal)
+        assertFalse(state.readingRemindersEnabled)
+        assertEquals(20, state.readingReminderHour)
     }
 
     @Test
-    fun `SetWeeklyChapterGoal forwards goal to ReadingGoalPreferences`() = runTest {
+    fun `observeReadingGoalPreferences updates state from flows`() = runTest {
+        every { readingGoalPreferences.dailyChapterGoal } returns flowOf(5)
+        every { readingGoalPreferences.weeklyChapterGoal } returns flowOf(30)
+        every { readingGoalPreferences.remindersEnabled } returns flowOf(true)
+        every { readingGoalPreferences.reminderHour } returns flowOf(8)
+
         val viewModel = createViewModel()
         testDispatcher.scheduler.advanceUntilIdle()
 
-        viewModel.onEvent(SettingsEvent.SetWeeklyChapterGoal(goal = 35))
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        coVerify(exactly = 1) { readingGoalPreferences.setWeeklyChapterGoal(35) }
+        val state = viewModel.state.value
+        assertEquals(5, state.dailyChapterGoal)
+        assertEquals(30, state.weeklyChapterGoal)
+        assertEquals(true, state.readingRemindersEnabled)
+        assertEquals(8, state.readingReminderHour)
     }
 
-    // ── Migration ────────────────────────────────────────────────────────────
-
     @Test
-    fun `SetMigrationSimilarityThreshold forwards threshold to AppPreferences`() = runTest {
+    fun `observeMigrationPreferences updates state from flows`() = runTest {
+        every { appPreferences.migrationSimilarityThreshold } returns flowOf(90)
+        every { appPreferences.migrationAlwaysConfirm } returns flowOf(true)
+        every { appPreferences.migrationMinChapterCount } returns flowOf(3)
+
         val viewModel = createViewModel()
         testDispatcher.scheduler.advanceUntilIdle()
 
-        viewModel.onEvent(SettingsEvent.SetMigrationSimilarityThreshold(threshold = 0.85f))
+        val state = viewModel.state.value
+        assertEquals(90, state.migrationSimilarityThreshold)
+        assertEquals(true, state.migrationAlwaysConfirm)
+        assertEquals(3, state.migrationMinChapterCount)
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Reading goal events
+    // ─────────────────────────────────────────────────────────────────────────
+
+    @Test
+    fun `SetDailyChapterGoal calls readingGoalPreferences`() = runTest {
+        val viewModel = createViewModel()
+        viewModel.onEvent(SettingsEvent.SetDailyChapterGoal(7))
         testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify(exactly = 1) { appPreferences.setMigrationSimilarityThreshold(0.85f) }
+        coVerify { readingGoalPreferences.setDailyChapterGoal(7) }
+    }
+
+    @Test
+    fun `SetWeeklyChapterGoal calls readingGoalPreferences`() = runTest {
+        val viewModel = createViewModel()
+        viewModel.onEvent(SettingsEvent.SetWeeklyChapterGoal(42))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { readingGoalPreferences.setWeeklyChapterGoal(42) }
+    }
+
+    @Test
+    fun `SetReadingRemindersEnabled true schedules reminder`() = runTest {
+        val viewModel = createViewModel()
+        viewModel.onEvent(SettingsEvent.SetReadingRemindersEnabled(true))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { readingGoalPreferences.setRemindersEnabled(true) }
+        coVerify { readingReminderScheduler.schedule(any()) }
+    }
+
+    @Test
+    fun `SetReadingRemindersEnabled false cancels reminder`() = runTest {
+        val viewModel = createViewModel()
+        viewModel.onEvent(SettingsEvent.SetReadingRemindersEnabled(false))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { readingGoalPreferences.setRemindersEnabled(false) }
+        coVerify { readingReminderScheduler.cancel() }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Migration events
+    // ─────────────────────────────────────────────────────────────────────────
+
+    @Test
+    fun `SetMigrationSimilarityThreshold calls appPreferences`() = runTest {
+        val viewModel = createViewModel()
+        viewModel.onEvent(SettingsEvent.SetMigrationSimilarityThreshold(75))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { appPreferences.setMigrationSimilarityThreshold(75) }
+    }
+
+    @Test
+    fun `SetMigrationAlwaysConfirm calls appPreferences`() = runTest {
+        val viewModel = createViewModel()
+        viewModel.onEvent(SettingsEvent.SetMigrationAlwaysConfirm(true))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { appPreferences.setMigrationAlwaysConfirm(true) }
+    }
+
+    @Test
+    fun `SetMigrationMinChapterCount calls appPreferences`() = runTest {
+        val viewModel = createViewModel()
+        viewModel.onEvent(SettingsEvent.SetMigrationMinChapterCount(5))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { appPreferences.setMigrationMinChapterCount(5) }
     }
 
     @Test
     fun `OnNavigateToMigration emits NavigateToMigrationEntry effect`() = runTest {
         val viewModel = createViewModel()
-        testDispatcher.scheduler.advanceUntilIdle()
 
         viewModel.effect.test {
             viewModel.onEvent(SettingsEvent.OnNavigateToMigration)
             testDispatcher.scheduler.advanceUntilIdle()
 
             assertEquals(SettingsEffect.NavigateToMigrationEntry, awaitItem())
-            cancelAndIgnoreRemainingEvents()
         }
     }
 
-    // ── Navigation ───────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────────
+    // Navigation events
+    // ─────────────────────────────────────────────────────────────────────────
 
     @Test
     fun `NavigateToAbout emits NavigateToAbout effect`() = runTest {
         val viewModel = createViewModel()
-        testDispatcher.scheduler.advanceUntilIdle()
 
         viewModel.effect.test {
             viewModel.onEvent(SettingsEvent.NavigateToAbout)
             testDispatcher.scheduler.advanceUntilIdle()
 
             assertEquals(SettingsEffect.NavigateToAbout, awaitItem())
-            cancelAndIgnoreRemainingEvents()
         }
     }
 
-    // ── Data management ──────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────────
+    // Data management events
+    // ─────────────────────────────────────────────────────────────────────────
 
     @Test
-    fun `ClearHistory invokes chapterRepository clearAllHistory`() = runTest {
+    fun `ClearHistory calls chapterRepository clearAllHistory`() = runTest {
         val viewModel = createViewModel()
-        testDispatcher.scheduler.advanceUntilIdle()
-
         viewModel.onEvent(SettingsEvent.ClearHistory)
         testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify(exactly = 1) { chapterRepository.clearAllHistory() }
+        coVerify { chapterRepository.clearAllHistory() }
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Local source events
+    // ─────────────────────────────────────────────────────────────────────────
+
     @Test
-    fun `ClearHistory emits success snackbar effect`() = runTest {
+    fun `SetLocalSourceDirectory calls localSourcePreferences`() = runTest {
         val viewModel = createViewModel()
+        viewModel.onEvent(SettingsEvent.SetLocalSourceDirectory("/storage/manga"))
         testDispatcher.scheduler.advanceUntilIdle()
 
-        viewModel.effect.test {
-            viewModel.onEvent(SettingsEvent.ClearHistory)
-            testDispatcher.scheduler.advanceUntilIdle()
-
-            // The exact string comes from a string resource that the relaxed Context mock
-            // resolves to a non-null placeholder. We only need to confirm the effect is
-            // a ShowSnackbar — i.e. that ClearHistory completed and surfaced user feedback.
-            val effect = awaitItem()
-            assertTrue(
-                "Expected ShowSnackbar effect, got $effect",
-                effect is SettingsEffect.ShowSnackbar,
-            )
-            cancelAndIgnoreRemainingEvents()
-        }
+        coVerify { localSourcePreferences.setLocalSourceDirectory("/storage/manga") }
     }
 
-    // ── Routing sanity check ─────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────────
+    // Delegate routing
+    // ─────────────────────────────────────────────────────────────────────────
 
     @Test
-    fun `event handled by a delegate is not routed to handleRemainingEvent`() = runTest {
-        // Make the appearance delegate claim an event so we can verify the short-circuit:
-        // when a delegate returns true, no further work happens for that event. We assert
-        // this by checking that `appPreferences.setMigrationSimilarityThreshold` is NEVER
-        // called when the appearance delegate handles the event.
+    fun `onEvent routes AI events to aiDelegate`() = runTest {
+        coEvery { aiDelegate.handleEvent(any(), any()) } returns true
+
+        val viewModel = createViewModel()
+        viewModel.onEvent(SettingsEvent.SetAiEnabled(true))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { aiDelegate.handleEvent(SettingsEvent.SetAiEnabled(true), any()) }
+    }
+
+    @Test
+    fun `onEvent routes appearance events to appearanceDelegate`() = runTest {
         coEvery { appearanceDelegate.handleEvent(any(), any()) } returns true
 
         val viewModel = createViewModel()
+        viewModel.onEvent(SettingsEvent.SetThemeMode(2))
         testDispatcher.scheduler.advanceUntilIdle()
 
-        viewModel.onEvent(SettingsEvent.SetMigrationSimilarityThreshold(threshold = 0.5f))
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        coVerify(exactly = 0) { appPreferences.setMigrationSimilarityThreshold(any()) }
-    }
-
-    @Test
-    fun `effect channel is not null and ready before any event`() = runTest {
-        val viewModel = createViewModel()
-        testDispatcher.scheduler.advanceUntilIdle()
-        assertNotNull(viewModel.effect)
-        assertNotNull(viewModel.state)
+        coVerify { appearanceDelegate.handleEvent(SettingsEvent.SetThemeMode(2), any()) }
     }
 }

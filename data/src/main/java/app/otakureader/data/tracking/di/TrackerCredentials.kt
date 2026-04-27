@@ -29,12 +29,13 @@ import app.otakureader.data.BuildConfig
  */
 object TrackerCredentials {
     // Kitsu — register at https://kitsu.app/api/edge/
-    val KITSU_CLIENT_ID: String     get() = runCatching { BuildConfig.KITSU_CLIENT_ID }.getOrDefault("")
-    val KITSU_CLIENT_SECRET: String get() = runCatching { BuildConfig.KITSU_CLIENT_SECRET }.getOrDefault("")
+    // No client secret required: Kitsu Authorization Code + PKCE flow for public clients.
+    val KITSU_CLIENT_ID: String get() = runCatching { BuildConfig.KITSU_CLIENT_ID }.getOrDefault("")
+    const val KITSU_REDIRECT_URI = "app.otakureader://kitsu-oauth"
 
     // MyAnimeList — register at https://myanimelist.net/apiconfig
-    val MAL_CLIENT_ID: String     get() = runCatching { BuildConfig.MAL_CLIENT_ID }.getOrDefault("")
-    val MAL_CLIENT_SECRET: String get() = runCatching { BuildConfig.MAL_CLIENT_SECRET }.getOrDefault("")
+    // No client secret required: MAL PKCE flow for public mobile clients.
+    val MAL_CLIENT_ID: String get() = runCatching { BuildConfig.MAL_CLIENT_ID }.getOrDefault("")
     const val MAL_REDIRECT_URI = "app.otakureader://mal-oauth"
 
     // Shikimori — register at https://shikimori.one/oauth/applications
