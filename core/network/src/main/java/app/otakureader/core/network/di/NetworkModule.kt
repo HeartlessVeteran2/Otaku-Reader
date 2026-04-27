@@ -48,11 +48,16 @@ object NetworkModule {
             .addNetworkInterceptor(IgnoreGzipInterceptor())
             .addNetworkInterceptor(BrotliInterceptor)
 
-        // Enable HTTP logging only in debug builds to prevent information disclosure in production
+        // Enable HTTP logging only in debug builds; redact sensitive headers to prevent
+        // token exposure in logcat even when a debug APK reaches a non-developer device.
         if (BuildConfig.DEBUG) {
             builder.addInterceptor(
                 HttpLoggingInterceptor().apply {
-                    level = HttpLoggingInterceptor.Level.BASIC
+                    level = HttpLoggingInterceptor.Level.HEADERS
+                    redactHeader("Authorization")
+                    redactHeader("Cookie")
+                    redactHeader("Set-Cookie")
+                    redactHeader("X-Auth-Token")
                 }
             )
         }

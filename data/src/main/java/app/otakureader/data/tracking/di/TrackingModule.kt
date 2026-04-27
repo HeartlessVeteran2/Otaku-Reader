@@ -205,7 +205,7 @@ object TrackingNetworkModule {
         oauthApi = oauthApi,
         api = api,
         clientId = TrackerCredentials.KITSU_CLIENT_ID,
-        clientSecret = TrackerCredentials.KITSU_CLIENT_SECRET
+        redirectUri = TrackerCredentials.KITSU_REDIRECT_URI
     )
 
     @Provides
@@ -238,7 +238,6 @@ object TrackingNetworkModule {
         oauthApi = oauthApi,
         api = api,
         clientId = TrackerCredentials.MAL_CLIENT_ID,
-        clientSecret = TrackerCredentials.MAL_CLIENT_SECRET,
         redirectUri = TrackerCredentials.MAL_REDIRECT_URI
     )
 

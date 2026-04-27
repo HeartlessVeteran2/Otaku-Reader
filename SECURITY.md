@@ -81,6 +81,17 @@ or changing API keys is recommended.  The Android `BiometricPrompt` API provides
 scaffolding for this.  A future release may gate key-management operations behind a
 biometric challenge — see [BiometricPrompt documentation](https://developer.android.com/training/sign-in/biometric-auth).
 
+## Dangerous Permissions
+
+| Permission | Reason held | Scope |
+|---|---|---|
+| `REQUEST_INSTALL_PACKAGES` | Required to install extension APKs that the user explicitly downloads from trusted repos via the Extensions screen. | User-initiated only; no background installs. |
+| `RECEIVE_BOOT_COMPLETED` | Required to reschedule WorkManager tasks (library updates, backups) after device restart. | No user data is accessed at boot. |
+
+## OPDS Cleartext Policy
+
+The app enforces HTTPS globally via `network_security_config.xml`. OPDS servers reachable only over HTTP will fail with a network error. Users who need HTTP OPDS should use a reverse proxy with TLS termination. The OPDS add-server UI displays a warning when an `http://` URL is entered.
+
 ## Scope
 
 This security policy covers:

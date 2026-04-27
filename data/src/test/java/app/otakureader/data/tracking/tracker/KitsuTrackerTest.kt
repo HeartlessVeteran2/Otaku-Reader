@@ -34,7 +34,7 @@ class KitsuTrackerTest {
     private lateinit var tracker: KitsuTracker
 
     private val clientId = "kitsu-client-id"
-    private val clientSecret = "kitsu-client-secret"
+    private val redirectUri = "app.otakureader://kitsu-oauth"
 
     private val tokenResponse = KitsuTokenResponse(
         accessToken = "kitsu-access-token",
@@ -51,7 +51,7 @@ class KitsuTrackerTest {
     fun setUp() {
         oauthApi = mockk()
         api = mockk()
-        tracker = KitsuTracker(oauthApi, api, clientId, clientSecret)
+        tracker = KitsuTracker(oauthApi, api, clientId, redirectUri)
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -78,13 +78,13 @@ class KitsuTrackerTest {
     }
 
     @Test
-    fun `login with valid credentials returns true and sets isLoggedIn`() = runTest {
+    fun `login with valid PKCE code returns true and sets isLoggedIn`() = runTest {
         coEvery {
             oauthApi.getAccessToken(
-                username = "user@example.com",
-                password = "secret",
+                code = "secret",
+                codeVerifier = "user@example.com",
                 clientId = clientId,
-                clientSecret = clientSecret
+                redirectUri = redirectUri
             )
         } returns tokenResponse
         coEvery { api.getCurrentUser() } returns userResponse()

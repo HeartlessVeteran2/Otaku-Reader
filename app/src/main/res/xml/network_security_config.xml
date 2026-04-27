@@ -1,4 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Global network security policy: all traffic must use HTTPS.
+    Cleartext HTTP is blocked for all domains by default.
+
+    OPDS servers: if a user adds an HTTP (non-HTTPS) OPDS server, the request will
+    fail with a cleartext-not-permitted error. The OPDS add-server UI warns users
+    about this and recommends HTTPS-only servers. No domain-specific cleartext
+    exceptions are granted; users who need HTTP OPDS should use a reverse proxy
+    with TLS termination.
+-->
 <network-security-config>
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>

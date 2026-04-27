@@ -18,7 +18,12 @@ import kotlinx.coroutines.sync.withLock
 /**
  * Tracker implementation for [Kitsu](https://kitsu.app/).
  *
- * Authentication uses the Kitsu OAuth 2.0 password-grant flow.
+ * Authentication uses the Kitsu OAuth 2.0 Authorization Code + PKCE flow.
+ * The caller is responsible for opening the Kitsu authorization URL in a browser
+ * tab, capturing the redirect code, then invoking [login] with:
+ *   - username = PKCE code verifier (generated before launching the browser)
+ *   - password = authorization code received from the redirect
+ *
  * Kitsu status strings map as follows:
  *  - "current"   → READING
  *  - "completed" → COMPLETED
@@ -30,7 +35,7 @@ class KitsuTracker(
     private val oauthApi: KitsuOAuthApi,
     private val api: KitsuApi,
     private val clientId: String,
-    private val clientSecret: String
+    private val redirectUri: String
 ) : Tracker {
 
     override val id: Int = TrackerType.KITSU
@@ -44,13 +49,17 @@ class KitsuTracker(
     override val isLoggedIn: Boolean
         get() = accessToken != null
 
+    /**
+     * @param username the PKCE code verifier generated before opening the browser
+     * @param password the authorization code received from the Kitsu redirect
+     */
     override suspend fun login(username: String, password: String): Boolean {
         return try {
             val response = oauthApi.getAccessToken(
-                username = username,
-                password = password,
+                code = password,
+                codeVerifier = username,
                 clientId = clientId,
-                clientSecret = clientSecret
+                redirectUri = redirectUri
             )
             tokenMutex.withLock {
                 accessToken = response.accessToken
