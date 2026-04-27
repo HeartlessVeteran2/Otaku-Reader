@@ -85,10 +85,10 @@ ktor = "3.4.3"
 logback = "1.5.32"
 
 # License reporting
-license-report = "2.9"
+license-report = "2.8"
 
 # SBOM generation
-cyclonedx-bom = "1.10.0"
+cyclonedx-bom = "1.9.0"
 
 # Static Analysis (R-4)
 detekt = "1.23.8"
