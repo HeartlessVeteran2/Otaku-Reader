@@ -188,13 +188,13 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-      - name: Run ktlint
+      - uses: gradle/actions/setup-gradle@06cde1a1b8e5ba8cf3e3aa93e4ca7a91d07b0d21 # v4.3.0
+      - name: Run ktlint via Gradle
         id: ktlint
         run: |
-          curl -sSLO https://github.com/pinterest/ktlint/releases/download/1.2.1/ktlint
-          chmod +x ktlint
-          # Truncate to first 50 violations to keep the PR comment size reasonable
-          output=$(./ktlint --relative 2>&1 | head -50 || true)
+          # Use the project's pinned ktlint version from the Gradle plugin (no curl-and-run).
+          # Truncate to first 50 violations to keep the PR comment size reasonable.
+          output=$(./gradlew ktlintCheck --no-daemon 2>&1 | grep -E "\.kt:[0-9]" | head -50 || true)
           echo "output<<EOF" >> $GITHUB_OUTPUT
           echo "$output" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
