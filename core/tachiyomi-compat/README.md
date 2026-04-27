@@ -21,7 +21,7 @@ This module provides compatibility with Tachiyomi extensions, allowing Otaku Rea
                             │
 ┌───────────────────────────▼─────────────────────────────────┐
 │         SourceRepositoryImpl (Data)                          │
-│         core/tachiyomi-compat/.../repository                 │
+│         data/src/main/java/.../data/repository               │
 │              - Uses TachiyomiExtensionLoader                 │
 │              - Caches manga lists                            │
 └───────────────────────────┬─────────────────────────────────┘
@@ -73,6 +73,7 @@ This module provides compatibility with Tachiyomi extensions, allowing Otaku Rea
 - Extracts source class names and extension info
 
 ### SourceRepositoryImpl
+- **Moved to `:data`** (`data/src/main/java/app/otakureader/data/repository/`)
 - Implements `SourceRepository` interface
 - Manages loading and caching of sources
 - Provides use case methods for fetching manga

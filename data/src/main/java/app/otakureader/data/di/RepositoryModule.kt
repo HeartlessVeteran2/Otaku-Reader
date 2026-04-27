@@ -11,6 +11,7 @@ import app.otakureader.domain.repository.OpdsRepository
 import app.otakureader.domain.repository.SfxTranslationRepository
 import app.otakureader.domain.repository.SmartSearchCacheRepository
 import app.otakureader.domain.repository.SourceIntelligenceRepository
+import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.domain.repository.StatisticsRepository
 import app.otakureader.data.opds.OpdsRepositoryImpl
 import app.otakureader.data.repository.CategorizationRepositoryImpl
@@ -29,6 +30,7 @@ import app.otakureader.domain.history.ReadingHistoryScheduler
 import app.otakureader.domain.loader.PageLoader
 import app.otakureader.domain.repository.ReaderSettingsRepository as ReaderSettingsRepositoryInterface
 import app.otakureader.data.repository.SourceIntelligenceRepositoryImpl
+import app.otakureader.data.repository.SourceRepositoryImpl
 import app.otakureader.data.repository.StatisticsRepositoryImpl
 import dagger.Binds
 import dagger.Module
@@ -122,4 +124,9 @@ abstract class RepositoryModule {
     abstract fun bindReadingHistoryScheduler(
         impl: WorkManagerHistoryScheduler
     ): ReadingHistoryScheduler
+
+    @Binds
+    abstract fun bindSourceRepository(
+        impl: SourceRepositoryImpl
+    ): SourceRepository
 }

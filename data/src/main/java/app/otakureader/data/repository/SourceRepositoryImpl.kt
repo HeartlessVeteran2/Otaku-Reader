@@ -1,4 +1,4 @@
-package app.otakureader.core.tachiyomi.repository
+package app.otakureader.data.repository
 
 import android.content.Context
 import androidx.annotation.VisibleForTesting
@@ -13,6 +13,7 @@ import app.otakureader.sourceapi.MangaPage
 import app.otakureader.sourceapi.MangaSource
 import app.otakureader.sourceapi.SourceChapter
 import app.otakureader.sourceapi.SourceManga
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -28,6 +29,8 @@ import okhttp3.Request
 import java.io.File
 import java.io.InterruptedIOException
 import java.util.concurrent.ConcurrentHashMap
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * Implementation of SourceRepository using Tachiyomi extension adapters.
@@ -36,8 +39,9 @@ import java.util.concurrent.ConcurrentHashMap
  * Integrates [SourceHealthMonitor] to track source failures and prevent
  * repeated requests to dead/failing sources (inspired by Komikku's health monitoring).
  */
-class SourceRepositoryImpl(
-    private val context: Context,
+@Singleton
+class SourceRepositoryImpl @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val localSourcePreferences: LocalSourcePreferences,
     private val healthMonitor: SourceHealthMonitor,
     private val httpClient: OkHttpClient

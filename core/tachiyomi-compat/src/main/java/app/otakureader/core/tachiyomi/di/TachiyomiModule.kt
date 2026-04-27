@@ -1,11 +1,6 @@
 package app.otakureader.core.tachiyomi.di
 
-import android.content.Context
-import app.otakureader.core.preferences.LocalSourcePreferences
 import app.otakureader.core.tachiyomi.health.SourceHealthMonitor
-import app.otakureader.core.tachiyomi.repository.SourceRepositoryImpl
-import app.otakureader.domain.repository.ExtensionManagementRepository
-import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.domain.usecase.source.GetLatestUpdatesUseCase
 import app.otakureader.domain.usecase.source.GetMangaDetailsUseCase
 import app.otakureader.domain.usecase.source.GetPopularMangaUseCase
@@ -14,12 +9,11 @@ import app.otakureader.domain.usecase.source.GetSourcesUseCase
 import app.otakureader.domain.usecase.source.GlobalSearchUseCase
 import app.otakureader.domain.usecase.source.SearchMangaUseCase
 import app.otakureader.domain.usecase.library.AddMangaToLibraryUseCase
+import app.otakureader.domain.repository.SourceRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
-import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import okhttp3.OkHttpClient
 import javax.inject.Singleton
 
 /**
@@ -59,26 +53,6 @@ object TachiyomiModule {
     fun provideSourceHealthMonitor(): SourceHealthMonitor {
         return SourceHealthMonitor()
     }
-
-    @Provides
-    @Singleton
-    fun provideSourceRepositoryImpl(
-        @ApplicationContext context: Context,
-        localSourcePreferences: LocalSourcePreferences,
-        healthMonitor: SourceHealthMonitor,
-        // NOTE: this is the *global* OkHttpClient used only for extension APK downloads
-        // (see SourceRepositoryImpl.installExtension). Per-source manga/chapter requests
-        // are routed through each extension's own HttpSource.network.client — not this one.
-        httpClient: OkHttpClient
-    ): SourceRepositoryImpl {
-        return SourceRepositoryImpl(context, localSourcePreferences, healthMonitor, httpClient)
-    }
-
-    @Provides
-    fun provideSourceRepository(impl: SourceRepositoryImpl): SourceRepository = impl
-
-    @Provides
-    fun provideExtensionManagementRepository(impl: SourceRepositoryImpl): ExtensionManagementRepository = impl
 
     @Provides
     fun provideGetSourcesUseCase(

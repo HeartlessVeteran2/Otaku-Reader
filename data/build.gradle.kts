@@ -64,6 +64,7 @@ dependencies {
     implementation(projects.core.network)
     implementation(projects.core.database)
     implementation(projects.core.preferences)
+    implementation(projects.core.tachiyomiCompat)
     // core:ai is only needed for the full flavor; foss uses core:ai-noop via :app.
     "fullImplementation"(projects.core.ai)
     implementation(projects.domain)
