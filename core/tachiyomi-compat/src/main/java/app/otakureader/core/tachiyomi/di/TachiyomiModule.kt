@@ -4,6 +4,7 @@ import android.content.Context
 import app.otakureader.core.preferences.LocalSourcePreferences
 import app.otakureader.core.tachiyomi.health.SourceHealthMonitor
 import app.otakureader.core.tachiyomi.repository.SourceRepositoryImpl
+import app.otakureader.domain.repository.ExtensionManagementRepository
 import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.domain.usecase.source.GetLatestUpdatesUseCase
 import app.otakureader.domain.usecase.source.GetMangaDetailsUseCase
@@ -38,14 +39,20 @@ object TachiyomiModule {
 
     @Provides
     @Singleton
-    fun provideSourceRepository(
+    fun provideSourceRepositoryImpl(
         @ApplicationContext context: Context,
         localSourcePreferences: LocalSourcePreferences,
         healthMonitor: SourceHealthMonitor,
         httpClient: OkHttpClient
-    ): SourceRepository {
+    ): SourceRepositoryImpl {
         return SourceRepositoryImpl(context, localSourcePreferences, healthMonitor, httpClient)
     }
+
+    @Provides
+    fun provideSourceRepository(impl: SourceRepositoryImpl): SourceRepository = impl
+
+    @Provides
+    fun provideExtensionManagementRepository(impl: SourceRepositoryImpl): ExtensionManagementRepository = impl
 
     @Provides
     fun provideGetSourcesUseCase(

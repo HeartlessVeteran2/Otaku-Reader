@@ -8,10 +8,9 @@ import android.graphics.drawable.Icon
 import app.otakureader.MainActivity
 import app.otakureader.R
 import app.otakureader.core.database.dao.ReadingHistoryDao
+import app.otakureader.core.common.di.ApplicationScope
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.launch
@@ -29,9 +28,9 @@ import javax.inject.Singleton
 @Singleton
 class AppShortcutManager @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val readingHistoryDao: ReadingHistoryDao
+    private val readingHistoryDao: ReadingHistoryDao,
+    @ApplicationScope private val scope: CoroutineScope
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /**
      * Start observing reading history and keep shortcuts in sync.

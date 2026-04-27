@@ -6,6 +6,7 @@ import app.otakureader.core.preferences.LocalSourcePreferences
 import app.otakureader.core.tachiyomi.compat.TachiyomiExtensionLoader
 import app.otakureader.core.tachiyomi.health.SourceHealthMonitor
 import app.otakureader.core.tachiyomi.local.LocalSource
+import app.otakureader.domain.repository.ExtensionManagementRepository
 import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.sourceapi.FilterList
 import app.otakureader.sourceapi.MangaPage
@@ -40,7 +41,7 @@ class SourceRepositoryImpl(
     private val localSourcePreferences: LocalSourcePreferences,
     private val healthMonitor: SourceHealthMonitor,
     private val httpClient: OkHttpClient
-) : SourceRepository {
+) : SourceRepository, ExtensionManagementRepository {
 
     private companion object {
         const val TAG = "SourceRepositoryImpl"

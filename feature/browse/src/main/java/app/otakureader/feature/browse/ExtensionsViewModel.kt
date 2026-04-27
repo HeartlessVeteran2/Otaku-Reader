@@ -10,7 +10,7 @@ import app.otakureader.core.extension.domain.repository.ExtensionRepoRepository
 import app.otakureader.core.extension.domain.repository.ExtensionRepository
 import app.otakureader.core.extension.installer.ExtensionInstaller
 import app.otakureader.core.preferences.GeneralPreferences
-import app.otakureader.domain.repository.SourceRepository
+import app.otakureader.domain.repository.ExtensionManagementRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -68,7 +68,7 @@ class ExtensionsViewModel @Inject constructor(
     private val extensionRepository: ExtensionRepository,
     private val extensionInstaller: ExtensionInstaller,
     private val extensionRepoRepository: ExtensionRepoRepository,
-    private val sourceRepository: SourceRepository,
+    private val extensionManagementRepository: ExtensionManagementRepository,
     private val generalPreferences: GeneralPreferences
 ) : ViewModel() {
 
@@ -248,7 +248,7 @@ class ExtensionsViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 extensionRepository.setExtensionEnabled(extension.pkgName, enabled)
-                sourceRepository.refreshSources()
+                extensionManagementRepository.refreshSources()
             } catch (e: Exception) {
                 _effect.send(ExtensionsEffect.ShowError("Failed to update extension: ${e.message}"))
             }
@@ -286,7 +286,7 @@ class ExtensionsViewModel @Inject constructor(
                 val result = extensionInstaller.downloadAndInstall(extension)
                 result.onSuccess {
                     _effect.send(ExtensionsEffect.ShowSnackbar("Extension installed: ${extension.name}"))
-                    sourceRepository.refreshSources()
+                    extensionManagementRepository.refreshSources()
                 }.onFailure { error ->
                     _effect.send(ExtensionsEffect.ShowError("Failed to install: ${error.message}"))
                 }
@@ -302,7 +302,7 @@ class ExtensionsViewModel @Inject constructor(
                 val result = extensionInstaller.uninstall(extension.pkgName)
                 result.onSuccess {
                     _effect.send(ExtensionsEffect.ShowSnackbar("Extension uninstalled: ${extension.name}"))
-                    sourceRepository.refreshSources()
+                    extensionManagementRepository.refreshSources()
                 }.onFailure { error ->
                     _effect.send(ExtensionsEffect.ShowError("Failed to uninstall: ${error.message}"))
                 }
@@ -318,7 +318,7 @@ class ExtensionsViewModel @Inject constructor(
                 val result = extensionInstaller.downloadAndInstall(extension)
                 result.onSuccess {
                     _effect.send(ExtensionsEffect.ShowSnackbar("Extension updated: ${extension.name}"))
-                    sourceRepository.refreshSources()
+                    extensionManagementRepository.refreshSources()
                 }.onFailure { error ->
                     _effect.send(ExtensionsEffect.ShowError("Failed to update: ${error.message}"))
                 }
@@ -344,7 +344,7 @@ class ExtensionsViewModel @Inject constructor(
             }
 
             _state.update { it.copy(isUpdatingAll = false) }
-            sourceRepository.refreshSources()
+            extensionManagementRepository.refreshSources()
 
             when {
                 failCount == 0 -> _effect.send(ExtensionsEffect.ShowSnackbar("All $successCount extensions updated"))

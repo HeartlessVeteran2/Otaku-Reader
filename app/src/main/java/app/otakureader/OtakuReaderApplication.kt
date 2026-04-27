@@ -7,6 +7,7 @@ import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import app.otakureader.crash.CrashHandler
 import app.otakureader.feature.reader.panel.PanelCacheService
+import dagger.Lazy
 import app.otakureader.shortcut.AppShortcutManager
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
@@ -43,7 +44,7 @@ class OtakuReaderApplication : Application(), Configuration.Provider, SingletonI
     lateinit var okHttpClient: OkHttpClient
 
     @Inject
-    lateinit var panelCacheService: PanelCacheService
+    lateinit var panelCacheService: Lazy<PanelCacheService>
 
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -76,9 +77,7 @@ class OtakuReaderApplication : Application(), Configuration.Provider, SingletonI
             ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL,
             ComponentCallbacks2.TRIM_MEMORY_COMPLETE -> {
                 cache?.trimToSize(0)
-                if (::panelCacheService.isInitialized) {
-                    applicationScope.launch { panelCacheService.cleanupStaleEntries() }
-                }
+                applicationScope.launch { panelCacheService.get().cleanupStaleEntries() }
             }
         }
     }
