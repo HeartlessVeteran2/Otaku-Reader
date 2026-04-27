@@ -134,6 +134,8 @@
 
     <!-- Data management -->
     <string name="settings_data_management">Data Management</string>
+    <string name="settings_image_cache_size">Image cache size</string>
+    <string name="settings_image_cache_size_desc">%d MB — takes effect on next app launch</string>
     <string name="settings_clear_image_cache">Clear image cache</string>
     <string name="settings_clear_image_cache_desc">Free up space used by cached cover and page images</string>
     <string name="settings_clear_history">Clear reading history</string>

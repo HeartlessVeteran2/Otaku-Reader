@@ -179,7 +179,10 @@ data class SettingsState(
 
     // App Update Checker
     val appUpdateCheckEnabled: Boolean = true,
-    val lastAppUpdateCheck: Long = 0L
+    val lastAppUpdateCheck: Long = 0L,
+
+    // Image Cache
+    val coilDiskCacheSizeMb: Int = app.otakureader.core.preferences.GeneralPreferences.DEFAULT_COIL_DISK_CACHE_MB,
 ) : UiState
 
 sealed interface SettingsEvent : UiEvent {
@@ -343,6 +346,7 @@ sealed interface SettingsEvent : UiEvent {
     // Data management
     data object ClearImageCache : SettingsEvent
     data object ClearHistory : SettingsEvent
+    data class SetCoilDiskCacheSizeMb(val sizeMb: Int) : SettingsEvent
 
     // Navigation
     data object NavigateToAbout : SettingsEvent
