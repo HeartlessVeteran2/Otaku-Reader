@@ -4,9 +4,6 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.google.android.gms.common.api.Scope
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -32,7 +29,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import ButtonDefaults
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -116,12 +113,12 @@ fun SettingsScreen(
         uri?.let { viewModel.onEvent(SettingsEvent.SetDownloadLocation(it.toString())) }
     }
 
-    // Google Sign-In launcher for Google Drive
+    // Google Sign-In launcher for Google Drive (full flavor only; foss stub returns null)
     val context = LocalContext.current
     val googleSignInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { _ ->
-        val email = GoogleSignIn.getLastSignedInAccount(context)?.email
+        val email = GoogleSignInHelper.getLastSignedInEmail(context)
         if (!email.isNullOrBlank()) {
             viewModel.onEvent(SettingsEvent.GoogleSignInResult(email))
         }
@@ -147,12 +144,8 @@ fun SettingsScreen(
                     downloadLocationLauncher.launch(null)
                 }
                 SettingsEffect.LaunchGoogleSignIn -> {
-                    val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                        .requestEmail()
-                        .requestScopes(Scope("https://www.googleapis.com/auth/drive.appdata"))
-                        .build()
-                    val client = GoogleSignIn.getClient(context, gso)
-                    googleSignInLauncher.launch(client.signInIntent)
+                    GoogleSignInHelper.createSignInIntent(context)
+                        ?.let { googleSignInLauncher.launch(it) }
                 }
             }
         }
@@ -1819,12 +1812,12 @@ private fun CloudSyncSection(state: SettingsState, onEvent: (SettingsEvent) -> U
         ListItem(
             headlineContent = { Text(stringResource(R.string.settings_sync_manual)) },
             trailingContent = {
-                val status = when (state.syncStatus) {
-                    SyncStatus.SYNCING -> { { CircularProgressIndicator(modifier = Modifier.size(24.dp)) } }
-                    else -> { { Button(onClick = { onEvent(SettingsEvent.TriggerManualSync) }) {
-                        Text(stringResource(R.string.settings_sync_now)) } } }
+                when (state.syncStatus) {
+                    SyncStatus.SYNCING -> CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                    else -> Button(onClick = { onEvent(SettingsEvent.TriggerManualSync) }) {
+                        Text(stringResource(R.string.settings_sync_now))
+                    }
                 }
-                status()
             }
         )
 

@@ -16,12 +16,15 @@ import retrofit2.http.Query
 // MyAnimeList
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * MyAnimeList OAuth 2.0 token endpoint using Authorization Code + PKCE.
+ * No client_secret is required for public mobile app clients using PKCE.
+ */
 interface MyAnimeListOAuthApi {
     @FormUrlEncoded
     @POST("token")
     suspend fun getAccessToken(
         @Field("client_id") clientId: String,
-        @Field("client_secret") clientSecret: String,
         @Field("code") code: String,
         @Field("code_verifier") codeVerifier: String,
         @Field("grant_type") grantType: String = "authorization_code",
@@ -32,7 +35,6 @@ interface MyAnimeListOAuthApi {
     @POST("token")
     suspend fun refreshAccessToken(
         @Field("client_id") clientId: String,
-        @Field("client_secret") clientSecret: String,
         @Field("refresh_token") refreshToken: String,
         @Field("grant_type") grantType: String = "refresh_token"
     ): MalTokenResponse
@@ -167,33 +169,31 @@ data class AniListMediaList(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Kitsu OAuth 2.0 token endpoint.
+ * Kitsu OAuth 2.0 token endpoint using Authorization Code + PKCE.
  *
- * **Security note (C-7):** The Resource Owner Password Credentials (ROPC) grant
- * passes the user's raw password to our server, which then forwards it to Kitsu.
- * This is a legacy OAuth 2.0 flow that is deprecated in OAuth 2.1.
- *
- * TODO(security/C-7): Migrate to the Authorization Code + PKCE flow so the app
- * never handles the raw password. See https://kitsu.docs.apiary.io/#reference/authentication
+ * The ROPC (password grant) flow was removed because it required the app to
+ * handle the user's raw password, violating OAuth 2.1 best practices.
+ * Callers should open the Kitsu authorization URL in a browser tab, receive the
+ * authorization code via redirect, and call [getAccessToken] with the code and
+ * the PKCE verifier generated before launching the browser.
  */
 interface KitsuOAuthApi {
     @FormUrlEncoded
-    @POST("oauth/token")
+    @POST("api/oauth/token")
     suspend fun getAccessToken(
-        @Field("username") username: String,
-        @Field("password") password: String,
-        @Field("grant_type") grantType: String = "password",
+        @Field("grant_type") grantType: String = "authorization_code",
+        @Field("code") code: String,
+        @Field("code_verifier") codeVerifier: String,
         @Field("client_id") clientId: String,
-        @Field("client_secret") clientSecret: String
+        @Field("redirect_uri") redirectUri: String
     ): KitsuTokenResponse
 
     @FormUrlEncoded
-    @POST("oauth/token")
+    @POST("api/oauth/token")
     suspend fun refreshAccessToken(
-        @Field("refresh_token") refreshToken: String,
         @Field("grant_type") grantType: String = "refresh_token",
-        @Field("client_id") clientId: String,
-        @Field("client_secret") clientSecret: String
+        @Field("refresh_token") refreshToken: String,
+        @Field("client_id") clientId: String
     ): KitsuTokenResponse
 }
 

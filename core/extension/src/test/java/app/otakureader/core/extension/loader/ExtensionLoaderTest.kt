@@ -27,6 +27,7 @@ class ExtensionLoaderTest {
 
     private lateinit var context: Context
     private lateinit var packageManager: PackageManager
+    private lateinit var trustedSignatureStore: TrustedSignatureStore
     private lateinit var extensionLoader: ExtensionLoader
     private lateinit var filesDir: File
 
@@ -39,6 +40,7 @@ class ExtensionLoaderTest {
     fun setUp() {
         context = mockk(relaxed = true)
         packageManager = mockk(relaxed = true)
+        trustedSignatureStore = mockk(relaxed = true)
 
         every { context.packageManager } returns packageManager
         every { context.classLoader } returns this::class.java.classLoader
@@ -49,7 +51,7 @@ class ExtensionLoaderTest {
         every { packageManager.getInstalledPackages(any<Int>()) } returns emptyList()
         every { packageManager.getInstalledPackages(any<PackageManager.PackageInfoFlags>()) } returns emptyList()
 
-        extensionLoader = ExtensionLoader(context)
+        extensionLoader = ExtensionLoader(context, trustedSignatureStore)
     }
 
     // -------------------------------------------------------------------------
