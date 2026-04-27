@@ -521,4 +521,58 @@ class LibraryUpdateWorkerTest {
         // Then - worker succeeds despite download failure
         assertEquals(ListenableWorker.Result.success(), result)
     }
+
+    // -------------------------------------------------------------------------
+    // Library Update WiFi Gate Tests
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `doWork skips updates when updateOnlyOnWifi is true and WiFi unavailable`() = runTest {
+        // Given
+        every { libraryPreferences.updateOnlyOnWifi } returns flowOf(true)
+        every { networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) } returns false
+
+        coEvery { getLibraryManga() } returns flowOf(listOf(testManga1))
+
+        // When
+        val result = worker.doWork()
+
+        // Then - no manga updated because WiFi gate blocks the work
+        assertEquals(ListenableWorker.Result.success(), result)
+        coVerify(exactly = 0) { updateLibraryManga(any()) }
+    }
+
+    @Test
+    fun `doWork proceeds with updates when updateOnlyOnWifi is true and WiFi available`() = runTest {
+        // Given
+        every { libraryPreferences.updateOnlyOnWifi } returns flowOf(true)
+        every { networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) } returns true
+
+        coEvery { getLibraryManga() } returns flowOf(listOf(testManga1))
+        coEvery { updateLibraryManga(testManga1) } returns Result.success(0)
+
+        // When
+        val result = worker.doWork()
+
+        // Then - update proceeds normally on WiFi
+        assertEquals(ListenableWorker.Result.success(), result)
+        coVerify(exactly = 1) { updateLibraryManga(testManga1) }
+    }
+
+    @Test
+    fun `doWork proceeds with updates when updateOnlyOnWifi is false and no WiFi`() = runTest {
+        // Given
+        every { libraryPreferences.updateOnlyOnWifi } returns flowOf(false)
+        every { networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) } returns false
+
+        coEvery { getLibraryManga() } returns flowOf(listOf(testManga1))
+        coEvery { updateLibraryManga(testManga1) } returns Result.success(1)
+
+        // When
+        val result = worker.doWork()
+
+        // Then - update proceeds on cellular since WiFi gate is off
+        assertEquals(ListenableWorker.Result.success(), result)
+        coVerify(exactly = 1) { updateLibraryManga(testManga1) }
+    }
 }
