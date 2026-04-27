@@ -27,7 +27,6 @@ class MyAnimeListTracker(
     private val oauthApi: MyAnimeListOAuthApi,
     private val api: MyAnimeListApi,
     private val clientId: String,
-    private val clientSecret: String,
     private val redirectUri: String
 ) : Tracker {
 
@@ -49,7 +48,6 @@ class MyAnimeListTracker(
         return try {
             val response = oauthApi.getAccessToken(
                 clientId = clientId,
-                clientSecret = clientSecret,
                 code = password,
                 codeVerifier = username,
                 redirectUri = redirectUri

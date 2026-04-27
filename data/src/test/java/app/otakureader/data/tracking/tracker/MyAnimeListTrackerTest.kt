@@ -34,7 +34,6 @@ class MyAnimeListTrackerTest {
     private lateinit var tracker: MyAnimeListTracker
 
     private val clientId = "test-client-id"
-    private val clientSecret = "test-client-secret"
     private val redirectUri = "app://otakureader/oauth/mal"
 
     private val tokenResponse = MalTokenResponse(
@@ -48,7 +47,7 @@ class MyAnimeListTrackerTest {
     fun setUp() {
         oauthApi = mockk()
         api = mockk()
-        tracker = MyAnimeListTracker(oauthApi, api, clientId, clientSecret, redirectUri)
+        tracker = MyAnimeListTracker(oauthApi, api, clientId, redirectUri)
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -79,7 +78,6 @@ class MyAnimeListTrackerTest {
         coEvery {
             oauthApi.getAccessToken(
                 clientId = clientId,
-                clientSecret = clientSecret,
                 code = "auth-code",
                 codeVerifier = "code-verifier",
                 redirectUri = redirectUri
@@ -95,7 +93,7 @@ class MyAnimeListTrackerTest {
     @Test
     fun `login stores access and refresh tokens`() = runTest {
         coEvery {
-            oauthApi.getAccessToken(any(), any(), any(), any(), any(), any())
+            oauthApi.getAccessToken(any(), any(), any(), any(), any())
         } returns tokenResponse
 
         tracker.login(username = "verifier", password = "code")
@@ -106,7 +104,7 @@ class MyAnimeListTrackerTest {
     @Test
     fun `login with network error returns false and keeps isLoggedIn false`() = runTest {
         coEvery {
-            oauthApi.getAccessToken(any(), any(), any(), any(), any(), any())
+            oauthApi.getAccessToken(any(), any(), any(), any(), any())
         } throws RuntimeException("Network error")
 
         val result = tracker.login(username = "verifier", password = "bad-code")
@@ -118,7 +116,7 @@ class MyAnimeListTrackerTest {
     @Test
     fun `login with HTTP 401 returns false`() = runTest {
         coEvery {
-            oauthApi.getAccessToken(any(), any(), any(), any(), any(), any())
+            oauthApi.getAccessToken(any(), any(), any(), any(), any())
         } throws RuntimeException("HTTP 401 Unauthorized")
 
         val result = tracker.login(username = "verifier", password = "expired-code")
@@ -134,7 +132,7 @@ class MyAnimeListTrackerTest {
     @Test
     fun `re-authentication after logout succeeds`() = runTest {
         coEvery {
-            oauthApi.getAccessToken(any(), any(), any(), any(), any(), any())
+            oauthApi.getAccessToken(any(), any(), any(), any(), any())
         } returns tokenResponse
 
         tracker.login(username = "verifier", password = "code")
@@ -152,14 +150,14 @@ class MyAnimeListTrackerTest {
     @Test
     fun `failed re-authentication leaves tracker logged out`() = runTest {
         coEvery {
-            oauthApi.getAccessToken(any(), any(), any(), any(), any(), any())
+            oauthApi.getAccessToken(any(), any(), any(), any(), any())
         } returns tokenResponse
 
         tracker.login(username = "verifier", password = "code")
         tracker.logout()
 
         coEvery {
-            oauthApi.getAccessToken(any(), any(), any(), any(), any(), any())
+            oauthApi.getAccessToken(any(), any(), any(), any(), any())
         } throws RuntimeException("Token exchange failed")
 
         val result = tracker.login(username = "verifier2", password = "expired-code")
@@ -175,7 +173,7 @@ class MyAnimeListTrackerTest {
     @Test
     fun `logout clears tokens and sets isLoggedIn to false`() = runTest {
         coEvery {
-            oauthApi.getAccessToken(any(), any(), any(), any(), any(), any())
+            oauthApi.getAccessToken(any(), any(), any(), any(), any())
         } returns tokenResponse
         tracker.login(username = "verifier", password = "code")
 

@@ -39,6 +39,9 @@ sealed class DeepLinkResult {
  * Utility class for parsing deep links and share intents.
  */
 object DeepLinkHandler {
+
+    private val UUID_REGEX =
+        Regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
     
     /**
      * Parse an intent to extract deep link information.
@@ -99,20 +102,23 @@ object DeepLinkHandler {
     }
     
     /**
-     * Parse MangaDex-specific URLs
+     * Parse MangaDex-specific URLs.
+     * Validates that the manga ID is a well-formed UUID to prevent deep link hijacking
+     * that could navigate to unintended destinations.
      */
     private fun parseMangaDexUrl(uri: Uri): DeepLinkResult {
         val pathSegments = uri.pathSegments
-        
+
         if (pathSegments.size >= 2 && pathSegments[0] == "title") {
             val mangaId = pathSegments[1]
+            if (!UUID_REGEX.matches(mangaId)) return DeepLinkResult.Invalid
             return DeepLinkResult.MangaUrl(
                 baseUrl = "https://mangadex.org",
                 mangaUrl = "https://mangadex.org/title/$mangaId",
                 title = null
             )
         }
-        
+
         return DeepLinkResult.Invalid
     }
     
