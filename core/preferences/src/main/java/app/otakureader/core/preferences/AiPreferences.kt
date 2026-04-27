@@ -388,6 +388,22 @@ class AiPreferences(
     val aiAutoCategorization: Flow<Boolean> = dataStore.data.map { it[Keys.AI_AUTO_CATEGORIZATION] ?: true }
     suspend fun setAiAutoCategorization(value: Boolean) = dataStore.edit { it[Keys.AI_AUTO_CATEGORIZATION] = value }
 
+    /** Enable on-demand Gemini Vision OCR translation of manga pages. */
+    val aiOcrTranslation: Flow<Boolean> = dataStore.data.map { it[Keys.AI_OCR_TRANSLATION] ?: true }
+    suspend fun setAiOcrTranslation(value: Boolean) = dataStore.edit { it[Keys.AI_OCR_TRANSLATION] = value }
+
+    /**
+     * Target language for OCR translation results, as a human-readable name
+     * understood by the Gemini prompt (e.g. "English", "Spanish"). Defaults to
+     * the device locale's display language so the first-run experience is
+     * automatically localised.
+     */
+    val aiOcrTargetLanguage: Flow<String> = dataStore.data.map {
+        it[Keys.AI_OCR_TARGET_LANGUAGE]?.takeIf { lang -> lang.isNotBlank() }
+            ?: defaultTargetLanguage()
+    }
+    suspend fun setAiOcrTargetLanguage(value: String) = dataStore.edit { it[Keys.AI_OCR_TARGET_LANGUAGE] = value }
+
     // --- Usage Tracking ---
 
     /** Total tokens used this month (for quota tracking). */
@@ -417,6 +433,8 @@ class AiPreferences(
         val AI_SOURCE_INTELLIGENCE = booleanPreferencesKey("ai_source_intelligence")
         val AI_SMART_NOTIFICATIONS = booleanPreferencesKey("ai_smart_notifications")
         val AI_AUTO_CATEGORIZATION = booleanPreferencesKey("ai_auto_categorization")
+        val AI_OCR_TRANSLATION = booleanPreferencesKey("ai_ocr_translation")
+        val AI_OCR_TARGET_LANGUAGE = stringPreferencesKey("ai_ocr_target_language")
 
         val AI_TOKENS_USED_THIS_MONTH = longPreferencesKey("ai_tokens_used_this_month")
         val AI_TOKEN_TRACKING_PERIOD = stringPreferencesKey("ai_token_tracking_period")
@@ -425,5 +443,21 @@ class AiPreferences(
 
     private companion object {
         const val GEMINI_API_KEY_PREF = "gemini_api_key"
+
+        /**
+         * Best-effort default for [aiOcrTargetLanguage] derived from the device locale.
+         * Falls back to "English" when the locale lookup fails or the locale has no
+         * display language.
+         */
+        fun defaultTargetLanguage(): String {
+            return runCatching {
+                val locale = java.util.Locale.getDefault()
+                // Use the device locale's language name rendered in English
+                // (e.g., a Japanese device will get "Japanese").
+                val display = locale.getDisplayLanguage(java.util.Locale.ENGLISH)
+                display.takeIf { it.isNotBlank() }?.replaceFirstChar { c -> c.titlecase(java.util.Locale.ENGLISH) }
+                    ?: "English"
+            }.getOrDefault("English")
+        }
     }
 }

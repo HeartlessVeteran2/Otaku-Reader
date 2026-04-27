@@ -3,6 +3,7 @@ package app.otakureader.data.di
 import app.otakureader.data.repository.AiRepositoryImpl
 import app.otakureader.data.repository.CategorizationRepositoryImpl
 import app.otakureader.data.repository.ChapterSummaryRepositoryImpl
+import app.otakureader.data.repository.OcrTranslationRepositoryImpl
 import app.otakureader.data.repository.RecommendationRepositoryImpl
 import app.otakureader.data.repository.SfxTranslationRepositoryImpl
 import app.otakureader.data.repository.SmartSearchCacheRepositoryImpl
@@ -10,6 +11,7 @@ import app.otakureader.data.repository.SourceIntelligenceRepositoryImpl
 import app.otakureader.domain.repository.AiRepository
 import app.otakureader.domain.repository.CategorizationRepository
 import app.otakureader.domain.repository.ChapterSummaryRepository
+import app.otakureader.domain.repository.OcrTranslationRepository
 import app.otakureader.domain.repository.RecommendationRepository
 import app.otakureader.domain.repository.SfxTranslationRepository
 import app.otakureader.domain.repository.SmartSearchCacheRepository
@@ -59,6 +61,12 @@ abstract class AiRepositoryModule {
     abstract fun bindSfxTranslationRepository(
         impl: SfxTranslationRepositoryImpl
     ): SfxTranslationRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindOcrTranslationRepository(
+        impl: OcrTranslationRepositoryImpl
+    ): OcrTranslationRepository
 
     @Binds
     @Singleton

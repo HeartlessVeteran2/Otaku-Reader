@@ -21,6 +21,7 @@ class AiFeatureTest {
         assertEquals("source_intelligence", AiFeature.SOURCE_INTELLIGENCE.serializedName)
         assertEquals("smart_notifications", AiFeature.SMART_NOTIFICATIONS.serializedName)
         assertEquals("auto_categorization", AiFeature.AUTO_CATEGORIZATION.serializedName)
+        assertEquals("ocr_translation", AiFeature.OCR_TRANSLATION.serializedName)
     }
 
     @Test
@@ -96,7 +97,7 @@ class AiFeatureTest {
     fun `enum count is expected value`() {
         // If this test fails after adding/removing features, update the count
         // and verify that serializedNames are still stable
-        assertEquals(9, AiFeature.entries.size)
+        assertEquals(10, AiFeature.entries.size)
     }
 
     @Test

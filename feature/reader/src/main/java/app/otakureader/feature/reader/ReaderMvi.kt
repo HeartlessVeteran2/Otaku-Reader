@@ -196,6 +196,16 @@ data class ReaderState(
     val ocrPageTexts: Map<Int, String> = emptyMap(),
     /** True while background OCR scanning is in progress. */
     val isOcrRunning: Boolean = false,
+
+    // --- OCR Translation (Gemini Vision) ---
+    /** Whether the Gemini Vision OCR translation feature is enabled in settings. */
+    val ocrTranslationEnabled: Boolean = false,
+    /** AI-generated OCR translations keyed by zero-based page index. */
+    val ocrTranslations: Map<Int, List<app.otakureader.domain.model.OcrTranslation>> = emptyMap(),
+    /** True while a Gemini Vision translation request is in progress for any page. */
+    val isOcrTranslating: Boolean = false,
+    /** Whether the OCR translation results sheet is visible. */
+    val showOcrTranslationSheet: Boolean = false,
 ) {
     /** Total pages in chapter (derived from pages.size) */
     val totalPages: Int get() = pages.size
@@ -465,6 +475,9 @@ sealed interface ReaderEvent {
     /** Events related to OCR text search within chapter pages. */
     sealed interface OcrControl : ReaderEvent
 
+    /** Events related to Gemini Vision OCR translation. */
+    sealed interface OcrTranslationControl : ReaderEvent
+
     /** Miscellaneous action events that don't fit another domain. */
     sealed interface ActionEvent : ReaderEvent
 
@@ -646,6 +659,19 @@ sealed interface ReaderEvent {
 
     /** Update the search query and filter live results. */
     data class UpdateOcrQuery(val query: String) : OcrControl
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // OCR translation (Gemini Vision) — on-demand per page only
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /** Translate the current page using Gemini Vision (single-shot, on demand). */
+    data object TranslateCurrentPage : OcrTranslationControl
+
+    /** Open the bottom sheet displaying OCR translations for the current page. */
+    data object OpenOcrTranslationSheet : OcrTranslationControl
+
+    /** Dismiss the OCR translation results sheet. */
+    data object CloseOcrTranslationSheet : OcrTranslationControl
 
     // ──────────────────────────────────────────────────────────────────────────
     // Action events (existing)

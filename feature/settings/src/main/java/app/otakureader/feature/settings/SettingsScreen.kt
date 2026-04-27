@@ -2208,7 +2208,8 @@ private fun AiSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
             AiFeatureToggle(stringResource(R.string.settings_ai_summary_translation), stringResource(R.string.settings_ai_summary_translation_desc), state.aiSummaryTranslation) { SettingsEvent.SetAiSummaryTranslation(it) },
             AiFeatureToggle(stringResource(R.string.settings_ai_source_intelligence), stringResource(R.string.settings_ai_source_intelligence_desc), state.aiSourceIntelligence) { SettingsEvent.SetAiSourceIntelligence(it) },
             AiFeatureToggle(stringResource(R.string.settings_ai_smart_notifications), stringResource(R.string.settings_ai_smart_notifications_desc), state.aiSmartNotifications) { SettingsEvent.SetAiSmartNotifications(it) },
-            AiFeatureToggle(stringResource(R.string.settings_ai_auto_categorization), stringResource(R.string.settings_ai_auto_categorization_desc), state.aiAutoCategorization) { SettingsEvent.SetAiAutoCategorization(it) }
+            AiFeatureToggle(stringResource(R.string.settings_ai_auto_categorization), stringResource(R.string.settings_ai_auto_categorization_desc), state.aiAutoCategorization) { SettingsEvent.SetAiAutoCategorization(it) },
+            AiFeatureToggle(stringResource(R.string.settings_ai_ocr_translation), stringResource(R.string.settings_ai_ocr_translation_desc), state.aiOcrTranslation) { SettingsEvent.SetAiOcrTranslation(it) }
         )
 
         features.forEach { feature ->

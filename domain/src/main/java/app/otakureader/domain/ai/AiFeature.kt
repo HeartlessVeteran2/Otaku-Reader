@@ -45,7 +45,10 @@ enum class AiFeature(
     SMART_NOTIFICATIONS("smart_notifications"),
 
     /** Automatic manga categorisation when added to the library. */
-    AUTO_CATEGORIZATION("auto_categorization");
+    AUTO_CATEGORIZATION("auto_categorization"),
+
+    /** Page-level OCR translation using Gemini Vision. */
+    OCR_TRANSLATION("ocr_translation");
 
     companion object {
         /**

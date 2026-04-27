@@ -7,6 +7,7 @@ import app.otakureader.domain.repository.ChapterSummaryRepository
 import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.domain.repository.OpdsRepository
+import app.otakureader.domain.repository.OcrTranslationRepository
 import app.otakureader.domain.repository.SfxTranslationRepository
 import app.otakureader.domain.repository.SourceIntelligenceRepository
 import app.otakureader.domain.usecase.DeleteChapterUseCase
@@ -16,6 +17,7 @@ import app.otakureader.domain.usecase.GetLibraryUseCase
 import app.otakureader.domain.usecase.ai.GenerateAiContentUseCase
 import app.otakureader.domain.usecase.ai.ScoreSourcesForMangaUseCase
 import app.otakureader.domain.usecase.ai.SummarizeChapterUseCase
+import app.otakureader.domain.usecase.ai.TranslateOcrPageUseCase
 import app.otakureader.domain.usecase.ai.TranslateSfxUseCase
 import app.otakureader.domain.usecase.opds.BrowseOpdsCatalogUseCase
 import app.otakureader.domain.usecase.opds.DeleteOpdsServerUseCase
@@ -85,6 +87,14 @@ object UseCaseModule {
         sfxTranslationRepository: SfxTranslationRepository,
     ): TranslateSfxUseCase =
         TranslateSfxUseCase(aiRepository, aiFeatureGate, sfxTranslationRepository)
+
+    @Provides
+    fun provideTranslateOcrPageUseCase(
+        aiRepository: AiRepository,
+        aiFeatureGate: AiFeatureGate,
+        ocrTranslationRepository: OcrTranslationRepository,
+    ): TranslateOcrPageUseCase =
+        TranslateOcrPageUseCase(aiRepository, aiFeatureGate, ocrTranslationRepository)
 
     @Provides
     fun provideSummarizeChapterUseCase(

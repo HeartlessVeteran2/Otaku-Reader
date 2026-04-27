@@ -31,9 +31,9 @@ import dagger.hilt.components.SingletonComponent
  *  - `foss`: [app.otakureader.core.ainoop.di.NoOpAiModule] (core/ai-noop)
  *
  * AI-adjacent repositories (CategorizationRepository, SfxTranslationRepository,
- * ChapterSummaryRepository, SourceIntelligenceRepository, SmartSearchCacheRepository)
- * are bound in [AiRepositoryModule] (full flavor) or NoOpAiModule (foss flavor) to
- * prevent Hilt duplicate binding errors in FOSS builds.
+ * OcrTranslationRepository, ChapterSummaryRepository, SourceIntelligenceRepository,
+ * SmartSearchCacheRepository) are bound in [AiRepositoryModule] (full flavor) or
+ * NoOpAiModule (foss flavor) to prevent Hilt duplicate binding errors in FOSS builds.
  */
 @Module
 @InstallIn(SingletonComponent::class)
