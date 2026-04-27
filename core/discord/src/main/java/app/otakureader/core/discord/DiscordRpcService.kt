@@ -4,10 +4,9 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import app.otakureader.core.discord.BuildConfig
+import app.otakureader.core.common.di.ApplicationScope
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,9 +28,9 @@ import javax.inject.Singleton
  */
 @Singleton
 class DiscordRpcService @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    @ApplicationScope private val scope: CoroutineScope
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val _connectionState = MutableStateFlow<ConnectionState>(ConnectionState.Disconnected)
     val connectionState: Flow<ConnectionState> = _connectionState.asStateFlow()

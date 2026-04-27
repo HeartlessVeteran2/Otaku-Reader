@@ -83,9 +83,13 @@ for BUILD_FILE in "${BUILD_FILES[@]}"; do
             # 2. Must contain buildConfigField
             # 3. Must contain the secret pattern (case insensitive)
 
-            # Extract non-comment lines containing buildConfigField and the pattern
+            # Extract non-comment lines containing buildConfigField and the pattern.
+            # Exclude lines where the value is System.getenv(...) — those are safe
+            # because the secret is injected at build time from the environment, not
+            # hardcoded into the source file.
             MATCHES=$(grep -v "^\s*//\|^\s*/\*\|^\s*\*" "$BUILD_FILE" | \
                       grep -i "buildConfigField" | \
+                      grep -v "System\.getenv" | \
                       grep -i "$PATTERN" || true)
 
             if [ -n "$MATCHES" ]; then

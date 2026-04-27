@@ -24,10 +24,7 @@ class MangaRepositoryImpl @Inject constructor(
 
     override fun getLibraryManga(): Flow<List<Manga>> {
         return mangaDao.getFavoriteMangaWithUnreadCount()
-            .distinctUntilChanged { old, new ->
-                // Only emit if the actual content changed
-                old.size == new.size && old.map { it.manga.id } == new.map { it.manga.id }
-            }
+            .distinctUntilChanged()
             .map { mangaWithUnreadList ->
                 mangaWithUnreadList.map { it.manga.toDomain(it.unreadCount) }
             }

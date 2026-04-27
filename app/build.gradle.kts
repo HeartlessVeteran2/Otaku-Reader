@@ -1,3 +1,5 @@
+import com.github.jk1.license.filter.LicenseBundleNormalizer
+import com.github.jk1.license.render.InventoryMarkdownReportRenderer
 import java.io.FileInputStream
 import java.util.Properties
 
@@ -5,6 +7,8 @@ plugins {
     alias(libs.plugins.otakureader.android.application)
     alias(libs.plugins.otakureader.android.hilt)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.license.report)
+    alias(libs.plugins.cyclonedx.bom)
 }
 
 android {
@@ -57,6 +61,25 @@ android {
         create("full") { dimension = "distribution" }
         create("foss") { dimension = "distribution" }
     }
+}
+
+// CycloneDX v3.x - simplified configuration
+tasks.cyclonedxBom {
+    includeConfigs = listOf("fullReleaseRuntimeClasspath")
+    skipConfigs = listOf("debugRuntimeClasspath", "testRuntimeClasspath")
+    projectType = "application"
+    schemaVersion = "1.6"
+    includeLicenseText = false
+    // Output defaults to build/reports/cyclonedx/bom.json
+}
+
+licenseReport {
+    outputDir = "${rootProject.projectDir}/docs"
+    renderers = arrayOf(InventoryMarkdownReportRenderer("DEPENDENCY_LICENSES.md", "Otaku Reader Dependencies"))
+    filters = arrayOf(LicenseBundleNormalizer())
+    // Exclude first-party modules from the license report
+    excludeGroups = arrayOf("app.otakureader")
+    configurations = arrayOf("fullReleaseRuntimeClasspath")
 }
 
 dependencies {
@@ -124,6 +147,9 @@ dependencies {
     // Glance widgets
     implementation(libs.androidx.glance.appwidget)
     implementation(libs.androidx.glance.material3)
+
+    // Debug tools (LeakCanary — no-op in release builds)
+    debugImplementation(libs.leakcanary)
 
     // Activity Compose
     implementation(libs.androidx.activity.compose)

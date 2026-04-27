@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.otakureader.core.preferences.AppPreferences
+import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.LocalSourcePreferences
 import app.otakureader.core.preferences.ReadingGoalPreferences
 import app.otakureader.data.worker.ReadingReminderScheduler
@@ -41,6 +42,7 @@ class SettingsViewModel @Inject constructor(
     private val localSourcePreferences: LocalSourcePreferences,
     private val appPreferences: AppPreferences,
     private val readingGoalPreferences: ReadingGoalPreferences,
+    private val generalPreferences: GeneralPreferences,
     private val readingReminderScheduler: ReadingReminderScheduler,
     private val chapterRepository: ChapterRepository,
     @ApplicationContext private val context: Context
@@ -72,6 +74,7 @@ class SettingsViewModel @Inject constructor(
         observeLocalSourcePreferences()
         observeMigrationPreferences()
         observeReadingGoalPreferences()
+        observeImageCachePreferences()
     }
 
     fun onEvent(event: SettingsEvent) {
@@ -125,6 +128,8 @@ class SettingsViewModel @Inject constructor(
             // Data management
             SettingsEvent.ClearImageCache -> clearImageCache()
             SettingsEvent.ClearHistory -> clearHistory()
+            is SettingsEvent.SetCoilDiskCacheSizeMb ->
+                generalPreferences.setCoilDiskCacheSizeMb(event.sizeMb)
 
             // Navigation
             SettingsEvent.NavigateToAbout -> _effect.send(SettingsEffect.NavigateToAbout)
@@ -172,6 +177,14 @@ class SettingsViewModel @Inject constructor(
                     readingReminderHour = hour,
                 ) }
             }.collect { }
+        }
+    }
+
+    private fun observeImageCachePreferences() {
+        viewModelScope.launch {
+            generalPreferences.coilDiskCacheSizeMb.collect { sizeMb ->
+                _state.update { it.copy(coilDiskCacheSizeMb = sizeMb) }
+            }
         }
     }
 

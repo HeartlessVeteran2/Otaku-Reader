@@ -3,6 +3,7 @@ package app.otakureader.feature.browse
 import app.otakureader.core.common.mvi.UiEffect
 import app.otakureader.core.common.mvi.UiEvent
 import app.otakureader.core.common.mvi.UiState
+import app.otakureader.domain.model.FeedSavedSearch
 import app.otakureader.domain.model.SourceScore
 import app.otakureader.sourceapi.FilterList
 import app.otakureader.sourceapi.SourceManga
@@ -32,7 +33,9 @@ data class BrowseState(
     /** Currently selected manga for bulk favorite (IDs mapped to manga). */
     val selectedManga: Map<String, SourceManga> = emptyMap(),
     /** True when bulk selection mode is active. */
-    val isBulkSelectionMode: Boolean = false
+    val isBulkSelectionMode: Boolean = false,
+    /** Saved searches for the current source, loaded from the database. */
+    val savedSearches: List<FeedSavedSearch> = emptyList(),
 ) : UiState
 
 sealed interface BrowseEvent : UiEvent {
@@ -56,6 +59,13 @@ sealed interface BrowseEvent : UiEvent {
     data object ClearSelection : BrowseEvent
     data object AddSelectedToLibrary : BrowseEvent
     data object ExitBulkSelectionMode : BrowseEvent
+
+    /** Saves the current search query + filters for the active source. */
+    data object SaveCurrentSearch : BrowseEvent
+    /** Deletes the saved search with the given id. */
+    data class DeleteSavedSearch(val searchId: Long) : BrowseEvent
+    /** Applies a previously saved search (restores query, filters, runs search). */
+    data class ApplySavedSearch(val search: app.otakureader.domain.model.FeedSavedSearch) : BrowseEvent
 }
 
 sealed interface BrowseEffect : UiEffect {

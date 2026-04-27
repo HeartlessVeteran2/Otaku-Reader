@@ -22,13 +22,34 @@ android {
     }
 
     defaultConfig {
-        // Tracker OAuth credentials injected from CI/CD environment variables (audit C-5).
-        // In local development these default to empty strings; provide real values via
-        // the corresponding GitHub Actions secrets (KITSU_CLIENT_ID, etc.).
+        // ── Tracker OAuth Credentials ──────────────────────────────────────────
+        // All credentials are injected at build time from environment variables so
+        // that secret values are never stored in source control.
+        //
+        // CI/CD (GitHub Actions): add each variable as a Repository Secret under
+        //   Settings → Secrets and variables → Actions.
+        // Local development: export the variables in your shell before running Gradle,
+        //   e.g.  export KITSU_CLIENT_ID="…"  in ~/.zshrc / ~/.bashrc.
+        // Empty string ("") is a valid no-op default: tracker features remain available
+        //   in the UI but OAuth flows will fail gracefully at runtime.
+        //
+        // ── Kitsu  (kitsu.io/api/oauth/token — client_credentials flow) ────────
+        //   Register at: https://kitsu.io/settings/developer-apps
+        //   Required scopes: none (public API uses client credentials)
         buildConfigField("String", "KITSU_CLIENT_ID",     "\"${System.getenv("KITSU_CLIENT_ID")     ?: ""}\"")
         buildConfigField("String", "KITSU_CLIENT_SECRET", "\"${System.getenv("KITSU_CLIENT_SECRET") ?: ""}\"")
+
+        // ── MyAnimeList  (myanimelist.net/v1/oauth2 — PKCE authorization-code) ─
+        //   Register at: https://myanimelist.net/apiconfig
+        //   Required: "Create API" → note down Client ID and Secret
+        //   MAL_CLIENT_SECRET is currently unused (PKCE flow does not need it)
+        //   but is included for parity should the API require it in future.
         buildConfigField("String", "MAL_CLIENT_ID",       "\"${System.getenv("MAL_CLIENT_ID")       ?: ""}\"")
         buildConfigField("String", "MAL_CLIENT_SECRET",   "\"${System.getenv("MAL_CLIENT_SECRET")   ?: ""}\"")
+
+        // ── Shikimori  (shikimori.one/oauth — authorization-code flow) ─────────
+        //   Register at: https://shikimori.one/oauth/applications
+        //   Redirect URI must match what is registered in the Shikimori dashboard.
         buildConfigField("String", "SHIKIMORI_CLIENT_ID",     "\"${System.getenv("SHIKIMORI_CLIENT_ID")     ?: ""}\"")
         buildConfigField("String", "SHIKIMORI_CLIENT_SECRET", "\"${System.getenv("SHIKIMORI_CLIENT_SECRET") ?: ""}\"")
     }

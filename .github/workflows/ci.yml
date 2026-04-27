@@ -1,4 +1,4 @@
-name: Build Workflow
+name: CI
 
 on:
   push:
@@ -15,107 +15,193 @@ permissions:
   contents: read
 
 jobs:
+
+  # ── Security ─────────────────────────────────────────────────────────────────
+  security:
+    name: Security Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: 🔐 Run BuildConfig security check
+        run: bash scripts/check-buildconfig-security.sh
+
+  # ── Static Analysis ───────────────────────────────────────────────────────────
   detekt:
-    name: 🔍 Detekt Static Analysis
+    name: Detekt
     runs-on: ubuntu-latest
-
     steps:
-    - name: 📥 Checkout
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: 📥 Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-    - name: ☕ Set up JDK 21
-      uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
-      with:
-        java-version: '21'
-        distribution: 'temurin'
+      - name: ☕ Set up JDK 21
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
 
-    - name: 🐘 Cache Gradle
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
-      with:
-        path: |
-          ~/.gradle/caches
-          ~/.gradle/wrapper
-        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '**/libs.versions.toml') }}
-        restore-keys: |
-          ${{ runner.os }}-gradle-
+      - name: 🐘 Cache Gradle
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '**/libs.versions.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
 
-    - name: 🔑 Grant execute permission for gradlew
-      run: chmod +x gradlew
+      - name: 🔑 Grant execute permission for gradlew
+        run: chmod +x gradlew
 
-    - name: 🔍 Run Detekt
-      run: ./gradlew detekt --no-daemon
-      env:
-        CI: true
+      - name: 🔍 Run Detekt
+        run: ./gradlew detekt --no-daemon
+        env:
+          CI: true
 
-  build:
+  # ── Unit Tests ────────────────────────────────────────────────────────────────
+  unit-tests:
+    name: Unit Tests
     runs-on: ubuntu-latest
-
     steps:
-    - name: 📥 Checkout
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: 📥 Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-    - name: ☕ Set up JDK 21
-      uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
-      with:
-        java-version: '21'
-        distribution: 'temurin'
+      - name: ☕ Set up JDK 21
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
 
-    - name: 🐘 Cache Gradle
-      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
-      with:
-        path: |
-          ~/.gradle/caches
-          ~/.gradle/wrapper
-        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '**/libs.versions.toml') }}
-        restore-keys: |
-          ${{ runner.os }}-gradle-
+      - name: 🐘 Cache Gradle
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '**/libs.versions.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
 
-    - name: 🔑 Grant execute permission for gradlew
-      run: chmod +x gradlew
+      - name: 🔑 Grant execute permission for gradlew
+        run: chmod +x gradlew
 
-    - name: 🔨 Build (Full Debug)
-      run: ./gradlew assembleFullDebug --no-daemon
-      env:
-        CI: true
+      - name: 🧪 Run Unit Tests (Full flavor)
+        id: tests-full
+        run: ./gradlew testFullDebugUnitTest --no-daemon
+        env:
+          CI: true
+        continue-on-error: true
 
-    - name: 🔨 Build (FOSS Debug)
-      run: ./gradlew assembleFossDebug --no-daemon
-      env:
-        CI: true
+      - name: 🧪 Run Unit Tests (FOSS flavor)
+        id: tests-foss
+        run: ./gradlew testFossDebugUnitTest --no-daemon
+        env:
+          CI: true
+        continue-on-error: true
 
-    - name: 🧪 Run Unit Tests
-      id: tests
-      run: ./gradlew testFullDebugUnitTest testFossDebugUnitTest --no-daemon
-      env:
-        CI: true
-      continue-on-error: true
+      - name: 📤 Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4
+        with:
+          name: test-results-${{ github.run_number }}
+          path: '**/build/test-results/**/*.xml'
+          retention-days: 14
 
-    - name: 📤 Upload Test Results
-      if: always()
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4
-      with:
-        name: test-results-${{ github.run_number }}
-        path: '**/build/test-results/**/*.xml'
-        retention-days: 14
+      - name: 📈 Upload JUnit to CI Insights
+        if: always()
+        uses: mergifyio/gha-mergify-ci@62b45952da6270cad56cce30b8d63276f9d99c88 # v16
+        continue-on-error: true
+        with:
+          token: ${{ secrets.MERGIFY_TOKEN }}
+          report_path: "**/build/test-results/**/*.xml"
+          job_name: unit-tests
 
-    - name: 📈 Upload JUnit to CI Insights
-      if: always()
-      uses: mergifyio/gha-mergify-ci@62b45952da6270cad56cce30b8d63276f9d99c88 # v16
-      continue-on-error: true
-      with:
-        token: ${{ secrets.MERGIFY_TOKEN }}
-        report_path: "**/build/test-results/**/*.xml"
-        job_name: build
+      - name: 🚨 Fail if any tests failed
+        if: steps.tests-full.outcome == 'failure' || steps.tests-foss.outcome == 'failure'
+        run: exit 1
 
-    - name: 🚨 Fail if tests failed
-      if: steps.tests.outcome == 'failure'
-      run: exit 1
+  # ── Assemble ─────────────────────────────────────────────────────────────────
+  assemble:
+    name: Assemble
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-    - name: 📊 Upload Build Artifacts
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4
-      with:
-        name: app-debug-${{ github.run_number }}
-        path: |
-          app/build/outputs/apk/full/debug/*.apk
-          app/build/outputs/apk/foss/debug/*.apk
-        retention-days: 7
+      - name: ☕ Set up JDK 21
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: 🐘 Cache Gradle
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '**/libs.versions.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: 🔑 Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: 🔨 Build Full Debug
+        run: ./gradlew assembleFullDebug --no-daemon
+        env:
+          CI: true
+
+      - name: 🔨 Build FOSS Debug
+        run: ./gradlew assembleFossDebug --no-daemon
+        env:
+          CI: true
+
+      - name: 📊 Upload Build Artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4
+        with:
+          name: app-debug-${{ github.run_number }}
+          path: |
+            app/build/outputs/apk/full/debug/*.apk
+            app/build/outputs/apk/foss/debug/*.apk
+          retention-days: 7
+
+  # ── Dependency License Report ─────────────────────────────────────────────────
+  license-report:
+    name: Dependency License Report
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: ☕ Set up JDK 21
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: 🐘 Cache Gradle
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '**/libs.versions.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: 🔑 Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: 📋 Generate Dependency License Report
+        run: ./gradlew :app:generateLicenseReport --no-daemon
+        env:
+          CI: true
+
+      - name: 📤 Upload License Report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4
+        with:
+          name: dependency-licenses-${{ github.run_number }}
+          path: docs/DEPENDENCY_LICENSES.md
+          retention-days: 90

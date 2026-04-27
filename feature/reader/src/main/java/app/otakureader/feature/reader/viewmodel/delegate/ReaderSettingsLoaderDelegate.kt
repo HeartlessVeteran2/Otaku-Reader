@@ -6,7 +6,7 @@ import app.otakureader.domain.model.ColorFilterMode
 import app.otakureader.domain.model.ImageQuality
 import app.otakureader.domain.model.ReaderMode
 import app.otakureader.domain.model.ReadingDirection
-import app.otakureader.data.repository.ReaderSettingsRepository
+import app.otakureader.domain.repository.ReaderSettingsRepository
 import app.otakureader.feature.reader.ReaderState
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope

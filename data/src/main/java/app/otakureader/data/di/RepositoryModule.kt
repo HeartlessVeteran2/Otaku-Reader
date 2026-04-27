@@ -14,6 +14,12 @@ import app.otakureader.data.repository.ChapterRepositoryImpl
 import app.otakureader.data.repository.DownloadRepositoryImpl
 import app.otakureader.data.repository.FeedRepositoryImpl
 import app.otakureader.data.repository.MangaRepositoryImpl
+import app.otakureader.data.repository.ReaderSettingsRepository
+import app.otakureader.data.loader.PageLoader as PageLoaderImpl
+import app.otakureader.data.history.WorkManagerHistoryScheduler
+import app.otakureader.domain.history.ReadingHistoryScheduler
+import app.otakureader.domain.loader.PageLoader
+import app.otakureader.domain.repository.ReaderSettingsRepository as ReaderSettingsRepositoryInterface
 import app.otakureader.data.repository.SourceRepositoryImpl
 import app.otakureader.data.repository.StatisticsRepositoryImpl
 import dagger.Binds
@@ -73,6 +79,21 @@ abstract class RepositoryModule {
     abstract fun bindFeedRepository(
         impl: FeedRepositoryImpl
     ): FeedRepository
+
+    @Binds
+    abstract fun bindReaderSettingsRepository(
+        impl: ReaderSettingsRepository
+    ): ReaderSettingsRepositoryInterface
+
+    @Binds
+    abstract fun bindPageLoader(
+        impl: PageLoaderImpl
+    ): PageLoader
+
+    @Binds
+    abstract fun bindReadingHistoryScheduler(
+        impl: WorkManagerHistoryScheduler
+    ): ReadingHistoryScheduler
 
     @Binds
     abstract fun bindSourceRepository(

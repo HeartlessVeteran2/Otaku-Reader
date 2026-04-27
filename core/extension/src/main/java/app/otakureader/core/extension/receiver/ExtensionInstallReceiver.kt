@@ -6,13 +6,12 @@ import android.content.Intent
 import android.content.IntentFilter
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
+import app.otakureader.core.common.di.ApplicationScope
 import app.otakureader.core.extension.domain.repository.ExtensionRepository
 import app.otakureader.core.extension.loader.ExtensionLoadResult
 import app.otakureader.core.extension.loader.ExtensionLoader
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -24,8 +23,9 @@ import javax.inject.Inject
  * Private-extension events are sent by the installer using
  * [notifyAdded] / [notifyReplaced] / [notifyRemoved] helpers.
  *
- * A new [CoroutineScope] is created per broadcast so work is naturally bounded to
- * the lifetime of each [goAsync] pending result — no persistent scope that could leak.
+ * Each handler is launched as a child coroutine of the [ApplicationScope] so the work
+ * is visible to test cancellation and no unmanaged scopes accumulate. [goAsync] keeps
+ * the receiver alive until the coroutine completes.
  */
 @AndroidEntryPoint
 class ExtensionInstallReceiver : BroadcastReceiver() {
@@ -35,6 +35,10 @@ class ExtensionInstallReceiver : BroadcastReceiver() {
 
     @Inject
     lateinit var extensionLoader: ExtensionLoader
+
+    @Inject
+    @ApplicationScope
+    lateinit var scope: CoroutineScope
 
     override fun onReceive(context: Context?, intent: Intent?) {
         if (context == null || intent == null) return
@@ -46,61 +50,45 @@ class ExtensionInstallReceiver : BroadcastReceiver() {
             ACTION_EXTENSION_ADDED,
             -> {
                 if (isReplacing(intent)) return
-                val pendingResult = goAsync()
-                CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-                    try {
-                        handlePackageAdded(context, packageName)
-                    } finally {
-                        pendingResult.finish()
-                    }
-                }
+                launchAsync { handlePackageAdded(context, packageName) }
             }
 
             Intent.ACTION_PACKAGE_REPLACED,
             ACTION_EXTENSION_REPLACED,
-            -> {
-                val pendingResult = goAsync()
-                CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-                    try {
-                        handlePackageAdded(context, packageName)
-                    } finally {
-                        pendingResult.finish()
-                    }
-                }
-            }
+            -> launchAsync { handlePackageAdded(context, packageName) }
 
             Intent.ACTION_PACKAGE_REMOVED,
             ACTION_EXTENSION_REMOVED,
             -> {
                 if (isReplacing(intent)) return
-                val pendingResult = goAsync()
-                CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-                    try {
-                        handlePackageRemoved(packageName)
-                    } finally {
-                        pendingResult.finish()
-                    }
-                }
+                launchAsync { handlePackageRemoved(packageName) }
             }
         }
     }
 
     /**
-     * Returns true if this intent represents an in-progress package update
-     * (i.e., the package is being replaced, not freshly installed/removed).
+     * Keeps the receiver alive via [goAsync] for the duration of [block],
+     * then finishes the pending result regardless of outcome.
      */
+    private inline fun launchAsync(crossinline block: suspend () -> Unit) {
+        val pendingResult = goAsync()
+        scope.launch {
+            try {
+                block()
+            } finally {
+                pendingResult.finish()
+            }
+        }
+    }
+
     private fun isReplacing(intent: Intent): Boolean =
         intent.getBooleanExtra(Intent.EXTRA_REPLACING, false)
 
-    /**
-     * Returns the package name encoded in the intent's data URI.
-     */
     private fun getPackageNameFromIntent(intent: Intent): String? =
         intent.data?.schemeSpecificPart
 
     private suspend fun handlePackageAdded(context: Context, packageName: String) {
         try {
-            // Try to load the installed package as a Tachiyomi-compatible extension
             val loadResult = extensionLoader.loadExtensionFromPkgName(packageName)
             if (loadResult is ExtensionLoadResult.Success) {
                 extensionRepository.installExtension(packageName, loadResult.extension.apkPath ?: "")
@@ -123,25 +111,14 @@ class ExtensionInstallReceiver : BroadcastReceiver() {
         private const val ACTION_EXTENSION_REPLACED = "app.otakureader.ACTION_EXTENSION_REPLACED"
         private const val ACTION_EXTENSION_REMOVED = "app.otakureader.ACTION_EXTENSION_REMOVED"
 
-        /**
-         * Notify that a private extension was installed (not via the system package manager).
-         * Should be called by [app.otakureader.core.extension.installer.ExtensionInstaller]
-         * after successfully installing a new private extension APK.
-         */
         fun notifyAdded(context: Context, pkgName: String) {
             notify(context, pkgName, ACTION_EXTENSION_ADDED)
         }
 
-        /**
-         * Notify that a private extension was updated.
-         */
         fun notifyReplaced(context: Context, pkgName: String) {
             notify(context, pkgName, ACTION_EXTENSION_REPLACED)
         }
 
-        /**
-         * Notify that a private extension was removed.
-         */
         fun notifyRemoved(context: Context, pkgName: String) {
             notify(context, pkgName, ACTION_EXTENSION_REMOVED)
         }
@@ -154,10 +131,6 @@ class ExtensionInstallReceiver : BroadcastReceiver() {
             context.sendBroadcast(intent)
         }
 
-        /**
-         * Create an [IntentFilter] covering both system package events and
-         * app-internal private extension events.
-         */
         fun createIntentFilter(): IntentFilter {
             return IntentFilter().apply {
                 addAction(Intent.ACTION_PACKAGE_ADDED)
@@ -170,9 +143,6 @@ class ExtensionInstallReceiver : BroadcastReceiver() {
             }
         }
 
-        /**
-         * Register the receiver programmatically (non-exported, app-local only).
-         */
         fun register(context: Context, receiver: ExtensionInstallReceiver) {
             ContextCompat.registerReceiver(
                 context,

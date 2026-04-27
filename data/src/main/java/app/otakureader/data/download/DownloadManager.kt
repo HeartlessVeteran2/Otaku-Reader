@@ -5,13 +5,12 @@ import app.otakureader.core.preferences.DownloadPreferences
 import app.otakureader.domain.model.DownloadItem
 import app.otakureader.domain.model.DownloadPriority
 import app.otakureader.domain.model.DownloadStatus
+import app.otakureader.core.common.di.ApplicationScope
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -59,10 +58,9 @@ data class ChapterDownloadRequest(
 class DownloadManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val downloader: Downloader,
-    private val downloadPreferences: DownloadPreferences
+    private val downloadPreferences: DownloadPreferences,
+    @ApplicationScope private val scope: CoroutineScope
 ) {
-
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val mutex = Mutex()
 
     private val _downloads = MutableStateFlow<List<DownloadItem>>(emptyList())

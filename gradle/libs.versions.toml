@@ -84,8 +84,17 @@ mlkit-image-labeling = "17.0.9"
 ktor = "3.4.3"
 logback = "1.5.32"
 
+# License reporting
+license-report = "2.8"
+
+# SBOM generation
+cyclonedx-bom = "1.9.0"
+
 # Static Analysis (R-4)
 detekt = "1.23.8"
+ktlint-gradle = "12.1.2"
+leakcanary = "2.14"
+roborazzi = "1.28.0"
 
 # Testing
 junit = "4.13.2"
@@ -169,6 +178,7 @@ room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "
 room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 room-paging = { group = "androidx.room", name = "room-paging", version.ref = "room" }
+room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
 
 # DataStore
 datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
@@ -231,6 +241,14 @@ hilt-gradlePlugin = { group = "com.google.dagger", name = "hilt-android-gradle-p
 room-gradlePlugin = { group = "androidx.room", name = "room-gradle-plugin", version.ref = "room" }
 compose-gradlePlugin = { group = "org.jetbrains.kotlin", name = "compose-compiler-gradle-plugin", version.ref = "kotlin" }
 
+# Debug tools
+leakcanary = { group = "com.squareup.leakcanary", name = "leakcanary-android", version.ref = "leakcanary" }
+
+# Screenshot testing
+roborazzi-core = { group = "io.github.takahirom.roborazzi", name = "roborazzi", version.ref = "roborazzi" }
+roborazzi-compose = { group = "io.github.takahirom.roborazzi", name = "roborazzi-compose", version.ref = "roborazzi" }
+roborazzi-junit = { group = "io.github.takahirom.roborazzi", name = "roborazzi-junit-rule", version.ref = "roborazzi" }
+
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 junit5-api = { group = "org.junit.jupiter", name = "junit-jupiter-api", version.ref = "junit5" }
@@ -265,6 +283,8 @@ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "ko
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
+ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint-gradle" }
+roborazzi = { id = "io.github.takahirom.roborazzi", version.ref = "roborazzi" }
 room = { id = "androidx.room", version.ref = "room" }
 
 # Convention plugins (local)
@@ -277,6 +297,8 @@ otakureader-android-room = { id = "otakureader.android.room", version = "unspeci
 otakureader-kotlin-library = { id = "otakureader.kotlin.library", version = "unspecified" }
 # Shadow plugin (fat-jar for the Ktor sync server)
 shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
+license-report = { id = "com.github.jk1.dependency-license-report", version.ref = "license-report" }
+cyclonedx-bom = { id = "org.cyclonedx.bom", version.ref = "cyclonedx-bom" }
 
 # Extra Android plugins for baselineprofile module
 android-test = { id = "com.android.test", version.ref = "agp" }

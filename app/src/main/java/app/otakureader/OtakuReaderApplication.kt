@@ -5,8 +5,10 @@ import android.content.ComponentCallbacks2
 import android.content.Context
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.crash.CrashHandler
 import app.otakureader.feature.reader.panel.PanelCacheService
+import dagger.Lazy
 import app.otakureader.shortcut.AppShortcutManager
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
@@ -19,7 +21,9 @@ import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import okio.Path.Companion.toOkioPath
 import javax.inject.Inject
@@ -43,7 +47,10 @@ class OtakuReaderApplication : Application(), Configuration.Provider, SingletonI
     lateinit var okHttpClient: OkHttpClient
 
     @Inject
-    lateinit var panelCacheService: PanelCacheService
+    lateinit var panelCacheService: Lazy<PanelCacheService>
+
+    @Inject
+    lateinit var generalPreferences: GeneralPreferences
 
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -76,9 +83,7 @@ class OtakuReaderApplication : Application(), Configuration.Provider, SingletonI
             ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL,
             ComponentCallbacks2.TRIM_MEMORY_COMPLETE -> {
                 cache?.trimToSize(0)
-                if (::panelCacheService.isInitialized) {
-                    applicationScope.launch { panelCacheService.cleanupStaleEntries() }
-                }
+                applicationScope.launch { panelCacheService.get().cleanupStaleEntries() }
             }
         }
     }
@@ -106,9 +111,10 @@ class OtakuReaderApplication : Application(), Configuration.Provider, SingletonI
                     .build()
             }
             .diskCache {
+                val diskCacheMb = runBlocking { generalPreferences.coilDiskCacheSizeMb.first() }
                 DiskCache.Builder()
                     .directory(context.cacheDir.resolve("image_cache").toOkioPath())
-                    .maxSizeBytes(512L * 1024 * 1024)
+                    .maxSizeBytes(diskCacheMb.toLong() * 1024 * 1024)
                     .build()
             }
             .components {

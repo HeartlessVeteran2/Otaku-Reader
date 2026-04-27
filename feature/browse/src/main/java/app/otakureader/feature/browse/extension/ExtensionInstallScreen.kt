@@ -37,7 +37,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
-import app.otakureader.domain.repository.SourceRepository
+import app.otakureader.domain.repository.ExtensionManagementRepository
 import app.otakureader.feature.browse.R
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
@@ -50,14 +50,14 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class ExtensionInstallViewModel @Inject constructor(
-    private val sourceRepository: SourceRepository
+    private val extensionManagementRepository: ExtensionManagementRepository
 ) : ViewModel() {
 
     suspend fun installFromUrl(url: String): Result<Unit> =
-        sourceRepository.loadExtensionFromUrl(url)
+        extensionManagementRepository.loadExtensionFromUrl(url)
 
     suspend fun installFromFile(path: String): Result<Unit> =
-        sourceRepository.loadExtension(path)
+        extensionManagementRepository.loadExtension(path)
 }
 
 /**

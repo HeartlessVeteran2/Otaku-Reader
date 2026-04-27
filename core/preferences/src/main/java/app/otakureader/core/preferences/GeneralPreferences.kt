@@ -142,13 +142,24 @@ class GeneralPreferences(private val dataStore: DataStore<Preferences>) {
 
     /** Latest available version info (stored as JSON string). */
     val latestVersionInfo: Flow<String?> = dataStore.data.map { it[Keys.LATEST_VERSION_INFO] }
-    suspend fun setLatestVersionInfo(value: String?) = dataStore.edit { 
+    suspend fun setLatestVersionInfo(value: String?) = dataStore.edit {
         if (value != null) {
             it[Keys.LATEST_VERSION_INFO] = value
         } else {
             it.remove(Keys.LATEST_VERSION_INFO)
         }
     }
+
+    // --- Image Cache ---
+
+    /**
+     * Maximum size of Coil's on-disk image cache in megabytes.
+     * Changes take effect after the next app restart.
+     */
+    val coilDiskCacheSizeMb: Flow<Int> =
+        dataStore.data.map { it[Keys.COIL_DISK_CACHE_SIZE_MB] ?: DEFAULT_COIL_DISK_CACHE_MB }
+    suspend fun setCoilDiskCacheSizeMb(value: Int) =
+        dataStore.edit { it[Keys.COIL_DISK_CACHE_SIZE_MB] = value.coerceIn(MIN_COIL_DISK_CACHE_MB, MAX_COIL_DISK_CACHE_MB) }
 
     private object Keys {
         val THEME_MODE = intPreferencesKey("theme_mode")
@@ -170,5 +181,12 @@ class GeneralPreferences(private val dataStore: DataStore<Preferences>) {
         val LAST_APP_UPDATE_CHECK = longPreferencesKey("last_app_update_check")
         val CURRENT_VERSION_CODE = intPreferencesKey("current_version_code")
         val LATEST_VERSION_INFO = stringPreferencesKey("latest_version_info")
+        val COIL_DISK_CACHE_SIZE_MB = intPreferencesKey("coil_disk_cache_size_mb")
+    }
+
+    companion object {
+        const val DEFAULT_COIL_DISK_CACHE_MB = 512
+        const val MIN_COIL_DISK_CACHE_MB = 64
+        const val MAX_COIL_DISK_CACHE_MB = 2048
     }
 }

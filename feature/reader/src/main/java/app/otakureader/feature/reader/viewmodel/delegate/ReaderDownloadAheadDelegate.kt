@@ -2,11 +2,9 @@ package app.otakureader.feature.reader.viewmodel.delegate
 
 import android.content.Context
 import android.util.Log
-import app.otakureader.data.download.ChapterDownloadRequest
-import app.otakureader.data.download.DownloadManager
-import app.otakureader.data.download.DownloadProvider
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.repository.ChapterRepository
+import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.core.preferences.DownloadPreferences
@@ -21,7 +19,7 @@ import javax.inject.Inject
 class ReaderDownloadAheadDelegate @Inject constructor(
     @ApplicationContext private val context: Context,
     private val downloadPreferences: DownloadPreferences,
-    private val downloadManager: DownloadManager,
+    private val downloadRepository: DownloadRepository,
     private val sourceRepository: SourceRepository,
     private val chapterRepository: ChapterRepository,
     private val mangaRepository: MangaRepository,
@@ -50,12 +48,12 @@ class ReaderDownloadAheadDelegate @Inject constructor(
             if (currentIndex == -1 || currentIndex >= chapters.size - 1) return@launch
             val nextChapter = chapters[currentIndex + 1]
 
-            val existingDownload = downloadManager.downloads.first().find { it.chapterId == nextChapter.id }
+            val existingDownload = downloadRepository.observeDownloads().first().find { it.chapterId == nextChapter.id }
             if (existingDownload != null) return@launch
 
             val manga = getCurrentManga() ?: mangaRepository.getMangaById(mangaId) ?: return@launch
             val sourceName = manga.sourceId.toString()
-            if (DownloadProvider.isChapterDownloaded(context, sourceName, manga.title, nextChapter.name)) return@launch
+            if (downloadRepository.isChapterDownloaded(sourceName, manga.title, nextChapter.name)) return@launch
 
             val sourceChapter = SourceChapter(
                 url = nextChapter.url,
@@ -77,15 +75,13 @@ class ReaderDownloadAheadDelegate @Inject constructor(
                 .orEmpty()
             if (pageUrls.isEmpty()) return@launch
 
-            downloadManager.enqueue(
-                ChapterDownloadRequest(
-                    mangaId = manga.id,
-                    chapterId = nextChapter.id,
-                    sourceName = sourceName,
-                    mangaTitle = manga.title,
-                    chapterTitle = nextChapter.name,
-                    pageUrls = pageUrls,
-                )
+            downloadRepository.enqueueChapter(
+                mangaId = manga.id,
+                chapterId = nextChapter.id,
+                sourceName = sourceName,
+                mangaTitle = manga.title,
+                chapterTitle = nextChapter.name,
+                pageUrls = pageUrls,
             )
         }
     }

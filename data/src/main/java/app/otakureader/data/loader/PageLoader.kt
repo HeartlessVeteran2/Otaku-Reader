@@ -2,6 +2,7 @@ package app.otakureader.data.loader
 
 import android.content.Context
 import app.otakureader.data.download.DownloadProvider
+import app.otakureader.domain.loader.PageLoader as PageLoaderInterface
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -16,7 +17,7 @@ import javax.inject.Singleton
 @Singleton
 class PageLoader @Inject constructor(
     @ApplicationContext private val context: Context
-) {
+) : PageLoaderInterface {
 
     /**
      * Returns the URI for loading [pageUrl].

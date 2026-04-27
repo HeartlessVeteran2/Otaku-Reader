@@ -16,7 +16,7 @@ import app.otakureader.domain.model.ImageQuality
 import app.otakureader.domain.model.ReaderMode
 import app.otakureader.feature.reader.model.ReaderPage
 import app.otakureader.domain.model.ReadingDirection
-import app.otakureader.data.repository.ReaderSettingsRepository
+import app.otakureader.domain.repository.ReaderSettingsRepository
 import app.otakureader.feature.reader.prefetch.ReadingBehaviorTracker
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderChapterLoaderDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderDiscordDelegate

@@ -1638,6 +1638,28 @@ private fun DataStorageSection(state: SettingsState, onEvent: (SettingsEvent) ->
             HorizontalDivider()
             SectionHeader(title = stringResource(R.string.settings_data_management))
 
+            // Image disk cache size slider
+            val diskCacheSteps = listOf(64, 128, 256, 512, 1024, 2048)
+            val currentDiskCacheIdx = diskCacheSteps.indexOfFirst { it >= state.coilDiskCacheSizeMb }
+                .takeIf { it >= 0 } ?: (diskCacheSteps.size - 1)
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_image_cache_size)) },
+                supportingContent = {
+                    Column {
+                        Text(stringResource(R.string.settings_image_cache_size_desc, diskCacheSteps[currentDiskCacheIdx]))
+                        Slider(
+                            value = currentDiskCacheIdx.toFloat(),
+                            onValueChange = { idx ->
+                                onEvent(SettingsEvent.SetCoilDiskCacheSizeMb(diskCacheSteps[idx.toInt()]))
+                            },
+                            valueRange = 0f..(diskCacheSteps.size - 1).toFloat(),
+                            steps = diskCacheSteps.size - 2,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            )
+
             // Clear image cache
             ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_clear_image_cache)) },
@@ -2069,6 +2091,14 @@ private fun DiscordSection(state: SettingsState, onEvent: (SettingsEvent) -> Uni
 private fun AiSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
     // ── AI ────────────────────────────────────────────────────────────
     SectionHeader(title = stringResource(R.string.settings_ai_features))
+
+    if (!state.isAiAvailable) {
+        ListItem(
+            headlineContent = { Text(stringResource(R.string.settings_ai_not_available_title)) },
+            supportingContent = { Text(stringResource(R.string.settings_ai_not_available_desc)) },
+        )
+        return
+    }
 
     // Master toggle
     ListItem(

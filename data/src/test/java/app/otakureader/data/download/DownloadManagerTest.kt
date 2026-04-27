@@ -659,5 +659,99 @@ class DownloadManagerTest {
         assertEquals(3, downloads.size)
         assertEquals(setOf(1L, 2L, 3L), downloads.map { it.chapterId }.toSet())
     }
+
+    // -------------------------------------------------------------------------
+    // FAILED State Transition Tests
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `failed page download transitions status to FAILED`() = runTest(testDispatcher) {
+        // Given - downloader always fails
+        coEvery { downloader.downloadPage(any(), any()) } returns Result.failure(
+            RuntimeException("Network error")
+        )
+
+        // When
+        downloadManager.enqueue(testRequest)
+        advanceUntilIdle()
+
+        // Drain until settled (FAILED or DOWNLOADING)
+        var downloads = downloadManager.downloads.first()
+        repeat(10) {
+            if (downloads.firstOrNull()?.status == DownloadStatus.DOWNLOADING) {
+                advanceUntilIdle()
+                downloads = downloadManager.downloads.first()
+            }
+        }
+
+        // Then
+        assertEquals(1, downloads.size)
+        assertEquals(DownloadStatus.FAILED, downloads[0].status)
+    }
+
+    @Test
+    fun `failed download can be re-queued`() = runTest(testDispatcher) {
+        // Given - downloader fails on the first invocation, then succeeds
+        var callCount = 0
+        coEvery { downloader.downloadPage(any(), any()) } answers {
+            if (callCount++ == 0) Result.failure(RuntimeException("first fail"))
+            else Result.success(File("/tmp/test/page.jpg"))
+        }
+
+        downloadManager.enqueue(testRequest)
+        advanceUntilIdle()
+
+        var downloads = downloadManager.downloads.first()
+        repeat(10) {
+            if (downloads.firstOrNull()?.status == DownloadStatus.DOWNLOADING) {
+                advanceUntilIdle()
+                downloads = downloadManager.downloads.first()
+            }
+        }
+        assertEquals(DownloadStatus.FAILED, downloads[0].status)
+
+        // When - re-enqueue the failed chapter
+        downloadManager.enqueue(testRequest)
+        advanceUntilIdle()
+
+        downloads = downloadManager.downloads.first()
+        repeat(20) {
+            if (downloads.firstOrNull()?.status == DownloadStatus.DOWNLOADING) {
+                advanceUntilIdle()
+                downloads = downloadManager.downloads.first()
+            }
+        }
+
+        // Then - should reach COMPLETED on retry
+        assertEquals(1, downloads.size)
+        assertEquals(DownloadStatus.COMPLETED, downloads[0].status)
+    }
+
+    @Test
+    fun `failed download does not re-queue itself automatically`() = runTest(testDispatcher) {
+        // Given - downloader always fails
+        coEvery { downloader.downloadPage(any(), any()) } returns Result.failure(
+            RuntimeException("permanent failure")
+        )
+
+        downloadManager.enqueue(testRequest)
+        advanceUntilIdle()
+
+        var downloads = downloadManager.downloads.first()
+        repeat(10) {
+            if (downloads.firstOrNull()?.status == DownloadStatus.DOWNLOADING) {
+                advanceUntilIdle()
+                downloads = downloadManager.downloads.first()
+            }
+        }
+
+        // Verify FAILED, then wait extra to confirm it doesn't auto-retry
+        assertEquals(DownloadStatus.FAILED, downloads[0].status)
+        advanceUntilIdle()
+
+        downloads = downloadManager.downloads.first()
+        assertEquals(1, downloads.size)
+        assertEquals(DownloadStatus.FAILED, downloads[0].status)
+    }
 }
 

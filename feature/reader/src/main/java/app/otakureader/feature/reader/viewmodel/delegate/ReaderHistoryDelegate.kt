@@ -2,10 +2,9 @@ package app.otakureader.feature.reader.viewmodel.delegate
 
 import android.content.Context
 import android.util.Log
-import androidx.work.WorkManager
-import app.otakureader.data.worker.RecordReadingHistoryWorker
+import app.otakureader.domain.history.ReadingHistoryScheduler
 import app.otakureader.domain.repository.ChapterRepository
-import app.otakureader.data.repository.ReaderSettingsRepository
+import app.otakureader.domain.repository.ReaderSettingsRepository
 import app.otakureader.feature.reader.ReaderState
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -16,7 +15,7 @@ import javax.inject.Inject
 /**
  * Owns reading-history persistence concerns for the reader:
  *  - recording the open of a chapter,
- *  - scheduling a [RecordReadingHistoryWorker] when the reader is closed,
+ *  - scheduling a history worker when the reader is closed,
  *  - the testable [cleanupOnExit] suspend implementation.
  *
  * Extracted from [app.otakureader.feature.reader.ReaderViewModel]
@@ -26,6 +25,7 @@ class ReaderHistoryDelegate @Inject constructor(
     @ApplicationContext private val context: Context,
     private val chapterRepository: ChapterRepository,
     private val settingsRepository: ReaderSettingsRepository,
+    private val historyScheduler: ReadingHistoryScheduler,
 ) {
 
     /**
@@ -62,11 +62,10 @@ class ReaderHistoryDelegate @Inject constructor(
     }
 
     /**
-     * Enqueue a [RecordReadingHistoryWorker] so history + progress are persisted
-     * even if the OS kills the process before a raw coroutine could complete.
+     * Schedule durable history persistence via [ReadingHistoryScheduler].
      *
-     * Safe to call from `ViewModel.onCleared()` because WorkManager survives
-     * the cancellation of [androidx.lifecycle.viewModelScope].
+     * Safe to call from `ViewModel.onCleared()` because the scheduler implementation
+     * (WorkManager) survives the cancellation of [androidx.lifecycle.viewModelScope].
      */
     fun enqueueExit(
         chapterId: Long,
@@ -74,19 +73,14 @@ class ReaderHistoryDelegate @Inject constructor(
         durationMs: Long,
         currentState: ReaderState,
     ) {
-        runCatching {
-            val request = RecordReadingHistoryWorker.buildRequest(
-                chapterId = chapterId,
-                readAt = sessionReadAt,
-                durationMs = durationMs,
-                isIncognito = currentState.incognitoMode,
-                lastPageRead = currentState.currentPage,
-                isRead = currentState.isLastPage,
-            )
-            WorkManager.getInstance(context).enqueue(request)
-        }.onFailure { e ->
-            Log.w(TAG, "Failed to enqueue RecordReadingHistoryWorker on reader exit", e)
-        }
+        historyScheduler.scheduleExit(
+            chapterId = chapterId,
+            readAt = sessionReadAt,
+            durationMs = durationMs,
+            isIncognito = currentState.incognitoMode,
+            lastPageRead = currentState.currentPage,
+            isRead = currentState.isLastPage,
+        )
     }
 
     /**
@@ -130,6 +124,7 @@ class ReaderHistoryDelegate @Inject constructor(
     }
 
     companion object {
+        @Suppress("unused")
         private const val TAG = "ReaderHistoryDelegate"
     }
 }

@@ -7,6 +7,7 @@ import app.otakureader.core.common.mvi.UiState
 import app.otakureader.core.preferences.AiTier
 import app.otakureader.core.preferences.LocalSourcePreferences
 import app.otakureader.domain.model.ImageQuality
+import app.otakureader.feature.settings.BuildConfig
 
 data class TrackerInfo(
     val id: Int,
@@ -136,6 +137,7 @@ data class SettingsState(
     val discordRpcEnabled: Boolean = false,
 
     // --- AI ---
+    val isAiAvailable: Boolean = BuildConfig.AI_FEATURES_AVAILABLE,
     val aiEnabled: Boolean = false,
     val aiTier: AiTier = AiTier.FREE,
     val aiApiKeySet: Boolean = false,
@@ -178,7 +180,10 @@ data class SettingsState(
 
     // App Update Checker
     val appUpdateCheckEnabled: Boolean = true,
-    val lastAppUpdateCheck: Long = 0L
+    val lastAppUpdateCheck: Long = 0L,
+
+    // Image Cache
+    val coilDiskCacheSizeMb: Int = app.otakureader.core.preferences.GeneralPreferences.DEFAULT_COIL_DISK_CACHE_MB,
 ) : UiState
 
 sealed interface SettingsEvent : UiEvent {
@@ -343,6 +348,7 @@ sealed interface SettingsEvent : UiEvent {
     // Data management
     data object ClearImageCache : SettingsEvent
     data object ClearHistory : SettingsEvent
+    data class SetCoilDiskCacheSizeMb(val sizeMb: Int) : SettingsEvent
 
     // Navigation
     data object NavigateToAbout : SettingsEvent
