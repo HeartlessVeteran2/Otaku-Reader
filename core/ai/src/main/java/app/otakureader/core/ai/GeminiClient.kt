@@ -1,7 +1,10 @@
 package app.otakureader.core.ai
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.GenerateContentResponse
+import com.google.ai.client.generativeai.type.content
 import java.security.SecureRandom
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
@@ -10,6 +13,13 @@ import javax.inject.Singleton
 
 /** HMAC algorithm used for config MAC. */
 private const val HMAC_ALGORITHM = "HmacSHA256"
+
+/**
+ * Free-tier vision-capable Gemini model used by [GeminiClient.generateContent] when
+ * an image is supplied. Free-tier quotas at the time of writing are roughly 15
+ * requests/minute and 1500 requests/day per project.
+ */
+private const val VISION_MODEL_NAME = "gemini-1.5-flash"
 
 /**
  * Client for interacting with Google's Gemini AI API.
@@ -32,6 +42,17 @@ class GeminiClient @Inject constructor() {
      */
     @Volatile
     private var generativeModel: GenerativeModel? = null
+
+    /**
+     * Vision-capable Gemini model used for multimodal (image + text) requests.
+     * Created on-demand by [generateContent] and refreshed alongside the text model
+     * in [initialize] / [reset] / [reinitialize]. Always uses [VISION_MODEL_NAME]
+     * regardless of the model selected for text-only requests so vision callers
+     * (e.g. OCR translation) get a free-tier capable model without having to
+     * coordinate model selection across features.
+     */
+    @Volatile
+    private var visionModel: GenerativeModel? = null
 
     /**
      * HMAC-SHA256 of the (apiKey, modelName) pair, keyed by [hmacSalt].
@@ -95,6 +116,12 @@ class GeminiClient @Inject constructor() {
                 // encrypted at rest (see AiPreferences), but will be in memory during use.
                 apiKey = apiKey
             )
+            // Also create the vision-capable companion model so multimodal callers can
+            // use [generateContent] with an image without coordinating model selection.
+            visionModel = GenerativeModel(
+                modelName = VISION_MODEL_NAME,
+                apiKey = apiKey
+            )
             // Store an HMAC rather than the raw API key to reduce secret exposure.
             configMac = configMacOf(apiKey, modelName)
         }
@@ -125,6 +152,7 @@ class GeminiClient @Inject constructor() {
             // the window during which secret-derived material remains in memory.
             configMac.fill(0)
             generativeModel = null
+            visionModel = null
             configMac = ByteArray(0)
         }
     }
@@ -159,6 +187,7 @@ class GeminiClient @Inject constructor() {
             // Zero and clear the old state first
             configMac.fill(0)
             generativeModel = null
+            visionModel = null
             configMac = ByteArray(0)
 
             try {
@@ -168,7 +197,12 @@ class GeminiClient @Inject constructor() {
                     // SECURITY NOTE: The raw API key is passed to the SDK here. See initialize().
                     apiKey = apiKey
                 )
+                val newVisionModel = GenerativeModel(
+                    modelName = VISION_MODEL_NAME,
+                    apiKey = apiKey
+                )
                 generativeModel = newModel
+                visionModel = newVisionModel
                 configMac = configMacOf(apiKey, modelName)
             } catch (e: Exception) {
                 // On failure, the client remains reset (generativeModel = null, configMac = empty).
@@ -202,6 +236,37 @@ class GeminiClient @Inject constructor() {
                     "Call initialize() with a valid API key before generating content."
             )
         return model.generateContent(prompt)
+    }
+
+    /**
+     * Generate content from an image plus a text prompt using the SDK's multimodal
+     * `content { image(...); text(...) }` builder.
+     *
+     * Routes through the [VISION_MODEL_NAME] companion model regardless of the
+     * model selected for text-only requests, so callers always get a vision-capable
+     * free-tier model without coordinating model selection across features.
+     *
+     * The [imageBytes] must be a valid JPEG or PNG payload that can be decoded by
+     * [BitmapFactory.decodeByteArray]. Decoding happens on the calling coroutine —
+     * callers should already be on a background dispatcher.
+     *
+     * @throws IllegalStateException if the client is not initialized.
+     * @throws IllegalArgumentException if [imageBytes] is empty or cannot be decoded.
+     */
+    suspend fun generateContent(imageBytes: ByteArray, prompt: String): GenerateContentResponse {
+        val model = visionModel
+            ?: error(
+                "GeminiClient is not yet initialized. " +
+                    "Call initialize() with a valid API key before generating content."
+            )
+        require(imageBytes.isNotEmpty()) { "imageBytes must not be empty" }
+        val bitmap: Bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+            ?: throw IllegalArgumentException("Failed to decode image bytes")
+        val multimodalContent = content {
+            image(bitmap)
+            text(prompt)
+        }
+        return model.generateContent(multimodalContent)
     }
 
     /**

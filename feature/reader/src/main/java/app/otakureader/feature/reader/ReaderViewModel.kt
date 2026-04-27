@@ -81,6 +81,7 @@ class ReaderViewModel @Inject constructor(
     private val prefetchDelegate: ReaderPrefetchDelegate,
     private val downloadAheadDelegate: ReaderDownloadAheadDelegate,
     private val ocrDelegate: ReaderOcrDelegate,
+    private val ocrTranslationDelegate: app.otakureader.feature.reader.viewmodel.delegate.ReaderOcrTranslationDelegate,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -128,6 +129,7 @@ class ReaderViewModel @Inject constructor(
             getState = { _state.value },
         )
         sfxDelegate.observeSettings(viewModelScope) { _state.update(it) }
+        ocrTranslationDelegate.observeSettings(viewModelScope) { _state.update(it) }
         observeSettingsWriteFailures()
     }
 
@@ -305,6 +307,7 @@ class ReaderViewModel @Inject constructor(
             is ReaderEvent.ColorFilterControl -> handleColorFilter(event)
             is ReaderEvent.SfxControl -> handleSfx(event)
             is ReaderEvent.OcrControl -> handleOcr(event)
+            is ReaderEvent.OcrTranslationControl -> handleOcrTranslation(event)
             is ReaderEvent.ActionEvent -> handleAction(event)
         }
     }
@@ -442,6 +445,25 @@ class ReaderViewModel @Inject constructor(
             }
             is ReaderEvent.UpdateOcrQuery -> {
                 _state.update { it.copy(ocrQuery = event.query) }
+            }
+        }
+    }
+
+    private fun handleOcrTranslation(event: ReaderEvent.OcrTranslationControl) {
+        when (event) {
+            ReaderEvent.OpenOcrTranslationSheet -> _state.update { it.copy(showOcrTranslationSheet = true) }
+            ReaderEvent.CloseOcrTranslationSheet -> _state.update { it.copy(showOcrTranslationSheet = false) }
+            ReaderEvent.TranslateCurrentPage -> {
+                val state = _state.value
+                val pageIndex = state.currentPage
+                val page = state.pages.getOrNull(pageIndex) ?: return
+                ocrTranslationDelegate.translatePage(
+                    scope = viewModelScope,
+                    pageIndex = pageIndex,
+                    page = page,
+                    chapterId = chapterId,
+                ) { _state.update(it) }
+                _state.update { it.copy(showOcrTranslationSheet = true) }
             }
         }
     }
@@ -846,6 +868,7 @@ class ReaderViewModel @Inject constructor(
         panelDelegate.cancel()
         sfxDelegate.clear()
         ocrDelegate.cancelAll()
+        ocrTranslationDelegate.cancelAll()
         prefetchDelegate.clearCache()
     }
 

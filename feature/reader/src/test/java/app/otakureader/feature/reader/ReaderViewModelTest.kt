@@ -32,6 +32,7 @@ import app.otakureader.feature.reader.viewmodel.delegate.ReaderDiscordDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderDownloadAheadDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderHistoryDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderOcrDelegate
+import app.otakureader.feature.reader.viewmodel.delegate.ReaderOcrTranslationDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderPanelDetectionDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderPrefetchDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderSettingsLoaderDelegate
@@ -92,6 +93,7 @@ class ReaderViewModelTest {
     private lateinit var aiPreferences: AiPreferences
     private lateinit var translateSfx: TranslateSfxUseCase
     private lateinit var textRecognitionService: TextRecognitionService
+    private lateinit var ocrTranslationDelegate: ReaderOcrTranslationDelegate
 
     @Before
     fun setUp() {
@@ -116,6 +118,7 @@ class ReaderViewModelTest {
         aiPreferences = mockk(relaxed = true)
         translateSfx = mockk<TranslateSfxUseCase>()
         textRecognitionService = mockk(relaxed = true)
+        ocrTranslationDelegate = mockk(relaxed = true)
         coEvery { translateSfx(any(), any(), any(), any()) } returns Result.success(emptyList())
         coEvery { panelDetectionService.detectPanelsFromUrl(any(), any()) } returns emptyList()
         every { generalPreferences.discordRpcEnabled } returns flowOf(false)
@@ -240,6 +243,7 @@ class ReaderViewModelTest {
             ocrDelegate = ReaderOcrDelegate(
                 textRecognitionService = textRecognitionService,
             ),
+            ocrTranslationDelegate = ocrTranslationDelegate,
             savedStateHandle = SavedStateHandle(
                 mapOf("mangaId" to mangaId, "chapterId" to chapterId)
             )

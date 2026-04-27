@@ -56,6 +56,7 @@ class AiFeatureGateImpl @Inject constructor(
                 AiFeature.SOURCE_INTELLIGENCE -> { -> aiPreferences.aiSourceIntelligence }
                 AiFeature.SMART_NOTIFICATIONS -> { -> aiPreferences.aiSmartNotifications }
                 AiFeature.AUTO_CATEGORIZATION -> { -> aiPreferences.aiAutoCategorization }
+                AiFeature.OCR_TRANSLATION -> { -> aiPreferences.aiOcrTranslation }
             }
         }
 

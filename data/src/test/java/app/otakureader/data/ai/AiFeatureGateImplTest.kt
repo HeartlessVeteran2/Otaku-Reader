@@ -2,6 +2,7 @@ package app.otakureader.data.ai
 
 import app.otakureader.core.preferences.AiPreferences
 import app.otakureader.data.TestConstants.FAKE_API_KEY
+import app.otakureader.data.repository.AiFeatureGateImpl
 import app.otakureader.domain.ai.AiFeature
 import app.otakureader.domain.repository.AiRepository
 import io.mockk.coEvery
@@ -108,6 +109,7 @@ class AiFeatureGateImplTest {
         every { aiPreferences.aiSourceIntelligence } returns flowOf(true)
         every { aiPreferences.aiSmartNotifications } returns flowOf(false)
         every { aiPreferences.aiAutoCategorization } returns flowOf(true)
+        every { aiPreferences.aiOcrTranslation } returns flowOf(true)
 
         assertTrue(gate.isFeatureAvailable(AiFeature.READING_INSIGHTS))
         assertFalse(gate.isFeatureAvailable(AiFeature.SMART_SEARCH))
@@ -118,5 +120,16 @@ class AiFeatureGateImplTest {
         assertTrue(gate.isFeatureAvailable(AiFeature.SOURCE_INTELLIGENCE))
         assertFalse(gate.isFeatureAvailable(AiFeature.SMART_NOTIFICATIONS))
         assertTrue(gate.isFeatureAvailable(AiFeature.AUTO_CATEGORIZATION))
+        assertTrue(gate.isFeatureAvailable(AiFeature.OCR_TRANSLATION))
+    }
+
+    @Test
+    fun `isFeatureAvailable returns false when OCR translation toggle is off`() = runTest {
+        every { aiPreferences.aiEnabled } returns flowOf(true)
+        coEvery { aiPreferences.getGeminiApiKey() } returns FAKE_API_KEY
+        coEvery { aiRepository.isAvailable() } returns true
+        every { aiPreferences.aiOcrTranslation } returns flowOf(false)
+
+        assertFalse(gate.isFeatureAvailable(AiFeature.OCR_TRANSLATION))
     }
 }

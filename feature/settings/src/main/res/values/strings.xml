@@ -216,6 +216,8 @@
     <string name="settings_ai_smart_notifications_desc">Context-aware update summaries</string>
     <string name="settings_ai_auto_categorization">Auto-Categorization</string>
     <string name="settings_ai_auto_categorization_desc">Categorise new manga automatically</string>
+    <string name="settings_ai_ocr_translation">OCR Translation</string>
+    <string name="settings_ai_ocr_translation_desc">Translate page text with Gemini Vision (free tier: ~15 pages/min)</string>
     <string name="settings_ai_usage">Usage</string>
     <string name="settings_ai_monthly_token_usage">Monthly Token Usage</string>
     <string name="settings_ai_tokens_used_period">%1$d tokens used (%2$s)</string>

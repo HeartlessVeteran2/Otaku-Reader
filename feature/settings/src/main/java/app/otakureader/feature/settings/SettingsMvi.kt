@@ -151,6 +151,7 @@ data class SettingsState(
     val aiSourceIntelligence: Boolean = true,
     val aiSmartNotifications: Boolean = true,
     val aiAutoCategorization: Boolean = true,
+    val aiOcrTranslation: Boolean = true,
     val aiTokensUsedThisMonth: Long = 0L,
     val aiTokenTrackingPeriod: String = "",
 
@@ -317,6 +318,7 @@ sealed interface SettingsEvent : UiEvent {
     data class SetAiSourceIntelligence(val enabled: Boolean) : SettingsEvent
     data class SetAiSmartNotifications(val enabled: Boolean) : SettingsEvent
     data class SetAiAutoCategorization(val enabled: Boolean) : SettingsEvent
+    data class SetAiOcrTranslation(val enabled: Boolean) : SettingsEvent
     data object ClearAiCache : SettingsEvent
 
     // Reading Goals

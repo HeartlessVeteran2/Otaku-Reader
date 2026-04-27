@@ -70,6 +70,7 @@ import app.otakureader.feature.reader.ui.BatteryTimeOverlay
 import app.otakureader.feature.reader.ui.BrightnessSliderOverlay
 import app.otakureader.feature.reader.ui.FullPageGallery
 import app.otakureader.feature.reader.ui.OcrSearchBottomSheet
+import app.otakureader.feature.reader.ui.OcrTranslationBottomSheet
 import app.otakureader.feature.reader.ui.PageSlider
 import app.otakureader.feature.reader.ui.PageThumbnailStrip
 import app.otakureader.feature.reader.ui.ReadingTimerOverlay
@@ -393,6 +394,31 @@ fun ReaderScreen(
             }
         }
 
+        // OCR translation FAB – visible when the Gemini Vision feature is enabled
+        // and the current page has an imageUrl (archive/local pages with localPath/bitmap are not yet supported)
+        if (state.ocrTranslationEnabled && !state.isMenuVisible && !state.isGalleryOpen && !state.isLoading && state.pages.isNotEmpty() && state.currentPageData?.imageUrl != null) {
+            val translateFabOffset = run {
+                var offset = FAB_BASE_OFFSET
+                if (state.sfxTranslationEnabled) offset += FAB_STACKING_INCREMENT
+                // Sits above the OCR search FAB which is always shown when pages are loaded.
+                offset += FAB_STACKING_INCREMENT
+                offset
+            }
+            FloatingActionButton(
+                onClick = { viewModel.onEvent(ReaderEvent.TranslateCurrentPage) },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(bottom = translateFabOffset, end = 16.dp),
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Translate,
+                    contentDescription = stringResource(R.string.reader_ocr_translate_page),
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+            }
+        }
+
         // Snackbar host
         SnackbarHost(
             hostState = snackbarHostState,
@@ -426,12 +452,21 @@ fun ReaderScreen(
             },
             onDismiss = { viewModel.onEvent(ReaderEvent.CloseOcrSearch) },
         )
+
+        // OCR translation results sheet (Gemini Vision)
+        OcrTranslationBottomSheet(
+            isVisible = state.showOcrTranslationSheet,
+            pageIndex = state.currentPage,
+            translations = state.ocrTranslations[state.currentPage].orEmpty(),
+            isTranslating = state.isOcrTranslating,
+            onDismiss = { viewModel.onEvent(ReaderEvent.CloseOcrTranslationSheet) },
+        )
     }
 }
 
 @Composable
 private fun ReaderContent(
-    state: app.otakureader.feature.reader.viewmodel.ReaderState,
+    state: app.otakureader.feature.reader.ReaderState,
     onPageChange: (Int) -> Unit,
     onPanelChange: (Int) -> Unit,
     onTap: (Offset) -> Unit,
