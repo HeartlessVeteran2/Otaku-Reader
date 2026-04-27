@@ -107,7 +107,10 @@ class ExtensionApkParser @Inject constructor(
 
     /**
      * Load a label for the package via the package manager and strip the standard
-     * "Tachiyomi: " prefix so display names look natural.
+     * "Tachiyomi: " prefix so display names look natural. If the label has no such
+     * prefix it is returned unchanged (matches Tachiyomi/Komikku behaviour).
+     *
+     * Returns `null` only when [ApplicationInfo.loadLabel] itself returns `null`.
      */
     fun loadLabel(appInfo: ApplicationInfo): String? {
         return appInfo.loadLabel(packageManager)?.toString()?.substringAfter("Tachiyomi: ")
