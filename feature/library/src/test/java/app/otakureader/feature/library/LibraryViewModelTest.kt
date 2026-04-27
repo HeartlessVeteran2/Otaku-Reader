@@ -1,6 +1,5 @@
 package app.otakureader.feature.library
 
-import app.otakureader.core.database.dao.ReadingHistoryDao
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.LibraryPreferences
 import app.otakureader.core.preferences.ReadingGoalPreferences
@@ -12,8 +11,9 @@ import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.StatisticsRepository
 import app.otakureader.domain.tracking.TrackRepository
-import app.otakureader.core.database.dao.CategoryDao
 import app.otakureader.domain.usecase.DismissRecommendationUseCase
+import app.otakureader.domain.usecase.GetCategoriesUseCase
+import app.otakureader.domain.usecase.GetContinueReadingUseCase
 import app.otakureader.domain.usecase.GetForYouRecommendationsUseCase
 import app.otakureader.domain.usecase.GetLibraryMangaUseCase
 import app.otakureader.domain.usecase.RefreshRecommendationsUseCase
@@ -53,8 +53,8 @@ class LibraryViewModelTest {
     private lateinit var getForYouRecommendations: GetForYouRecommendationsUseCase
     private lateinit var refreshRecommendations: RefreshRecommendationsUseCase
     private lateinit var dismissRecommendation: DismissRecommendationUseCase
-    private lateinit var categoryDao: CategoryDao
-    private lateinit var readingHistoryDao: ReadingHistoryDao
+    private lateinit var getCategories: GetCategoriesUseCase
+    private lateinit var getContinueReading: GetContinueReadingUseCase
     private lateinit var readingGoalPreferences: ReadingGoalPreferences
     private lateinit var statisticsRepository: StatisticsRepository
 
@@ -98,13 +98,12 @@ class LibraryViewModelTest {
         dismissRecommendation = mockk {
             coEvery { this@mockk.invoke(any()) } returns Unit
         }
-        categoryDao = mockk(relaxed = true) {
-            every { getCategories() } returns flowOf(emptyList())
-            every { getMangaIdsByCategoryId(any()) } returns flowOf(emptyList())
+        getCategories = mockk(relaxed = true) {
+            every { this@mockk.invoke() } returns flowOf(emptyList())
+            every { getMangaIdsForCategory(any()) } returns flowOf(emptyList())
         }
-        readingHistoryDao = mockk {
-            every { observeContinueReading() } returns flowOf(emptyList())
-            every { getChaptersReadSince(any()) } returns flowOf(0)
+        getContinueReading = mockk {
+            every { this@mockk.invoke() } returns flowOf(emptyList())
         }
         readingGoalPreferences = mockk {
             every { dailyChapterGoal } returns flowOf(0)
@@ -129,8 +128,8 @@ class LibraryViewModelTest {
             chapterRepository,
             downloadRepository,
             trackRepository,
-            categoryDao,
-            readingHistoryDao,
+            getCategories,
+            getContinueReading,
             getForYouRecommendations,
             refreshRecommendations,
             dismissRecommendation,
