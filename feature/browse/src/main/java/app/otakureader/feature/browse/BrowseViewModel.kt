@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import app.otakureader.core.preferences.AiPreferences
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.domain.model.SourceInfo
+import app.otakureader.domain.repository.FeedRepository
 import app.otakureader.domain.usecase.ai.ScoreSourcesForMangaUseCase
 import app.otakureader.domain.usecase.library.AddMangaToLibraryUseCase
 import app.otakureader.domain.usecase.source.GetLatestUpdatesUseCase
@@ -21,6 +22,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -36,6 +38,7 @@ class BrowseViewModel @Inject constructor(
     private val searchMangaUseCase: SearchMangaUseCase,
     private val getSourceFiltersUseCase: GetSourceFiltersUseCase,
     private val addMangaToLibraryUseCase: AddMangaToLibraryUseCase,
+    private val feedRepository: FeedRepository,
     private val generalPreferences: GeneralPreferences,
     private val aiPreferences: AiPreferences,
     private val scoreSourcesForManga: ScoreSourcesForMangaUseCase,
@@ -71,6 +74,7 @@ class BrowseViewModel @Inject constructor(
             }
         }
         observeSourceIntelligenceSettings()
+        observeSavedSearches()
     }
 
     fun onEvent(event: BrowseEvent) {
@@ -136,6 +140,9 @@ class BrowseViewModel @Inject constructor(
             is BrowseEvent.ExitBulkSelectionMode -> {
                 _state.update { it.copy(selectedManga = emptyMap(), isBulkSelectionMode = false) }
             }
+            is BrowseEvent.SaveCurrentSearch -> saveCurrentSearch()
+            is BrowseEvent.DeleteSavedSearch -> deleteSavedSearch(event.searchId)
+            is BrowseEvent.ApplySavedSearch -> applySavedSearch(event.search)
         }
     }
 
@@ -335,6 +342,54 @@ class BrowseViewModel @Inject constructor(
                     _effect.send(BrowseEffect.ShowSnackbar("Failed to add manga: ${error.message}"))
                 }
         }
+    }
+
+    // --- Saved Searches ---
+
+    private fun observeSavedSearches() {
+        val currentSourceId = _state.value.currentSourceId
+        feedRepository.getSavedSearches()
+            .map { searches ->
+                if (currentSourceId != null) searches.filter { it.sourceId.toString() == currentSourceId }
+                else searches
+            }
+            .onEach { searches -> _state.update { it.copy(savedSearches = searches) } }
+            .launchIn(viewModelScope)
+    }
+
+    private fun saveCurrentSearch() {
+        val state = _state.value
+        val sourceId = state.currentSourceId ?: return
+        val query = state.searchQuery.trim()
+        if (query.isBlank()) {
+            viewModelScope.launch { _effect.send(BrowseEffect.ShowSnackbar("Enter a search query to save")) }
+            return
+        }
+        viewModelScope.launch {
+            runCatching {
+                feedRepository.addSavedSearch(
+                    sourceId = sourceId.toLongOrNull() ?: 0L,
+                    sourceName = sourceId,
+                    query = query,
+                    filters = emptyMap(),
+                )
+            }.onSuccess {
+                _effect.send(BrowseEffect.ShowSnackbar("Search saved"))
+            }.onFailure {
+                _effect.send(BrowseEffect.ShowSnackbar("Failed to save search"))
+            }
+        }
+    }
+
+    private fun deleteSavedSearch(searchId: Long) {
+        viewModelScope.launch {
+            runCatching { feedRepository.removeSavedSearch(searchId) }
+        }
+    }
+
+    private fun applySavedSearch(search: app.otakureader.domain.model.FeedSavedSearch) {
+        _state.update { it.copy(searchQuery = search.query) }
+        performSearch()
     }
 
     // --- Source Intelligence ---

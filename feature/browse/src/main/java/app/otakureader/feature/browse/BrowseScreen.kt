@@ -22,6 +22,8 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.ClearAll
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.LibraryAdd
@@ -189,13 +191,61 @@ private fun BrowseContent(
                 singleLine = true
             )
 
+            // Save-search button (shown when there is a non-empty query)
+            if (state.searchQuery.isNotBlank()) {
+                Spacer(modifier = Modifier.width(4.dp))
+                IconButton(onClick = { onEvent(BrowseEvent.SaveCurrentSearch) }) {
+                    Icon(
+                        Icons.Default.BookmarkBorder,
+                        contentDescription = stringResource(R.string.browse_save_search),
+                    )
+                }
+            }
+
             // Filter button - shown when a source has filters
             if (state.availableFilters.filters.isNotEmpty()) {
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(4.dp))
                 FilterButton(
                     activeCount = countActiveFilters(state.activeFilters),
                     onClick = { onEvent(BrowseEvent.ToggleFilterSheet) }
                 )
+            }
+        }
+
+        // Saved search chips
+        if (state.savedSearches.isNotEmpty()) {
+            LazyRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(state.savedSearches, key = { it.id }) { search ->
+                    FilterChip(
+                        selected = state.searchQuery == search.query,
+                        onClick = { onEvent(BrowseEvent.ApplySavedSearch(search)) },
+                        label = { Text(search.query, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Bookmark,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                            )
+                        },
+                        trailingIcon = {
+                            IconButton(
+                                onClick = { onEvent(BrowseEvent.DeleteSavedSearch(search.id)) },
+                                modifier = Modifier.size(18.dp),
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = stringResource(R.string.browse_delete_saved_search),
+                                    modifier = Modifier.size(14.dp),
+                                )
+                            }
+                        },
+                    )
+                }
             }
         }
 

@@ -9,6 +9,8 @@
     <!-- Browse screen -->
     <string name="browse_title">Browse</string>
     <string name="browse_search">Search</string>
+    <string name="browse_save_search">Save search</string>
+    <string name="browse_delete_saved_search">Delete saved search</string>
     <string name="browse_install_extension">Install Extension</string>
     <string name="browse_search_placeholder">Search manga…</string>
     <string name="browse_filters">Filters</string>
