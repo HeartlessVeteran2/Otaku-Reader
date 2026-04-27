@@ -1,0 +1,101 @@
+name: Certificate Pin Check
+
+on:
+  schedule:
+    # Runs on the 1st of every month at 08:00 UTC
+    - cron: '0 8 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  cert-pin-check:
+    name: Verify Tracker Certificate Pins
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: 🔐 Verify certificate pins for tracker endpoints
+        id: pin-check
+        run: |
+          set +e
+          FAILURES=""
+
+          check_pin() {
+            local HOST="$1"
+            local EXPECTED_PIN="$2"
+
+            ACTUAL_PIN=$(echo | openssl s_client -connect "${HOST}:443" -servername "${HOST}" 2>/dev/null \
+              | openssl x509 -pubkey -noout 2>/dev/null \
+              | openssl pkey -pubin -outform der 2>/dev/null \
+              | openssl dgst -sha256 -binary 2>/dev/null \
+              | base64)
+
+            if [ -z "$ACTUAL_PIN" ]; then
+              echo "⚠️  Could not retrieve certificate for ${HOST} (network issue?)"
+              return
+            fi
+
+            if ! grep -q "${ACTUAL_PIN}" core/network/src/main/java/app/otakureader/core/network/TrackerCertificatePinner.kt; then
+              FAILURES="${FAILURES}\n❌ Pin mismatch for ${HOST}:\n   Expected (in source): ${EXPECTED_PIN}\n   Live pin:             sha256/${ACTUAL_PIN}"
+              echo "FAILED=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "✅ ${HOST} pin OK"
+            fi
+          }
+
+          check_pin "myanimelist.net"       "r/mIkG3eEpVdm+u/ko/cwxzOMo1bk4TyHIlByibiA5E="
+          check_pin "api.myanimelist.net"   "r/mIkG3eEpVdm+u/ko/cwxzOMo1bk4TyHIlByibiA5E="
+          check_pin "graphql.anilist.co"    "kIdp6NNEd8wsugYyyIYFsi1ylMv2M01eUNwHcm0etyk="
+          check_pin "kitsu.app"             "C5+lpZ7tcVwmwQIMcRtPbsQtWLABXhQzejna0wHFr8M="
+          check_pin "api.mangaupdates.com"  "C5+lpZ7tcVwmwQIMcRtPbsQtWLABXhQzejna0wHFr8M="
+          check_pin "shikimori.one"         "C5+lpZ7tcVwmwQIMcRtPbsQtWLABXhQzejna0wHFr8M="
+
+          if [ -n "$FAILURES" ]; then
+            echo -e "$FAILURES"
+          fi
+
+      - name: 🚨 Open issue if pins are stale
+        if: steps.pin-check.outputs.FAILED == 'true'
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const title = '🔐 Certificate pin rotation required for tracker endpoints';
+            const body = [
+              '## Certificate Pin Mismatch Detected',
+              '',
+              'The monthly certificate pin check found one or more tracker endpoints whose',
+              'live SPKI hash no longer matches the pins in `TrackerCertificatePinner.kt`.',
+              '',
+              'When pins are stale, **all tracker sync silently breaks for installed users**.',
+              '',
+              '### Action required',
+              '1. Run the pin-extraction command from the KDoc in `TrackerCertificatePinner.kt`',
+              '   for each failing host.',
+              '2. Update the `sha256/` entries in `TrackerCertificatePinner.kt`.',
+              '3. Ship a patch release.',
+              '',
+              '> This issue was opened automatically by the `cert-pin-check` workflow.',
+            ].join('\n');
+
+            // Avoid duplicate open issues
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'security',
+            });
+            const alreadyOpen = existing.data.some(i => i.title === title);
+            if (!alreadyOpen) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ['security', 'bug'],
+              });
+            }

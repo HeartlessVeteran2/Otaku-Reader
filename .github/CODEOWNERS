@@ -1,0 +1,41 @@
+# CODEOWNERS
+# Each line is a file pattern followed by one or more owners.
+# Owners are automatically requested for review when someone opens a PR.
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Global fallback — all files
+*                                           @HeartlessVeteran2
+
+# CI/CD & build infrastructure
+.github/                                    @HeartlessVeteran2
+build-logic/                                @HeartlessVeteran2
+gradle/                                     @HeartlessVeteran2
+*.gradle.kts                                @HeartlessVeteran2
+gradle.properties                           @HeartlessVeteran2
+
+# Core modules
+core/database/                              @HeartlessVeteran2
+core/network/                               @HeartlessVeteran2
+core/extension/                             @HeartlessVeteran2
+core/ai/                                    @HeartlessVeteran2
+core/ai-noop/                               @HeartlessVeteran2
+
+# Domain layer (interfaces & use cases)
+domain/                                     @HeartlessVeteran2
+
+# Data layer (repository implementations)
+data/                                       @HeartlessVeteran2
+
+# Feature modules
+feature/reader/                             @HeartlessVeteran2
+feature/library/                            @HeartlessVeteran2
+feature/browse/                             @HeartlessVeteran2
+
+# Documentation
+docs/                                       @HeartlessVeteran2
+*.md                                        @HeartlessVeteran2
+
+# Security-sensitive files — always require owner review
+core/network/src/main/java/app/otakureader/core/network/TrackerCertificatePinner.kt  @HeartlessVeteran2
+scripts/check-buildconfig-security.sh       @HeartlessVeteran2
+config/detekt/                              @HeartlessVeteran2
