@@ -7,7 +7,7 @@ import app.otakureader.feature.reader.model.ReaderPage
 import app.otakureader.feature.reader.prefetch.AdaptiveChapterPrefetcher
 import app.otakureader.feature.reader.prefetch.ReadingBehaviorTracker
 import app.otakureader.feature.reader.prefetch.SmartPrefetchManager
-import app.otakureader.data.repository.ReaderSettingsRepository
+import app.otakureader.domain.repository.ReaderSettingsRepository
 import coil3.ImageLoader
 import coil3.request.ImageRequest
 import dagger.hilt.android.qualifiers.ApplicationContext

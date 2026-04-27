@@ -1,6 +1,6 @@
 package app.otakureader.feature.reader.viewmodel.delegate
 
-import app.otakureader.data.loader.PageLoader
+import app.otakureader.domain.loader.PageLoader
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.repository.ChapterRepository

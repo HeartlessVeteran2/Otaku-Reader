@@ -11,6 +11,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import app.otakureader.core.common.di.ApplicationScope
 import app.otakureader.domain.model.ColorFilterMode
+import app.otakureader.domain.repository.ReaderSettingsRepository as ReaderSettingsRepositoryInterface
 import app.otakureader.domain.model.ImageQuality
 import app.otakureader.domain.model.ReaderMode
 import app.otakureader.domain.model.ReadingDirection
@@ -32,7 +33,7 @@ import javax.inject.Singleton
 class ReaderSettingsRepository @Inject constructor(
     private val dataStore: DataStore<Preferences>,
     @ApplicationScope private val scope: CoroutineScope,
-) {
+) : ReaderSettingsRepositoryInterface {
     /**
      * Emits an event whenever a DataStore write fails due to disk I/O.
      * Consumers can observe this to surface a user-facing warning.
