@@ -18,6 +18,8 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkObject
+import io.mockk.unmockkObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
@@ -54,6 +56,12 @@ class SettingsViewModelTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
 
+        // `SettingsState`'s default constructor calls `LocalSourcePreferences.defaultDirectory()`,
+        // which in turn calls `Environment.getExternalStorageDirectory()` — not available in
+        // plain JVM unit tests. Mock the companion so a literal is returned instead.
+        mockkObject(LocalSourcePreferences.Companion)
+        every { LocalSourcePreferences.defaultDirectory() } returns "/test/local"
+
         appearanceDelegate = mockk(relaxed = true)
         readerDelegate = mockk(relaxed = true)
         libraryDelegate = mockk(relaxed = true)
@@ -63,10 +71,10 @@ class SettingsViewModelTest {
         trackerSyncDelegate = mockk(relaxed = true)
 
         localSourcePreferences = mockk(relaxed = true) {
-            every { localSourceDirectory } returns flowOf(null)
+            every { localSourceDirectory } returns flowOf("/test/local")
         }
         appPreferences = mockk(relaxed = true) {
-            every { migrationSimilarityThreshold } returns flowOf(80)
+            every { migrationSimilarityThreshold } returns flowOf(0.8f)
             every { migrationAlwaysConfirm } returns flowOf(false)
             every { migrationMinChapterCount } returns flowOf(1)
         }
@@ -87,6 +95,7 @@ class SettingsViewModelTest {
     @After
     fun tearDown() {
         Dispatchers.resetMain()
+        unmockkObject(LocalSourcePreferences.Companion)
     }
 
     private fun createViewModel() = SettingsViewModel(
@@ -142,7 +151,7 @@ class SettingsViewModelTest {
 
     @Test
     fun `observeMigrationPreferences updates state from flows`() = runTest {
-        every { appPreferences.migrationSimilarityThreshold } returns flowOf(90)
+        every { appPreferences.migrationSimilarityThreshold } returns flowOf(0.9f)
         every { appPreferences.migrationAlwaysConfirm } returns flowOf(true)
         every { appPreferences.migrationMinChapterCount } returns flowOf(3)
 
@@ -150,7 +159,7 @@ class SettingsViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         val state = viewModel.state.value
-        assertEquals(90, state.migrationSimilarityThreshold)
+        assertEquals(0.9f, state.migrationSimilarityThreshold)
         assertEquals(true, state.migrationAlwaysConfirm)
         assertEquals(3, state.migrationMinChapterCount)
     }
@@ -204,10 +213,10 @@ class SettingsViewModelTest {
     @Test
     fun `SetMigrationSimilarityThreshold calls appPreferences`() = runTest {
         val viewModel = createViewModel()
-        viewModel.onEvent(SettingsEvent.SetMigrationSimilarityThreshold(75))
+        viewModel.onEvent(SettingsEvent.SetMigrationSimilarityThreshold(0.75f))
         testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify { appPreferences.setMigrationSimilarityThreshold(75) }
+        coVerify { appPreferences.setMigrationSimilarityThreshold(0.75f) }
     }
 
     @Test

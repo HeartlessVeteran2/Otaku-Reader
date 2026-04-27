@@ -1812,12 +1812,12 @@ private fun CloudSyncSection(state: SettingsState, onEvent: (SettingsEvent) -> U
         ListItem(
             headlineContent = { Text(stringResource(R.string.settings_sync_manual)) },
             trailingContent = {
-                val status = when (state.syncStatus) {
-                    SyncStatus.SYNCING -> { { CircularProgressIndicator(modifier = Modifier.size(24.dp)) } }
-                    else -> { { Button(onClick = { onEvent(SettingsEvent.TriggerManualSync) }) {
-                        Text(stringResource(R.string.settings_sync_now)) } } }
+                when (state.syncStatus) {
+                    SyncStatus.SYNCING -> CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                    else -> Button(onClick = { onEvent(SettingsEvent.TriggerManualSync) }) {
+                        Text(stringResource(R.string.settings_sync_now))
+                    }
                 }
-                status()
             }
         )
 

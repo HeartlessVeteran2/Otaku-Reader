@@ -41,10 +41,11 @@ class AiSettingsDelegate @Inject constructor(
                 aiPreferences.aiSmartSearch,
                 aiPreferences.aiRecommendations,
             ) { enabled, tier, insights, smartSearch, recs ->
+                val apiKeySet = aiPreferences.getGeminiApiKey().isNotBlank()
                 updateState { it.copy(
                     aiEnabled = enabled,
                     aiTier = tier,
-                    aiApiKeySet = aiPreferences.getGeminiApiKey().isNotBlank(),
+                    aiApiKeySet = apiKeySet,
                     aiReadingInsights = insights,
                     aiSmartSearch = smartSearch,
                     aiRecommendations = recs,
