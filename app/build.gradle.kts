@@ -2,7 +2,6 @@ import com.github.jk1.license.filter.LicenseBundleNormalizer
 import com.github.jk1.license.render.InventoryMarkdownReportRenderer
 import java.io.FileInputStream
 import java.util.Properties
-import org.cyclonedx.model.schema.SchemaVersion
 
 plugins {
     alias(libs.plugins.otakureader.android.application)
@@ -64,15 +63,14 @@ android {
     }
 }
 
-// CycloneDX v3.x API - configure tasks directly
+// CycloneDX v3.x - simplified configuration
 tasks.cyclonedxBom {
     includeConfigs = listOf("fullReleaseRuntimeClasspath")
     skipConfigs = listOf("debugRuntimeClasspath", "testRuntimeClasspath")
     projectType = "application"
-    schemaVersion = SchemaVersion.VERSION_16
-    jsonOutput.set(file("${rootProject.projectDir}/docs/sbom.json"))
-    xmlOutput.unsetConvention() // Only generate JSON
+    schemaVersion = "1.6"
     includeLicenseText = false
+    // Output defaults to build/reports/cyclonedx/bom.json
 }
 
 licenseReport {
