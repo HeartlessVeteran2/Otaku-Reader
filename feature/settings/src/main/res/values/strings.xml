@@ -181,6 +181,8 @@
 
     <!-- AI Features -->
     <string name="settings_ai_features">AI Features</string>
+    <string name="settings_ai_not_available_title">AI Features Not Available</string>
+    <string name="settings_ai_not_available_desc">AI features require the full build of Otaku Reader. This FOSS build does not include Gemini or any proprietary AI SDK.</string>
     <string name="settings_ai_enable">Enable AI Features</string>
     <string name="settings_ai_enable_description">Powered by Gemini. Requires an API key.</string>
     <string name="settings_ai_gemini_api_key">Gemini API Key</string>

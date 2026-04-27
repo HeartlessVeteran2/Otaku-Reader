@@ -7,6 +7,7 @@ import app.otakureader.core.common.mvi.UiState
 import app.otakureader.core.preferences.AiTier
 import app.otakureader.core.preferences.LocalSourcePreferences
 import app.otakureader.domain.model.ImageQuality
+import app.otakureader.feature.settings.BuildConfig
 
 data class TrackerInfo(
     val id: Int,
@@ -136,6 +137,7 @@ data class SettingsState(
     val discordRpcEnabled: Boolean = false,
 
     // --- AI ---
+    val isAiAvailable: Boolean = BuildConfig.AI_FEATURES_AVAILABLE,
     val aiEnabled: Boolean = false,
     val aiTier: AiTier = AiTier.FREE,
     val aiApiKeySet: Boolean = false,

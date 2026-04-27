@@ -2070,6 +2070,14 @@ private fun AiSection(state: SettingsState, onEvent: (SettingsEvent) -> Unit) {
     // ── AI ────────────────────────────────────────────────────────────
     SectionHeader(title = stringResource(R.string.settings_ai_features))
 
+    if (!state.isAiAvailable) {
+        ListItem(
+            headlineContent = { Text(stringResource(R.string.settings_ai_not_available_title)) },
+            supportingContent = { Text(stringResource(R.string.settings_ai_not_available_desc)) },
+        )
+        return
+    }
+
     // Master toggle
     ListItem(
         headlineContent = { Text(stringResource(R.string.settings_ai_enable)) },
