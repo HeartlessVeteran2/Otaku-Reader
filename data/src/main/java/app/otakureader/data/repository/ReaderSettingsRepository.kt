@@ -21,7 +21,6 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -41,14 +40,29 @@ class ReaderSettingsRepository @Inject constructor(
     private val _writeFailureEvents = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val writeFailureEvents: Flow<Unit> = _writeFailureEvents.asSharedFlow()
 
-    /**
-     * Guards the legacy [Keys.IMAGE_QUALITY_LEGACY] → [Keys.IMAGE_QUALITY] migration so it is
-     * attempted at most once per process lifetime. Without this flag, every collector of
-     * [imageQuality] (and every emission caused by an unrelated preference change) would
-     * re-launch the migration coroutine, and a transient write failure would cause the
-     * migration to be retried on every read for the entire session.
-     */
-    private val imageQualityMigrationAttempted = AtomicBoolean(false)
+    init {
+        // Migrate the legacy image-quality ordinal key to the stable string key once on
+        // startup, outside of any Flow transformation to avoid side effects in map().
+        // Runs on the injected @ApplicationScope so the migration job is bounded by the
+        // application lifecycle (no leaking ad-hoc scopes), and runs at most once per
+        // process: a transient write failure will not retry within the same session — a
+        // fresh app start will naturally retry because this is an in-memory init block.
+        scope.launch {
+            try {
+                dataStore.edit { prefs ->
+                    if (prefs[Keys.IMAGE_QUALITY] == null && prefs[Keys.IMAGE_QUALITY_LEGACY] != null) {
+                        val ordinal = prefs[Keys.IMAGE_QUALITY_LEGACY]!!
+                        val quality = ImageQuality.entries.getOrNull(ordinal) ?: ImageQuality.ORIGINAL
+                        prefs[Keys.IMAGE_QUALITY] = quality.name
+                        prefs.remove(Keys.IMAGE_QUALITY_LEGACY)
+                    }
+                }
+            } catch (_: Exception) {
+                // Migration failure is non-critical; the imageQuality flow's else-branch
+                // still returns the correct in-memory value derived from the legacy key.
+            }
+        }
+    }
 
     // ==================== Reader Mode ====================
     
@@ -301,24 +315,9 @@ class ReaderSettingsRepository @Inject constructor(
         if (name != null) {
             ImageQuality.entries.firstOrNull { it.name == name } ?: ImageQuality.ORIGINAL
         } else {
-            // Migrate from legacy ordinal stored under the old int key.
+            // Migration runs in init; this branch handles reads before migration completes.
             val legacyOrdinal = prefs[Keys.IMAGE_QUALITY_LEGACY]
-            val migratedQuality = ImageQuality.entries.getOrNull(legacyOrdinal ?: 0) ?: ImageQuality.ORIGINAL
-
-            // Proactively persist the migrated value (fire-and-forget) on the repo's own
-            // application scope. Guarded by [imageQualityMigrationAttempted] so a failed
-            // write does not cause the migration to be retried on every subsequent read
-            // for the rest of the session.
-            if (imageQualityMigrationAttempted.compareAndSet(false, true)) {
-                scope.launch {
-                    safeEdit { editPrefs ->
-                        editPrefs[Keys.IMAGE_QUALITY] = migratedQuality.name
-                        editPrefs.remove(Keys.IMAGE_QUALITY_LEGACY)
-                    }
-                }
-            }
-
-            migratedQuality
+            ImageQuality.entries.getOrNull(legacyOrdinal ?: 0) ?: ImageQuality.ORIGINAL
         }
     }
 
