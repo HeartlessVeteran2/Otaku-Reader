@@ -9,14 +9,13 @@ import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import app.otakureader.core.common.di.ApplicationScope
 import app.otakureader.domain.model.ColorFilterMode
 import app.otakureader.domain.model.ImageQuality
 import app.otakureader.domain.model.ReaderMode
 import app.otakureader.domain.model.ReadingDirection
 import app.otakureader.domain.model.TapZoneConfig
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -31,10 +30,9 @@ import javax.inject.Singleton
  */
 @Singleton
 class ReaderSettingsRepository @Inject constructor(
-    private val dataStore: DataStore<Preferences>
+    private val dataStore: DataStore<Preferences>,
+    @ApplicationScope private val scope: CoroutineScope,
 ) {
-    private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
     /**
      * Emits an event whenever a DataStore write fails due to disk I/O.
      * Consumers can observe this to surface a user-facing warning.
@@ -43,23 +41,23 @@ class ReaderSettingsRepository @Inject constructor(
     val writeFailureEvents: Flow<Unit> = _writeFailureEvents.asSharedFlow()
 
     init {
-        // Migrate legacy image-quality ordinal key to the stable string key once on startup,
-        // outside of any Flow transformation to avoid side effects in map().
-        repositoryScope.launch {
-            try {
-                dataStore.edit { prefs ->
-                    if (prefs[Keys.IMAGE_QUALITY] == null && prefs[Keys.IMAGE_QUALITY_LEGACY] != null) {
-                        val ordinal = prefs[Keys.IMAGE_QUALITY_LEGACY]!!
-                        val quality = ImageQuality.entries.getOrNull(ordinal) ?: ImageQuality.ORIGINAL
-                        prefs[Keys.IMAGE_QUALITY] = quality.name
-                        prefs.remove(Keys.IMAGE_QUALITY_LEGACY)
-                    }
+        // Migrate the legacy image-quality ordinal key to the stable string key once on
+        // startup, outside of any Flow transformation to avoid side effects in map().
+        // Runs on the injected @ApplicationScope so the migration job is bounded by the
+        // application lifecycle (no leaking ad-hoc scopes), and runs at most once per
+        // process: a transient write failure will not retry within the same session — a
+        // fresh app start will naturally retry because this is an in-memory init block.
+        scope.launch {
+            // Use safeEdit so I/O failures are surfaced via writeFailureEvents,
+            // CancellationException is propagated for cooperative cancellation, and
+            // any non-I/O runtime errors are not silently swallowed.
+            safeEdit { prefs ->
+                if (prefs[Keys.IMAGE_QUALITY] == null && prefs[Keys.IMAGE_QUALITY_LEGACY] != null) {
+                    val ordinal = prefs[Keys.IMAGE_QUALITY_LEGACY]!!
+                    val quality = ImageQuality.entries.getOrNull(ordinal) ?: ImageQuality.ORIGINAL
+                    prefs[Keys.IMAGE_QUALITY] = quality.name
+                    prefs.remove(Keys.IMAGE_QUALITY_LEGACY)
                 }
-            } catch (_: Exception) {
-                // Keep the guard in the attempted state for this process so a failure
-                // does not trigger repeated migration launches on subsequent collectors.
-                // A fresh app start will naturally retry because this in-memory flag
-                // will be reinitialized. Migration will be retried next session.
             }
         }
     }
