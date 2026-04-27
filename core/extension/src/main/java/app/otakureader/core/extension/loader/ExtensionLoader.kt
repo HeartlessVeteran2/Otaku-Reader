@@ -1,16 +1,12 @@
 package app.otakureader.core.extension.loader
 
 import android.content.Context
-import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
-import android.content.pm.PackageManager
-import android.os.Build
 import app.otakureader.core.extension.domain.model.Extension
 import app.otakureader.core.extension.domain.model.ExtensionSource
 import app.otakureader.core.extension.domain.model.InstallStatus
 import eu.kanade.tachiyomi.source.CatalogueSource
 import eu.kanade.tachiyomi.source.Source
-import eu.kanade.tachiyomi.source.SourceFactory
 import java.io.File
 
 /**
@@ -21,7 +17,7 @@ import java.io.File
 sealed class ExtensionLoadResult {
     data class Success(
         val extension: Extension,
-        val sources: List<Source>
+        val sources: List<Source>,
     ) : ExtensionLoadResult()
 
     /**
@@ -34,14 +30,19 @@ sealed class ExtensionLoadResult {
 }
 
 /**
- * Loads APK extensions using [ChildFirstPathClassLoader].
- * Extracts Source classes from the extension's APK.
+ * Thin orchestrator that loads APK extensions for use by the app.
  *
- * Compatible with Tachiyomi/Komikku extensions — extensions are identified
- * by the `tachiyomi.extension` uses-feature flag and their source class(es) are
- * declared in the `tachiyomi.extension.class` metadata entry (semicolon-separated).
- * Extensions that expose a SourceFactory via `tachiyomi.extension.factory` are also
- * supported.
+ * Compatible with Tachiyomi/Komikku extensions — extensions are identified by the
+ * `tachiyomi.extension` uses-feature flag and their source class(es) are declared in
+ * the `tachiyomi.extension.class` metadata entry (semicolon-separated). Extensions
+ * that expose a `SourceFactory` via `tachiyomi.extension.factory` are also supported.
+ *
+ * The actual heavy lifting is delegated to three focused, independently
+ * unit-testable collaborators:
+ *
+ *  - [ExtensionApkParser] — reads package metadata via [android.content.pm.PackageManager]
+ *  - [ExtensionSignatureVerifier] — computes signature hashes and consults [TrustedSignatureStore]
+ *  - [ExtensionClassLoaderFactory] — builds [ChildFirstPathClassLoader]s for each APK
  *
  * Supports two kinds of extensions (matching Komikku):
  * 1. **Shared extensions** – installed via the system package installer and available
@@ -51,8 +52,24 @@ sealed class ExtensionLoadResult {
  */
 class ExtensionLoader(
     private val context: Context,
-    private val trustedSignatureStore: TrustedSignatureStore
+    private val apkParser: ExtensionApkParser,
+    private val signatureVerifier: ExtensionSignatureVerifier,
+    private val classLoaderFactory: ExtensionClassLoaderFactory,
 ) {
+
+    /**
+     * Convenience constructor preserved for production wiring (Hilt module).
+     * Builds the collaborators from the supplied [Context] and [TrustedSignatureStore].
+     */
+    constructor(
+        context: Context,
+        trustedSignatureStore: TrustedSignatureStore,
+    ) : this(
+        context = context,
+        apkParser = ExtensionApkParser(context),
+        signatureVerifier = ExtensionSignatureVerifier(trustedSignatureStore),
+        classLoaderFactory = ExtensionClassLoaderFactory(),
+    )
 
     companion object {
         /** Feature flag that identifies a package as a Tachiyomi-compatible extension. */
@@ -79,17 +96,12 @@ class ExtensionLoader(
         /** File extension for private extensions stored in [getPrivateExtensionDir]. */
         private const val PRIVATE_EXTENSION_EXTENSION = "ext"
 
-        @Suppress("DEPRECATION")
-        val PACKAGE_FLAGS: Int = PackageManager.GET_CONFIGURATIONS or
-            PackageManager.GET_META_DATA or
-            PackageManager.GET_SIGNATURES or
-            (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) PackageManager.GET_SIGNING_CERTIFICATES else 0)
+        /** Package flags required to load extensions (signatures + metadata). */
+        val PACKAGE_FLAGS: Int = ExtensionApkParser.PACKAGE_FLAGS
 
         /** Directory where private extensions are stored (matches Komikku's `filesDir/exts`). */
         fun getPrivateExtensionDir(context: Context) = File(context.filesDir, "exts")
     }
-
-    private val packageManager: PackageManager = context.packageManager
 
     /**
      * Load an extension from its APK file path.
@@ -103,12 +115,8 @@ class ExtensionLoader(
                 return ExtensionLoadResult.Error("APK file not found: $apkPath")
             }
 
-            // Parse package info from the APK file
-            val packageInfo = packageManager.getPackageArchiveInfo(apkPath, PACKAGE_FLAGS)
+            val packageInfo = apkParser.parseApk(apkPath)
                 ?: return ExtensionLoadResult.Error("Failed to parse package info from APK")
-
-            // Fix base paths so assets/icon loading works on Android 13+
-            packageInfo.applicationInfo?.let { ExtensionLoadingUtils.run { it.fixBasePaths(apkPath) } }
 
             loadFromPackageInfo(packageInfo, isShared = false)
         } catch (e: Exception) {
@@ -122,34 +130,23 @@ class ExtensionLoader(
      * @return true if successfully installed, false otherwise
      */
     fun installPrivateExtensionFile(file: File): Boolean {
-        val extension = packageManager.getPackageArchiveInfo(file.absolutePath, PACKAGE_FLAGS)
-            ?.takeIf { isPackageAnExtension(it) } ?: return false
-
-        extension.applicationInfo?.fixBasePaths(file.absolutePath)
+        val extension = apkParser.parseApk(file.absolutePath)
+            ?.takeIf { apkParser.isPackageAnExtension(it) }
+            ?: return false
 
         val current = getPrivateExtensionPackageInfo(extension.packageName)
         if (current != null) {
-            val currentVersion = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                current.longVersionCode
-            } else {
-                @Suppress("DEPRECATION")
-                current.versionCode.toLong()
-            }
-            val newVersion = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                extension.longVersionCode
-            } else {
-                @Suppress("DEPRECATION")
-                extension.versionCode.toLong()
-            }
+            val currentVersion = apkParser.getVersionCode(current)
+            val newVersion = apkParser.getVersionCode(extension)
             if (newVersion < currentVersion) return false
 
             // Signature must match existing private extension
-            val existingHash = getSignatureHash(current)
-            val newHash = getSignatureHash(extension)
+            val existingHash = signatureVerifier.getSignatureHash(current)
+            val newHash = signatureVerifier.getSignatureHash(extension)
             if (existingHash != null && newHash != existingHash) return false
         }
 
-        val privateDir = getPrivateExtensionDir(context)
+        val privateDir = apkParser.getPrivateExtensionDir()
         if (!privateDir.exists() && !privateDir.mkdirs()) {
             return false
         }
@@ -159,14 +156,14 @@ class ExtensionLoader(
 
         val target = File(
             privateDir,
-            "${extension.packageName}.$PRIVATE_EXTENSION_EXTENSION"
+            "${extension.packageName}.$PRIVATE_EXTENSION_EXTENSION",
         )
         return try {
             target.delete()
             file.copyTo(target, overwrite = true)
             target.setReadOnly()
             // Auto-trust private extensions — their signature was already verified above.
-            getSignatureHash(extension)?.let { trustedSignatureStore.trust(it) }
+            signatureVerifier.getSignatureHash(extension)?.let { signatureVerifier.trust(it) }
             true
         } catch (e: Exception) {
             target.delete()
@@ -179,16 +176,14 @@ class ExtensionLoader(
      */
     fun uninstallPrivateExtension(pkgName: String) {
         File(
-            getPrivateExtensionDir(context),
-            "$pkgName.$PRIVATE_EXTENSION_EXTENSION"
+            apkParser.getPrivateExtensionDir(),
+            "$pkgName.$PRIVATE_EXTENSION_EXTENSION",
         ).delete()
     }
 
     /**
      * Load an already-installed extension by package name.
      * Checks private extensions first; falls back to shared (system) extension.
-     * @param pkgName Android package name of the installed extension
-     * @return [ExtensionLoadResult] for the installed extension
      */
     fun loadExtensionFromPkgName(pkgName: String): ExtensionLoadResult {
         return try {
@@ -205,35 +200,21 @@ class ExtensionLoader(
      *
      * When both a shared and a private extension exist for the same package name,
      * the one with the higher version code wins — matching Komikku's behaviour.
-     *
-     * @return List of all load results (success, untrusted, or error per extension)
      */
     fun loadAllExtensions(): List<ExtensionLoadResult> {
-        val installedPkgs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            packageManager.getInstalledPackages(
-                PackageManager.PackageInfoFlags.of(PACKAGE_FLAGS.toLong()),
-            )
-        } else {
-            @Suppress("DEPRECATION")
-            packageManager.getInstalledPackages(PACKAGE_FLAGS)
-        }
-
-        val sharedExtPkgs = installedPkgs
+        val sharedExtPkgs = apkParser.getInstalledPackages()
             .asSequence()
-            .filter { isPackageAnExtension(it) }
+            .filter { apkParser.isPackageAnExtension(it) }
             .map { ExtensionInfo(it, isShared = true) }
 
-        val privateExtPkgs = getPrivateExtensionDir(context)
+        val privateExtPkgs = apkParser.getPrivateExtensionDir()
             .listFiles()
             .orEmpty()
             .asSequence()
             .filter { it.isFile && it.extension == PRIVATE_EXTENSION_EXTENSION }
             .onEach { if (it.canWrite()) it.setReadOnly() }
-            .mapNotNull { file ->
-                packageManager.getPackageArchiveInfo(file.absolutePath, PACKAGE_FLAGS)
-                    ?.also { it.applicationInfo?.fixBasePaths(file.absolutePath) }
-            }
-            .filter { isPackageAnExtension(it) }
+            .mapNotNull { file -> apkParser.parseApk(file.absolutePath) }
+            .filter { apkParser.isPackageAnExtension(it) }
             .map { ExtensionInfo(it, isShared = false) }
 
         // Merge: for duplicate package names pick the higher version code
@@ -241,14 +222,7 @@ class ExtensionLoader(
             .groupBy { it.packageInfo.packageName }
             .values
             .mapNotNull { entries ->
-                entries.maxByOrNull {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                        it.packageInfo.longVersionCode
-                    } else {
-                        @Suppress("DEPRECATION")
-                        it.packageInfo.versionCode.toLong()
-                    }
-                }
+                entries.maxByOrNull { apkParser.getVersionCode(it.packageInfo) }
             }
 
         return merged.map { loadFromPackageInfo(it.packageInfo, it.isShared) }
@@ -261,50 +235,20 @@ class ExtensionLoader(
     private data class ExtensionInfo(val packageInfo: PackageInfo, val isShared: Boolean)
 
     private fun getExtensionInfoFromPkgName(pkgName: String): ExtensionInfo? {
-        val privateFile = File(
-            getPrivateExtensionDir(context),
-            "$pkgName.$PRIVATE_EXTENSION_EXTENSION"
-        )
-        val privatePkg = if (privateFile.isFile) {
-            packageManager.getPackageArchiveInfo(privateFile.absolutePath, PACKAGE_FLAGS)
-                ?.takeIf { isPackageAnExtension(it) }
-                ?.also { it.applicationInfo?.fixBasePaths(privateFile.absolutePath) }
-                ?.let { ExtensionInfo(it, isShared = false) }
-        } else {
-            null
-        }
+        val privatePkg = getPrivateExtensionPackageInfo(pkgName)
+            ?.takeIf { apkParser.isPackageAnExtension(it) }
+            ?.let { ExtensionInfo(it, isShared = false) }
 
-        val sharedPkg = try {
-            val pi = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                packageManager.getPackageInfo(
-                    pkgName,
-                    PackageManager.PackageInfoFlags.of(PACKAGE_FLAGS.toLong()),
-                )
-            } else {
-                @Suppress("DEPRECATION")
-                packageManager.getPackageInfo(pkgName, PACKAGE_FLAGS)
-            }
-            if (isPackageAnExtension(pi)) ExtensionInfo(pi, isShared = true) else null
-        } catch (e: PackageManager.NameNotFoundException) {
-            null
-        }
+        val sharedPkg = apkParser.getInstalledPackage(pkgName)
+            ?.takeIf { apkParser.isPackageAnExtension(it) }
+            ?.let { ExtensionInfo(it, isShared = true) }
 
         return when {
             privatePkg == null -> sharedPkg
             sharedPkg == null -> privatePkg
             else -> {
-                val pv = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    privatePkg.packageInfo.longVersionCode
-                } else {
-                    @Suppress("DEPRECATION")
-                    privatePkg.packageInfo.versionCode.toLong()
-                }
-                val sv = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    sharedPkg.packageInfo.longVersionCode
-                } else {
-                    @Suppress("DEPRECATION")
-                    sharedPkg.packageInfo.versionCode.toLong()
-                }
+                val pv = apkParser.getVersionCode(privatePkg.packageInfo)
+                val sv = apkParser.getVersionCode(sharedPkg.packageInfo)
                 if (pv >= sv) privatePkg else sharedPkg
             }
         }
@@ -312,21 +256,16 @@ class ExtensionLoader(
 
     private fun getPrivateExtensionPackageInfo(pkgName: String): PackageInfo? {
         val file = File(
-            getPrivateExtensionDir(context),
-            "$pkgName.$PRIVATE_EXTENSION_EXTENSION"
+            apkParser.getPrivateExtensionDir(),
+            "$pkgName.$PRIVATE_EXTENSION_EXTENSION",
         )
-        return if (file.isFile) {
-            packageManager.getPackageArchiveInfo(file.absolutePath, PACKAGE_FLAGS)
-                ?.also { it.applicationInfo?.fixBasePaths(file.absolutePath) }
-        } else {
-            null
-        }
+        return if (file.isFile) apkParser.parseApk(file.absolutePath) else null
     }
 
     /** Core loading logic shared between APK-path and package-name entry points. */
     private fun loadFromPackageInfo(packageInfo: PackageInfo, isShared: Boolean): ExtensionLoadResult {
         // Must declare the Tachiyomi extension feature flag
-        if (!isPackageAnExtension(packageInfo)) {
+        if (!apkParser.isPackageAnExtension(packageInfo)) {
             return ExtensionLoadResult.Error("Not a valid Tachiyomi-compatible extension (missing feature flag)")
         }
 
@@ -347,7 +286,7 @@ class ExtensionLoader(
             )
         }
 
-        val isNsfw = ExtensionLoadingUtils.isNsfw(appInfo)
+        val isNsfw = apkParser.isNsfw(appInfo)
 
         // Build a ChildFirstPathClassLoader for dynamic class loading (matches Komikku)
         val apkPath = appInfo.sourceDir
@@ -355,10 +294,10 @@ class ExtensionLoader(
         val nativeLibDir = appInfo.nativeLibraryDir
 
         val classLoader = try {
-            ExtensionLoadingUtils.createClassLoader(
-                apkPath,
+            classLoaderFactory.create(
+                apkPath = apkPath,
                 nativeLibDir = nativeLibDir,
-                parentClassLoader = context.classLoader
+                parentClassLoader = context.classLoader,
             )
         } catch (e: IllegalArgumentException) {
             return ExtensionLoadResult.Error("Invalid parameters for class loader: ${e.message}", e)
@@ -374,7 +313,7 @@ class ExtensionLoader(
         // extensions (installed via system package manager) must be in the user-approved set.
         // Fail closed: if the signature hash cannot be computed, treat the extension as untrusted.
         val sigHash = extension.signatureHash
-        if (isShared && (sigHash == null || !trustedSignatureStore.isTrusted(sigHash))) {
+        if (isShared && (sigHash == null || !signatureVerifier.isTrusted(sigHash))) {
             return ExtensionLoadResult.Untrusted(extension)
         }
 
@@ -385,27 +324,20 @@ class ExtensionLoader(
      * Permanently trust an extension by its signature hash so future loads return [ExtensionLoadResult.Success].
      */
     fun trustExtension(signatureHash: String) {
-        trustedSignatureStore.trust(signatureHash)
+        signatureVerifier.trust(signatureHash)
     }
 
     /**
      * Revoke trust for an extension signature — future loads will return [ExtensionLoadResult.Untrusted].
      */
     fun revokeExtensionTrust(signatureHash: String) {
-        trustedSignatureStore.revoke(signatureHash)
+        signatureVerifier.revoke(signatureHash)
     }
 
     /**
      * Returns true if the given package declares the Tachiyomi extension uses-feature.
      */
-    fun isPackageAnExtension(pkgInfo: PackageInfo): Boolean {
-        return ExtensionLoadingUtils.isPackageAnExtension(pkgInfo)
-    }
-
-    private fun ApplicationInfo.fixBasePaths(apkPath: String) {
-        if (sourceDir == null) sourceDir = apkPath
-        if (publicSourceDir == null) publicSourceDir = apkPath
-    }
+    fun isPackageAnExtension(pkgInfo: PackageInfo): Boolean = apkParser.isPackageAnExtension(pkgInfo)
 
     /**
      * Build the [Extension] domain model from the loaded package data.
@@ -429,15 +361,8 @@ class ExtensionLoader(
         return Extension(
             id = generateExtensionId(packageInfo.packageName),
             pkgName = packageInfo.packageName,
-            name = appInfo?.loadLabel(packageManager)?.toString()
-                ?.substringAfter("Tachiyomi: ")
-                ?: packageInfo.packageName,
-            versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                packageInfo.longVersionCode.toInt()
-            } else {
-                @Suppress("DEPRECATION")
-                packageInfo.versionCode
-            },
+            name = appInfo?.let { apkParser.loadLabel(it) } ?: packageInfo.packageName,
+            versionCode = apkParser.getVersionCodeInt(packageInfo),
             versionName = packageInfo.versionName ?: "unknown",
             sources = sources.map { it.toExtensionSource() },
             status = InstallStatus.INSTALLED,
@@ -446,7 +371,7 @@ class ExtensionLoader(
             lang = lang,
             isNsfw = isNsfw,
             installDate = System.currentTimeMillis(),
-            signatureHash = getSignatureHash(packageInfo),
+            signatureHash = signatureVerifier.getSignatureHash(packageInfo),
             isShared = isShared,
         )
     }
@@ -454,31 +379,6 @@ class ExtensionLoader(
     /** Generate a stable numeric extension ID from its package name. */
     private fun generateExtensionId(pkgName: String): Long {
         return pkgName.hashCode().toLong().and(0xFFFFFFFFL)
-    }
-
-    /** Return a hex-encoded SHA-256 of the first signing certificate, or null. */
-    private fun getSignatureHash(packageInfo: PackageInfo): String? {
-        return try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                val signingInfo = packageInfo.signingInfo ?: return null
-                val cert = if (signingInfo.hasMultipleSigners()) {
-                    signingInfo.apkContentsSigners?.firstOrNull()
-                } else {
-                    signingInfo.signingCertificateHistory?.firstOrNull()
-                }
-                cert?.toByteArray()?.let { sha256Hex(it) }
-            } else {
-                @Suppress("DEPRECATION")
-                packageInfo.signatures?.firstOrNull()?.toByteArray()?.let { sha256Hex(it) }
-            }
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    private fun sha256Hex(bytes: ByteArray): String {
-        val md = java.security.MessageDigest.getInstance("SHA-256")
-        return md.digest(bytes).joinToString("") { "%02x".format(it) }
     }
 
     /** Convert a loaded [Source] to the [ExtensionSource] domain model. */
