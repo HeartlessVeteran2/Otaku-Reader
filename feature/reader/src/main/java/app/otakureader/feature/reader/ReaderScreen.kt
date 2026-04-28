@@ -12,24 +12,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Translate
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -69,8 +54,6 @@ import app.otakureader.feature.reader.modes.WebtoonReader
 import app.otakureader.feature.reader.ui.BatteryTimeOverlay
 import app.otakureader.feature.reader.ui.BrightnessSliderOverlay
 import app.otakureader.feature.reader.ui.FullPageGallery
-import app.otakureader.feature.reader.ui.OcrSearchBottomSheet
-import app.otakureader.feature.reader.ui.OcrTranslationBottomSheet
 import app.otakureader.feature.reader.ui.PageSlider
 import app.otakureader.feature.reader.ui.PageThumbnailStrip
 import app.otakureader.feature.reader.ui.ReadingTimerOverlay
@@ -86,7 +69,6 @@ import kotlinx.coroutines.launch
 
 // FAB positioning constants
 private val FAB_BASE_OFFSET = 80.dp
-private val FAB_STACKING_INCREMENT = 56.dp
 
 /**
  * Ultimate Reader Screen with full gallery view, tap zones, and all 4 reading modes.
@@ -355,112 +337,12 @@ fun ReaderScreen(
             )
         }
 
-        // SFX translate FAB – shown when the feature is enabled and the main menu is hidden
-        if (state.sfxTranslationEnabled && !state.isMenuVisible && !state.isGalleryOpen && !state.isLoading) {
-            FloatingActionButton(
-                onClick = { viewModel.onEvent(ReaderEvent.OpenSfxDialog) },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(bottom = FAB_BASE_OFFSET, end = 16.dp),
-                containerColor = MaterialTheme.colorScheme.secondaryContainer
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Translate,
-                    contentDescription = stringResource(R.string.reader_sfx_translate),
-                    tint = MaterialTheme.colorScheme.onSecondaryContainer
-                )
-            }
-        }
-
-        // OCR text search FAB – always available when pages are loaded and menu is hidden
-        if (!state.isMenuVisible && !state.isGalleryOpen && !state.isLoading && state.pages.isNotEmpty()) {
-            val ocrFabOffset = if (state.sfxTranslationEnabled) {
-                FAB_BASE_OFFSET + FAB_STACKING_INCREMENT
-            } else {
-                FAB_BASE_OFFSET
-            }
-            FloatingActionButton(
-                onClick = { viewModel.onEvent(ReaderEvent.OpenOcrSearch) },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(bottom = ocrFabOffset, end = 16.dp),
-                containerColor = MaterialTheme.colorScheme.tertiaryContainer
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = stringResource(R.string.reader_ocr_search_open),
-                    tint = MaterialTheme.colorScheme.onTertiaryContainer
-                )
-            }
-        }
-
-        // OCR translation FAB – visible when the Gemini Vision feature is enabled
-        // and the current page has an imageUrl (archive/local pages with localPath/bitmap are not yet supported)
-        if (state.ocrTranslationEnabled && !state.isMenuVisible && !state.isGalleryOpen && !state.isLoading && state.pages.isNotEmpty() && state.currentPageData?.imageUrl != null) {
-            val translateFabOffset = run {
-                var offset = FAB_BASE_OFFSET
-                if (state.sfxTranslationEnabled) offset += FAB_STACKING_INCREMENT
-                // Sits above the OCR search FAB which is always shown when pages are loaded.
-                offset += FAB_STACKING_INCREMENT
-                offset
-            }
-            FloatingActionButton(
-                onClick = { viewModel.onEvent(ReaderEvent.TranslateCurrentPage) },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(bottom = translateFabOffset, end = 16.dp),
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Translate,
-                    contentDescription = stringResource(R.string.reader_ocr_translate_page),
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-            }
-        }
-
         // Snackbar host
         SnackbarHost(
             hostState = snackbarHostState,
             modifier = Modifier.align(Alignment.BottomCenter)
         )
 
-        // SFX Translation Dialog
-        if (state.sfxTranslationEnabled && state.showSfxDialog) {
-            SfxTranslationDialog(
-                sfxTranslations = state.sfxTranslations.values
-                    .flatten()
-                    .associate { it.originalText to it.translatedText },
-                isSfxTranslating = state.isSfxTranslating,
-                onTranslate = { viewModel.onEvent(ReaderEvent.TranslateSfx(it)) },
-                onDismiss = { viewModel.onEvent(ReaderEvent.CloseSfxDialog) }
-            )
-        }
-
-        // OCR text search bottom sheet
-        OcrSearchBottomSheet(
-            isVisible = state.showOcrSearch,
-            query = state.ocrQuery,
-            matchingPageIndices = state.ocrMatchingPageIndices,
-            totalPages = state.totalPages,
-            indexedPageCount = state.ocrPageTexts.size,
-            isOcrRunning = state.isOcrRunning,
-            onQueryChange = { viewModel.onEvent(ReaderEvent.UpdateOcrQuery(it)) },
-            onPageClick = { pageIndex ->
-                viewModel.jumpToPage(pageIndex)
-                viewModel.onEvent(ReaderEvent.CloseOcrSearch)
-            },
-            onDismiss = { viewModel.onEvent(ReaderEvent.CloseOcrSearch) },
-        )
-
-        // OCR translation results sheet (Gemini Vision)
-        OcrTranslationBottomSheet(
-            isVisible = state.showOcrTranslationSheet,
-            pageIndex = state.currentPage,
-            translations = state.ocrTranslations[state.currentPage].orEmpty(),
-            isTranslating = state.isOcrTranslating,
-            onDismiss = { viewModel.onEvent(ReaderEvent.CloseOcrTranslationSheet) },
-        )
     }
 }
 
@@ -580,100 +462,4 @@ private fun ReaderContent(
     }
 }
 
-/**
- * Dialog that lets the user type a manga sound effect (SFX) and see its AI translation.
- *
- * Previously translated SFX are shown in a scrollable list for quick reference.
- */
-@Composable
-private fun SfxTranslationDialog(
-    sfxTranslations: Map<String, String>,
-    isSfxTranslating: Boolean,
-    onTranslate: (String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    var sfxInput by remember { mutableStateOf("") }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(text = stringResource(R.string.reader_sfx_dialog_title)) },
-        text = {
-            Column {
-                OutlinedTextField(
-                    value = sfxInput,
-                    onValueChange = { sfxInput = it },
-                    label = { Text(stringResource(R.string.reader_sfx_input_label)) },
-                    placeholder = { Text(stringResource(R.string.reader_sfx_input_placeholder)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    enabled = !isSfxTranslating
-                )
-
-                if (isSfxTranslating) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = stringResource(R.string.reader_sfx_translating),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                }
-
-                // Show the latest translation result if available
-                val latestTranslation = sfxTranslations[sfxInput.trim()]
-                if (latestTranslation != null) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = latestTranslation,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                // History of previous translations
-                if (sfxTranslations.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = stringResource(R.string.reader_sfx_history_label),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    LazyColumn(modifier = Modifier.height(120.dp)) {
-                        sfxTranslations.entries.toList().reversed().forEach { (sfx, translation) ->
-                            item(key = sfx) {
-                                Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                                    Text(
-                                        text = sfx,
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                    Text(
-                                        text = translation,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { onTranslate(sfxInput.trim()) },
-                enabled = sfxInput.isNotBlank() && !isSfxTranslating
-            ) {
-                Text(stringResource(R.string.reader_sfx_translate_action))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.reader_sfx_close))
-            }
-        }
-    )
-}

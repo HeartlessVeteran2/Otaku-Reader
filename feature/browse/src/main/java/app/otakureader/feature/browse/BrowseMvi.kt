@@ -4,7 +4,6 @@ import app.otakureader.core.common.mvi.UiEffect
 import app.otakureader.core.common.mvi.UiEvent
 import app.otakureader.core.common.mvi.UiState
 import app.otakureader.domain.model.FeedSavedSearch
-import app.otakureader.domain.model.SourceScore
 import app.otakureader.sourceapi.FilterList
 import app.otakureader.sourceapi.SourceManga
 
@@ -22,14 +21,6 @@ data class BrowseState(
     val availableFilters: FilterList = FilterList(),
     val activeFilters: FilterList = FilterList(),
     val showFilterSheet: Boolean = false,
-    /** AI-ranked source scores for the manga currently being browsed, sorted by overall score desc. */
-    val sourceScores: List<SourceScore> = emptyList(),
-    /** True while AI is analyzing sources. */
-    val isAnalyzingSource: Boolean = false,
-    /** Whether the Source Intelligence feature is enabled in settings. */
-    val sourceIntelligenceEnabled: Boolean = false,
-    /** AI-generated intelligence text keyed by sourceId. */
-    val sourceIntelligence: Map<String, String> = emptyMap(),
     /** Currently selected manga for bulk favorite (IDs mapped to manga). */
     val selectedManga: Map<String, SourceManga> = emptyMap(),
     /** True when bulk selection mode is active. */
@@ -50,9 +41,7 @@ sealed interface BrowseEvent : UiEvent {
     data class UpdateFilter(val index: Int, val filter: app.otakureader.sourceapi.Filter<*>) : BrowseEvent
     data object ResetFilters : BrowseEvent
     data object ApplyFilters : BrowseEvent
-    /** Request AI source scoring for a specific manga (identified by title). */
-    data class RequestSourceScores(val mangaId: Long, val mangaTitle: String) : BrowseEvent
-    
+
     // Bulk favorite events
     data class OnMangaLongClick(val manga: SourceManga) : BrowseEvent
     data class ToggleMangaSelection(val manga: SourceManga) : BrowseEvent

@@ -20,7 +20,7 @@
 
 | Build | Description | Download |
 |-------|-------------|----------|
-| **Full** | All features including AI | [Latest Release](https://github.com/HeartlessVeteran2/Otaku-Reader/releases/latest) |
+| **Full** | All features | [Latest Release](https://github.com/HeartlessVeteran2/Otaku-Reader/releases/latest) |
 | **FOSS** | Open-source only, no proprietary SDKs | [Latest Release](https://github.com/HeartlessVeteran2/Otaku-Reader/releases/latest) |
 
 **Minimum Requirements:** Android 8.0 (API 26) · ~30MB storage
@@ -203,6 +203,12 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 ```
 
 See [docs/contributing/release-checklist.md](docs/contributing/release-checklist.md) for full release instructions.
+
+---
+
+## 🔗 See Also
+
+- **[Otaku-Reader-AI](https://github.com/HeartlessVeteran2/Otaku-Reader-AI)** — The companion AI extension module (Gemini-powered summaries, OCR translation, SFX translation, reading insights, smart search, and recommendations). Designed to plug into this app without modifying the core codebase.
 
 ---
 

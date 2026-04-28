@@ -4,7 +4,6 @@ import android.net.Uri
 import app.otakureader.core.common.mvi.UiEffect
 import app.otakureader.core.common.mvi.UiEvent
 import app.otakureader.core.common.mvi.UiState
-import app.otakureader.core.preferences.AiTier
 import app.otakureader.core.preferences.LocalSourcePreferences
 import app.otakureader.domain.model.ImageQuality
 import app.otakureader.feature.settings.BuildConfig
@@ -135,25 +134,6 @@ data class SettingsState(
 
     // --- Discord ---
     val discordRpcEnabled: Boolean = false,
-
-    // --- AI ---
-    val isAiAvailable: Boolean = BuildConfig.AI_FEATURES_AVAILABLE,
-    val aiEnabled: Boolean = false,
-    val aiTier: AiTier = AiTier.FREE,
-    val aiApiKeySet: Boolean = false,
-    val showRemoveApiKeyDialog: Boolean = false,
-    val aiReadingInsights: Boolean = true,
-    val aiSmartSearch: Boolean = true,
-    val aiRecommendations: Boolean = true,
-    val aiPanelReader: Boolean = true,
-    val aiSfxTranslation: Boolean = true,
-    val aiSummaryTranslation: Boolean = true,
-    val aiSourceIntelligence: Boolean = true,
-    val aiSmartNotifications: Boolean = true,
-    val aiAutoCategorization: Boolean = true,
-    val aiOcrTranslation: Boolean = true,
-    val aiTokensUsedThisMonth: Long = 0L,
-    val aiTokenTrackingPeriod: String = "",
 
     // --- Reading Goals ---
     val dailyChapterGoal: Int = 0,
@@ -301,25 +281,6 @@ sealed interface SettingsEvent : UiEvent {
 
     // Discord
     data class SetDiscordRpcEnabled(val enabled: Boolean) : SettingsEvent
-
-    // AI
-    data class SetAiEnabled(val enabled: Boolean) : SettingsEvent
-    data class SetAiTier(val tier: AiTier) : SettingsEvent
-    data class SetAiApiKey(val key: String) : SettingsEvent
-    data object RemoveAiApiKey : SettingsEvent
-    data object ConfirmRemoveAiApiKey : SettingsEvent
-    data object DismissRemoveApiKeyDialog : SettingsEvent
-    data class SetAiReadingInsights(val enabled: Boolean) : SettingsEvent
-    data class SetAiSmartSearch(val enabled: Boolean) : SettingsEvent
-    data class SetAiRecommendations(val enabled: Boolean) : SettingsEvent
-    data class SetAiPanelReader(val enabled: Boolean) : SettingsEvent
-    data class SetAiSfxTranslation(val enabled: Boolean) : SettingsEvent
-    data class SetAiSummaryTranslation(val enabled: Boolean) : SettingsEvent
-    data class SetAiSourceIntelligence(val enabled: Boolean) : SettingsEvent
-    data class SetAiSmartNotifications(val enabled: Boolean) : SettingsEvent
-    data class SetAiAutoCategorization(val enabled: Boolean) : SettingsEvent
-    data class SetAiOcrTranslation(val enabled: Boolean) : SettingsEvent
-    data object ClearAiCache : SettingsEvent
 
     // Reading Goals
     data class SetDailyChapterGoal(val goal: Int) : SettingsEvent

@@ -11,12 +11,8 @@ import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.core.preferences.DeleteAfterReadMode
 import app.otakureader.core.preferences.DownloadPreferences
-import app.otakureader.core.preferences.AiPreferences
-import app.otakureader.domain.repository.AiRepository
 import app.otakureader.domain.usecase.UpdateMangaNoteUseCase
 import app.otakureader.domain.usecase.SetMangaNotificationsUseCase
-import app.otakureader.domain.usecase.ai.SummarizeChapterUseCase
-import app.otakureader.domain.usecase.ai.GenerateMangaSummaryUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -50,10 +46,6 @@ class DetailsViewModel @Inject constructor(
     private val downloadPreferences: DownloadPreferences,
     private val updateMangaNote: UpdateMangaNoteUseCase,
     private val setMangaNotifications: SetMangaNotificationsUseCase,
-    private val summarizeChapter: SummarizeChapterUseCase,
-    private val aiRepository: AiRepository,
-    private val aiPreferences: AiPreferences,
-    private val generateMangaSummary: GenerateMangaSummaryUseCase
 ) : ViewModel() {
 
     private val mangaId: Long = savedStateHandle.get<Long>(MANGA_ID_ARG) 
@@ -132,11 +124,7 @@ class DetailsViewModel @Inject constructor(
             
             // Chapter thumbnail loading
             is DetailsContract.Event.LoadChapterThumbnail -> loadChapterThumbnail(event.chapterId)
-            is DetailsContract.Event.RequestChapterSummary -> requestChapterSummary(event.chapterId)
 
-            // AI Summary Translation
-            is DetailsContract.Event.GenerateAiSummary -> generateAiSummary()
-            
             // Source suggestions
             is DetailsContract.Event.LoadSourceSuggestions -> loadSourceSuggestions()
             is DetailsContract.Event.OnSourceSuggestionClick -> onSourceSuggestionClick(event.suggestion)
@@ -295,15 +283,6 @@ class DetailsViewModel @Inject constructor(
                 }
             }
             .launchIn(viewModelScope)
-
-        combine(
-            aiPreferences.aiEnabled,
-            aiPreferences.aiSummaryTranslation
-        ) { aiEnabled, summaryEnabled ->
-            aiEnabled && summaryEnabled
-        }.onEach { enabled ->
-            _state.update { it.copy(aiSummaryEnabled = enabled) }
-        }.launchIn(viewModelScope)
     }
 
     private fun refreshData() {
@@ -878,74 +857,8 @@ class DetailsViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Request an AI-generated summary for the given chapter.
-     *
-     * The summary is fetched asynchronously; the result is reflected in
-     * [DetailsContract.State.chapterSummaries] keyed by [chapterId].
-     * When the AI feature is disabled or unavailable the call is a no-op so
-     * the UI degrades gracefully (no summary shown, no error displayed).
-     */
-    private fun requestChapterSummary(chapterId: Long) {
-        viewModelScope.launch {
-            val manga = _state.value.manga ?: return@launch
-            val chapter = _state.value.chapters.find { it.id == chapterId } ?: return@launch
-
-            val precedingTitles = _state.value.sortedChapters
-                .takeWhile { it.id != chapterId }
-                .takeLast(SUMMARY_CONTEXT_CHAPTERS)
-                .map { it.name }
-
-            val result = summarizeChapter(
-                chapterId = chapterId,
-                mangaId = mangaId,
-                mangaTitle = manga.title,
-                chapterName = chapter.name,
-                precedingChapterTitles = precedingTitles,
-            )
-            result.getOrNull()?.let { summary ->
-                _state.update { state ->
-                    state.copy(
-                        chapterSummaries = state.chapterSummaries + (chapterId to summary.summary)
-                    )
-                }
-            }
-        }
-    }
-
     companion object {
         const val MANGA_ID_ARG = "mangaId"
-        private const val SUMMARY_CONTEXT_CHAPTERS = 5
-    }
-
-    // --- AI Summary Translation ---
-
-    private fun generateAiSummary() {
-        val manga = _state.value.manga ?: return
-        val description = manga.description ?: return
-
-        viewModelScope.launch {
-            if (!aiRepository.isAvailable()) {
-                _effect.send(
-                    DetailsContract.Effect.ShowError("AI is not available. Please configure an API key in Settings.")
-                )
-                return@launch
-            }
-
-            _state.update { it.copy(isGeneratingSummary = true) }
-            generateMangaSummary(title = manga.title, description = description)
-                .onSuccess { summary ->
-                    _state.update { it.copy(aiSummary = summary, isGeneratingSummary = false) }
-                }
-                .onFailure { error ->
-                    _state.update { it.copy(isGeneratingSummary = false) }
-                    _effect.send(
-                        DetailsContract.Effect.ShowError(
-                            "Failed to generate summary: ${error.message ?: "Unknown error"}"
-                        )
-                    )
-                }
-        }
     }
 
     // --- Source Suggestions ---

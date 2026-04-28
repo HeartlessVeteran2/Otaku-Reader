@@ -7,7 +7,6 @@ import app.otakureader.core.preferences.LocalSourcePreferences
 import app.otakureader.core.preferences.ReadingGoalPreferences
 import app.otakureader.data.worker.ReadingReminderScheduler
 import app.otakureader.domain.repository.ChapterRepository
-import app.otakureader.feature.settings.delegate.AiSettingsDelegate
 import app.otakureader.feature.settings.delegate.AppearanceSettingsDelegate
 import app.otakureader.feature.settings.delegate.BackupSettingsDelegate
 import app.otakureader.feature.settings.delegate.DownloadSettingsDelegate
@@ -43,7 +42,6 @@ class SettingsViewModelTest {
     private lateinit var libraryDelegate: LibrarySettingsDelegate
     private lateinit var downloadDelegate: DownloadSettingsDelegate
     private lateinit var backupDelegate: BackupSettingsDelegate
-    private lateinit var aiDelegate: AiSettingsDelegate
     private lateinit var trackerSyncDelegate: TrackerSyncSettingsDelegate
     private lateinit var localSourcePreferences: LocalSourcePreferences
     private lateinit var appPreferences: AppPreferences
@@ -67,7 +65,6 @@ class SettingsViewModelTest {
         libraryDelegate = mockk(relaxed = true)
         downloadDelegate = mockk(relaxed = true)
         backupDelegate = mockk(relaxed = true)
-        aiDelegate = mockk(relaxed = true)
         trackerSyncDelegate = mockk(relaxed = true)
 
         localSourcePreferences = mockk(relaxed = true) {
@@ -104,7 +101,6 @@ class SettingsViewModelTest {
         libraryDelegate = libraryDelegate,
         downloadDelegate = downloadDelegate,
         backupDelegate = backupDelegate,
-        aiDelegate = aiDelegate,
         trackerSyncDelegate = trackerSyncDelegate,
         localSourcePreferences = localSourcePreferences,
         appPreferences = appPreferences,
@@ -124,8 +120,6 @@ class SettingsViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         val state = viewModel.state.value
-        assertFalse(state.aiEnabled)
-        assertFalse(state.showRemoveApiKeyDialog)
         assertEquals(0, state.dailyChapterGoal)
         assertEquals(0, state.weeklyChapterGoal)
         assertFalse(state.readingRemindersEnabled)
@@ -294,17 +288,6 @@ class SettingsViewModelTest {
     // ─────────────────────────────────────────────────────────────────────────
     // Delegate routing
     // ─────────────────────────────────────────────────────────────────────────
-
-    @Test
-    fun `onEvent routes AI events to aiDelegate`() = runTest {
-        coEvery { aiDelegate.handleEvent(any(), any()) } returns true
-
-        val viewModel = createViewModel()
-        viewModel.onEvent(SettingsEvent.SetAiEnabled(true))
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        coVerify { aiDelegate.handleEvent(SettingsEvent.SetAiEnabled(true), any()) }
-    }
 
     @Test
     fun `onEvent routes appearance events to appearanceDelegate`() = runTest {

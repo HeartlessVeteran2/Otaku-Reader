@@ -305,9 +305,7 @@ class AiPreferences(
     /**
      * Remove the stored Gemini API key.
      *
-     * After calling this method, [getGeminiApiKey] returns an empty string. The caller
-     * is responsible for also resetting any live [GeminiClient] instance that was
-     * previously initialized with the key.
+     * After calling this method, [getGeminiApiKey] returns an empty string.
      */
     suspend fun clearGeminiApiKey() = withContext(Dispatchers.IO) {
         encryptedPrefs.edit().remove(GEMINI_API_KEY_PREF).apply()

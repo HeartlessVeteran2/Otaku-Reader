@@ -10,11 +10,9 @@ import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.domain.repository.ReaderSettingsRepository
-import app.otakureader.domain.usecase.ai.TranslateSfxUseCase
 import app.otakureader.core.discord.DiscordRpcService
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.DownloadPreferences
-import app.otakureader.core.preferences.AiPreferences
 import app.otakureader.domain.model.ColorFilterMode
 import app.otakureader.domain.model.ImageQuality
 import app.otakureader.domain.model.ReaderMode
@@ -23,7 +21,6 @@ import app.otakureader.domain.model.ReadingDirection
 import app.otakureader.feature.reader.model.ComicPanel
 import app.otakureader.feature.reader.model.PanelBounds
 import app.otakureader.feature.reader.panel.PanelDetectionService
-import app.otakureader.feature.reader.ocr.TextRecognitionService
 import app.otakureader.feature.reader.prefetch.AdaptiveChapterPrefetcher
 import app.otakureader.feature.reader.prefetch.ReadingBehaviorTracker
 import app.otakureader.feature.reader.prefetch.SmartPrefetchManager
@@ -31,12 +28,8 @@ import app.otakureader.feature.reader.viewmodel.delegate.ReaderChapterLoaderDele
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderDiscordDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderDownloadAheadDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderHistoryDelegate
-import app.otakureader.feature.reader.viewmodel.delegate.ReaderOcrDelegate
-import app.otakureader.feature.reader.viewmodel.delegate.ReaderOcrTranslationDelegate
-import app.otakureader.feature.reader.viewmodel.delegate.ReaderPanelDetectionDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderPrefetchDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderSettingsLoaderDelegate
-import app.otakureader.feature.reader.viewmodel.delegate.ReaderSfxDelegate
 import coil3.ImageLoader
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -90,10 +83,6 @@ class ReaderViewModelTest {
     private lateinit var smartPrefetchManager: SmartPrefetchManager
     private lateinit var chapterPrefetcher: AdaptiveChapterPrefetcher
     private lateinit var panelDetectionService: PanelDetectionService
-    private lateinit var aiPreferences: AiPreferences
-    private lateinit var translateSfx: TranslateSfxUseCase
-    private lateinit var textRecognitionService: TextRecognitionService
-    private lateinit var ocrTranslationDelegate: ReaderOcrTranslationDelegate
 
     @Before
     fun setUp() {
@@ -115,11 +104,6 @@ class ReaderViewModelTest {
         smartPrefetchManager = mockk(relaxed = true)
         chapterPrefetcher = mockk(relaxed = true)
         panelDetectionService = mockk()
-        aiPreferences = mockk(relaxed = true)
-        translateSfx = mockk<TranslateSfxUseCase>()
-        textRecognitionService = mockk(relaxed = true)
-        ocrTranslationDelegate = mockk(relaxed = true)
-        coEvery { translateSfx(any(), any(), any(), any()) } returns Result.success(emptyList())
         coEvery { panelDetectionService.detectPanelsFromUrl(any(), any()) } returns emptyList()
         every { generalPreferences.discordRpcEnabled } returns flowOf(false)
 
@@ -220,16 +204,9 @@ class ReaderViewModelTest {
                 chapterRepository = chapterRepository,
                 settingsRepository = settingsRepository,
             ),
-            sfxDelegate = ReaderSfxDelegate(
-                aiPreferences = aiPreferences,
-                translateSfx = translateSfx,
-            ),
             discordDelegate = ReaderDiscordDelegate(
                 generalPreferences = generalPreferences,
                 discordRpcService = discordRpcService,
-            ),
-            panelDelegate = ReaderPanelDetectionDelegate(
-                panelDetectionService = panelDetectionService,
             ),
             prefetchDelegate = prefetchDelegate,
             downloadAheadDelegate = ReaderDownloadAheadDelegate(
@@ -240,10 +217,6 @@ class ReaderViewModelTest {
                 chapterRepository = chapterRepository,
                 mangaRepository = mangaRepository,
             ),
-            ocrDelegate = ReaderOcrDelegate(
-                textRecognitionService = textRecognitionService,
-            ),
-            ocrTranslationDelegate = ocrTranslationDelegate,
             savedStateHandle = SavedStateHandle(
                 mapOf("mangaId" to mangaId, "chapterId" to chapterId)
             )

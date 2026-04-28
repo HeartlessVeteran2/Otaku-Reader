@@ -174,38 +174,6 @@ data class ReaderState(
     val showActionsOnLongTap: Boolean = true,
     /** Save pages to separate folders by manga title */
     val savePagesToSeparateFolders: Boolean = false,
-
-    // --- SFX Translation ---
-    /** Whether the SFX translation feature is enabled in settings. */
-    val sfxTranslationEnabled: Boolean = false,
-    /** AI-generated SFX translations keyed by zero-based page index. */
-    val sfxTranslations: Map<Int, List<app.otakureader.domain.model.SfxTranslation>> = emptyMap(),
-    /** True while an SFX translation request is in progress. */
-    val isSfxTranslating: Boolean = false,
-    /** Whether the SFX translation dialog is visible. */
-    val showSfxDialog: Boolean = false,
-    /** Whether the SFX translation overlay is currently visible. */
-    val sfxOverlayVisible: Boolean = false,
-
-    // --- OCR Text Search ---
-    /** Whether the OCR text search bottom sheet is visible. */
-    val showOcrSearch: Boolean = false,
-    /** Current search query entered by the user. */
-    val ocrQuery: String = "",
-    /** OCR-extracted text keyed by zero-based page index (populated lazily as pages are scanned). */
-    val ocrPageTexts: Map<Int, String> = emptyMap(),
-    /** True while background OCR scanning is in progress. */
-    val isOcrRunning: Boolean = false,
-
-    // --- OCR Translation (Gemini Vision) ---
-    /** Whether the Gemini Vision OCR translation feature is enabled in settings. */
-    val ocrTranslationEnabled: Boolean = false,
-    /** AI-generated OCR translations keyed by zero-based page index. */
-    val ocrTranslations: Map<Int, List<app.otakureader.domain.model.OcrTranslation>> = emptyMap(),
-    /** True while a Gemini Vision translation request is in progress for any page. */
-    val isOcrTranslating: Boolean = false,
-    /** Whether the OCR translation results sheet is visible. */
-    val showOcrTranslationSheet: Boolean = false,
 ) {
     /** Total pages in chapter (derived from pages.size) */
     val totalPages: Int get() = pages.size
@@ -291,16 +259,6 @@ data class ReaderState(
             einkBlackAndWhite = einkBlackAndWhite
         )
 
-    /** SFX translation state — changes when translation is requested or dialog toggled. */
-    val sfxState: SfxState
-        get() = SfxState(
-            sfxTranslationEnabled = sfxTranslationEnabled,
-            sfxTranslations = sfxTranslations,
-            isSfxTranslating = isSfxTranslating,
-            showSfxDialog = showSfxDialog,
-            sfxOverlayVisible = sfxOverlayVisible
-        )
-
     /** Webtoon-specific state — only relevant in webtoon mode. */
     val webtoonState: WebtoonState
         get() = WebtoonState(
@@ -312,37 +270,6 @@ data class ReaderState(
             webtoonDoubleTapZoom = webtoonDoubleTapZoom,
             webtoonDisableZoomOut = webtoonDisableZoomOut
         )
-
-    /** OCR text-search state — changes when the search sheet is opened/closed or results arrive. */
-    val ocrState: OcrState
-        get() = OcrState(
-            showOcrSearch = showOcrSearch,
-            ocrQuery = ocrQuery,
-            ocrPageTexts = ocrPageTexts,
-            isOcrRunning = isOcrRunning,
-        )
-
-    /**
-     * Pages (by 0-based index) whose recognized text contains [ocrQuery] (case-insensitive).
-     * Empty when the query is blank or no pages have been indexed yet.
-     *
-     * Computed once per immutable [ReaderState] instance so Compose reads do not
-     * repeatedly scan and sort the full OCR text map during recomposition.
-     */
-    val ocrMatchingPageIndices: List<Int> by lazy {
-        computeOcrMatchingPageIndices()
-    }
-
-    private fun computeOcrMatchingPageIndices(): List<Int> {
-        val q = ocrQuery.trim()
-        if (q.isBlank()) return emptyList()
-        return ocrPageTexts
-            .asSequence()
-            .filter { (_, text) -> text.contains(q, ignoreCase = true) }
-            .map { (pageIndex, _) -> pageIndex }
-            .sorted()
-            .toList()
-    }
 }
 
 /** Projection of page content and navigation fields. */
@@ -386,15 +313,6 @@ data class DisplayState(
     val einkBlackAndWhite: Boolean
 )
 
-/** Projection of SFX translation state. */
-data class SfxState(
-    val sfxTranslationEnabled: Boolean,
-    val sfxTranslations: Map<Int, List<app.otakureader.domain.model.SfxTranslation>>,
-    val isSfxTranslating: Boolean,
-    val showSfxDialog: Boolean,
-    val sfxOverlayVisible: Boolean
-)
-
 /** Projection of webtoon-mode-specific settings. */
 data class WebtoonState(
     val isAutoScrollEnabled: Boolean,
@@ -404,14 +322,6 @@ data class WebtoonState(
     val webtoonMenuHideSensitivity: Int,
     val webtoonDoubleTapZoom: Boolean,
     val webtoonDisableZoomOut: Boolean
-)
-
-/** Projection of OCR text-search state. */
-data class OcrState(
-    val showOcrSearch: Boolean,
-    val ocrQuery: String,
-    val ocrPageTexts: Map<Int, String>,
-    val isOcrRunning: Boolean,
 )
 
 /**
@@ -468,15 +378,6 @@ sealed interface ReaderEvent {
 
     /** Events related to the color filter or tint applied to pages. */
     sealed interface ColorFilterControl : ReaderEvent
-
-    /** Events related to SFX translation. */
-    sealed interface SfxControl : ReaderEvent
-
-    /** Events related to OCR text search within chapter pages. */
-    sealed interface OcrControl : ReaderEvent
-
-    /** Events related to Gemini Vision OCR translation. */
-    sealed interface OcrTranslationControl : ReaderEvent
 
     /** Miscellaneous action events that don't fit another domain. */
     sealed interface ActionEvent : ReaderEvent
@@ -631,47 +532,8 @@ sealed interface ReaderEvent {
     data object ResetRotation : DisplayControl
 
     // ──────────────────────────────────────────────────────────────────────────
-    // SFX translation
-    // ──────────────────────────────────────────────────────────────────────────
-
-    /** Open the SFX translation dialog. */
-    data object OpenSfxDialog : SfxControl
-
-    /** Dismiss the SFX translation dialog. */
-    data object CloseSfxDialog : SfxControl
-
-    /** Request a translation for a sound effect text (e.g. "ドカン"). */
-    data class TranslateSfx(val sfxText: String) : SfxControl
-
-    // ──────────────────────────────────────────────────────────────────────────
     // Action events
     // ──────────────────────────────────────────────────────────────────────────
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // OCR text search
-    // ──────────────────────────────────────────────────────────────────────────
-
-    /** Open the OCR text search bottom sheet and start background OCR scanning. */
-    data object OpenOcrSearch : OcrControl
-
-    /** Close the OCR text search bottom sheet and cancel background OCR jobs. */
-    data object CloseOcrSearch : OcrControl
-
-    /** Update the search query and filter live results. */
-    data class UpdateOcrQuery(val query: String) : OcrControl
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // OCR translation (Gemini Vision) — on-demand per page only
-    // ──────────────────────────────────────────────────────────────────────────
-
-    /** Translate the current page using Gemini Vision (single-shot, on demand). */
-    data object TranslateCurrentPage : OcrTranslationControl
-
-    /** Open the bottom sheet displaying OCR translations for the current page. */
-    data object OpenOcrTranslationSheet : OcrTranslationControl
-
-    /** Dismiss the OCR translation results sheet. */
-    data object CloseOcrTranslationSheet : OcrTranslationControl
 
     // ──────────────────────────────────────────────────────────────────────────
     // Action events (existing)

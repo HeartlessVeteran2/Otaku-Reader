@@ -35,14 +35,6 @@ object DetailsContract {
         val noteEditorVisible: Boolean = false,
         val noteEditorText: String = "",
 
-        /** AI-generated chapter summaries keyed by chapter ID. */
-        val chapterSummaries: Map<Long, String> = emptyMap(),
-        /** AI-generated summary of the manga description; null when not yet generated. */
-        val aiSummary: String? = null,
-        /** True while the AI summary is being generated. */
-        val isGeneratingSummary: Boolean = false,
-        /** Whether the AI summary translation feature is enabled in settings. */
-        val aiSummaryEnabled: Boolean = false,
         /** Source suggestions (related titles from the source website). */
         val sourceSuggestions: List<SourceSuggestion> = emptyList(),
         /** True while loading source suggestions. */
@@ -212,10 +204,6 @@ object DetailsContract {
         // Chapter thumbnail loading
         data class LoadChapterThumbnail(val chapterId: Long) : Event
 
-        // AI Summary
-        data class RequestChapterSummary(val chapterId: Long) : Event
-        // AI Summary Translation
-        data object GenerateAiSummary : Event
         // Source suggestions
         data object LoadSourceSuggestions : Event
         data class OnSourceSuggestionClick(val suggestion: SourceSuggestion) : Event
