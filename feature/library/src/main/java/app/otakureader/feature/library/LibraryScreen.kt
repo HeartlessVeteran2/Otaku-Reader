@@ -71,7 +71,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.otakureader.core.ui.components.MangaCard
-import app.otakureader.domain.model.MangaRecommendation
+import app.otakureader.domain.model.Manga
 import coil3.compose.AsyncImage
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -102,7 +102,6 @@ fun LibraryScreen(
     onNavigateToDownloads: () -> Unit,
     onNavigateToMigration: (List<Long>) -> Unit = {},
     onNavigateToCategoryManagement: () -> Unit = {},
-    onRecommendationClick: (String) -> Unit = {},
     onNavigateToReader: (mangaId: Long, chapterId: Long) -> Unit = { _, _ -> },
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
@@ -124,9 +123,6 @@ fun LibraryScreen(
                 }
                 is LibraryEffect.NavigateToMigration -> {
                     onNavigateToMigration(effect.selectedMangaIds)
-                }
-                is LibraryEffect.NavigateToRecommendationSearch -> {
-                    onRecommendationClick(effect.title)
                 }
             }
         }
@@ -372,22 +368,6 @@ private fun MangaGrid(
                     }
                 )
             }
-        }
-
-        // "For You" recommendations header (full-width span)
-        item(
-            span = { GridItemSpan(maxLineSpan) },
-            contentType = "for_you_section"
-        ) {
-            ForYouSection(
-                recommendations = state.recommendations,
-                isLoading = state.isLoadingRecommendations,
-                error = state.recommendationsError,
-                hasEnoughManga = state.hasEnoughMangaForRecommendations,
-                onRefresh = { onEvent(LibraryEvent.RefreshRecommendations) },
-                onRecommendationClick = { onEvent(LibraryEvent.OnRecommendationClick(it)) },
-                onDismiss = { onEvent(LibraryEvent.DismissRecommendation(it)) }
-            )
         }
 
         // Category filter chips (full-width span)

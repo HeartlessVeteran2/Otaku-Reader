@@ -6,7 +6,6 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import app.otakureader.core.preferences.AiPreferences
 import app.otakureader.core.preferences.AppPreferences
 import app.otakureader.core.preferences.BackupPreferences
 import app.otakureader.core.preferences.DownloadPreferences
@@ -109,13 +108,6 @@ object PreferencesModule {
     @Singleton
     fun provideSyncPreferences(dataStore: DataStore<Preferences>): SyncPreferences =
         SyncPreferences(dataStore)
-
-    @Provides
-    @Singleton
-    fun provideAiPreferences(
-        dataStore: DataStore<Preferences>,
-        @ApplicationContext context: Context
-    ): AiPreferences = AiPreferences(dataStore, context)
 
     @Provides
     @Singleton
