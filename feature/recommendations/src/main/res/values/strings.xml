@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="recommendations_title">AI Recommendations</string>
+    <string name="recommendations_back">Back</string>
+    <string name="recommendations_ai_unavailable_title">AI Features Not Available</string>
+    <string name="recommendations_ai_unavailable_body">Recommendations require the AI companion module, coming in a future release.</string>
     <string name="recommendations_empty">No recommendations yet.\nKeep reading to get personalized picks.</string>
     <string name="recommendations_ai_unavailable">AI recommendations are not available in this build.</string>
     <string name="recommendations_refresh">Refresh</string>

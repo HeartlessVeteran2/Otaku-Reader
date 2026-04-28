@@ -64,13 +64,4 @@ object DatabaseModule {
 
     @Provides
     fun provideTrackerSyncDao(database: OtakuReaderDatabase) = database.trackerSyncDao()
-
-    @Provides
-    fun provideCategorizationResultDao(database: OtakuReaderDatabase) = database.categorizationResultDao()
-
-    @Provides
-    fun provideSmartSearchCacheDao(database: OtakuReaderDatabase) = database.smartSearchCacheDao()
-
-    @Provides
-    fun provideRecommendationDao(database: OtakuReaderDatabase) = database.recommendationDao()
 }
