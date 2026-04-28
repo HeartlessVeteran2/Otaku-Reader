@@ -14,13 +14,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -47,7 +44,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.otakureader.domain.model.ReadingGoal
-import app.otakureader.domain.model.ReadingInsight
 import app.otakureader.domain.model.ReadingStats
 
 /** Statistics screen showing reading analytics. */
@@ -98,10 +94,6 @@ fun StatisticsScreen(
             else -> StatisticsContent(
                 stats = state.stats,
                 readingGoal = state.readingGoal,
-                insights = state.insights,
-                insightsLoading = state.insightsLoading,
-                isAiInsightsEnabled = state.isAiInsightsEnabled,
-                onRefreshInsights = { viewModel.onEvent(StatisticsEvent.RefreshInsights) },
                 modifier = Modifier.padding(paddingValues)
             )
         }
@@ -112,10 +104,6 @@ fun StatisticsScreen(
 private fun StatisticsContent(
     stats: ReadingStats,
     readingGoal: ReadingGoal,
-    insights: List<ReadingInsight>,
-    insightsLoading: Boolean,
-    isAiInsightsEnabled: Boolean,
-    onRefreshInsights: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -177,19 +165,6 @@ private fun StatisticsContent(
             }
         }
 
-        // AI reading insights
-        if (isAiInsightsEnabled) {
-            item {
-                HorizontalDivider()
-                Spacer(modifier = Modifier.height(4.dp))
-                AiInsightsSection(
-                    insights = insights,
-                    isLoading = insightsLoading,
-                    onRefresh = onRefreshInsights
-                )
-            }
-        }
-
         item { Spacer(modifier = Modifier.height(16.dp)) }
     }
 }
@@ -201,67 +176,6 @@ private fun SectionTitle(title: String) {
         style = MaterialTheme.typography.titleMedium,
         fontWeight = FontWeight.SemiBold
     )
-}
-
-@Composable
-private fun AiInsightsSection(
-    insights: List<ReadingInsight>,
-    isLoading: Boolean,
-    onRefresh: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(modifier = modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.AutoAwesome,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                SectionTitle(stringResource(R.string.statistics_ai_insights))
-            }
-            if (!isLoading && insights.isNotEmpty()) {
-                IconButton(onClick = onRefresh, modifier = Modifier.size(32.dp)) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = stringResource(R.string.statistics_ai_insights_refresh),
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        when {
-            isLoading -> CircularProgressIndicator(modifier = Modifier.size(24.dp))
-            insights.isEmpty() -> Text(
-                text = stringResource(R.string.statistics_ai_insights_empty),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            else -> Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                insights.forEach { insight ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer
-                        )
-                    ) {
-                        Text(
-                            text = insight.text,
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(12.dp)
-                        )
-                    }
-                }
-            }
-        }
-    }
 }
 
 @Composable

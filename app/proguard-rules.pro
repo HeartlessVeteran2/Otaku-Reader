@@ -23,13 +23,5 @@
 -dontwarn okhttp3.**
 -dontwarn okio.**
 
-# ML Kit - Text Recognition and Image Labeling
-# Keep ML Kit classes to prevent runtime failures when models are loaded via reflection
--keep class com.google.mlkit.** { *; }
--keep class com.google.android.gms.internal.mlkit_vision_common.** { *; }
--keep class com.google.android.odml.** { *; }
--dontwarn com.google.mlkit.**
--dontwarn com.google.android.gms.internal.mlkit_vision_common.**
-
 # NOTE: Firebase/Firestore rules were removed — Firebase is not a project dependency.
 # If Firebase is added in the future, re-add the appropriate keep rules.

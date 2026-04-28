@@ -2,11 +2,8 @@ package app.otakureader.feature.browse
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import app.otakureader.core.preferences.AiPreferences
 import app.otakureader.core.preferences.GeneralPreferences
-import app.otakureader.domain.model.SourceInfo
 import app.otakureader.domain.repository.FeedRepository
-import app.otakureader.domain.usecase.ai.ScoreSourcesForMangaUseCase
 import app.otakureader.domain.usecase.library.AddMangaToLibraryUseCase
 import app.otakureader.domain.usecase.source.GetLatestUpdatesUseCase
 import app.otakureader.domain.usecase.source.GetPopularMangaUseCase
@@ -40,8 +37,6 @@ class BrowseViewModel @Inject constructor(
     private val addMangaToLibraryUseCase: AddMangaToLibraryUseCase,
     private val feedRepository: FeedRepository,
     private val generalPreferences: GeneralPreferences,
-    private val aiPreferences: AiPreferences,
-    private val scoreSourcesForManga: ScoreSourcesForMangaUseCase,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(BrowseState())
@@ -73,7 +68,6 @@ class BrowseViewModel @Inject constructor(
                 _state.update { it.copy(sources = filteredSources.map { s -> s.id }) }
             }
         }
-        observeSourceIntelligenceSettings()
         observeSavedSearches()
     }
 
@@ -120,10 +114,7 @@ class BrowseViewModel @Inject constructor(
                 _state.update { it.copy(showFilterSheet = false) }
                 performSearch()
             }
-            is BrowseEvent.RequestSourceScores -> {
-                requestSourceScores(event.mangaId, event.mangaTitle)
-            }
-            
+
             // Bulk favorite events
             is BrowseEvent.OnMangaLongClick -> {
                 toggleMangaSelection(event.manga)
@@ -390,55 +381,5 @@ class BrowseViewModel @Inject constructor(
     private fun applySavedSearch(search: app.otakureader.domain.model.FeedSavedSearch) {
         _state.update { it.copy(searchQuery = search.query) }
         performSearch()
-    }
-
-    // --- Source Intelligence ---
-
-    /**
-     * Observes the combined AI master toggle + source intelligence toggle from preferences.
-     * The [BrowseState.sourceIntelligenceEnabled] flag is kept in sync so the UI can
-     * conditionally show/hide source scoring chips.
-     */
-    private fun observeSourceIntelligenceSettings() {
-        combine(
-            aiPreferences.aiEnabled,
-            aiPreferences.aiSourceIntelligence
-        ) { aiEnabled, sourceIntelEnabled ->
-            aiEnabled && sourceIntelEnabled
-        }.onEach { enabled ->
-            _state.update { it.copy(sourceIntelligenceEnabled = enabled) }
-        }.launchIn(viewModelScope)
-    }
-
-    /**
-     * Requests AI source intelligence scoring for the given manga.
-     *
-     * Available sources are mapped to [SourceInfo] objects and passed to
-     * [ScoreSourcesForMangaUseCase]. Results are stored in [BrowseState.sourceScores]
-     * sorted by overall score descending so the UI can suggest the best source.
-     *
-     * When AI is disabled or unavailable the use case returns an empty list and no
-     * state update is performed – the UI continues to show sources unsorted.
-     */
-    private fun requestSourceScores(mangaId: Long, mangaTitle: String) {
-        viewModelScope.launch {
-            _state.update { it.copy(isAnalyzingSource = true) }
-            val sourceInfoList = _sources.value.map { source ->
-                SourceInfo(
-                    sourceId = source.id,
-                    sourceName = source.name,
-                    chapterCount = 0, // Not available at browse level; AI uses name/language as proxy
-                    language = source.lang,
-                )
-            }
-            val result = scoreSourcesForManga(mangaId, mangaTitle, sourceInfoList)
-            val scores = result.getOrNull() ?: emptyList()
-            _state.update { state ->
-                state.copy(
-                    isAnalyzingSource = false,
-                    sourceScores = scores,
-                )
-            }
-        }
     }
 }

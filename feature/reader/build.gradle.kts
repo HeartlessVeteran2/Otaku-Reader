@@ -20,8 +20,6 @@ android {
 
 dependencies {
     implementation(projects.core.common)
-    // core:ai is only needed for the full flavor (panel-aware reader with Gemini Vision)
-    "fullImplementation"(projects.core.ai)
     implementation(projects.core.preferences)
     implementation(projects.core.ui)
     implementation(projects.core.discord)
@@ -35,8 +33,6 @@ dependencies {
     implementation(libs.androidx.exifinterface)
     // WorkManager is used in ReaderViewModel.onCleared() to enqueue guaranteed history writes (H-5)
     implementation(libs.workmanager.ktx)
-    // ML Kit Text Recognition for on-device OCR (text search within chapter pages)
-    implementation(libs.mlkit.text.recognition)
 
     testImplementation(libs.junit)
     testImplementation(libs.mockk)

@@ -280,9 +280,21 @@ internal val MIGRATION_13_14 = object : Migration(13, 14) {
     }
 }
 
+internal val MIGRATION_14_15 = object : Migration(14, 15) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // Drop AI-specific tables extracted to the sibling Otaku-Reader-AI repo.
+        db.execSQL("DROP TABLE IF EXISTS `categorization_results`")
+        db.execSQL("DROP TABLE IF EXISTS `smart_search_cache`")
+        db.execSQL("DROP TABLE IF EXISTS `recommendations`")
+        db.execSQL("DROP TABLE IF EXISTS `reading_patterns`")
+        db.execSQL("DROP TABLE IF EXISTS `recommendation_refreshes`")
+    }
+}
+
 /** All migrations in order, for use in [Room.databaseBuilder] and migration tests. */
 internal val ALL_MIGRATIONS = arrayOf(
     MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6,
     MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10,
-    MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14
+    MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14,
+    MIGRATION_14_15
 )

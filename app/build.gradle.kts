@@ -114,10 +114,6 @@ dependencies {
     // Data layer (contains workers, repositories, etc.)
     implementation(projects.data)
 
-    // AI: full flavor uses real Gemini client, foss uses no-op
-    "fullImplementation"(projects.core.ai)
-    "fossImplementation"(projects.core.aiNoop)
-
     // Hilt WorkManager integration
     implementation(libs.hilt.work)
 

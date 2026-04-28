@@ -65,8 +65,6 @@ dependencies {
     implementation(projects.core.database)
     implementation(projects.core.preferences)
     implementation(projects.core.tachiyomiCompat)
-    // core:ai is only needed for the full flavor; foss uses core:ai-noop via :app.
-    "fullImplementation"(projects.core.ai)
     implementation(projects.domain)
     implementation(projects.sourceApi)
 
@@ -87,6 +85,4 @@ dependencies {
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.androidx.test.ext.junit)
     testImplementation(libs.robolectric)
-    // AiRepositoryImplTest needs GeminiClient on the classpath (it mocks it).
-    "testFullImplementation"(projects.core.ai)
 }

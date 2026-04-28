@@ -11,10 +11,6 @@ import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.domain.usecase.SetMangaNotificationsUseCase
 import app.otakureader.domain.usecase.UpdateMangaNoteUseCase
-import app.otakureader.domain.usecase.ai.SummarizeChapterUseCase
-import app.otakureader.domain.usecase.ai.GenerateMangaSummaryUseCase
-import app.otakureader.domain.repository.AiRepository
-import app.otakureader.core.preferences.AiPreferences
 import app.cash.turbine.test
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -49,10 +45,6 @@ class DetailsViewModelTest {
     private lateinit var downloadPreferences: DownloadPreferences
     private lateinit var updateMangaNote: UpdateMangaNoteUseCase
     private lateinit var setMangaNotifications: SetMangaNotificationsUseCase
-    private lateinit var summarizeChapter: SummarizeChapterUseCase
-    private lateinit var aiRepository: AiRepository
-    private lateinit var aiPreferences: AiPreferences
-    private lateinit var generateMangaSummary: GenerateMangaSummaryUseCase
     private lateinit var savedStateHandle: SavedStateHandle
 
     private val sampleManga = Manga(
@@ -81,10 +73,6 @@ class DetailsViewModelTest {
         downloadPreferences = mockk()
         updateMangaNote = mockk()
         setMangaNotifications = mockk()
-        summarizeChapter = mockk<SummarizeChapterUseCase>()
-        aiRepository = mockk<AiRepository>()
-        aiPreferences = mockk(relaxed = true)
-        generateMangaSummary = mockk<GenerateMangaSummaryUseCase>()
         savedStateHandle = SavedStateHandle(mapOf(DetailsViewModel.MANGA_ID_ARG to mangaId))
     }
 
@@ -103,10 +91,6 @@ class DetailsViewModelTest {
             downloadPreferences,
             updateMangaNote,
             setMangaNotifications,
-            summarizeChapter,
-            aiRepository,
-            aiPreferences,
-            generateMangaSummary
         )
     }
 
@@ -118,8 +102,6 @@ class DetailsViewModelTest {
         coEvery { chapterRepository.getNextUnreadChapter(mangaId) } returns sampleChapters[1]
         every { downloadPreferences.deleteAfterReading } returns flowOf(false)
         every { downloadPreferences.perMangaOverrides } returns flowOf(emptyMap())
-        every { aiPreferences.aiEnabled } returns flowOf(false)
-        every { aiPreferences.aiSummaryTranslation } returns flowOf(false)
     }
 
     // ---- Initial load ----

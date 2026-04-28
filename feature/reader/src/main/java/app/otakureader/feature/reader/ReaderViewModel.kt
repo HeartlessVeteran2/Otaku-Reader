@@ -22,11 +22,8 @@ import app.otakureader.feature.reader.viewmodel.delegate.ReaderChapterLoaderDele
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderDiscordDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderDownloadAheadDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderHistoryDelegate
-import app.otakureader.feature.reader.viewmodel.delegate.ReaderOcrDelegate
-import app.otakureader.feature.reader.viewmodel.delegate.ReaderPanelDetectionDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderPrefetchDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderSettingsLoaderDelegate
-import app.otakureader.feature.reader.viewmodel.delegate.ReaderSfxDelegate
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
@@ -59,9 +56,6 @@ import javax.inject.Inject
  *  | [ReaderChapterLoaderDelegate]  | Chapter / manga / page loading                |
  *  | [ReaderHistoryDelegate]        | Reading-history recording + WorkManager       |
  *  | [ReaderPrefetchDelegate]       | Prefetch / preload                            |
- *  | [ReaderPanelDetectionDelegate] | Smart-panel detection                         |
- *  | [ReaderSfxDelegate]            | SFX translation jobs                          |
- *  | [ReaderOcrDelegate]            | OCR text-search jobs                          |
  *  | [ReaderDiscordDelegate]        | Discord rich presence                         |
  *  | [ReaderDownloadAheadDelegate]  | Download-ahead trigger                        |
  */
@@ -75,13 +69,9 @@ class ReaderViewModel @Inject constructor(
     private val settingsLoaderDelegate: ReaderSettingsLoaderDelegate,
     private val chapterLoaderDelegate: ReaderChapterLoaderDelegate,
     private val historyDelegate: ReaderHistoryDelegate,
-    private val sfxDelegate: ReaderSfxDelegate,
     private val discordDelegate: ReaderDiscordDelegate,
-    private val panelDelegate: ReaderPanelDetectionDelegate,
     private val prefetchDelegate: ReaderPrefetchDelegate,
     private val downloadAheadDelegate: ReaderDownloadAheadDelegate,
-    private val ocrDelegate: ReaderOcrDelegate,
-    private val ocrTranslationDelegate: app.otakureader.feature.reader.viewmodel.delegate.ReaderOcrTranslationDelegate,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -128,8 +118,6 @@ class ReaderViewModel @Inject constructor(
             getCurrentChapter = { currentChapter },
             getState = { _state.value },
         )
-        sfxDelegate.observeSettings(viewModelScope) { _state.update(it) }
-        ocrTranslationDelegate.observeSettings(viewModelScope) { _state.update(it) }
         observeSettingsWriteFailures()
     }
 
@@ -259,14 +247,7 @@ class ReaderViewModel @Inject constructor(
 
                     // Start panel detection when in Smart Panels mode.
                     if (_state.value.mode == ReaderMode.SMART_PANELS && pages.isNotEmpty()) {
-                        panelDelegate.detectForPages(
-                            scope = viewModelScope,
-                            pages = pages,
-                            currentPageIndex = initialPage,
-                            readingDirection = _state.value.readingDirection,
-                            isSmartPanelsMode = { _state.value.mode == ReaderMode.SMART_PANELS },
-                            updateState = { _state.update(it) },
-                        )
+                        // Panel detection is handled by SmartPanelsReader composable.
                     }
                 }
             }
@@ -305,9 +286,6 @@ class ReaderViewModel @Inject constructor(
             is ReaderEvent.AutoScrollControl -> handleAutoScroll(event)
             is ReaderEvent.SettingsControl -> handleSettings(event)
             is ReaderEvent.ColorFilterControl -> handleColorFilter(event)
-            is ReaderEvent.SfxControl -> handleSfx(event)
-            is ReaderEvent.OcrControl -> handleOcr(event)
-            is ReaderEvent.OcrTranslationControl -> handleOcrTranslation(event)
             is ReaderEvent.ActionEvent -> handleAction(event)
         }
     }
@@ -418,56 +396,6 @@ class ReaderViewModel @Inject constructor(
         }
     }
 
-    private fun handleSfx(event: ReaderEvent.SfxControl) {
-        when (event) {
-            ReaderEvent.OpenSfxDialog -> _state.update { it.copy(showSfxDialog = true) }
-            ReaderEvent.CloseSfxDialog -> _state.update { it.copy(showSfxDialog = false) }
-            is ReaderEvent.TranslateSfx ->
-                sfxDelegate.translateManualText(viewModelScope, event.sfxText) { _state.update(it) }
-        }
-    }
-
-    private fun handleOcr(event: ReaderEvent.OcrControl) {
-        when (event) {
-            ReaderEvent.OpenOcrSearch -> {
-                _state.update { it.copy(showOcrSearch = true, ocrQuery = "") }
-                // Start background OCR for all pages, prioritizing the current page.
-                ocrDelegate.startBatchOcr(
-                    scope = viewModelScope,
-                    pages = _state.value.pages,
-                    currentPageIndex = _state.value.currentPage,
-                    updateState = { _state.update(it) },
-                )
-            }
-            ReaderEvent.CloseOcrSearch -> {
-                ocrDelegate.cancelAll()
-                _state.update { it.copy(showOcrSearch = false, isOcrRunning = false) }
-            }
-            is ReaderEvent.UpdateOcrQuery -> {
-                _state.update { it.copy(ocrQuery = event.query) }
-            }
-        }
-    }
-
-    private fun handleOcrTranslation(event: ReaderEvent.OcrTranslationControl) {
-        when (event) {
-            ReaderEvent.OpenOcrTranslationSheet -> _state.update { it.copy(showOcrTranslationSheet = true) }
-            ReaderEvent.CloseOcrTranslationSheet -> _state.update { it.copy(showOcrTranslationSheet = false) }
-            ReaderEvent.TranslateCurrentPage -> {
-                val state = _state.value
-                val pageIndex = state.currentPage
-                val page = state.pages.getOrNull(pageIndex) ?: return
-                ocrTranslationDelegate.translatePage(
-                    scope = viewModelScope,
-                    pageIndex = pageIndex,
-                    page = page,
-                    chapterId = chapterId,
-                ) { _state.update(it) }
-                _state.update { it.copy(showOcrTranslationSheet = true) }
-            }
-        }
-    }
-
     private fun handleAction(event: ReaderEvent.ActionEvent) {
         when (event) {
             ReaderEvent.ToggleBookmark -> toggleBookmark()
@@ -526,13 +454,6 @@ class ReaderViewModel @Inject constructor(
                 currentManga = currentManga,
             )
             scheduleProgressSave()
-            sfxDelegate.loadTranslationsForPage(
-                scope = viewModelScope,
-                pageIndex = validPage,
-                pageUrl = pages.getOrNull(validPage)?.imageUrl,
-                chapterId = chapterId,
-                updateState = { _state.update(it) },
-            )
 
             // Update Discord presence with current page
             val manga = currentManga
@@ -637,23 +558,6 @@ class ReaderViewModel @Inject constructor(
         // Adjust current page for dual page mode
         if (mode == ReaderMode.DUAL_PAGE && _state.value.currentPage % 2 != 0) {
             _state.update { it.copy(currentPage = it.currentPage - 1) }
-        }
-
-        // Trigger panel detection when switching to Smart Panels mode
-        if (mode == ReaderMode.SMART_PANELS) {
-            val pages = _state.value.pages
-            if (pages.isNotEmpty()) {
-                panelDelegate.detectForPages(
-                    scope = viewModelScope,
-                    pages = pages,
-                    currentPageIndex = _state.value.currentPage,
-                    readingDirection = _state.value.readingDirection,
-                    isSmartPanelsMode = { _state.value.mode == ReaderMode.SMART_PANELS },
-                    updateState = { _state.update(it) },
-                )
-            }
-        } else {
-            panelDelegate.cancel()
         }
 
         // Save mode setting
@@ -865,10 +769,6 @@ class ReaderViewModel @Inject constructor(
         discordDelegate.clearPresence(showBrowsing = true)
         autoSaveJob?.cancel()
         prefetchDelegate.cancel()
-        panelDelegate.cancel()
-        sfxDelegate.clear()
-        ocrDelegate.cancelAll()
-        ocrTranslationDelegate.cancelAll()
         prefetchDelegate.clearCache()
     }
 

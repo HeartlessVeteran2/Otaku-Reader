@@ -7,18 +7,14 @@ import app.otakureader.core.preferences.LibraryPreferences
 import app.otakureader.core.preferences.ReadingGoalPreferences
 import app.otakureader.domain.model.ContentRating
 import app.otakureader.domain.model.Manga
-import app.otakureader.domain.model.MangaRecommendation
 import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.StatisticsRepository
 import app.otakureader.domain.tracking.TrackRepository
-import app.otakureader.domain.usecase.DismissRecommendationUseCase
 import app.otakureader.domain.usecase.GetCategoriesUseCase
 import app.otakureader.domain.usecase.GetContinueReadingUseCase
-import app.otakureader.domain.usecase.GetForYouRecommendationsUseCase
 import app.otakureader.domain.usecase.GetLibraryMangaUseCase
-import app.otakureader.domain.usecase.RefreshRecommendationsUseCase
 import app.otakureader.domain.usecase.ToggleFavoriteMangaUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
@@ -53,9 +49,6 @@ class LibraryViewModel @Inject constructor(
     private val trackRepository: TrackRepository,
     private val getCategories: GetCategoriesUseCase,
     private val getContinueReading: GetContinueReadingUseCase,
-    private val getForYouRecommendations: GetForYouRecommendationsUseCase,
-    private val refreshRecommendations: RefreshRecommendationsUseCase,
-    private val dismissRecommendation: DismissRecommendationUseCase,
     private val readingGoalPreferences: ReadingGoalPreferences,
     private val statisticsRepository: StatisticsRepository,
 ) : ViewModel() {
@@ -75,7 +68,6 @@ class LibraryViewModel @Inject constructor(
         observeLibraryPreferences()
         observeFilteredItems()
         observeNewUpdatesCount()
-        observeLibraryForRecommendations()
         observeContinueReading()
         observeGoalProgress()
     }
@@ -99,10 +91,6 @@ class LibraryViewModel @Inject constructor(
             is LibraryEvent.MarkSelectedAsUnread -> markSelectedAsUnread()
             is LibraryEvent.RemoveSelectedFromLibrary -> removeSelectedFromLibrary()
             is LibraryEvent.DownloadSelected -> downloadSelected()
-            is LibraryEvent.LoadRecommendations -> loadRecommendations()
-            is LibraryEvent.RefreshRecommendations -> loadRecommendations(forceRefresh = true)
-            is LibraryEvent.DismissRecommendation -> onDismissRecommendation(event.recommendationTitle)
-            is LibraryEvent.OnRecommendationClick -> onRecommendationClick(event.recommendation)
             is LibraryEvent.ContinueReadingClick -> onContinueReadingClick(event.mangaId, event.chapterId)
         }
     }
@@ -451,80 +439,6 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
-    // ---- Recommendations ----
-
-    /**
-     * Observes the library items count and automatically triggers recommendation loading
-     * whenever the library grows to the minimum required size (>=3 items).
-     */
-    private fun observeLibraryForRecommendations() {
-        _allItems
-            .map { it.size >= MIN_LIBRARY_SIZE_FOR_RECOMMENDATIONS }
-            .distinctUntilChanged()
-            .onEach { hasEnough ->
-                _state.update { it.copy(hasEnoughMangaForRecommendations = hasEnough) }
-                if (hasEnough) {
-                    loadRecommendations()
-                }
-            }
-            .launchIn(viewModelScope)
-    }
-
-    private fun loadRecommendations(forceRefresh: Boolean = false) {
-        // Guard against duplicate concurrent loads
-        if (!forceRefresh && _state.value.isLoadingRecommendations) return
-
-        viewModelScope.launch {
-            _state.update { it.copy(isLoadingRecommendations = true, recommendationsError = null) }
-            val result = if (forceRefresh) {
-                refreshRecommendations().map { it.recommendations }
-            } else {
-                getForYouRecommendations()
-            }
-            result
-                .onSuccess { recommendations ->
-                    _state.update {
-                        it.copy(
-                            recommendations = recommendations,
-                            isLoadingRecommendations = false,
-                            recommendationsError = null
-                        )
-                    }
-                }
-                .onFailure { error ->
-                    _state.update {
-                        it.copy(
-                            isLoadingRecommendations = false,
-                            recommendationsError = error.message
-                        )
-                    }
-                }
-        }
-    }
-
-    private fun onDismissRecommendation(recommendationTitle: String) {
-        // Optimistically remove from UI immediately
-        _state.update { state ->
-            state.copy(
-                recommendations = state.recommendations.filterNot { it.title == recommendationTitle }
-            )
-        }
-        viewModelScope.launch {
-            dismissRecommendation(recommendationTitle)
-        }
-    }
-
-    private fun onRecommendationClick(recommendation: MangaRecommendation) {
-        viewModelScope.launch {
-            val mangaId = recommendation.mangaId
-            if (mangaId != null) {
-                _effect.send(LibraryEffect.NavigateToManga(mangaId))
-            } else {
-                _effect.send(LibraryEffect.NavigateToRecommendationSearch(recommendation.title))
-            }
-        }
-    }
-
     private fun observeContinueReading() {
         getContinueReading()
             .onEach { items -> _state.update { it.copy(continueReadingItems = items) } }
@@ -555,7 +469,6 @@ class LibraryViewModel @Inject constructor(
     }
 
     companion object {
-        private const val MIN_LIBRARY_SIZE_FOR_RECOMMENDATIONS = 3
     }
 
     private fun Manga.toLibraryItem(

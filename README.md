@@ -23,7 +23,8 @@
 
 | Build | Description | Download |
 |-------|-------------|----------|
-| **Universal** | All core manga reader features | [Latest Release](https://github.com/HeartlessVeteran2/Otaku-Reader/releases/latest) |
+| **Full** | All features | [Latest Release](https://github.com/HeartlessVeteran2/Otaku-Reader/releases/latest) |
+| **FOSS** | Open-source only, no proprietary SDKs | [Latest Release](https://github.com/HeartlessVeteran2/Otaku-Reader/releases/latest) |
 
 **Minimum Requirements:** Android 8.0 (API 26) · target APK < 10 MB
 
@@ -237,7 +238,13 @@ See [docs/contributing/ci.md](docs/contributing/ci.md) for the full CI command r
 
 ---
 
-## 📄 License
+## 🔗 See Also
+
+- **[Otaku-Reader-AI](https://github.com/HeartlessVeteran2/Otaku-Reader-AI)** — The companion AI extension module (Gemini-powered summaries, OCR translation, SFX translation, reading insights, smart search, and recommendations). Designed to plug into this app without modifying the core codebase.
+
+---
+
+<div align="center">
 
 ```
 Copyright 2025 Manny Carter

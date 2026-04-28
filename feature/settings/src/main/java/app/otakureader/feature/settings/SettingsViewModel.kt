@@ -9,7 +9,6 @@ import app.otakureader.core.preferences.LocalSourcePreferences
 import app.otakureader.core.preferences.ReadingGoalPreferences
 import app.otakureader.data.worker.ReadingReminderScheduler
 import app.otakureader.domain.repository.ChapterRepository
-import app.otakureader.feature.settings.delegate.AiSettingsDelegate
 import app.otakureader.feature.settings.delegate.AppearanceSettingsDelegate
 import app.otakureader.feature.settings.delegate.BackupSettingsDelegate
 import app.otakureader.feature.settings.delegate.DownloadSettingsDelegate
@@ -37,7 +36,6 @@ class SettingsViewModel @Inject constructor(
     private val libraryDelegate: LibrarySettingsDelegate,
     private val downloadDelegate: DownloadSettingsDelegate,
     private val backupDelegate: BackupSettingsDelegate,
-    private val aiDelegate: AiSettingsDelegate,
     private val trackerSyncDelegate: TrackerSyncSettingsDelegate,
     private val localSourcePreferences: LocalSourcePreferences,
     private val appPreferences: AppPreferences,
@@ -55,21 +53,12 @@ class SettingsViewModel @Inject constructor(
     val effect = _effect.receiveAsFlow()
 
     init {
-        viewModelScope.launch {
-            try {
-                aiDelegate.initAiPrefs()
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                _effect.send(SettingsEffect.ShowSnackbar("Failed to load AI settings. You may need to re-enter your API key."))
-            }
-        }
         val update: ((SettingsState) -> SettingsState) -> Unit = { _state.update(it) }
         appearanceDelegate.startObserving(viewModelScope, update)
         readerDelegate.startObserving(viewModelScope, update)
         libraryDelegate.startObserving(viewModelScope, update)
         downloadDelegate.startObserving(viewModelScope, update)
         backupDelegate.startObserving(viewModelScope, update)
-        aiDelegate.startObserving(viewModelScope, update)
         trackerSyncDelegate.startObserving(viewModelScope, update)
         observeLocalSourcePreferences()
         observeMigrationPreferences()
@@ -86,7 +75,6 @@ class SettingsViewModel @Inject constructor(
                 libraryDelegate.handleEvent(event, send) -> Unit
                 downloadDelegate.handleEvent(event, send) -> Unit
                 backupDelegate.handleEvent(event, send) -> Unit
-                aiDelegate.handleEvent(event, send) -> Unit
                 trackerSyncDelegate.handleEvent(event, send) -> Unit
                 else -> handleRemainingEvent(event)
             }

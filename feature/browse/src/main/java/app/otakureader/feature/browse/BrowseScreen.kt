@@ -274,9 +274,6 @@ private fun BrowseContent(
                     onLoadMore = { onEvent(BrowseEvent.LoadNextPage) },
                     hasNextPage = state.hasNextPage,
                     isLoading = state.isLoading,
-                    sourceIntelligenceEnabled = state.sourceIntelligenceEnabled,
-                    sourceIntelligence = state.sourceIntelligence,
-                    isAnalyzingSource = state.isAnalyzingSource
                 )
             }
         }
@@ -329,9 +326,6 @@ private fun SourcesContent(
     onLoadMore: () -> Unit,
     hasNextPage: Boolean,
     isLoading: Boolean,
-    sourceIntelligenceEnabled: Boolean = false,
-    sourceIntelligence: Map<String, String> = emptyMap(),
-    isAnalyzingSource: Boolean = false
 ) {
     Column {
         // Source filter chips
@@ -345,33 +339,6 @@ private fun SourcesContent(
                     onClick = { onSourceSelect(sourceId) },
                     label = { Text(sourceId.substringAfterLast(".").take(20)) }
                 )
-            }
-        }
-
-        // Source Intelligence card for the selected source
-        if (sourceIntelligenceEnabled && currentSourceId != null) {
-            val intelligence = sourceIntelligence[currentSourceId]
-            when {
-                intelligence != null -> {
-                    SourceIntelligenceCard(
-                        summary = intelligence,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                    )
-                }
-                isAnalyzingSource -> {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = stringResource(R.string.browse_source_intel_analyzing),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
             }
         }
 
@@ -538,37 +505,4 @@ private fun EmptySourcesContent() {
  * Card that shows the AI-generated quality analysis for the currently selected source.
  */
 @Composable
-private fun SourceIntelligenceCard(
-    summary: String,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(
-                MaterialTheme.colorScheme.tertiaryContainer,
-                shape = MaterialTheme.shapes.small
-            )
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.Top
-    ) {
-        Text(
-            text = "✨",
-            style = MaterialTheme.typography.bodyMedium
-        )
-        Spacer(modifier = Modifier.width(6.dp))
-        Column {
-            Text(
-                text = stringResource(R.string.browse_source_intel_label),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onTertiaryContainer,
-                fontWeight = FontWeight.SemiBold
-            )
-            Text(
-                text = summary,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onTertiaryContainer
-            )
-        }
-    }
-}
+
