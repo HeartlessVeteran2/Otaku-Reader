@@ -51,6 +51,28 @@ private data class SourceFilterResult(
     val disabledIds: Set<Long>,
 )
 
+/**
+ * Filters [sources] by NSFW visibility, enabled languages, and individually-disabled source
+ * IDs (in that order), and computes the available-languages list from the NSFW-filtered set.
+ * Kept top-level (outside [BrowseViewModel]) so the class body stays under Detekt's LargeClass
+ * threshold.
+ */
+private fun buildSourceFilterResult(
+    sources: List<MangaSource>,
+    showNsfw: Boolean,
+    enabledLangs: Set<String>,
+    disabledIds: Set<Long>,
+): SourceFilterResult {
+    val nsfwFiltered = if (showNsfw) sources else sources.filter { !it.isNsfw }
+    // availableLanguages = all langs from NSFW-filtered set (before language filter)
+    val availableLangs = nsfwFiltered.map { it.lang }.distinct().sorted()
+    val langFiltered = if (enabledLangs.isEmpty()) nsfwFiltered
+        else nsfwFiltered.filter { it.lang in enabledLangs }
+    val disabledFiltered = if (disabledIds.isEmpty()) langFiltered
+        else langFiltered.filter { it.id.toSourceId() !in disabledIds }
+    return SourceFilterResult(disabledFiltered, availableLangs, showNsfw, enabledLangs, disabledIds)
+}
+
 @HiltViewModel
 class BrowseViewModel @Inject constructor(
     private val getSourcesUseCase: GetSourcesUseCase,
@@ -95,16 +117,8 @@ class BrowseViewModel @Inject constructor(
                 generalPreferences.showNsfwContent,
                 generalPreferences.enabledSourceLanguages,
                 generalPreferences.disabledSourceIds,
-            ) { sources, showNsfw, enabledLangs, disabledIds ->
-                val nsfwFiltered = if (showNsfw) sources else sources.filter { !it.isNsfw }
-                // availableLanguages = all langs from NSFW-filtered set (before language filter)
-                val availableLangs = nsfwFiltered.map { it.lang }.distinct().sorted()
-                val langFiltered = if (enabledLangs.isEmpty()) nsfwFiltered
-                    else nsfwFiltered.filter { it.lang in enabledLangs }
-                val disabledFiltered = if (disabledIds.isEmpty()) langFiltered
-                    else langFiltered.filter { it.id.toSourceId() !in disabledIds }
-                SourceFilterResult(disabledFiltered, availableLangs, showNsfw, enabledLangs, disabledIds)
-            }.flowOn(Dispatchers.Default).collect { result ->
+                ::buildSourceFilterResult,
+            ).flowOn(Dispatchers.Default).collect { result ->
                 _sources.value = result.sources
                 _state.update {
                     it.copy(
