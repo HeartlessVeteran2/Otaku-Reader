@@ -3,6 +3,7 @@ package app.otakureader.data.repository
 import android.content.Context
 import app.otakureader.core.extension.domain.model.Extension
 import app.otakureader.core.extension.domain.model.InstallStatus
+import app.otakureader.core.extension.domain.repository.ExtensionRepository
 import app.otakureader.core.extension.loader.ExtensionLoader
 import app.otakureader.core.extension.loader.ExtensionLoadResult
 import app.otakureader.core.preferences.LocalSourcePreferences
@@ -65,6 +66,7 @@ class SourceRepositoryImplTest {
     private lateinit var healthMonitor: SourceHealthMonitor
     private lateinit var httpClient: OkHttpClient
     private lateinit var extensionLoader: ExtensionLoader
+    private lateinit var extensionRepository: ExtensionRepository
 
     private lateinit var repository: SourceRepositoryImpl
 
@@ -78,11 +80,16 @@ class SourceRepositoryImplTest {
         healthMonitor = mockk(relaxed = true)
         httpClient = mockk(relaxed = true)
         extensionLoader = mockk(relaxed = true)
+        extensionRepository = mockk(relaxed = true)
 
         // Default: no extensions loaded
         every { extensionLoader.loadAllExtensions() } returns emptyList()
         every { extensionLoader.loadExtension(any()) } returns
             ExtensionLoadResult.Error("Not mocked")
+
+        // Default: no installed extensions are disabled
+        every { extensionRepository.getInstalledExtensions() } returns
+            kotlinx.coroutines.flow.flowOf(emptyList())
 
         // Health monitor defaults – everything healthy
         every { healthMonitor.isSourceHealthy(any()) } returns true
@@ -93,6 +100,7 @@ class SourceRepositoryImplTest {
             healthMonitor = healthMonitor,
             httpClient = httpClient,
             extensionLoader = extensionLoader,
+            extensionRepository = extensionRepository,
             scope = testScope.backgroundScope,
         )
     }
@@ -131,6 +139,78 @@ class SourceRepositoryImplTest {
         repository.refreshSources()
         advanceUntilIdle()
 
+        val sources = repository.getSources().first()
+        assertEquals(2, sources.size)
+        assertTrue(sources.any { it.id == "local" })
+        assertTrue(sources.any { it.id == "12345" })
+    }
+
+    @Test
+    fun getSources_afterRefresh_excludesSourcesFromDisabledExtension() = runTest {
+        val localSource = makeFakeSource(id = "local", name = "Local")
+        val extSource = makeFakeCatalogueSource(id = 12345L, name = "MangaDex")
+
+        mockLocalSource(localSource)
+        every { extensionLoader.loadAllExtensions() } returns listOf(
+            makeSuccessResult(
+                pkgName = "eu.kanade.tachiyomi.extension.en.mangadex",
+                name = "MangaDex",
+                sources = listOf(extSource),
+                isNsfw = false,
+            )
+        )
+        val disabledExtension = Extension(
+            id = 1L,
+            pkgName = "eu.kanade.tachiyomi.extension.en.mangadex",
+            name = "MangaDex",
+            versionCode = 1,
+            versionName = "1.0.0",
+            sources = emptyList(),
+            status = InstallStatus.INSTALLED,
+            apkPath = "/tmp/fake.apk",
+            iconUrl = null,
+            lang = "en",
+            isNsfw = false,
+            installDate = System.currentTimeMillis(),
+            signatureHash = "trusted",
+            isShared = true,
+            isEnabled = false,
+        )
+        every { extensionRepository.getInstalledExtensions() } returns
+            kotlinx.coroutines.flow.flowOf(listOf(disabledExtension))
+
+        repository.refreshSources()
+        advanceUntilIdle()
+
+        val sources = repository.getSources().first()
+        assertEquals(1, sources.size)
+        assertTrue(sources.any { it.id == "local" })
+        assertFalse(sources.any { it.id == "12345" })
+    }
+
+    @Test
+    fun getSources_afterRefresh_keepsAllSourcesWhenDisabledExtensionLookupFails() = runTest {
+        // A DB read failure while checking disabled state must not wipe out every
+        // loaded extension source — it should degrade to "treat nothing as disabled".
+        val localSource = makeFakeSource(id = "local", name = "Local")
+        val extSource = makeFakeCatalogueSource(id = 12345L, name = "MangaDex")
+
+        mockLocalSource(localSource)
+        every { extensionLoader.loadAllExtensions() } returns listOf(
+            makeSuccessResult(
+                pkgName = "eu.kanade.tachiyomi.extension.en.mangadex",
+                name = "MangaDex",
+                sources = listOf(extSource),
+                isNsfw = false,
+            )
+        )
+        every { extensionRepository.getInstalledExtensions() } throws
+            RuntimeException("DB unavailable")
+
+        val result = repository.refreshSources()
+        advanceUntilIdle()
+
+        assertTrue(result.isSuccess)
         val sources = repository.getSources().first()
         assertEquals(2, sources.size)
         assertTrue(sources.any { it.id == "local" })
