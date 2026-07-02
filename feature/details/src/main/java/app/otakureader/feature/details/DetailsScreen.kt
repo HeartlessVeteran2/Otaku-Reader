@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -55,6 +56,7 @@ import androidx.compose.material.icons.filled.RemoveDone
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -98,6 +100,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.otakureader.core.ui.adaptive.isExpanded
 import app.otakureader.core.ui.adaptive.rememberWindowWidthSizeClass
+import app.otakureader.domain.model.Category
 import app.otakureader.core.ui.component.ErrorScreen
 import app.otakureader.core.ui.component.LoadingScreen
 import app.otakureader.core.ui.theme.MangaDynamicTheme
@@ -748,6 +751,16 @@ private fun DetailsContent(
         )
     }
 
+    if (state.showCategoryPickerDialog) {
+        CategoryPickerDialog(
+            categories = state.libraryCategories,
+            selectedIds = state.categoryPickerSelection,
+            onToggle = { categoryId -> onEvent(DetailsContract.Event.ToggleCategoryPickerSelection(categoryId)) },
+            onConfirm = { onEvent(DetailsContract.Event.ConfirmCategoryPicker) },
+            onDismiss = { onEvent(DetailsContract.Event.DismissCategoryPicker) }
+        )
+    }
+
     if (state.isEditInfoSheetVisible) {
         EditMangaInfoSheet(
             manga = manga,
@@ -1087,6 +1100,51 @@ private fun NoteEditorDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.notes_editor_cancel)) }
+        }
+    )
+}
+
+/**
+ * Shown right after favoriting when the user has at least one category, so the manga can be
+ * filed away immediately instead of always landing uncategorized (matches Mihon/Komikku's
+ * "choose a category" dialog on add-to-library).
+ */
+@Composable
+private fun CategoryPickerDialog(
+    categories: List<Category>,
+    selectedIds: Set<Long>,
+    onToggle: (Long) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.details_category_picker_title)) },
+        text = {
+            LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
+                items(categories, key = { it.id }) { category ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onToggle(category.id) }
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Checkbox(
+                            checked = category.id in selectedIds,
+                            onCheckedChange = { onToggle(category.id) },
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = category.name)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) { Text(stringResource(R.string.details_category_picker_confirm)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.details_category_picker_skip)) }
         }
     )
 }

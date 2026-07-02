@@ -5,6 +5,7 @@ import app.otakureader.core.common.mvi.UiEffect
 import app.otakureader.core.common.mvi.UiEvent
 import app.otakureader.core.common.mvi.UiState
 import app.otakureader.core.preferences.DeleteAfterReadMode
+import app.otakureader.domain.model.Category
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MangaStatus
@@ -60,6 +61,13 @@ object DetailsContract {
         val trackingCount: Int = 0,
         /** Full web URL for this manga (source baseUrl + manga url). Null for local sources. */
         val mangaWebUrl: String? = null,
+
+        /** User-defined library categories, for the "add to library" category picker. */
+        val libraryCategories: List<Category> = emptyList(),
+        /** Shown right after favoriting, so the manga can be filed into a category immediately. */
+        val showCategoryPickerDialog: Boolean = false,
+        /** Category IDs checked in the currently-open [showCategoryPickerDialog]. */
+        val categoryPickerSelection: Set<Long> = emptySet(),
     ) : UiState {
 
         /** Estimated time remaining to finish all unread chapters of this manga. */
@@ -290,6 +298,11 @@ object DetailsContract {
 
         /** Opens the manga's source web page in the system browser. */
         data object OpenWebView : Event
+
+        // Category picker shown right after favoriting
+        data object DismissCategoryPicker : Event
+        data class ToggleCategoryPickerSelection(val categoryId: Long) : Event
+        data object ConfirmCategoryPicker : Event
     }
 
     /**

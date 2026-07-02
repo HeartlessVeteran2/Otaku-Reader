@@ -7,6 +7,7 @@ import app.otakureader.domain.model.DownloadBlockedException
 import app.otakureader.domain.model.DownloadStatus
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
+import app.otakureader.domain.repository.CategoryRepository
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.MangaRepository
@@ -49,6 +50,7 @@ class DetailsViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
     private val mangaRepository: MangaRepository,
     private val chapterRepository: ChapterRepository,
+    private val categoryRepository: CategoryRepository,
     private val downloadRepository: DownloadRepository,
     private val sourceRepository: SourceRepository,
     private val downloadPreferences: DownloadPreferences,
@@ -96,6 +98,7 @@ class DetailsViewModel @Inject constructor(
         observeStaticSettings()
         observeTrackingCount()
         loadMangaWebUrl()
+        observeCategories()
     }
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")
@@ -186,6 +189,12 @@ class DetailsViewModel @Inject constructor(
             is DetailsContract.Event.GenreClick -> searchGenreInSource(event.genre)
             is DetailsContract.Event.GenreLongClick -> searchGenreGlobally(event.genre)
             is DetailsContract.Event.OpenWebView -> openInWebView()
+
+            is DetailsContract.Event.DismissCategoryPicker ->
+                _state.update { it.copy(showCategoryPickerDialog = false) }
+            is DetailsContract.Event.ToggleCategoryPickerSelection ->
+                toggleCategoryPickerSelection(event.categoryId)
+            is DetailsContract.Event.ConfirmCategoryPicker -> confirmCategoryPicker()
         }
     }
 
@@ -440,18 +449,52 @@ class DetailsViewModel @Inject constructor(
 
     private fun toggleFavorite() {
         viewModelScope.launch {
+            val wasFavorite = _state.value.isFavorite
             try {
                 mangaRepository.toggleFavorite(mangaId)
-                val message = if (_state.value.isFavorite) {
-                    "Removed from library"
-                } else {
-                    "Added to library"
-                }
+                val message = if (wasFavorite) "Removed from library" else "Added to library"
                 _effect.send(DetailsContract.Effect.ShowSnackbar(message))
+                // Mirrors Komikku: right after adding to library (not on remove), offer to file
+                // the manga into a category if any exist, instead of always leaving it uncategorized.
+                if (!wasFavorite) showCategoryPickerIfNeeded()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 _effect.send(DetailsContract.Effect.ShowError("Failed to update library: ${e.message}"))
+            }
+        }
+    }
+
+    private fun observeCategories() {
+        categoryRepository.getCategories()
+            .onEach { categories -> _state.update { it.copy(libraryCategories = categories) } }
+            .launchIn(viewModelScope)
+    }
+
+    private fun showCategoryPickerIfNeeded() {
+        if (_state.value.libraryCategories.isEmpty()) return
+        _state.update { it.copy(showCategoryPickerDialog = true, categoryPickerSelection = emptySet()) }
+    }
+
+    private fun toggleCategoryPickerSelection(categoryId: Long) {
+        _state.update {
+            val selection = it.categoryPickerSelection
+            val updated = if (categoryId in selection) selection - categoryId else selection + categoryId
+            it.copy(categoryPickerSelection = updated)
+        }
+    }
+
+    private fun confirmCategoryPicker() {
+        val selection = _state.value.categoryPickerSelection
+        _state.update { it.copy(showCategoryPickerDialog = false) }
+        if (selection.isEmpty()) return
+        viewModelScope.launch {
+            try {
+                selection.forEach { categoryId -> categoryRepository.addMangaToCategory(mangaId, categoryId) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _effect.send(DetailsContract.Effect.ShowError("Failed to assign categories"))
             }
         }
     }

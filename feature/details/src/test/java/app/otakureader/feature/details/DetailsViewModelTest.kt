@@ -3,9 +3,11 @@ package app.otakureader.feature.details
 import androidx.lifecycle.SavedStateHandle
 import app.otakureader.core.preferences.DownloadPreferences
 import app.otakureader.core.preferences.GeneralPreferences
+import app.otakureader.domain.model.Category
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MangaStatus
+import app.otakureader.domain.repository.CategoryRepository
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.domain.repository.DownloadRepository
@@ -42,6 +44,7 @@ class DetailsViewModelTest {
 
     private lateinit var mangaRepository: MangaRepository
     private lateinit var chapterRepository: ChapterRepository
+    private lateinit var categoryRepository: CategoryRepository
     private lateinit var downloadRepository: DownloadRepository
     private lateinit var sourceRepository: SourceRepository
     private lateinit var downloadPreferences: DownloadPreferences
@@ -73,6 +76,7 @@ class DetailsViewModelTest {
         Dispatchers.setMain(testDispatcher)
         mangaRepository = mockk()
         chapterRepository = mockk()
+        categoryRepository = mockk(relaxed = true)
         downloadRepository = mockk()
         sourceRepository = mockk(relaxed = true)
         downloadPreferences = mockk()
@@ -94,6 +98,7 @@ class DetailsViewModelTest {
             savedStateHandle,
             mangaRepository,
             chapterRepository,
+            categoryRepository,
             downloadRepository,
             sourceRepository,
             downloadPreferences,
@@ -119,6 +124,7 @@ class DetailsViewModelTest {
         every { downloadPreferences.deleteAfterReading } returns flowOf(false)
         every { downloadPreferences.perMangaOverrides } returns flowOf(emptyMap())
         coEvery { mangaRepository.updateChapterFlags(any(), any()) } returns Unit
+        every { categoryRepository.getCategories() } returns flowOf(emptyList())
     }
 
     // ---- Initial load ----
@@ -207,6 +213,108 @@ class DetailsViewModelTest {
             val effect = awaitItem()
             assertTrue(effect is DetailsContract.Effect.ShowError)
         }
+    }
+
+    @Test
+    fun onEvent_ToggleFavorite_addingWithCategories_showsCategoryPicker() = runTest {
+        setUpDefaultMocks()
+        coEvery { mangaRepository.toggleFavorite(mangaId) } returns Unit
+        every { categoryRepository.getCategories() } returns flowOf(
+            listOf(Category(id = 1L, name = "Reading"), Category(id = 2L, name = "Plan to Read")),
+        )
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onEvent(DetailsContract.Event.ToggleFavorite)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.state.value
+        assertTrue(state.showCategoryPickerDialog)
+        assertEquals(emptySet<Long>(), state.categoryPickerSelection)
+    }
+
+    @Test
+    fun onEvent_ToggleFavorite_addingWithNoCategories_doesNotShowCategoryPicker() = runTest {
+        setUpDefaultMocks()
+        coEvery { mangaRepository.toggleFavorite(mangaId) } returns Unit
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onEvent(DetailsContract.Event.ToggleFavorite)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertFalse(viewModel.state.value.showCategoryPickerDialog)
+    }
+
+    @Test
+    fun onEvent_ToggleFavorite_removingFromLibrary_doesNotShowCategoryPicker() = runTest {
+        stubManga(sampleManga.copy(favorite = true))
+        every { chapterRepository.getChaptersByMangaId(mangaId) } returns flowOf(sampleChapters)
+        every { mangaRepository.isFavorite(mangaId) } returns flowOf(true)
+        every { downloadRepository.observeDownloads() } returns flowOf(emptyList())
+        coEvery { chapterRepository.getNextUnreadChapter(mangaId) } returns sampleChapters[1]
+        every { downloadPreferences.deleteAfterReading } returns flowOf(false)
+        every { downloadPreferences.perMangaOverrides } returns flowOf(emptyMap())
+        every { categoryRepository.getCategories() } returns flowOf(listOf(Category(id = 1L, name = "Reading")))
+        coEvery { mangaRepository.toggleFavorite(mangaId) } returns Unit
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onEvent(DetailsContract.Event.ToggleFavorite)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertFalse(viewModel.state.value.showCategoryPickerDialog)
+    }
+
+    // ---- Category picker ----
+
+    @Test
+    fun onEvent_ToggleCategoryPickerSelection_addsAndRemovesId() = runTest {
+        setUpDefaultMocks()
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onEvent(DetailsContract.Event.ToggleCategoryPickerSelection(1L))
+        assertEquals(setOf(1L), viewModel.state.value.categoryPickerSelection)
+
+        viewModel.onEvent(DetailsContract.Event.ToggleCategoryPickerSelection(1L))
+        assertEquals(emptySet<Long>(), viewModel.state.value.categoryPickerSelection)
+    }
+
+    @Test
+    fun onEvent_ConfirmCategoryPicker_assignsSelectedCategoriesAndClosesDialog() = runTest {
+        setUpDefaultMocks()
+        coEvery { categoryRepository.addMangaToCategory(any(), any()) } returns Unit
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onEvent(DetailsContract.Event.ToggleCategoryPickerSelection(1L))
+        viewModel.onEvent(DetailsContract.Event.ToggleCategoryPickerSelection(2L))
+        viewModel.onEvent(DetailsContract.Event.ConfirmCategoryPicker)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertFalse(viewModel.state.value.showCategoryPickerDialog)
+        coVerify { categoryRepository.addMangaToCategory(mangaId, 1L) }
+        coVerify { categoryRepository.addMangaToCategory(mangaId, 2L) }
+    }
+
+    @Test
+    fun onEvent_DismissCategoryPicker_closesDialogWithoutAssigning() = runTest {
+        setUpDefaultMocks()
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onEvent(DetailsContract.Event.ToggleCategoryPickerSelection(1L))
+        viewModel.onEvent(DetailsContract.Event.DismissCategoryPicker)
+
+        assertFalse(viewModel.state.value.showCategoryPickerDialog)
+        coVerify(exactly = 0) { categoryRepository.addMangaToCategory(any(), any()) }
     }
 
     // ---- ToggleDescription ----
