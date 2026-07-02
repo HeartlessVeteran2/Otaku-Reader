@@ -1,5 +1,8 @@
 package app.otakureader.feature.browse
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,7 +23,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -73,6 +78,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -80,6 +86,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -107,6 +114,7 @@ import app.otakureader.sourceapi.toSourceId
 import coil3.compose.AsyncImage
 import java.util.Locale
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 /**
@@ -542,8 +550,7 @@ private fun SourcesTabContent(
             }
             state.sources.isEmpty() -> EmptySourcesContent()
             else -> {
-                // Source browser: search bar + source list
-                BrowseSearchBar(state = state, onEvent = onEvent)
+                // Source browser: floating search + source list (search floats over the list)
                 SourceListContent(state = state, onEvent = onEvent)
             }
         }
@@ -681,154 +688,176 @@ private fun SourceListContent(
     }
     val categoryOrder = grouped.keys.sortedWith(compareBy { if (it.isBlank()) "" else it })
 
-    LazyColumn(modifier = modifier.fillMaxSize()) {
-        // Recent searches
-        if (state.searchHistory.isNotEmpty()) {
-            item(key = "search_history_header") {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = stringResource(R.string.browse_search_history),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    val listState = rememberLazyListState()
+    val isScrollingUp = listState.isScrollingUp()
+
+    Column(modifier = modifier.fillMaxSize()) {
+        AnimatedVisibility(
+            visible = isScrollingUp,
+            enter = expandVertically(),
+            exit = shrinkVertically(),
+        ) {
+            FloatingSourceSearchBox(
+                searchQuery = state.searchQuery,
+                onQueryChange = { onEvent(BrowseEvent.OnSearchQueryChange(it)) },
+            )
+        }
+
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+        ) {
+            // Recent searches
+            if (state.searchHistory.isNotEmpty()) {
+                item(key = "search_history_header") {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.browse_search_history),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        TextButton(onClick = { onEvent(BrowseEvent.ClearSearchHistory) }) {
+                            Text(stringResource(R.string.filter_sheet_clear_all))
+                        }
+                    }
+                }
+                item(key = "search_history_row") {
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        items(state.searchHistory) { query ->
+                            FilterChip(
+                                selected = false,
+                                onClick = {
+                                    onEvent(BrowseEvent.OnSearchQueryChange(query))
+                                    onEvent(BrowseEvent.Search)
+                                },
+                                label = { Text(query, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                trailingIcon = {
+                                    IconButton(
+                                        onClick = { onEvent(BrowseEvent.DeleteSearchHistoryItem(query)) },
+                                        modifier = Modifier.size(24.dp),
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Close,
+                                            contentDescription = stringResource(R.string.browse_search_history_remove),
+                                            modifier = Modifier.size(18.dp),
+                                        )
+                                    }
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+    
+            // Named saved searches — only shown when there are saved searches for any source
+            if (state.namedSavedSearches.isNotEmpty()) {
+                item(key = "named_searches_header") {
+                    SourceSectionHeader(stringResource(R.string.browse_saved_searches))
+                }
+                item(key = "named_searches_row") {
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        items(state.namedSavedSearches, key = { "ns_${it.id}" }) { search ->
+                            FilterChip(
+                                selected = false,
+                                onClick = { onEvent(BrowseEvent.ApplyNamedSavedSearch(search)) },
+                                label = { Text(search.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                trailingIcon = {
+                                    IconButton(
+                                        onClick = { onEvent(BrowseEvent.DeleteNamedSavedSearch(search.id)) },
+                                        modifier = Modifier.size(24.dp),
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Close,
+                                            contentDescription = stringResource(R.string.browse_delete_saved_search),
+                                            modifier = Modifier.size(18.dp),
+                                        )
+                                    }
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+    
+            // Last used section
+            if (lastUsedSources.isNotEmpty()) {
+                item(key = "last_used_header") {
+                    SourceSectionHeader(stringResource(R.string.browse_last_used))
+                }
+                items(lastUsedSources, key = { "last_${it.id}" }) { source ->
+                    SourceRow(
+                        source = source,
+                        isPinned = source.id.toSourceId() in state.pinnedSourceIds,
+                        categoryMap = state.sourceCategoryMap,
+                        iconUrl = source.id.toLongOrNull()?.let { state.sourceIconUrls[it] },
+                        onSelect = { onEvent(BrowseEvent.SelectSource(source.id)) },
+                        onLatest = { onEvent(BrowseEvent.SelectSource(source.id, loadLatest = true)) },
+                        onTogglePin = { onEvent(BrowseEvent.TogglePinSource(source.id.toSourceId())) },
+                        onOpenSetCategory = { sid, cat -> onEvent(BrowseEvent.OpenSetCategoryDialog(sid, cat)) },
                     )
-                    TextButton(onClick = { onEvent(BrowseEvent.ClearSearchHistory) }) {
-                        Text(stringResource(R.string.filter_sheet_clear_all))
+                    HorizontalDivider(modifier = Modifier.padding(start = 72.dp))
+                }
+            }
+    
+            // Pinned section
+            if (pinnedSources.isNotEmpty()) {
+                item(key = "pinned_header") {
+                    SourceSectionHeader(stringResource(R.string.source_pinned_section))
+                }
+                items(pinnedSources, key = { "pinned_${it.id}" }) { source ->
+                    SourceRow(
+                        source = source,
+                        isPinned = true,
+                        categoryMap = state.sourceCategoryMap,
+                        iconUrl = source.id.toLongOrNull()?.let { state.sourceIconUrls[it] },
+                        onSelect = { onEvent(BrowseEvent.SelectSource(source.id)) },
+                        onLatest = { onEvent(BrowseEvent.SelectSource(source.id, loadLatest = true)) },
+                        onTogglePin = { onEvent(BrowseEvent.TogglePinSource(source.id.toSourceId())) },
+                        onOpenSetCategory = { sid, cat -> onEvent(BrowseEvent.OpenSetCategoryDialog(sid, cat)) },
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(start = 72.dp))
+                }
+            }
+    
+            // Unpinned sources, grouped by category
+            for (category in categoryOrder) {
+                val catSources = grouped[category] ?: continue
+                if (category.isNotBlank()) {
+                    item(key = "cat_header_$category") {
+                        SourceSectionHeader(category)
+                    }
+                } else if (pinnedSources.isNotEmpty() || lastUsedSources.isNotEmpty()) {
+                    // "All sources" header when there are other sections above
+                    item(key = "all_sources_header") {
+                        SourceSectionHeader(stringResource(R.string.browse_all_sources))
                     }
                 }
-            }
-            item(key = "search_history_row") {
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    items(state.searchHistory) { query ->
-                        FilterChip(
-                            selected = false,
-                            onClick = {
-                                onEvent(BrowseEvent.OnSearchQueryChange(query))
-                                onEvent(BrowseEvent.Search)
-                            },
-                            label = { Text(query, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                            trailingIcon = {
-                                IconButton(
-                                    onClick = { onEvent(BrowseEvent.DeleteSearchHistoryItem(query)) },
-                                    modifier = Modifier.size(24.dp),
-                                ) {
-                                    Icon(
-                                        Icons.Default.Close,
-                                        contentDescription = stringResource(R.string.browse_search_history_remove),
-                                        modifier = Modifier.size(18.dp),
-                                    )
-                                }
-                            },
-                        )
-                    }
+                items(catSources, key = { "src_${it.id}" }) { source ->
+                    SourceRow(
+                        source = source,
+                        isPinned = false,
+                        categoryMap = state.sourceCategoryMap,
+                        iconUrl = source.id.toLongOrNull()?.let { state.sourceIconUrls[it] },
+                        onSelect = { onEvent(BrowseEvent.SelectSource(source.id)) },
+                        onLatest = { onEvent(BrowseEvent.SelectSource(source.id, loadLatest = true)) },
+                        onTogglePin = { onEvent(BrowseEvent.TogglePinSource(source.id.toSourceId())) },
+                        onOpenSetCategory = { sid, cat -> onEvent(BrowseEvent.OpenSetCategoryDialog(sid, cat)) },
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(start = 72.dp))
                 }
             }
-        }
-
-        // Named saved searches — only shown when there are saved searches for any source
-        if (state.namedSavedSearches.isNotEmpty()) {
-            item(key = "named_searches_header") {
-                SourceSectionHeader(stringResource(R.string.browse_saved_searches))
-            }
-            item(key = "named_searches_row") {
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    items(state.namedSavedSearches, key = { "ns_${it.id}" }) { search ->
-                        FilterChip(
-                            selected = false,
-                            onClick = { onEvent(BrowseEvent.ApplyNamedSavedSearch(search)) },
-                            label = { Text(search.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                            trailingIcon = {
-                                IconButton(
-                                    onClick = { onEvent(BrowseEvent.DeleteNamedSavedSearch(search.id)) },
-                                    modifier = Modifier.size(24.dp),
-                                ) {
-                                    Icon(
-                                        Icons.Default.Close,
-                                        contentDescription = stringResource(R.string.browse_delete_saved_search),
-                                        modifier = Modifier.size(18.dp),
-                                    )
-                                }
-                            },
-                        )
-                    }
-                }
-            }
-        }
-
-        // Last used section
-        if (lastUsedSources.isNotEmpty()) {
-            item(key = "last_used_header") {
-                SourceSectionHeader(stringResource(R.string.browse_last_used))
-            }
-            items(lastUsedSources, key = { "last_${it.id}" }) { source ->
-                SourceRow(
-                    source = source,
-                    isPinned = source.id.toSourceId() in state.pinnedSourceIds,
-                    categoryMap = state.sourceCategoryMap,
-                    onSelect = { onEvent(BrowseEvent.SelectSource(source.id)) },
-                    onLatest = { onEvent(BrowseEvent.SelectSource(source.id, loadLatest = true)) },
-                    onTogglePin = { onEvent(BrowseEvent.TogglePinSource(source.id.toSourceId())) },
-                    onOpenSetCategory = { sid, cat -> onEvent(BrowseEvent.OpenSetCategoryDialog(sid, cat)) },
-                )
-                HorizontalDivider(modifier = Modifier.padding(start = 72.dp))
-            }
-        }
-
-        // Pinned section
-        if (pinnedSources.isNotEmpty()) {
-            item(key = "pinned_header") {
-                SourceSectionHeader(stringResource(R.string.source_pinned_section))
-            }
-            items(pinnedSources, key = { "pinned_${it.id}" }) { source ->
-                SourceRow(
-                    source = source,
-                    isPinned = true,
-                    categoryMap = state.sourceCategoryMap,
-                    onSelect = { onEvent(BrowseEvent.SelectSource(source.id)) },
-                    onLatest = { onEvent(BrowseEvent.SelectSource(source.id, loadLatest = true)) },
-                    onTogglePin = { onEvent(BrowseEvent.TogglePinSource(source.id.toSourceId())) },
-                    onOpenSetCategory = { sid, cat -> onEvent(BrowseEvent.OpenSetCategoryDialog(sid, cat)) },
-                )
-                HorizontalDivider(modifier = Modifier.padding(start = 72.dp))
-            }
-        }
-
-        // Unpinned sources, grouped by category
-        for (category in categoryOrder) {
-            val catSources = grouped[category] ?: continue
-            if (category.isNotBlank()) {
-                item(key = "cat_header_$category") {
-                    SourceSectionHeader(category)
-                }
-            } else if (pinnedSources.isNotEmpty() || lastUsedSources.isNotEmpty()) {
-                // "All sources" header when there are other sections above
-                item(key = "all_sources_header") {
-                    SourceSectionHeader(stringResource(R.string.browse_all_sources))
-                }
-            }
-            items(catSources, key = { "src_${it.id}" }) { source ->
-                SourceRow(
-                    source = source,
-                    isPinned = false,
-                    categoryMap = state.sourceCategoryMap,
-                    onSelect = { onEvent(BrowseEvent.SelectSource(source.id)) },
-                    onLatest = { onEvent(BrowseEvent.SelectSource(source.id, loadLatest = true)) },
-                    onTogglePin = { onEvent(BrowseEvent.TogglePinSource(source.id.toSourceId())) },
-                    onOpenSetCategory = { sid, cat -> onEvent(BrowseEvent.OpenSetCategoryDialog(sid, cat)) },
-                )
-                HorizontalDivider(modifier = Modifier.padding(start = 72.dp))
-            }
-        }
-    }
+        } // end LazyColumn
+    } // end Column
 }
 
 @Composable
@@ -858,6 +887,7 @@ private fun SourceRow(
     onLatest: () -> Unit,
     onTogglePin: () -> Unit,
     onOpenSetCategory: (Long, String) -> Unit,
+    iconUrl: String? = null,
     modifier: Modifier = Modifier,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
@@ -876,7 +906,15 @@ private fun SourceRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            SourceAvatar(name = source.name)
+            if (iconUrl != null) {
+                AsyncImage(
+                    model = iconUrl,
+                    contentDescription = source.name,
+                    modifier = Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)),
+                )
+            } else {
+                SourceAvatar(name = source.name)
+            }
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -1143,4 +1181,49 @@ private fun EmptySourcesContent() {
             )
         }
     }
+}
+
+@Composable
+private fun FloatingSourceSearchBox(
+    searchQuery: String,
+    onQueryChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    OutlinedTextField(
+        value = searchQuery,
+        onValueChange = onQueryChange,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        placeholder = { Text(stringResource(R.string.browse_search_placeholder)) },
+        leadingIcon = {
+            Icon(Icons.Default.Search, contentDescription = null)
+        },
+        trailingIcon = if (searchQuery.isNotEmpty()) {
+            {
+                IconButton(onClick = { onQueryChange("") }) {
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.browse_clear_search))
+                }
+            }
+        } else null,
+        shape = RoundedCornerShape(24.dp),
+        singleLine = true,
+    )
+}
+
+@Composable
+private fun LazyListState.isScrollingUp(): Boolean {
+    var isScrollingUp by remember { mutableStateOf(true) }
+    var previousIndex by remember { mutableIntStateOf(firstVisibleItemIndex) }
+    LaunchedEffect(this) {
+        snapshotFlow { firstVisibleItemIndex }
+            .distinctUntilChanged()
+            .collect { current ->
+                if (previousIndex != current) {
+                    isScrollingUp = previousIndex > current
+                    previousIndex = current
+                }
+            }
+    }
+    return isScrollingUp
 }

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.ui.selection.SelectionManager
+import app.otakureader.core.extension.domain.repository.ExtensionRepository
 import app.otakureader.domain.repository.ExtensionManagementRepository
 import app.otakureader.domain.repository.FeedRepository
 import app.otakureader.domain.repository.MangaRepository
@@ -55,6 +56,7 @@ class BrowseViewModel @Inject constructor(
     private val generalPreferences: GeneralPreferences,
     private val searchLibraryMangaUseCase: SearchLibraryMangaUseCase,
     private val extensionManagementRepository: ExtensionManagementRepository,
+    private val extensionRepository: ExtensionRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(BrowseState())
@@ -115,6 +117,20 @@ class BrowseViewModel @Inject constructor(
         observeSourcePinning()
         observeNamedSavedSearches()
         observeLastUsedSources()
+        observeSourceIconUrls()
+    }
+
+    private fun observeSourceIconUrls() {
+        extensionRepository.getInstalledExtensions()
+            .map { extensions ->
+                buildMap {
+                    extensions.forEach { ext ->
+                        ext.sources.forEach { src -> put(src.id, ext.iconUrl) }
+                    }
+                }
+            }
+            .onEach { iconMap -> _state.update { it.copy(sourceIconUrls = iconMap) } }
+            .launchIn(viewModelScope)
     }
 
     @Suppress("LongMethod", "CyclomaticComplexMethod")

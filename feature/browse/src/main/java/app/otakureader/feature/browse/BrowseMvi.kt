@@ -72,6 +72,8 @@ data class BrowseState(
     val showLanguageDialog: Boolean = false,
     /** All distinct language codes present across installed sources (computed in ViewModel). */
     val availableLanguages: List<String> = emptyList(),
+    /** Maps source numeric ID → extension iconUrl, for displaying actual source icons in the list. */
+    val sourceIconUrls: Map<Long, String?> = emptyMap(),
 ) : UiState
 
 sealed interface BrowseEvent : UiEvent {
