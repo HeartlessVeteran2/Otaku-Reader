@@ -565,6 +565,8 @@ private fun LibrarySortMode.label(): String = when (this) {
     LibrarySortMode.TOTAL_CHAPTERS -> stringResource(R.string.sort_total_chapters)
     LibrarySortMode.LATEST_CHAPTER -> stringResource(R.string.sort_latest_chapter)
     LibrarySortMode.RANDOM -> stringResource(R.string.sort_random)
+    LibrarySortMode.CHAPTER_FETCH_DATE -> stringResource(R.string.sort_chapter_fetch_date)
+    LibrarySortMode.TRACKER_MEAN -> stringResource(R.string.sort_tracker_mean)
 }
 
 @Composable

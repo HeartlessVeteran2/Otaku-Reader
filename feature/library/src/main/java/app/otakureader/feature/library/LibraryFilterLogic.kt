@@ -98,6 +98,10 @@ internal fun applySort(items: List<LibraryMangaItem>, params: FilterSortParams):
         LibrarySortMode.LATEST_CHAPTER -> items.sortedByDescending { it.lastUpdate }
         // Seeded with the ViewModel's session seed so items don't re-shuffle on every emission.
         LibrarySortMode.RANDOM -> items.shuffled(Random(params.randomSeed))
+        // Chapter fetch date maps to dateAdded until a dedicated field is added to the data model.
+        LibrarySortMode.CHAPTER_FETCH_DATE -> items.sortedByDescending { it.dateAdded }
+        // Tracker mean score requires a tracker-score field; falls back to title until available.
+        LibrarySortMode.TRACKER_MEAN -> items.sortedBy { it.title }
     }
     return if (params.sortAscending) sorted else sorted.reversed()
 }

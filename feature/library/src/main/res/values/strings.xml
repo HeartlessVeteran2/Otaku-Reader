@@ -240,6 +240,8 @@
     <string name="sort_total_chapters">Total chapters</string>
     <string name="sort_latest_chapter">Latest chapter</string>
     <string name="sort_random">Random</string>
+    <string name="sort_chapter_fetch_date">Chapter fetch date</string>
+    <string name="sort_tracker_mean">Tracker score</string>
     <string name="filter_all">All</string>
     <string name="filter_downloaded">Downloaded</string>
     <string name="filter_not_downloaded">Not downloaded</string>
@@ -376,6 +378,10 @@
     <string name="library_filter_no_results_message">No manga in your library match the active filters</string>
     <string name="library_filter_no_results_clear_cta">Clear filters</string>
 
+    <!-- Selection bar actions -->
+    <string name="library_update_selected">Update</string>
+    <!-- Search empty state: global search CTA -->
+    <string name="library_search_globally">Search globally</string>
     <!-- Bulk delete undo snackbar -->
     <string name="library_undo_action">Undo</string>
     <plurals name="library_removed_count_undo">

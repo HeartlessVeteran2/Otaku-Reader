@@ -16,6 +16,8 @@ enum class LibrarySortMode {
     // Appended for stable persisted ordinals — never reorder above entries.
     LATEST_CHAPTER,
     RANDOM,
+    CHAPTER_FETCH_DATE,
+    TRACKER_MEAN,
 }
 
 enum class LibraryFilterMode {
@@ -286,6 +288,7 @@ sealed class LibraryEvent {
     data object DismissMoveToCategoryDialog : LibraryEvent()
     data class MoveToCategory(val mangaIds: Set<Long>, val categoryId: Long) : LibraryEvent()
     data object MigrateSelected : LibraryEvent()
+    data object UpdateSelected : LibraryEvent()
 }
 
 sealed class LibraryEffect {

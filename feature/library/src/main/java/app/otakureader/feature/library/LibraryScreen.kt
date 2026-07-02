@@ -115,6 +115,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.zIndex
+import androidx.activity.compose.BackHandler
+import androidx.compose.material.icons.filled.Refresh
 
 private const val CATEGORY_TABS_Z_INDEX = 2f
 
@@ -230,6 +232,13 @@ fun LibraryScreen(
         )
     }
 
+    BackHandler(enabled = state.selectedManga.isNotEmpty() || state.showSearchBar) {
+        when {
+            state.selectedManga.isNotEmpty() -> viewModel.onEvent(LibraryEvent.ClearSelection)
+            state.showSearchBar -> viewModel.onEvent(LibraryEvent.ToggleSearchBar)
+        }
+    }
+
     Scaffold(
         topBar = {
             when {
@@ -297,8 +306,32 @@ fun LibraryScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
+                            val selectedCategory = state.selectedCategory
+                            val titleText = if (!state.showCategoryTabs && selectedCategory != null) {
+                                when (state.groupType) {
+                                    LibraryGroup.BY_SOURCE -> state.allMangaList
+                                        .firstOrNull { it.sourceId == selectedCategory }
+                                        ?.sourceName?.ifBlank { selectedCategory.toString() }
+                                    LibraryGroup.BY_STATUS -> {
+                                        val statusOrdinal = (selectedCategory - 1).toInt()
+                                        when (MangaStatus.entries.getOrNull(statusOrdinal)) {
+                                            MangaStatus.UNKNOWN -> stringResource(R.string.manga_status_unknown)
+                                            MangaStatus.ONGOING -> stringResource(R.string.manga_status_ongoing)
+                                            MangaStatus.COMPLETED -> stringResource(R.string.manga_status_completed)
+                                            MangaStatus.LICENSED -> stringResource(R.string.manga_status_licensed)
+                                            MangaStatus.PUBLISHING_FINISHED -> stringResource(R.string.manga_status_publishing_finished)
+                                            MangaStatus.CANCELLED -> stringResource(R.string.manga_status_cancelled)
+                                            MangaStatus.ON_HIATUS -> stringResource(R.string.manga_status_on_hiatus)
+                                            null -> null
+                                        }
+                                    }
+                                    else -> state.categories.find { it.id == selectedCategory }?.name
+                                } ?: stringResource(R.string.library_title)
+                            } else {
+                                stringResource(R.string.library_title)
+                            }
                             Text(
-                                text = stringResource(R.string.library_title),
+                                text = titleText,
                                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
@@ -459,6 +492,7 @@ fun LibraryScreen(
                 onDownloadClicked = { viewModel.onEvent(LibraryEvent.DownloadSelected) },
                 onDeleteClicked = { pendingBulkAction = LibraryEvent.RemoveSelectedFromLibrary },
                 onMigrateClicked = { viewModel.onEvent(LibraryEvent.MigrateSelected) },
+                onUpdateClicked = { viewModel.onEvent(LibraryEvent.UpdateSelected) },
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -802,7 +836,7 @@ private fun LibraryContent(
 
         PullToRefreshBox(
             isRefreshing = state.isRefreshing,
-            onRefresh = { onEvent(LibraryEvent.Refresh) },
+            onRefresh = { if (state.selectedManga.isEmpty()) onEvent(LibraryEvent.Refresh) },
             modifier = Modifier.weight(1f)
         ) {
             when {
@@ -815,6 +849,7 @@ private fun LibraryContent(
                     Box(modifier = Modifier.fillMaxSize()) {
                         EmptyLibrarySearchMessage(
                             query = state.searchQuery,
+                            onBrowseClick = onBrowseClick,
                             modifier = Modifier.align(Alignment.Center)
                         )
                     }
@@ -1082,6 +1117,7 @@ private fun LibrarySelectionBottomBar(
     onDownloadClicked: () -> Unit,
     onDeleteClicked: () -> Unit,
     onMigrateClicked: () -> Unit,
+    onUpdateClicked: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     AnimatedVisibility(
@@ -1152,6 +1188,20 @@ private fun LibrarySelectionBottomBar(
                     }
                     Text(
                         text = stringResource(R.string.library_download_selected),
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    IconButton(onClick = onUpdateClicked) {
+                        Icon(
+                            Icons.Default.Refresh,
+                            contentDescription = stringResource(R.string.library_update_selected),
+                        )
+                    }
+                    Text(
+                        text = stringResource(R.string.library_update_selected),
                         style = MaterialTheme.typography.labelSmall,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,

@@ -167,7 +167,8 @@ class LibraryViewModel @Inject constructor(
             is LibraryEvent.MarkSelectedAsDropped, is LibraryEvent.ShareSelectedManga,
             is LibraryEvent.ViewSelectedManga, is LibraryEvent.UndoLibraryDelete,
             is LibraryEvent.OpenMoveToCategoryDialog, is LibraryEvent.DismissMoveToCategoryDialog,
-            is LibraryEvent.MoveToCategory, is LibraryEvent.MigrateSelected -> handleActionEvent(event)
+            is LibraryEvent.MoveToCategory, is LibraryEvent.MigrateSelected,
+            is LibraryEvent.UpdateSelected -> handleActionEvent(event)
             is LibraryEvent.UpdateLibrary, is LibraryEvent.UpdateCategory,
             is LibraryEvent.OpenRandomEntry, is LibraryEvent.ReindexDownloads,
             is LibraryEvent.SyncEhFavorites,
@@ -288,7 +289,16 @@ class LibraryViewModel @Inject constructor(
             }
             is LibraryEvent.MoveToCategory -> moveMangaToCategory(event.mangaIds, event.categoryId)
             is LibraryEvent.MigrateSelected -> migrateSelected()
+            is LibraryEvent.UpdateSelected -> updateSelected()
             else -> Unit
+        }
+    }
+
+    private fun updateSelected() {
+        if (selection.snapshotAndClear().isEmpty()) return
+        viewModelScope.launch {
+            libraryUpdateScheduler.enqueueNow()
+            _effect.send(LibraryEffect.ShowSnackbar(R.string.library_update_started))
         }
     }
 
