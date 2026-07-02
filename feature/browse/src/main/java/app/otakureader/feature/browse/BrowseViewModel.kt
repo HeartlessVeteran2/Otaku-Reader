@@ -43,7 +43,7 @@ import kotlinx.serialization.json.Json
 import javax.inject.Inject
 
 /** Intermediate result of the NSFW/language/disabled-source filtering pipeline in [BrowseViewModel.init]. */
-private data class SourceFilterResult(
+internal data class SourceFilterResult(
     val sources: List<MangaSource>,
     val availableLangs: List<String>,
     val showNsfw: Boolean,
@@ -57,7 +57,7 @@ private data class SourceFilterResult(
  * Kept top-level (outside [BrowseViewModel]) so the class body stays under Detekt's LargeClass
  * threshold.
  */
-private fun buildSourceFilterResult(
+internal fun buildSourceFilterResult(
     sources: List<MangaSource>,
     showNsfw: Boolean,
     enabledLangs: Set<String>,

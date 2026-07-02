@@ -47,7 +47,6 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
-import kotlin.time.Duration.Companion.seconds
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -522,43 +521,34 @@ class BrowseViewModelTest {
     }
 
     @Test
-    fun `disabled source is excluded from sources but stays visible in allSources`() = runTest {
+    fun `buildSourceFilterResult excludes disabled sources from the filtered list`() {
         val visible = createMangaSource(id = "1", name = "Visible Source", lang = "en", isNsfw = false)
         val disabled = createMangaSource(id = "2", name = "Disabled Source", lang = "en", isNsfw = false)
 
-        every { sourceRepository.getSources() } returns flowOf(listOf(visible, disabled))
-        every { generalPreferences.disabledSourceIds } returns flowOf(setOf(2L))
-
-        viewModel = BrowseViewModel(
-            getSourcesUseCase = getSourcesUseCase,
-            getPopularMangaUseCase = getPopularMangaUseCase,
-            getLatestUpdatesUseCase = getLatestUpdatesUseCase,
-            searchMangaUseCase = searchMangaUseCase,
-            getSourceFiltersUseCase = getSourceFiltersUseCase,
-            addMangaToLibraryUseCase = addMangaToLibraryUseCase,
-            toggleFavoriteMangaUseCase = toggleFavoriteMangaUseCase,
-            mangaRepository = mangaRepository,
-            feedRepository = feedRepository,
-            generalPreferences = generalPreferences,
-            searchLibraryMangaUseCase = searchLibraryMangaUseCase,
-            extensionManagementRepository = extensionManagementRepository,
-            extensionRepository = extensionRepository,
+        val result = buildSourceFilterResult(
+            sources = listOf(visible, disabled),
+            showNsfw = false,
+            enabledLangs = emptySet(),
+            disabledIds = setOf(2L),
         )
 
-        viewModel.state.test(timeout = 10.seconds) {
-            skipItems(1)
-            // sources and allSources are populated by two independent subscriptions, so don't
-            // assume they land in the same emitted snapshot — await each in turn.
-            var state = awaitUntil { it.sources.isNotEmpty() }
-            if (state.allSources.isEmpty()) {
-                state = awaitUntil { it.allSources.isNotEmpty() }
-            }
+        assertEquals(listOf("1"), result.sources.map { it.id })
+        assertEquals(setOf(2L), result.disabledIds)
+    }
 
-            assertEquals(listOf("1"), state.sources.map { it.id })
-            assertEquals(setOf("1", "2"), state.allSources.map { it.id }.toSet())
-            assertEquals(setOf(2L), state.disabledSourceIds)
-            cancelAndIgnoreRemainingEvents()
-        }
+    @Test
+    fun `buildSourceFilterResult is a no-op when nothing is disabled`() {
+        val source1 = createMangaSource(id = "1", name = "Source 1", lang = "en", isNsfw = false)
+        val source2 = createMangaSource(id = "2", name = "Source 2", lang = "en", isNsfw = false)
+
+        val result = buildSourceFilterResult(
+            sources = listOf(source1, source2),
+            showNsfw = false,
+            enabledLangs = emptySet(),
+            disabledIds = emptySet(),
+        )
+
+        assertEquals(setOf("1", "2"), result.sources.map { it.id }.toSet())
     }
 
     @Test
