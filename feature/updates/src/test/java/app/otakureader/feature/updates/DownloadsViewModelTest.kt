@@ -28,11 +28,12 @@ class DownloadsViewModelTest {
     private lateinit var downloadRepository: DownloadRepository
     private lateinit var chapterRepository: ChapterRepository
 
-    // Queued in id order 1,2,3 — sort tests verify reorderDownload is called in the new order.
+    // DownloadItem.id is deliberately different from chapterId (offset by 100) so a regression
+    // to sorting/reordering by item.id instead of item.chapterId would fail these tests.
     private val queueItems = listOf(
-        DownloadItem(id = 1L, mangaId = 1L, chapterId = 1L, mangaTitle = "Naruto", chapterTitle = "Ch 1", status = DownloadStatus.QUEUED),
-        DownloadItem(id = 2L, mangaId = 1L, chapterId = 2L, mangaTitle = "Naruto", chapterTitle = "Ch 2", status = DownloadStatus.QUEUED),
-        DownloadItem(id = 3L, mangaId = 1L, chapterId = 3L, mangaTitle = "Naruto", chapterTitle = "Ch 3", status = DownloadStatus.QUEUED),
+        DownloadItem(id = 101L, mangaId = 1L, chapterId = 1L, mangaTitle = "Naruto", chapterTitle = "Ch 1", status = DownloadStatus.QUEUED),
+        DownloadItem(id = 102L, mangaId = 1L, chapterId = 2L, mangaTitle = "Naruto", chapterTitle = "Ch 2", status = DownloadStatus.QUEUED),
+        DownloadItem(id = 103L, mangaId = 1L, chapterId = 3L, mangaTitle = "Naruto", chapterTitle = "Ch 3", status = DownloadStatus.QUEUED),
     )
 
     private val chapters = mapOf(
@@ -87,6 +88,26 @@ class DownloadsViewModelTest {
         coVerifyOrder {
             downloadRepository.reorderDownload(1L, 0)
             downloadRepository.reorderDownload(3L, 1)
+            downloadRepository.reorderDownload(2L, 2)
+        }
+    }
+
+    @Test
+    fun onEvent_SortByChapterNumber_chapterLookupMissing_appendsItInsteadOfDropping() = runTest {
+        // Chapter 2 was deleted from the DB while still queued for download.
+        coEvery { chapterRepository.getChapterById(2L) } returns null
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onEvent(DownloadsEvent.SortByChapterNumber(ascending = true))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // id=2's chapter is missing, so it's appended after the sortable items (id=3 -> 2f, id=1 -> 3f)
+        // rather than silently dropped from the reorder.
+        coVerifyOrder {
+            downloadRepository.reorderDownload(3L, 0)
+            downloadRepository.reorderDownload(1L, 1)
             downloadRepository.reorderDownload(2L, 2)
         }
     }

@@ -168,19 +168,25 @@ class DownloadsViewModel @Inject constructor(
      * whole queue is reassigned sequential priorities in the new order via the existing
      * single-item [DownloadRepository.reorderDownload] call (same pattern as
      * [pauseSelected]/[resumeSelected]).
+     *
+     * Items whose chapter lookup returns null (e.g. the chapter row was deleted while still
+     * queued) can't be placed by [selector], so they're appended after the sorted items in
+     * their original queue order instead of being silently dropped — every queued item still
+     * gets an explicit, consistent priority.
      */
     private fun <R : Comparable<R>> sortQueue(descending: Boolean, selector: (app.otakureader.domain.model.Chapter) -> R) {
         viewModelScope.launch {
             val items = _state.value.items
-            val chapters = items
+            val resolved = items
                 .map { item -> async { item.chapterId to chapterRepository.getChapterById(item.chapterId) } }
                 .awaitAll()
-                .mapNotNull { (chapterId, chapter) -> chapter?.let { chapterId to it } }
+            val withChapter = resolved.mapNotNull { (chapterId, chapter) -> chapter?.let { chapterId to it } }
+            val withoutChapter = resolved.filter { (_, chapter) -> chapter == null }
 
             val comparator = compareBy<Pair<Long, app.otakureader.domain.model.Chapter>> { selector(it.second) }
-            val ordered = if (descending) chapters.sortedWith(comparator.reversed()) else chapters.sortedWith(comparator)
+            val sortable = if (descending) withChapter.sortedWith(comparator.reversed()) else withChapter.sortedWith(comparator)
 
-            ordered.forEachIndexed { index, (chapterId, _) ->
+            (sortable + withoutChapter).forEachIndexed { index, (chapterId, _) ->
                 downloadRepository.reorderDownload(chapterId, index)
             }
         }
