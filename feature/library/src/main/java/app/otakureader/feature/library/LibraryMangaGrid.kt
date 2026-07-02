@@ -414,6 +414,9 @@ private fun LibraryMangaPageContent(
                             languageBadge = if (state.showBadges && manga.sourceLanguage.isNotBlank()) {
                                 { LanguageBadge(manga.sourceLanguage) }
                             } else null,
+                            sourceIcon = if (state.showBadges && manga.sourceIconUrl != null) {
+                                { SourceIconBadge(manga.sourceIconUrl) }
+                            } else null,
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -500,6 +503,9 @@ private fun LibraryMangaPageContent(
                         },
                         languageBadge = if (state.showBadges && manga.sourceLanguage.isNotBlank()) {
                             { LanguageBadge(manga.sourceLanguage) }
+                        } else null,
+                        sourceIcon = if (state.showBadges && manga.sourceIconUrl != null) {
+                            { SourceIconBadge(manga.sourceIconUrl) }
                         } else null,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -615,6 +621,9 @@ private fun LibraryListRow(
         }
         if (showLanguageBadge && manga.sourceLanguage.isNotBlank()) {
             LanguageBadge(manga.sourceLanguage)
+        }
+        if (showLanguageBadge && manga.sourceIconUrl != null) {
+            SourceIconBadge(manga.sourceIconUrl)
         }
     }
 }
@@ -742,6 +751,21 @@ internal fun LanguageBadge(
             color = MaterialTheme.colorScheme.onTertiary,
         )
     }
+}
+
+@Composable
+internal fun SourceIconBadge(
+    iconUrl: String,
+    modifier: Modifier = Modifier,
+) {
+    AsyncImage(
+        model = iconUrl,
+        contentDescription = null,
+        contentScale = ContentScale.Crop,
+        modifier = modifier
+            .size(20.dp)
+            .clip(RoundedCornerShape(4.dp)),
+    )
 }
 
 @Composable

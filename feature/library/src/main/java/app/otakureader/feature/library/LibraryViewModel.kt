@@ -21,6 +21,7 @@ import app.otakureader.domain.usecase.GetLibraryMangaUseCase
 import app.otakureader.domain.usecase.GetRecommendationsUseCase
 import app.otakureader.domain.usecase.SearchLibraryMangaUseCase
 import app.otakureader.domain.usecase.ToggleFavoriteMangaUseCase
+import app.otakureader.core.extension.domain.repository.ExtensionRepository
 import app.otakureader.domain.repository.EhFavoritesRepository
 import app.otakureader.domain.repository.PageBookmarkRepository
 import app.otakureader.domain.repository.SourceRepository
@@ -83,6 +84,7 @@ class LibraryViewModel @Inject constructor(
     private val syncLibrary: SyncLibraryUseCase,
     private val pageBookmarkRepository: PageBookmarkRepository,
     private val sourceRepository: SourceRepository,
+    private val extensionRepository: ExtensionRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(LibraryState())
@@ -583,6 +585,13 @@ class LibraryViewModel @Inject constructor(
                             .toMap()
                     }
 
+                    // Build extension icon URL lookup in parallel (sourceId → iconUrl)
+                    val sourceIconUrlDeferred = async {
+                        extensionRepository.getInstalledExtensions().first()
+                            .flatMap { ext -> ext.sources.map { src -> src.id to ext.iconUrl } }
+                            .toMap()
+                    }
+
                     // Build tracking lookup in parallel
                     val trackingDeferred = mangaList.map { manga ->
                         async {
@@ -604,6 +613,7 @@ class LibraryViewModel @Inject constructor(
                     }
 
                     val sourceMeta = sourceMetaDeferred.await()
+                    val sourceIconUrls = sourceIconUrlDeferred.await()
                     val trackedMangaIds = trackingDeferred.awaitAll().filterNotNull().toSet()
                     val downloadedMangaIds = downloadDeferred.awaitAll().filterNotNull().toSet()
 
@@ -614,6 +624,7 @@ class LibraryViewModel @Inject constructor(
                             hasTracking = manga.id in trackedMangaIds,
                             sourceName = meta?.first ?: "",
                             sourceLanguage = meta?.second ?: "",
+                            sourceIconUrl = sourceIconUrls[manga.sourceId],
                         )
                     }
                 }

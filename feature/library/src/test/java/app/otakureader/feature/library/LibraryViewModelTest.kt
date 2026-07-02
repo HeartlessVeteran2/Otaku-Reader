@@ -29,6 +29,7 @@ import app.otakureader.domain.usecase.ToggleFavoriteMangaUseCase
 import app.otakureader.domain.usecase.downloads.ReindexDownloadsUseCase
 import app.otakureader.domain.model.ReindexResult
 import app.otakureader.domain.repository.EhFavoritesRepository
+import app.otakureader.core.extension.domain.repository.ExtensionRepository
 import app.otakureader.domain.repository.PageBookmarkRepository
 import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.domain.usecase.SyncEhFavoritesUseCase
@@ -94,6 +95,9 @@ class LibraryViewModelTest {
     }
     private val sourceRepository: SourceRepository = mockk {
         every { getSources() } returns flowOf(emptyList())
+    }
+    private val extensionRepository: ExtensionRepository = mockk {
+        every { getInstalledExtensions() } returns flowOf(emptyList())
     }
 
     private val sampleMangas = listOf(
@@ -210,6 +214,7 @@ class LibraryViewModelTest {
             syncLibrary,
             pageBookmarkRepository,
             sourceRepository,
+            extensionRepository,
         )
     }
 
