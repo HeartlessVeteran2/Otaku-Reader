@@ -170,6 +170,7 @@
     <string name="details_unmark_completed">Unmark completed</string>
     <string name="details_mark_dropped">Mark as dropped</string>
     <string name="details_unmark_dropped">Unmark dropped</string>
+    <string name="details_migrate">Migrate</string>
     <string name="details_open_download_folder">Open Download Folder</string>
     <string name="details_clear_downloads">Clear Downloads</string>
     <string name="details_no_downloads">No downloads found for this manga</string>

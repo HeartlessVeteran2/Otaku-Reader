@@ -155,6 +155,7 @@ fun DetailsScreen(
     onNavigateToTracking: (mangaId: Long, mangaTitle: String) -> Unit = { _, _ -> },
     onNavigateToGlobalSearch: (query: String) -> Unit = {},
     onNavigateToSourceSearch: (sourceId: String, query: String) -> Unit = { _, _ -> },
+    onNavigateToMigration: (mangaId: Long) -> Unit = {},
     viewModel: DetailsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -217,6 +218,9 @@ fun DetailsScreen(
                 }
                 is DetailsContract.Effect.NavigateToSourceSearch -> {
                     onNavigateToSourceSearch(effect.sourceId, effect.query)
+                }
+                is DetailsContract.Effect.NavigateToMigration -> {
+                    onNavigateToMigration(effect.mangaId)
                 }
                 is DetailsContract.Effect.OpenInBrowser -> {
                     try {
@@ -417,6 +421,15 @@ fun DetailsScreen(
                                 overflowExpanded = false
                             },
                         )
+                        if (state.isFavorite) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.details_migrate)) },
+                                onClick = {
+                                    viewModel.onEvent(DetailsContract.Event.MigrateManga)
+                                    overflowExpanded = false
+                                }
+                            )
+                        }
                         androidx.compose.material3.HorizontalDivider()
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.details_open_download_folder)) },
@@ -718,6 +731,8 @@ private fun DetailsContent(
                     showPanoramaCover = state.showPanoramaCover,
                     onTogglePanoramaCover = { onEvent(DetailsContract.Event.TogglePanoramaCover) },
                     onSearchGlobal = { query -> onEvent(DetailsContract.Event.SearchGlobally(query)) },
+                    sourceName = state.sourceName,
+                    onSourceClick = { onEvent(DetailsContract.Event.SourceClick) },
                     scrollOffset = scrollOffset,
                 )
             }
@@ -813,6 +828,8 @@ private fun LazyListScope.detailsInfoItems(
             showPanoramaCover = state.showPanoramaCover,
             onTogglePanoramaCover = { onEvent(DetailsContract.Event.TogglePanoramaCover) },
             onSearchGlobal = { query -> onEvent(DetailsContract.Event.SearchGlobally(query)) },
+            sourceName = state.sourceName,
+            onSourceClick = { onEvent(DetailsContract.Event.SourceClick) },
             scrollOffset = scrollOffset,
         )
     }

@@ -150,6 +150,19 @@ class DetailsViewModelTest {
     }
 
     @Test
+    fun init_loadsSourceNameFromSourceRepository() = runTest {
+        setUpDefaultMocks()
+        val source = mockk<app.otakureader.sourceapi.MangaSource>(relaxed = true)
+        every { source.name } returns "MangaDex"
+        coEvery { sourceRepository.getSource(sampleManga.sourceId.toString()) } returns source
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals("MangaDex", viewModel.state.value.sourceName)
+    }
+
+    @Test
     fun init_setsFavoriteStatus() = runTest {
         setUpDefaultMocks()
         every { mangaRepository.isFavorite(mangaId) } returns flowOf(true)
@@ -304,6 +317,7 @@ class DetailsViewModelTest {
 
         viewModel.effect.test {
             viewModel.onEvent(DetailsContract.Event.ToggleFavorite)
+            testDispatcher.scheduler.advanceUntilIdle()
 
             val effect = awaitItem()
             assertTrue(effect is DetailsContract.Effect.ShowDeleteDownloadsPrompt)
@@ -327,6 +341,7 @@ class DetailsViewModelTest {
 
         viewModel.effect.test {
             viewModel.onEvent(DetailsContract.Event.ToggleFavorite)
+            testDispatcher.scheduler.advanceUntilIdle()
 
             val effect = awaitItem()
             assertTrue(effect is DetailsContract.Effect.ShowSnackbar)
@@ -781,6 +796,7 @@ class DetailsViewModelTest {
 
         viewModel.effect.test {
             viewModel.onEvent(DetailsContract.Event.SearchGlobally("Attack on Titan"))
+            testDispatcher.scheduler.advanceUntilIdle()
 
             val effect = awaitItem()
             assertTrue(effect is DetailsContract.Effect.NavigateToGlobalSearch)
@@ -810,10 +826,47 @@ class DetailsViewModelTest {
 
         viewModel.effect.test {
             viewModel.onEvent(DetailsContract.Event.GenreLongClick("Shounen"))
+            testDispatcher.scheduler.advanceUntilIdle()
 
             val effect = awaitItem()
             assertTrue(effect is DetailsContract.Effect.NavigateToGlobalSearch)
             assertEquals("Shounen", (effect as DetailsContract.Effect.NavigateToGlobalSearch).query)
+        }
+    }
+
+    @Test
+    fun onEvent_SourceClick_emitsNavigateToSourceSearchWithEmptyQuery() = runTest {
+        setUpDefaultMocks()
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.SourceClick)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.NavigateToSourceSearch)
+            val navigate = effect as DetailsContract.Effect.NavigateToSourceSearch
+            assertEquals(sampleManga.sourceId.toString(), navigate.sourceId)
+            assertEquals("", navigate.query)
+        }
+    }
+
+    @Test
+    fun onEvent_MigrateManga_emitsNavigateToMigrationWithMangaId() = runTest {
+        setUpDefaultMocks()
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.MigrateManga)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.NavigateToMigration)
+            assertEquals(mangaId, (effect as DetailsContract.Effect.NavigateToMigration).mangaId)
         }
     }
 

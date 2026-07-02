@@ -356,6 +356,9 @@ fun OtakuReaderNavHost(
             },
             onNavigateToSourceSearch = { sourceId, query ->
                 navController.navigate(Route.SourceListing(sourceId, query))
+            },
+            onNavigateToMigration = { mangaId ->
+                navController.navigate(Route.Migration(selectedMangaIds = listOf(mangaId)))
             }
         )
 

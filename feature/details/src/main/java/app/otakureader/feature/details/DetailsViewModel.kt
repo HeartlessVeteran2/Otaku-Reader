@@ -100,6 +100,7 @@ class DetailsViewModel @Inject constructor(
         observeTrackingCount()
         loadMangaWebUrl()
         observeCategories()
+        loadSourceName()
     }
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")
@@ -197,6 +198,38 @@ class DetailsViewModel @Inject constructor(
             is DetailsContract.Event.ToggleCategoryPickerSelection ->
                 toggleCategoryPickerSelection(event.categoryId)
             is DetailsContract.Event.ConfirmCategoryPicker -> confirmCategoryPicker()
+            is DetailsContract.Event.MigrateManga -> migrateManga()
+            is DetailsContract.Event.SourceClick -> onSourceClick()
+        }
+    }
+
+    private fun migrateManga() {
+        viewModelScope.launch {
+            _effect.send(DetailsContract.Effect.NavigateToMigration(mangaId))
+        }
+    }
+
+    /** Source name tap in the header: reuses the source-search navigation with an empty query. */
+    private fun onSourceClick() {
+        viewModelScope.launch {
+            val manga = _state.value.manga ?: return@launch
+            _effect.send(
+                DetailsContract.Effect.NavigateToSourceSearch(sourceId = manga.sourceId.toString(), query = "")
+            )
+        }
+    }
+
+    private fun loadSourceName() {
+        viewModelScope.launch {
+            try {
+                val manga = mangaRepository.getMangaById(mangaId) ?: return@launch
+                val source = sourceRepository.getSource(manga.sourceId.toString())
+                _state.update { it.copy(sourceName = source?.name) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // Source name is a passive display detail — silently leave it unset on failure.
+            }
         }
     }
 
@@ -860,20 +893,27 @@ class DetailsViewModel @Inject constructor(
             val manga = _state.value.manga
             if (chapter == null || manga == null) return@launch
 
-            // The same download icon tap doubles as "cancel" while a chapter is mid-download
-            // and as "delete" once it has finished — there's nothing downloaded yet to delete
-            // while DOWNLOADING, so deleteChapterDownload() would be a silent no-op there.
-            if (chapter.downloadStatus == DetailsContract.DownloadStatus.DOWNLOADING) {
-                downloadRepository.cancelDownload(chapterId)
-                _effect.send(DetailsContract.Effect.ShowSnackbar("Download cancelled"))
-            } else {
-                downloadRepository.deleteChapterDownload(
-                    chapterId = chapterId,
-                    sourceName = sourceRepository.resolveDownloadFolderName(manga.sourceId),
-                    mangaTitle = manga.title,
-                    chapterTitle = chapter.name
-                )
-                _effect.send(DetailsContract.Effect.ShowSnackbar("Download removed"))
+            try {
+                // The same download icon tap doubles as "cancel" while a chapter is
+                // mid-download and as "delete" once it has finished — there's nothing
+                // downloaded yet to delete while DOWNLOADING, so deleteChapterDownload()
+                // would be a silent no-op there.
+                if (chapter.downloadStatus == DetailsContract.DownloadStatus.DOWNLOADING) {
+                    downloadRepository.cancelDownload(chapterId)
+                    _effect.send(DetailsContract.Effect.ShowSnackbar("Download cancelled"))
+                } else {
+                    downloadRepository.deleteChapterDownload(
+                        chapterId = chapterId,
+                        sourceName = sourceRepository.resolveDownloadFolderName(manga.sourceId),
+                        mangaTitle = manga.title,
+                        chapterTitle = chapter.name
+                    )
+                    _effect.send(DetailsContract.Effect.ShowSnackbar("Download removed"))
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _effect.send(DetailsContract.Effect.ShowError("Failed to update download: ${e.message}"))
             }
         }
     }

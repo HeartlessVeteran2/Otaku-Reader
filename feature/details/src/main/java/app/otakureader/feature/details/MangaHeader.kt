@@ -64,6 +64,13 @@ private const val HEADER_SUBTITLE_MAX_LINES = 1
 private const val HEADER_SUBTITLE_ALPHA = 0.8f
 private val HEADER_SUBTITLE_TOP_SPACING = 6.dp
 private val HEADER_STATUS_TOP_SPACING = 4.dp
+private val GLOBAL_SEARCH_TAP_CORNER_RADIUS = 4.dp
+
+/** Clip + click affordance shared by every tappable title/author/artist label in the header. */
+private fun Modifier.globalSearchTappable(onTap: () -> Unit): Modifier =
+    this
+        .clip(RoundedCornerShape(GLOBAL_SEARCH_TAP_CORNER_RADIUS))
+        .clickable(onClick = onTap)
 
 @Composable
 internal fun MangaHeader(
@@ -71,6 +78,8 @@ internal fun MangaHeader(
     showPanoramaCover: Boolean,
     onTogglePanoramaCover: () -> Unit,
     onSearchGlobal: (String) -> Unit = {},
+    sourceName: String? = null,
+    onSourceClick: () -> Unit = {},
     scrollOffset: () -> Float = { 0f },
     modifier: Modifier = Modifier
 ) {
@@ -229,9 +238,7 @@ internal fun MangaHeader(
                             color = Color.White,
                             maxLines = HEADER_TITLE_MAX_LINES,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .clickable { onSearchGlobal(manga.title) },
+                            modifier = Modifier.globalSearchTappable { onSearchGlobal(manga.title) },
                         )
 
                         val author = manga.author?.takeIf { it.isNotBlank() }
@@ -249,9 +256,7 @@ internal fun MangaHeader(
                                     color = Color.White.copy(alpha = HEADER_SUBTITLE_ALPHA),
                                     maxLines = HEADER_SUBTITLE_MAX_LINES,
                                     overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .clickable { onSearchGlobal(it) },
+                                    modifier = Modifier.globalSearchTappable { onSearchGlobal(it) },
                                 )
                             }
                             artist?.let {
@@ -261,20 +266,30 @@ internal fun MangaHeader(
                                     color = Color.White.copy(alpha = HEADER_SUBTITLE_ALPHA),
                                     maxLines = HEADER_SUBTITLE_MAX_LINES,
                                     overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .clickable { onSearchGlobal(it) },
+                                    modifier = Modifier.globalSearchTappable { onSearchGlobal(it) },
                                 )
                             }
                         }
 
                         Spacer(modifier = Modifier.height(HEADER_STATUS_TOP_SPACING))
 
-                        Text(
-                            text = stringResource(manga.status.displayTextResId()),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.White.copy(alpha = HEADER_SUBTITLE_ALPHA),
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = stringResource(manga.status.displayTextResId()),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Color.White.copy(alpha = HEADER_SUBTITLE_ALPHA),
+                            )
+                            if (!sourceName.isNullOrBlank()) {
+                                Text(
+                                    text = " • $sourceName",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = Color.White.copy(alpha = HEADER_SUBTITLE_ALPHA),
+                                    maxLines = HEADER_SUBTITLE_MAX_LINES,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.globalSearchTappable(onSourceClick),
+                                )
+                            }
+                        }
 
                     }
                 }
@@ -291,9 +306,7 @@ internal fun MangaHeader(
                     style = MaterialTheme.typography.headlineSmall,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .clickable { onSearchGlobal(manga.title) },
+                    modifier = Modifier.globalSearchTappable { onSearchGlobal(manga.title) },
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -303,9 +316,7 @@ internal fun MangaHeader(
                         text = stringResource(R.string.details_author, author),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .clickable { onSearchGlobal(author) },
+                        modifier = Modifier.globalSearchTappable { onSearchGlobal(author) },
                     )
                 }
 
@@ -314,17 +325,30 @@ internal fun MangaHeader(
                         text = stringResource(R.string.details_artist, artist),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .clickable { onSearchGlobal(artist) },
+                        modifier = Modifier.globalSearchTappable { onSearchGlobal(artist) },
                     )
                 }
 
-                Text(
-                    text = stringResource(R.string.details_status, stringResource(manga.status.displayTextResId())),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = manga.status.colorValue(LocalOtakuColors.current)
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = stringResource(
+                            R.string.details_status,
+                            stringResource(manga.status.displayTextResId()),
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = manga.status.colorValue(LocalOtakuColors.current)
+                    )
+                    if (!sourceName.isNullOrBlank()) {
+                        Text(
+                            text = " • $sourceName",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = HEADER_SUBTITLE_MAX_LINES,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.globalSearchTappable(onSourceClick),
+                        )
+                    }
+                }
             }
         }
     }
