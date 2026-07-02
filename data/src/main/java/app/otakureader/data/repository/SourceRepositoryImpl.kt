@@ -2,6 +2,7 @@ package app.otakureader.data.repository
 
 import android.content.Context
 import androidx.annotation.VisibleForTesting
+import app.otakureader.core.extension.domain.repository.ExtensionRepository
 import app.otakureader.core.extension.loader.ExtensionLoader
 import app.otakureader.core.extension.loader.ExtensionLoadResult
 import app.otakureader.core.preferences.LocalSourcePreferences
@@ -49,6 +50,7 @@ class SourceRepositoryImpl @Inject constructor(
     private val healthMonitor: SourceHealthMonitor,
     private val httpClient: OkHttpClient,
     private val extensionLoader: ExtensionLoader,
+    private val extensionRepository: ExtensionRepository,
     @ApplicationScope private val scope: CoroutineScope,
 ) : SourceRepository, ExtensionManagementRepository {
 
@@ -70,6 +72,7 @@ class SourceRepositoryImpl @Inject constructor(
         healthMonitor: SourceHealthMonitor,
         httpClient: OkHttpClient,
         extensionLoader: ExtensionLoader,
+        extensionRepository: ExtensionRepository,
         scope: CoroutineScope,
     ) : this(
         context,
@@ -77,6 +80,7 @@ class SourceRepositoryImpl @Inject constructor(
         healthMonitor,
         httpClient,
         extensionLoader,
+        extensionRepository,
         scope,
     )
 
@@ -460,8 +464,17 @@ class SourceRepositoryImpl @Inject constructor(
             }
             try {
                 val results = extensionLoader.loadAllExtensions()
+                // Sources are parsed fresh from the APK on every load, so ExtensionLoadResult's
+                // Extension.isEnabled is always the model default (true) and never reflects the
+                // user's stored preference. Cross-reference the DB-persisted flag here so a
+                // disabled extension's sources stay out of Browse.
+                val disabledPkgNames = extensionRepository.getInstalledExtensions().first()
+                    .filterNot { it.isEnabled }
+                    .map { it.pkgName }
+                    .toSet()
                 val extensionSources = results
                     .filterIsInstance<ExtensionLoadResult.Success>()
+                    .filterNot { it.extension.pkgName in disabledPkgNames }
                     .flatMap { success ->
                         success.sources
                             .filterIsInstance<CatalogueSource>()
