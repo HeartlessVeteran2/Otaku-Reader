@@ -114,6 +114,7 @@ import app.otakureader.sourceapi.toSourceId
 import coil3.compose.AsyncImage
 import java.util.Locale
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 /**
@@ -798,7 +799,7 @@ private fun SourceListContent(
                         source = source,
                         isPinned = source.id.toSourceId() in state.pinnedSourceIds,
                         categoryMap = state.sourceCategoryMap,
-                        iconUrl = state.sourceIconUrls[source.id.toLongOrNull()],
+                        iconUrl = source.id.toLongOrNull()?.let { state.sourceIconUrls[it] },
                         onSelect = { onEvent(BrowseEvent.SelectSource(source.id)) },
                         onLatest = { onEvent(BrowseEvent.SelectSource(source.id, loadLatest = true)) },
                         onTogglePin = { onEvent(BrowseEvent.TogglePinSource(source.id.toSourceId())) },
@@ -818,7 +819,7 @@ private fun SourceListContent(
                         source = source,
                         isPinned = true,
                         categoryMap = state.sourceCategoryMap,
-                        iconUrl = state.sourceIconUrls[source.id.toLongOrNull()],
+                        iconUrl = source.id.toLongOrNull()?.let { state.sourceIconUrls[it] },
                         onSelect = { onEvent(BrowseEvent.SelectSource(source.id)) },
                         onLatest = { onEvent(BrowseEvent.SelectSource(source.id, loadLatest = true)) },
                         onTogglePin = { onEvent(BrowseEvent.TogglePinSource(source.id.toSourceId())) },
@@ -846,7 +847,7 @@ private fun SourceListContent(
                         source = source,
                         isPinned = false,
                         categoryMap = state.sourceCategoryMap,
-                        iconUrl = state.sourceIconUrls[source.id.toLongOrNull()],
+                        iconUrl = source.id.toLongOrNull()?.let { state.sourceIconUrls[it] },
                         onSelect = { onEvent(BrowseEvent.SelectSource(source.id)) },
                         onLatest = { onEvent(BrowseEvent.SelectSource(source.id, loadLatest = true)) },
                         onTogglePin = { onEvent(BrowseEvent.TogglePinSource(source.id.toSourceId())) },
@@ -1201,7 +1202,7 @@ private fun FloatingSourceSearchBox(
         trailingIcon = if (searchQuery.isNotEmpty()) {
             {
                 IconButton(onClick = { onQueryChange("") }) {
-                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.filter_sheet_clear_all))
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.browse_clear_search))
                 }
             }
         } else null,
