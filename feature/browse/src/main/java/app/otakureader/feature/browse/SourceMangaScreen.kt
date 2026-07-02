@@ -18,8 +18,10 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.NewReleases
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -123,6 +125,17 @@ fun SourceMangaScreen(
                         }
                     },
                     actions = {
+                        if (state.supportsLatest) {
+                            IconButton(onClick = { viewModel.onEvent(SourceMangaEvent.ToggleLatest) }) {
+                                Icon(
+                                    imageVector = if (state.isShowingLatest) Icons.Default.Whatshot else Icons.Default.NewReleases,
+                                    contentDescription = stringResource(
+                                        if (state.isShowingLatest) R.string.browse_show_popular
+                                        else R.string.browse_source_latest
+                                    ),
+                                )
+                            }
+                        }
                         IconButton(onClick = { viewModel.onEvent(SourceMangaEvent.Refresh) }) {
                             Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.browse_refresh))
                         }

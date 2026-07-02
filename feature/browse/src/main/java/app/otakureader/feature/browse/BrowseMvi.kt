@@ -46,6 +46,19 @@ data class BrowseState(
     val searchHistory: List<String> = emptyList(),
     /** Source IDs pinned to the top of the source list in Browse. */
     val pinnedSourceIds: Set<Long> = emptySet(),
+    /**
+     * Source IDs individually hidden from Browse without uninstalling their owning
+     * extension — matches Komikku's per-source disable, distinct from the coarser
+     * per-extension enable/disable and per-language filtering.
+     */
+    val disabledSourceIds: Set<Long> = emptySet(),
+    /**
+     * All installed sources, unfiltered by NSFW/language/disabled state — used only by
+     * the "Manage sources" dialog so a disabled source stays reachable to re-enable.
+     */
+    val allSources: List<MangaSource> = emptyList(),
+    /** Whether the "Manage sources" dialog (per-source enable/disable) is open. */
+    val showSourcesFilterDialog: Boolean = false,
     /** User-defined category label per source ID. */
     val sourceCategoryMap: Map<Long, String> = emptyMap(),
     /** Controls visibility of the "Set category" dialog. */
@@ -118,6 +131,12 @@ sealed interface BrowseEvent : UiEvent {
     // --- Source pinning & categories ---
     /** Toggles the pinned state for the source identified by its numeric ID string. */
     data class TogglePinSource(val sourceId: Long) : BrowseEvent
+    /** Toggles whether the source is hidden from Browse without uninstalling its extension. */
+    data class ToggleDisableSource(val sourceId: Long) : BrowseEvent
+    /** Opens the "Manage sources" dialog (per-source enable/disable), listing all sources. */
+    data object ShowSourcesFilterDialog : BrowseEvent
+    /** Dismisses the "Manage sources" dialog. */
+    data object DismissSourcesFilterDialog : BrowseEvent
     /** Opens the "Set category" dialog pre-populated with the current label. */
     data class OpenSetCategoryDialog(val sourceId: Long, val currentCategory: String) : BrowseEvent
     /** User typed in the category dialog text field. */

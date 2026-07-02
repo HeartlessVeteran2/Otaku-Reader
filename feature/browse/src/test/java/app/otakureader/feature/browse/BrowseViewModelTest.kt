@@ -1,5 +1,6 @@
 package app.otakureader.feature.browse
 
+import app.cash.turbine.ReceiveTurbine
 import app.cash.turbine.test
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.domain.model.FeedSavedSearch
@@ -20,8 +21,10 @@ import app.otakureader.sourceapi.FilterList
 import app.otakureader.sourceapi.MangaPage
 import app.otakureader.sourceapi.MangaSource
 import app.otakureader.sourceapi.SourceManga
+import app.otakureader.sourceapi.toSourceId
 import io.mockk.Awaits
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
@@ -90,6 +93,8 @@ class BrowseViewModelTest {
         coEvery { generalPreferences.setBrowseFilterState(any(), any()) } just Awaits
         every { feedRepository.getSavedSearches() } returns flowOf(emptyList())
         every { generalPreferences.pinnedSourceIds } returns flowOf(emptySet())
+        every { generalPreferences.disabledSourceIds } returns flowOf(emptySet())
+        coEvery { generalPreferences.toggleDisabledSource(any()) } just Awaits
         every { generalPreferences.sourceCategoryMap } returns flowOf(emptyMap())
         every { generalPreferences.savedSourceSearchesJson } returns flowOf("[]")
         coEvery { generalPreferences.setSavedSourceSearchesJson(any()) } just Awaits
@@ -141,6 +146,19 @@ class BrowseViewModelTest {
     // Called after reassigning viewModel inside a test to re-activate stateIn for the new instance.
     private fun activateStateCollection() {
         collectScope.launch { viewModel.state.collect { } }
+    }
+
+    /** Awaits state emissions until [predicate] matches, bounded so a wrong stub can't hang the test. */
+    private suspend fun ReceiveTurbine<BrowseState>.awaitUntil(
+        predicate: (BrowseState) -> Boolean,
+    ): BrowseState {
+        var state = awaitItem()
+        var attempts = 0
+        while (!predicate(state) && attempts < MAX_AWAIT_ATTEMPTS) {
+            state = awaitItem()
+            attempts++
+        }
+        return state
     }
 
     private fun createMangaSource(id: String, name: String = "Test Source", lang: String = "en", isNsfw: Boolean = false) =
@@ -501,5 +519,69 @@ class BrowseViewModelTest {
 
         assertFalse(viewModel.state.value.showFilterSheet)
         assertEquals(1, viewModel.state.value.searchResults.size)
+    }
+
+    @Test
+    fun `buildSourceFilterResult excludes disabled sources from the filtered list`() {
+        val visible = createMangaSource(id = "1", name = "Visible Source", lang = "en", isNsfw = false)
+        val disabled = createMangaSource(id = "2", name = "Disabled Source", lang = "en", isNsfw = false)
+        // Real disabledSourceIds are always source.id.toSourceId() (a hashCode-derived Long,
+        // not the literal numeric string) — match that here rather than hardcoding a Long.
+        val disabledId = disabled.id.toSourceId()
+
+        val result = buildSourceFilterResult(
+            sources = listOf(visible, disabled),
+            showNsfw = false,
+            enabledLangs = emptySet(),
+            disabledIds = setOf(disabledId),
+        )
+
+        assertEquals(listOf("1"), result.sources.map { it.id })
+        assertEquals(setOf(disabledId), result.disabledIds)
+    }
+
+    @Test
+    fun `buildSourceFilterResult is a no-op when nothing is disabled`() {
+        val source1 = createMangaSource(id = "1", name = "Source 1", lang = "en", isNsfw = false)
+        val source2 = createMangaSource(id = "2", name = "Source 2", lang = "en", isNsfw = false)
+
+        val result = buildSourceFilterResult(
+            sources = listOf(source1, source2),
+            showNsfw = false,
+            enabledLangs = emptySet(),
+            disabledIds = emptySet(),
+        )
+
+        assertEquals(setOf("1", "2"), result.sources.map { it.id }.toSet())
+    }
+
+    @Test
+    fun `ToggleDisableSource calls generalPreferences toggleDisabledSource`() = runTest {
+        viewModel.onEvent(BrowseEvent.ToggleDisableSource(5L))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { generalPreferences.toggleDisabledSource(5L) }
+    }
+
+    @Test
+    fun `ShowSourcesFilterDialog and DismissSourcesFilterDialog toggle dialog visibility`() = runTest {
+        viewModel.state.test {
+            val initial = awaitItem()
+            assertFalse(initial.showSourcesFilterDialog)
+
+            viewModel.onEvent(BrowseEvent.ShowSourcesFilterDialog)
+            val shown = awaitUntil { it.showSourcesFilterDialog }
+            assertTrue(shown.showSourcesFilterDialog)
+
+            viewModel.onEvent(BrowseEvent.DismissSourcesFilterDialog)
+            val dismissed = awaitUntil { !it.showSourcesFilterDialog }
+            assertFalse(dismissed.showSourcesFilterDialog)
+
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    private companion object {
+        const val MAX_AWAIT_ATTEMPTS = 20
     }
 }

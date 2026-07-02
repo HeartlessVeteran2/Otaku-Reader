@@ -382,6 +382,26 @@ class GeneralPreferences(private val dataStore: DataStore<Preferences>) {
     }
 
     /**
+     * Set of source IDs the user has individually hidden from Browse without uninstalling
+     * their owning extension — matches Komikku's per-source disable (SourcesFilterScreen /
+     * disabledSources preference), distinct from the coarser per-extension enable/disable.
+     * Stored as a comma-separated string in DataStore.
+     */
+    val disabledSourceIds: Flow<Set<Long>> = dataStore.data.map { prefs ->
+        val raw = prefs[Keys.DISABLED_SOURCE_IDS] ?: return@map emptySet()
+        raw.split(",").filter { it.isNotBlank() }.mapNotNull { it.trim().toLongOrNull() }.toSet()
+    }
+
+    suspend fun toggleDisabledSource(sourceId: Long) = dataStore.edit { prefs ->
+        val current = prefs[Keys.DISABLED_SOURCE_IDS]
+            ?.split(",")?.filter { it.isNotBlank() }?.mapNotNull { it.trim().toLongOrNull() }?.toMutableSet()
+            ?: mutableSetOf()
+        if (sourceId in current) current.remove(sourceId) else current.add(sourceId)
+        if (current.isEmpty()) prefs.remove(Keys.DISABLED_SOURCE_IDS)
+        else prefs[Keys.DISABLED_SOURCE_IDS] = current.joinToString(",")
+    }
+
+    /**
      * Map of source ID → user-defined category label.
      * Stored as a JSON object (Map<String, String>) in DataStore.
      */
@@ -515,6 +535,7 @@ class GeneralPreferences(private val dataStore: DataStore<Preferences>) {
         val DARK_MODE_END_MINUTE = intPreferencesKey("dark_mode_end_minute")
         val LAST_USED_SOURCE_IDS = stringPreferencesKey("last_used_source_ids")
         val PINNED_SOURCE_IDS = stringPreferencesKey("pinned_source_ids")
+        val DISABLED_SOURCE_IDS = stringPreferencesKey("disabled_source_ids")
         val SOURCE_CATEGORY_MAP = stringPreferencesKey("source_category_map")
         val SAVED_SOURCE_SEARCHES_JSON = stringPreferencesKey("saved_source_searches_json")
         val EXTENSION_FIRST_SEEN_HASHES = stringPreferencesKey("extension_first_seen_hashes")
