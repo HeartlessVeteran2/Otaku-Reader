@@ -307,8 +307,25 @@ fun LibraryScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             val titleText = if (!state.showCategoryTabs && state.selectedCategory != null) {
-                                state.categories.find { it.id == state.selectedCategory }?.name
-                                    ?: stringResource(R.string.library_title)
+                                when (state.groupType) {
+                                    LibraryGroup.BY_SOURCE -> state.allMangaList
+                                        .firstOrNull { it.sourceId == state.selectedCategory }
+                                        ?.sourceName?.ifBlank { state.selectedCategory.toString() }
+                                    LibraryGroup.BY_STATUS -> {
+                                        val statusOrdinal = (state.selectedCategory - 1).toInt()
+                                        when (MangaStatus.entries.getOrNull(statusOrdinal)) {
+                                            MangaStatus.UNKNOWN -> stringResource(R.string.manga_status_unknown)
+                                            MangaStatus.ONGOING -> stringResource(R.string.manga_status_ongoing)
+                                            MangaStatus.COMPLETED -> stringResource(R.string.manga_status_completed)
+                                            MangaStatus.LICENSED -> stringResource(R.string.manga_status_licensed)
+                                            MangaStatus.PUBLISHING_FINISHED -> stringResource(R.string.manga_status_publishing_finished)
+                                            MangaStatus.CANCELLED -> stringResource(R.string.manga_status_cancelled)
+                                            MangaStatus.ON_HIATUS -> stringResource(R.string.manga_status_on_hiatus)
+                                            null -> null
+                                        }
+                                    }
+                                    else -> state.categories.find { it.id == state.selectedCategory }?.name
+                                } ?: stringResource(R.string.library_title)
                             } else {
                                 stringResource(R.string.library_title)
                             }
@@ -817,8 +834,9 @@ private fun LibraryContent(
         }
 
         PullToRefreshBox(
-            isRefreshing = state.isRefreshing && state.selectedManga.isEmpty(),
-            onRefresh = { if (state.selectedManga.isEmpty()) onEvent(LibraryEvent.Refresh) },
+            isRefreshing = state.isRefreshing,
+            onRefresh = { onEvent(LibraryEvent.Refresh) },
+            enabled = state.selectedManga.isEmpty(),
             modifier = Modifier.weight(1f)
         ) {
             when {

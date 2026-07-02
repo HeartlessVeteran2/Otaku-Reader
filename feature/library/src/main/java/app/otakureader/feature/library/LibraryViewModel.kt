@@ -295,8 +295,7 @@ class LibraryViewModel @Inject constructor(
     }
 
     private fun updateSelected() {
-        val ids = selection.snapshotAndClear()
-        if (ids.isEmpty()) return
+        if (selection.snapshotAndClear().isEmpty()) return
         viewModelScope.launch {
             libraryUpdateScheduler.enqueueNow()
             _effect.send(LibraryEffect.ShowSnackbar(R.string.library_update_started))

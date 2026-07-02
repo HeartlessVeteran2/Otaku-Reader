@@ -936,4 +936,80 @@ class LibraryViewModelTest {
             expectNoEvents()
         }
     }
+
+    // --- UpdateSelected tests ---
+
+    @Test
+    fun updateSelected_triggersSchedulerAndEmitsSnackbar_andClearsSelection() = runTest {
+        every { getLibraryManga() } returns flowOf(sampleMangas)
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onEvent(LibraryEvent.SelectMangaFromMenu(1L))
+        viewModel.onEvent(LibraryEvent.SelectMangaFromMenu(2L))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(LibraryEvent.UpdateSelected)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val effect = awaitItem()
+            assertTrue(effect is LibraryEffect.ShowSnackbar)
+            assertEquals(R.string.library_update_started, (effect as LibraryEffect.ShowSnackbar).messageRes)
+        }
+
+        io.mockk.coVerify(exactly = 1) { libraryUpdateScheduler.enqueueNow() }
+        assertTrue(viewModel.state.value.selectedManga.isEmpty())
+    }
+
+    @Test
+    fun updateSelected_doesNothing_whenSelectionIsEmpty() = runTest {
+        every { getLibraryManga() } returns flowOf(sampleMangas)
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(LibraryEvent.UpdateSelected)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            expectNoEvents()
+        }
+
+        io.mockk.coVerify(exactly = 0) { libraryUpdateScheduler.enqueueNow() }
+    }
+
+    // --- New sort mode tests (CHAPTER_FETCH_DATE, TRACKER_MEAN) ---
+
+    @Test
+    fun sortMode_CHAPTER_FETCH_DATE_sortsByDateAddedDescending() = runTest {
+        every { libraryPreferences.librarySortMode } returns flowOf(LibrarySortMode.CHAPTER_FETCH_DATE.ordinal)
+        val mangasWithDates = listOf(
+            Manga(id = 1L, sourceId = 10L, url = "/m/1", title = "Naruto", favorite = true, dateAdded = 3000L),
+            Manga(id = 2L, sourceId = 20L, url = "/m/2", title = "Bleach", favorite = true, dateAdded = 1000L),
+            Manga(id = 3L, sourceId = 10L, url = "/m/3", title = "One Piece", favorite = true, dateAdded = 2000L),
+        )
+        every { getLibraryManga() } returns flowOf(mangasWithDates)
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Naruto(3000) > One Piece(2000) > Bleach(1000)
+        val ids = viewModel.state.value.mangaList.map { it.id }
+        assertEquals(listOf(1L, 3L, 2L), ids)
+    }
+
+    @Test
+    fun sortMode_TRACKER_MEAN_sortsByTitleAscending() = runTest {
+        every { libraryPreferences.librarySortMode } returns flowOf(LibrarySortMode.TRACKER_MEAN.ordinal)
+        every { getLibraryManga() } returns flowOf(sampleMangas)
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Falls back to alphabetical: Bleach, Naruto, One Piece
+        val titles = viewModel.state.value.mangaList.map { it.title }
+        assertEquals(listOf("Bleach", "Naruto", "One Piece"), titles)
+    }
 }
