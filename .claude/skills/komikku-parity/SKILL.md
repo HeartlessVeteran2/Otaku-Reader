@@ -40,36 +40,42 @@ For each screen area, follow this loop:
 | 1 | Browse: Extensions + Sources | Done (PR #1145) | Extension install → source appears fix |
 | 2 | Library | Done (PR #1155) | Grid/list/comfortable/cover-only modes, tristate filters, filter sheet, RANDOM sort, bulk-select |
 | 3 | Manga detail | Done (PR #1156, #1186) | Collapsing header, chapter list, tracker sheet, tag press, tap-to-search, cancel download, delete-downloads prompt, migrate action, source label |
-| 4 | Reader | **Next** | Modes, tap zones, end/start overlays, slider snap, rotation, real-time settings |
-| 5 | Updates / History / Downloads | Pending | J2K grouping, swipe actions, real-time progress |
+| 4 | Reader | Done (verified pre-existing) | Diffed against Komikku's ViewerNavigation/PagerConfig/WebtoonConfig, ChapterNavigator, ReadingModePage — tap zones (exact NavigationRegion color/enum match), slider snap, chapter transitions w/ gap warnings, live-applied settings, rotation, volume keys, save/share all already at parity. No gaps found worth a PR. |
+| 5 | Updates / History / Downloads | **Next** | J2K grouping, swipe actions, real-time progress |
 | 6 | Browse: global search / migrate / feed ordering | Pending | |
 | 7 | Settings | Pending | Match Komikku's settings tree, immediate-apply semantics |
 | 8 | More / stats / remaining screens | Pending | |
 
-## Current Session: Reader (item #4)
+## Current Session: Updates / History / Downloads (item #5)
 
 Komikku spec files to read:
-- `eu.kanade.presentation.reader.ReaderPageActionsDialog`, `ReaderContentOverlay`,
-  `ReaderAppBars.kt` (composables)
-- `eu.kanade.tachiyomi.ui.reader.ReaderActivity`, `ReaderViewModel` (state/behavior)
-- Per-mode viewers: `eu.kanade.tachiyomi.ui.reader.viewer.pager.*` (L2R/R2L/vertical pager),
-  `eu.kanade.tachiyomi.ui.reader.viewer.webtoon.*` (continuous vertical)
+- `eu.kanade.presentation.updates.UpdatesScreen` + `UpdatesScreenModel` — J2K-style date grouping,
+  swipe/long-press actions, per-item download/read state
+- `eu.kanade.presentation.history.HistoryScreen` + `HistoryScreenModel` — timeline grouping, resume
+- `eu.kanade.presentation.download.DownloadQueueScreen` — real-time progress, reorder, pause/resume
 
-Key elements to check (known Komikku behaviors):
-- Reading modes: L2R, R2L, vertical, webtoon, continuous-vertical — per-manga override + global default
-- Tap zones: configurable (L/R/edge) with a "tap zones" preview/config screen; navigation vs menu-toggle zones
-- Top/bottom overlay bars: chapter title, page slider with snap-to-page, page count, settings shortcut
-- Slider: drag to seek pages within the chapter, snapping to discrete page positions
-- Volume-key paging toggle
-- Auto-rotation / forced orientation per-manga override
-- Real-time settings changes (brightness, color filter, crop borders, background color) applied without reopening the reader
-- Chapter transition screens (previous/next chapter preview at the edges of a chapter)
-- Double-tap to zoom (pager modes); pinch-to-zoom
-- Long-press page → save/share/set-as-cover context menu
+Key elements to check:
+- Date-header grouping (Today/Yesterday/this week/older) matching J2K conventions
+- Swipe-to-* actions (mark read, delete, bookmark) vs long-press context menus
+- Real-time download queue progress (bytes/percent, reorder via drag, pause/resume/cancel per item)
+- Bulk actions + undo snackbars (compare against Otaku's existing undo patterns — CLAUDE.md
+  documents Pattern A/B already used for Library/History)
 
 Gap areas likely in Otaku:
-- `feature/reader/` Screen + ViewModel (4 modes already shipped per CLAUDE.md — verify tap zones,
-  slider snap, chapter transition screens, and real-time settings match Komikku exactly)
+- `feature/updates/`, `feature/history/`, `feature/more/downloads` (or wherever the download
+  manager screen lives) — Screen + ViewModel
+
+## Previous Session: Reader (item #4) — done, no gaps
+
+Diffed against Komikku's `ViewerNavigation`/`KindlishNavigation`/`EdgeNavigation`/
+`RightAndLeftNavigation`/`LNavigation`, `PagerConfig`, `WebtoonConfig`, `ReadingModePage.kt`
+(settings), `ChapterNavigator`. Otaku's `feature/reader/ui/TapZoneOverlay.kt` and `PageSlider.kt`
+explicitly document themselves as ports of these Komikku systems (exact `NavigationRegion` color
+values, same 6 navigation-mode layouts, same tapping-invert-mode semantics). Real-time settings
+(brightness/color filter/crop borders) are plain `StateFlow` fields consumed directly in
+`ReaderScreen.kt`, so they apply live. Chapter transitions include gap-warning detection matching
+Komikku. Rotation override, volume-key paging, and save/share hooks are all present in
+`ReaderMvi.kt`/`ReaderViewModel.kt`. Conclusion: no PR needed for this item.
 
 ## Commit / PR Workflow
 
