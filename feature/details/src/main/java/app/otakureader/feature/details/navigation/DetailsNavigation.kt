@@ -12,6 +12,7 @@ fun NavGraphBuilder.detailsScreen(
     onNavigateToTracking: (mangaId: Long, mangaTitle: String) -> Unit = { _, _ -> },
     onNavigateToGlobalSearch: (query: String) -> Unit = {},
     onNavigateToSourceSearch: (sourceId: String, query: String) -> Unit = { _, _ -> },
+    onNavigateToMigration: (mangaId: Long) -> Unit = {},
 ) {
     composable<Route.MangaDetails> { backStackEntry ->
         val route = backStackEntry.toRoute<Route.MangaDetails>()
@@ -22,6 +23,7 @@ fun NavGraphBuilder.detailsScreen(
             onNavigateToTracking = onNavigateToTracking,
             onNavigateToGlobalSearch = onNavigateToGlobalSearch,
             onNavigateToSourceSearch = onNavigateToSourceSearch,
+            onNavigateToMigration = onNavigateToMigration,
         )
     }
 }

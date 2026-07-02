@@ -100,6 +100,7 @@ class DetailsViewModel @Inject constructor(
         observeTrackingCount()
         loadMangaWebUrl()
         observeCategories()
+        loadSourceName()
     }
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")
@@ -188,7 +189,8 @@ class DetailsViewModel @Inject constructor(
             is DetailsContract.Event.RemoveCustomCover -> removeCustomCover()
 
             is DetailsContract.Event.GenreClick -> searchGenreInSource(event.genre)
-            is DetailsContract.Event.GenreLongClick -> searchGenreGlobally(event.genre)
+            is DetailsContract.Event.GenreLongClick -> searchGlobally(event.genre)
+            is DetailsContract.Event.SearchGlobally -> searchGlobally(event.query)
             is DetailsContract.Event.OpenWebView -> openInWebView()
 
             is DetailsContract.Event.DismissCategoryPicker ->
@@ -196,6 +198,38 @@ class DetailsViewModel @Inject constructor(
             is DetailsContract.Event.ToggleCategoryPickerSelection ->
                 toggleCategoryPickerSelection(event.categoryId)
             is DetailsContract.Event.ConfirmCategoryPicker -> confirmCategoryPicker()
+            is DetailsContract.Event.MigrateManga -> migrateManga()
+            is DetailsContract.Event.SourceClick -> onSourceClick()
+        }
+    }
+
+    private fun migrateManga() {
+        viewModelScope.launch {
+            _effect.send(DetailsContract.Effect.NavigateToMigration(mangaId))
+        }
+    }
+
+    /** Source name tap in the header: reuses the source-search navigation with an empty query. */
+    private fun onSourceClick() {
+        viewModelScope.launch {
+            val manga = _state.value.manga ?: return@launch
+            _effect.send(
+                DetailsContract.Effect.NavigateToSourceSearch(sourceId = manga.sourceId.toString(), query = "")
+            )
+        }
+    }
+
+    private fun loadSourceName() {
+        viewModelScope.launch {
+            try {
+                val manga = mangaRepository.getMangaById(mangaId) ?: return@launch
+                val source = sourceRepository.getSource(manga.sourceId.toString())
+                _state.update { it.copy(sourceName = source?.name) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // Source name is a passive display detail — silently leave it unset on failure.
+            }
         }
     }
 
@@ -224,10 +258,11 @@ class DetailsViewModel @Inject constructor(
         }
     }
 
-    /** Tag long-press: search [genre] across all sources (global search). */
-    private fun searchGenreGlobally(genre: String) {
+    /** Tag long-press, or a title/author/artist tap: search [query] across all sources. */
+    private fun searchGlobally(query: String) {
+        if (query.isBlank()) return
         viewModelScope.launch {
-            _effect.send(DetailsContract.Effect.NavigateToGlobalSearch(query = genre))
+            _effect.send(DetailsContract.Effect.NavigateToGlobalSearch(query = query))
         }
     }
 
@@ -453,11 +488,22 @@ class DetailsViewModel @Inject constructor(
             val wasFavorite = _state.value.isFavorite
             try {
                 mangaRepository.toggleFavorite(mangaId)
-                val message = if (wasFavorite) "Removed from library" else "Added to library"
-                _effect.send(DetailsContract.Effect.ShowSnackbar(message))
-                // Mirrors Komikku: right after adding to library (not on remove), offer to file
-                // the manga into a category if any exist, instead of always leaving it uncategorized.
-                if (!wasFavorite) showCategoryPickerIfNeeded()
+                if (wasFavorite) {
+                    // Mirrors Komikku: removing keeps downloads by default, but if there are
+                    // any, offer to delete them via an action snackbar instead of the plain
+                    // confirmation — deletion only happens if the user taps the action.
+                    if (hasDownloadedOrDownloadingChapters()) {
+                        _effect.send(DetailsContract.Effect.ShowDeleteDownloadsPrompt)
+                    } else {
+                        _effect.send(DetailsContract.Effect.ShowSnackbar("Removed from library"))
+                    }
+                } else {
+                    _effect.send(DetailsContract.Effect.ShowSnackbar("Added to library"))
+                    // Mirrors Komikku: right after adding to library (not on remove), offer to
+                    // file the manga into a category if any exist, instead of always leaving it
+                    // uncategorized.
+                    showCategoryPickerIfNeeded()
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -465,6 +511,12 @@ class DetailsViewModel @Inject constructor(
             }
         }
     }
+
+    private fun hasDownloadedOrDownloadingChapters(): Boolean =
+        _state.value.chapters.any {
+            it.downloadStatus == DetailsContract.DownloadStatus.DOWNLOADED ||
+                it.downloadStatus == DetailsContract.DownloadStatus.DOWNLOADING
+        }
 
     private fun observeCategories() {
         categoryRepository.getCategories()
@@ -839,17 +891,29 @@ class DetailsViewModel @Inject constructor(
         viewModelScope.launch {
             val chapter = _state.value.chapters.firstOrNull { it.id == chapterId }
             val manga = _state.value.manga
-            if (chapter != null && manga != null) {
-                downloadRepository.deleteChapterDownload(
-                    chapterId = chapterId,
-                    sourceName = sourceRepository.resolveDownloadFolderName(manga.sourceId),
-                    mangaTitle = manga.title,
-                    chapterTitle = chapter.name
-                )
-                _effect.send(DetailsContract.Effect.ShowSnackbar("Download removed"))
-            } else {
-                downloadRepository.cancelDownload(chapterId)
-                _effect.send(DetailsContract.Effect.ShowSnackbar("Download removed"))
+            if (chapter == null || manga == null) return@launch
+
+            try {
+                // The same download icon tap doubles as "cancel" while a chapter is
+                // mid-download and as "delete" once it has finished — there's nothing
+                // downloaded yet to delete while DOWNLOADING, so deleteChapterDownload()
+                // would be a silent no-op there.
+                if (chapter.downloadStatus == DetailsContract.DownloadStatus.DOWNLOADING) {
+                    downloadRepository.cancelDownload(chapterId)
+                    _effect.send(DetailsContract.Effect.ShowSnackbar("Download cancelled"))
+                } else {
+                    downloadRepository.deleteChapterDownload(
+                        chapterId = chapterId,
+                        sourceName = sourceRepository.resolveDownloadFolderName(manga.sourceId),
+                        mangaTitle = manga.title,
+                        chapterTitle = chapter.name
+                    )
+                    _effect.send(DetailsContract.Effect.ShowSnackbar("Download removed"))
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _effect.send(DetailsContract.Effect.ShowError("Failed to update download: ${e.message}"))
             }
         }
     }

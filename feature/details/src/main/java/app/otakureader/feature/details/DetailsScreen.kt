@@ -71,6 +71,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -153,6 +155,7 @@ fun DetailsScreen(
     onNavigateToTracking: (mangaId: Long, mangaTitle: String) -> Unit = { _, _ -> },
     onNavigateToGlobalSearch: (query: String) -> Unit = {},
     onNavigateToSourceSearch: (sourceId: String, query: String) -> Unit = { _, _ -> },
+    onNavigateToMigration: (mangaId: Long) -> Unit = {},
     viewModel: DetailsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -216,6 +219,9 @@ fun DetailsScreen(
                 is DetailsContract.Effect.NavigateToSourceSearch -> {
                     onNavigateToSourceSearch(effect.sourceId, effect.query)
                 }
+                is DetailsContract.Effect.NavigateToMigration -> {
+                    onNavigateToMigration(effect.mangaId)
+                }
                 is DetailsContract.Effect.OpenInBrowser -> {
                     try {
                         val intent = android.content.Intent(
@@ -260,6 +266,19 @@ fun DetailsScreen(
                         } else {
                             snackbarHostState.showSnackbar(context.getString(R.string.details_no_downloads))
                         }
+                    }
+                }
+                is DetailsContract.Effect.ShowDeleteDownloadsPrompt -> {
+                    val result = snackbarHostState.showSnackbar(
+                        message = context.getString(R.string.details_delete_downloads_prompt),
+                        actionLabel = context.getString(R.string.details_delete_downloads_action),
+                        withDismissAction = true,
+                        // Destructive action — give the user more time to notice and respond
+                        // than the default ~4s duration.
+                        duration = SnackbarDuration.Long,
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.onEvent(DetailsContract.Event.ClearMangaDownloads)
                     }
                 }
                 else -> { /* no-op */ }
@@ -402,6 +421,15 @@ fun DetailsScreen(
                                 overflowExpanded = false
                             },
                         )
+                        if (state.isFavorite) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.details_migrate)) },
+                                onClick = {
+                                    viewModel.onEvent(DetailsContract.Event.MigrateManga)
+                                    overflowExpanded = false
+                                }
+                            )
+                        }
                         androidx.compose.material3.HorizontalDivider()
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.details_open_download_folder)) },
@@ -702,6 +730,9 @@ private fun DetailsContent(
                     manga = manga,
                     showPanoramaCover = state.showPanoramaCover,
                     onTogglePanoramaCover = { onEvent(DetailsContract.Event.TogglePanoramaCover) },
+                    onSearchGlobal = { query -> onEvent(DetailsContract.Event.SearchGlobally(query)) },
+                    sourceName = state.sourceName,
+                    onSourceClick = { onEvent(DetailsContract.Event.SourceClick) },
                     scrollOffset = scrollOffset,
                 )
             }
@@ -796,6 +827,9 @@ private fun LazyListScope.detailsInfoItems(
             manga = manga,
             showPanoramaCover = state.showPanoramaCover,
             onTogglePanoramaCover = { onEvent(DetailsContract.Event.TogglePanoramaCover) },
+            onSearchGlobal = { query -> onEvent(DetailsContract.Event.SearchGlobally(query)) },
+            sourceName = state.sourceName,
+            onSourceClick = { onEvent(DetailsContract.Event.SourceClick) },
             scrollOffset = scrollOffset,
         )
     }

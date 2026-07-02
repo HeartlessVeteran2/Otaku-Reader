@@ -61,6 +61,8 @@ object DetailsContract {
         val trackingCount: Int = 0,
         /** Full web URL for this manga (source baseUrl + manga url). Null for local sources. */
         val mangaWebUrl: String? = null,
+        /** Display name of the manga's source, shown next to the status (Komikku parity). */
+        val sourceName: String? = null,
 
         /** User-defined library categories, for the "add to library" category picker. */
         val libraryCategories: List<Category> = emptyList(),
@@ -296,6 +298,12 @@ object DetailsContract {
         /** Genre/tag chip long-press: search this tag across all sources (global search). */
         data class GenreLongClick(val genre: String) : Event
 
+        /** Title/author/artist tap in the header: search that text across all sources. */
+        data class SearchGlobally(val query: String) : Event
+
+        /** Source name tap in the header: browse the manga's own source (Komikku parity). */
+        data object SourceClick : Event
+
         /** Opens the manga's source web page in the system browser. */
         data object OpenWebView : Event
 
@@ -303,6 +311,9 @@ object DetailsContract {
         data object DismissCategoryPicker : Event
         data class ToggleCategoryPickerSelection(val categoryId: Long) : Event
         data object ConfirmCategoryPicker : Event
+
+        /** Overflow menu "Migrate" — jump straight into the migration search for this manga. */
+        data object MigrateManga : Event
     }
 
     /**
@@ -319,6 +330,17 @@ object DetailsContract {
         /** Search [query] within a single source's browse listing (tag short-press). */
         data class NavigateToSourceSearch(val sourceId: String, val query: String) : Effect
         data class OpenDownloadFolder(val sourceName: String, val mangaTitle: String) : Effect
+
+        /**
+         * Shown right after removing a manga from the library when it has downloaded chapters.
+         * The UI presents this as an action snackbar ("Delete downloaded chapters?" / Delete);
+         * tapping the action sends [Event.ClearMangaDownloads] back. Downloads are kept by
+         * default — this is opt-in deletion, not an undo of the removal itself.
+         */
+        data object ShowDeleteDownloadsPrompt : Effect
+
+        /** Jump straight into the migration search pre-selected with this single manga. */
+        data class NavigateToMigration(val mangaId: Long) : Effect
     }
 }
 

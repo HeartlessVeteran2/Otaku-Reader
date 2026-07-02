@@ -5,6 +5,8 @@ import app.otakureader.core.preferences.DownloadPreferences
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.domain.model.Category
 import app.otakureader.domain.model.Chapter
+import app.otakureader.domain.model.DownloadItem
+import app.otakureader.domain.model.DownloadStatus
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.repository.CategoryRepository
@@ -36,6 +38,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
+// DetailsViewModel covers a large surface area (favorite/categories, chapters, downloads,
+// reader settings, tracking, notes, custom cover...), so its test class grows past Detekt's
+// LargeClass threshold along with it. Splitting by concern would fragment the shared fixtures
+// and mock setup more than it would help readability.
+@Suppress("LargeClass")
 @OptIn(ExperimentalCoroutinesApi::class)
 class DetailsViewModelTest {
 
@@ -140,6 +147,19 @@ class DetailsViewModelTest {
         assertEquals(sampleManga, state.manga)
         assertEquals(3, state.chapters.size)
         assertFalse(state.isLoading)
+    }
+
+    @Test
+    fun init_loadsSourceNameFromSourceRepository() = runTest {
+        setUpDefaultMocks()
+        val source = mockk<app.otakureader.sourceapi.MangaSource>(relaxed = true)
+        every { source.name } returns "MangaDex"
+        coEvery { sourceRepository.getSource(sampleManga.sourceId.toString()) } returns source
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals("MangaDex", viewModel.state.value.sourceName)
     }
 
     @Test
@@ -267,6 +287,65 @@ class DetailsViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         assertFalse(viewModel.state.value.showCategoryPickerDialog)
+    }
+
+    @Test
+    fun onEvent_ToggleFavorite_removingWithDownloads_showsDeleteDownloadsPrompt() = runTest {
+        stubManga(sampleManga.copy(favorite = true))
+        every { chapterRepository.getChaptersByMangaId(mangaId) } returns flowOf(sampleChapters)
+        every { mangaRepository.isFavorite(mangaId) } returns flowOf(true)
+        every { downloadRepository.observeDownloads() } returns flowOf(
+            listOf(
+                DownloadItem(
+                    id = 1L,
+                    mangaId = mangaId,
+                    chapterId = sampleChapters[0].id,
+                    mangaTitle = sampleManga.title,
+                    chapterTitle = sampleChapters[0].name,
+                    status = DownloadStatus.COMPLETED,
+                )
+            )
+        )
+        coEvery { chapterRepository.getNextUnreadChapter(mangaId) } returns sampleChapters[1]
+        every { downloadPreferences.deleteAfterReading } returns flowOf(false)
+        every { downloadPreferences.perMangaOverrides } returns flowOf(emptyMap())
+        every { categoryRepository.getCategories() } returns flowOf(emptyList())
+        coEvery { mangaRepository.toggleFavorite(mangaId) } returns Unit
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.ToggleFavorite)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.ShowDeleteDownloadsPrompt)
+        }
+    }
+
+    @Test
+    fun onEvent_ToggleFavorite_removingWithNoDownloads_showsPlainSnackbar() = runTest {
+        stubManga(sampleManga.copy(favorite = true))
+        every { chapterRepository.getChaptersByMangaId(mangaId) } returns flowOf(sampleChapters)
+        every { mangaRepository.isFavorite(mangaId) } returns flowOf(true)
+        every { downloadRepository.observeDownloads() } returns flowOf(emptyList())
+        coEvery { chapterRepository.getNextUnreadChapter(mangaId) } returns sampleChapters[1]
+        every { downloadPreferences.deleteAfterReading } returns flowOf(false)
+        every { downloadPreferences.perMangaOverrides } returns flowOf(emptyMap())
+        every { categoryRepository.getCategories() } returns flowOf(emptyList())
+        coEvery { mangaRepository.toggleFavorite(mangaId) } returns Unit
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.ToggleFavorite)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.ShowSnackbar)
+        }
     }
 
     // ---- Category picker ----
@@ -704,5 +783,150 @@ class DetailsViewModelTest {
         // Default is DESCENDING
         val sorted = viewModel.state.value.sortedChapters
         assertTrue(sorted[0].chapterNumber >= sorted[1].chapterNumber)
+    }
+
+    // ---- SearchGlobally (title/author/artist tap, and genre long-press) ----
+
+    @Test
+    fun onEvent_SearchGlobally_emitsNavigateToGlobalSearchEffect() = runTest {
+        setUpDefaultMocks()
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.SearchGlobally("Attack on Titan"))
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.NavigateToGlobalSearch)
+            assertEquals("Attack on Titan", (effect as DetailsContract.Effect.NavigateToGlobalSearch).query)
+        }
+    }
+
+    @Test
+    fun onEvent_SearchGlobally_withBlankQuery_doesNotEmitEffect() = runTest {
+        setUpDefaultMocks()
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.SearchGlobally("   "))
+            expectNoEvents()
+        }
+    }
+
+    @Test
+    fun onEvent_GenreLongClick_emitsNavigateToGlobalSearchEffect() = runTest {
+        setUpDefaultMocks()
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.GenreLongClick("Shounen"))
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.NavigateToGlobalSearch)
+            assertEquals("Shounen", (effect as DetailsContract.Effect.NavigateToGlobalSearch).query)
+        }
+    }
+
+    @Test
+    fun onEvent_SourceClick_emitsNavigateToSourceSearchWithEmptyQuery() = runTest {
+        setUpDefaultMocks()
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.SourceClick)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.NavigateToSourceSearch)
+            val navigate = effect as DetailsContract.Effect.NavigateToSourceSearch
+            assertEquals(sampleManga.sourceId.toString(), navigate.sourceId)
+            assertEquals("", navigate.query)
+        }
+    }
+
+    @Test
+    fun onEvent_MigrateManga_emitsNavigateToMigrationWithMangaId() = runTest {
+        setUpDefaultMocks()
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.MigrateManga)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.NavigateToMigration)
+            assertEquals(mangaId, (effect as DetailsContract.Effect.NavigateToMigration).mangaId)
+        }
+    }
+
+    // ---- DeleteChapterDownload (cancel while downloading vs delete once downloaded) ----
+
+    @Test
+    fun onEvent_DeleteChapterDownload_whileDownloading_cancelsInsteadOfDeletingFiles() = runTest {
+        setUpDefaultMocks()
+        val downloadingChapterId = sampleChapters[1].id
+        every { downloadRepository.observeDownloads() } returns flowOf(
+            listOf(
+                DownloadItem(
+                    id = 1L,
+                    mangaId = mangaId,
+                    chapterId = downloadingChapterId,
+                    mangaTitle = sampleManga.title,
+                    chapterTitle = "Chapter 2",
+                    status = DownloadStatus.DOWNLOADING,
+                )
+            )
+        )
+        coEvery { downloadRepository.cancelDownload(downloadingChapterId) } returns Unit
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onEvent(DetailsContract.Event.DeleteChapterDownload(downloadingChapterId))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { downloadRepository.cancelDownload(downloadingChapterId) }
+        coVerify(exactly = 0) { downloadRepository.deleteChapterDownload(any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun onEvent_DeleteChapterDownload_whenDownloaded_deletesFilesInsteadOfCancelling() = runTest {
+        setUpDefaultMocks()
+        val downloadedChapterId = sampleChapters[1].id
+        every { downloadRepository.observeDownloads() } returns flowOf(
+            listOf(
+                DownloadItem(
+                    id = 1L,
+                    mangaId = mangaId,
+                    chapterId = downloadedChapterId,
+                    mangaTitle = sampleManga.title,
+                    chapterTitle = "Chapter 2",
+                    status = DownloadStatus.COMPLETED,
+                )
+            )
+        )
+        coEvery {
+            downloadRepository.deleteChapterDownload(downloadedChapterId, any(), any(), any())
+        } returns Unit
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onEvent(DetailsContract.Event.DeleteChapterDownload(downloadedChapterId))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { downloadRepository.deleteChapterDownload(downloadedChapterId, any(), any(), any()) }
+        coVerify(exactly = 0) { downloadRepository.cancelDownload(any()) }
     }
 }
