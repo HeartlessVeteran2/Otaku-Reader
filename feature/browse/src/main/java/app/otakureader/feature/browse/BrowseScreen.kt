@@ -19,9 +19,12 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
@@ -240,6 +243,18 @@ fun BrowseScreen(
                                             overflowExpanded = false
                                         }
                                     )
+                                    if (state.selectedTab == BrowseTab.SOURCES) {
+                                        DropdownMenuItem(
+                                            text = { Text(stringResource(R.string.browse_manage_sources)) },
+                                            leadingIcon = {
+                                                Icon(Icons.Default.FilterList, contentDescription = null)
+                                            },
+                                            onClick = {
+                                                viewModel.onEvent(BrowseEvent.ShowSourcesFilterDialog)
+                                                overflowExpanded = false
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -397,6 +412,16 @@ fun BrowseScreen(
         )
     }
 
+    // Manage sources dialog — per-source enable/disable, matches Komikku's SourcesFilterScreen
+    if (state.showSourcesFilterDialog) {
+        SourcesFilterDialog(
+            sources = state.allSources,
+            disabledSourceIds = state.disabledSourceIds,
+            onToggleDisable = { sourceId -> viewModel.onEvent(BrowseEvent.ToggleDisableSource(sourceId)) },
+            onDismiss = { viewModel.onEvent(BrowseEvent.DismissSourcesFilterDialog) },
+        )
+    }
+
     // Save search dialog
     if (state.showSaveSearchDialog) {
         AlertDialog(
@@ -494,6 +519,71 @@ private fun LanguageFilterDialog(
         },
     )
 }
+
+/**
+ * Lists every installed source (unfiltered by NSFW/language/disabled state) with a live
+ * enable/disable toggle per row. Matches Komikku's SourcesFilterScreen — the one place a
+ * source hidden from Browse stays reachable so disabling it is always reversible.
+ */
+@Composable
+private fun SourcesFilterDialog(
+    sources: List<MangaSource>,
+    disabledSourceIds: Set<Long>,
+    onToggleDisable: (Long) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.browse_manage_sources)) },
+        text = {
+            if (sources.isEmpty()) {
+                Text(stringResource(R.string.browse_no_sources_message))
+            } else {
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = SOURCES_FILTER_DIALOG_MAX_HEIGHT)
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    sources.forEach { source ->
+                        val sourceIdLong = source.id.toSourceId()
+                        val enabled = sourceIdLong !in disabledSourceIds
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .toggleable(
+                                    value = enabled,
+                                    role = Role.Checkbox,
+                                    onValueChange = { onToggleDisable(sourceIdLong) },
+                                )
+                                .padding(vertical = LANGUAGE_DIALOG_ROW_VERTICAL_PADDING),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            if (enabled) {
+                                Icon(
+                                    Icons.Default.Done,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(LANGUAGE_DIALOG_ICON_SIZE),
+                                )
+                            } else {
+                                Spacer(Modifier.size(LANGUAGE_DIALOG_ICON_SIZE))
+                            }
+                            Spacer(Modifier.width(LANGUAGE_DIALOG_ICON_TEXT_SPACING))
+                            Text(source.name, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(android.R.string.ok))
+            }
+        },
+    )
+}
+
+private val SOURCES_FILTER_DIALOG_MAX_HEIGHT = 400.dp
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Sources tab — source list + inline manga grid

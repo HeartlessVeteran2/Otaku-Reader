@@ -90,6 +90,8 @@ class BrowseViewModelTest {
         coEvery { generalPreferences.setBrowseFilterState(any(), any()) } just Awaits
         every { feedRepository.getSavedSearches() } returns flowOf(emptyList())
         every { generalPreferences.pinnedSourceIds } returns flowOf(emptySet())
+        every { generalPreferences.disabledSourceIds } returns flowOf(emptySet())
+        coEvery { generalPreferences.toggleDisabledSource(any()) } just Awaits
         every { generalPreferences.sourceCategoryMap } returns flowOf(emptyMap())
         every { generalPreferences.savedSourceSearchesJson } returns flowOf("[]")
         coEvery { generalPreferences.setSavedSourceSearchesJson(any()) } just Awaits
@@ -501,5 +503,56 @@ class BrowseViewModelTest {
 
         assertFalse(viewModel.state.value.showFilterSheet)
         assertEquals(1, viewModel.state.value.searchResults.size)
+    }
+
+    @Test
+    fun `disabled source is excluded from sources but stays visible in allSources`() = runTest {
+        val visible = createMangaSource(id = "1", name = "Visible Source", lang = "en", isNsfw = false)
+        val disabled = createMangaSource(id = "2", name = "Disabled Source", lang = "en", isNsfw = false)
+
+        every { sourceRepository.getSources() } returns flowOf(listOf(visible, disabled))
+        every { generalPreferences.disabledSourceIds } returns flowOf(setOf(2L))
+
+        viewModel = BrowseViewModel(
+            getSourcesUseCase = getSourcesUseCase,
+            getPopularMangaUseCase = getPopularMangaUseCase,
+            getLatestUpdatesUseCase = getLatestUpdatesUseCase,
+            searchMangaUseCase = searchMangaUseCase,
+            getSourceFiltersUseCase = getSourceFiltersUseCase,
+            addMangaToLibraryUseCase = addMangaToLibraryUseCase,
+            toggleFavoriteMangaUseCase = toggleFavoriteMangaUseCase,
+            mangaRepository = mangaRepository,
+            feedRepository = feedRepository,
+            generalPreferences = generalPreferences,
+            searchLibraryMangaUseCase = searchLibraryMangaUseCase,
+            extensionManagementRepository = extensionManagementRepository,
+            extensionRepository = extensionRepository,
+        )
+        activateStateCollection()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.state.value
+        assertEquals(listOf("1"), state.sources.map { it.id })
+        assertEquals(setOf("1", "2"), state.allSources.map { it.id }.toSet())
+        assertEquals(setOf(2L), state.disabledSourceIds)
+    }
+
+    @Test
+    fun `ToggleDisableSource calls generalPreferences toggleDisabledSource`() = runTest {
+        viewModel.onEvent(BrowseEvent.ToggleDisableSource(5L))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { generalPreferences.toggleDisabledSource(5L) }
+    }
+
+    @Test
+    fun `ShowSourcesFilterDialog and DismissSourcesFilterDialog toggle dialog visibility`() = runTest {
+        assertFalse(viewModel.state.value.showSourcesFilterDialog)
+
+        viewModel.onEvent(BrowseEvent.ShowSourcesFilterDialog)
+        assertTrue(viewModel.state.value.showSourcesFilterDialog)
+
+        viewModel.onEvent(BrowseEvent.DismissSourcesFilterDialog)
+        assertFalse(viewModel.state.value.showSourcesFilterDialog)
     }
 }

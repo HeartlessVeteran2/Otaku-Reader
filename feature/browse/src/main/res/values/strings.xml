@@ -232,4 +232,5 @@
     <string name="browse_manhwa_type_badge">MANHWA</string>
     <string name="browse_in_library_badge">Already in library</string>
     <string name="browse_show_popular">Popular</string>
+    <string name="browse_manage_sources">Manage sources</string>
 </resources>

@@ -42,6 +42,15 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
 
+/** Intermediate result of the NSFW/language/disabled-source filtering pipeline in [BrowseViewModel.init]. */
+private data class SourceFilterResult(
+    val sources: List<MangaSource>,
+    val availableLangs: List<String>,
+    val showNsfw: Boolean,
+    val enabledLangs: Set<String>,
+    val disabledIds: Set<Long>,
+)
+
 @HiltViewModel
 class BrowseViewModel @Inject constructor(
     private val getSourcesUseCase: GetSourcesUseCase,
@@ -85,26 +94,34 @@ class BrowseViewModel @Inject constructor(
                 getSourcesUseCase(),
                 generalPreferences.showNsfwContent,
                 generalPreferences.enabledSourceLanguages,
-            ) { sources, showNsfw, enabledLangs ->
+                generalPreferences.disabledSourceIds,
+            ) { sources, showNsfw, enabledLangs, disabledIds ->
                 val nsfwFiltered = if (showNsfw) sources else sources.filter { !it.isNsfw }
                 // availableLanguages = all langs from NSFW-filtered set (before language filter)
                 val availableLangs = nsfwFiltered.map { it.lang }.distinct().sorted()
                 val langFiltered = if (enabledLangs.isEmpty()) nsfwFiltered
                     else nsfwFiltered.filter { it.lang in enabledLangs }
-                Triple(langFiltered to availableLangs, showNsfw, enabledLangs)
-            }.flowOn(Dispatchers.Default).collect { (sourcesAndLangs, showNsfw, enabledLangs) ->
-                val (filteredSources, availableLangs) = sourcesAndLangs
-                _sources.value = filteredSources
+                val disabledFiltered = if (disabledIds.isEmpty()) langFiltered
+                    else langFiltered.filter { it.id.toSourceId() !in disabledIds }
+                SourceFilterResult(disabledFiltered, availableLangs, showNsfw, enabledLangs, disabledIds)
+            }.flowOn(Dispatchers.Default).collect { result ->
+                _sources.value = result.sources
                 _state.update {
                     it.copy(
-                        sources = filteredSources,
-                        showNsfw = showNsfw,
-                        enabledLanguages = enabledLangs,
-                        availableLanguages = availableLangs,
+                        sources = result.sources,
+                        showNsfw = result.showNsfw,
+                        enabledLanguages = result.enabledLangs,
+                        availableLanguages = result.availableLangs,
+                        disabledSourceIds = result.disabledIds,
                     )
                 }
             }
         }
+        // Unfiltered source list for the "Manage sources" dialog — must not be subject to the
+        // NSFW/language/disabled filtering above, or a disabled source could never be re-enabled.
+        getSourcesUseCase()
+            .onEach { sources -> _state.update { it.copy(allSources = sources) } }
+            .launchIn(viewModelScope)
         observeSavedSearches()
         observeLibraryFavorites()
         // Sync selection manager into state so UI recomposes
@@ -236,6 +253,10 @@ class BrowseViewModel @Inject constructor(
             // Source pinning & categories
             is BrowseEvent.TogglePinSource ->
                 viewModelScope.launch { generalPreferences.togglePinnedSource(event.sourceId) }
+            is BrowseEvent.ToggleDisableSource ->
+                viewModelScope.launch { generalPreferences.toggleDisabledSource(event.sourceId) }
+            is BrowseEvent.ShowSourcesFilterDialog -> _state.update { it.copy(showSourcesFilterDialog = true) }
+            is BrowseEvent.DismissSourcesFilterDialog -> _state.update { it.copy(showSourcesFilterDialog = false) }
             is BrowseEvent.OpenSetCategoryDialog -> _state.update {
                 it.copy(
                     showSetCategoryDialog = true,
