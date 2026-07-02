@@ -79,7 +79,8 @@ internal fun EmptyLibraryMessage(
 @Composable
 internal fun EmptyLibrarySearchMessage(
     query: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onBrowseClick: (() -> Unit)? = null,
 ) {
     Column(
         modifier = modifier.padding(EmptyStateDefaults.ContentPadding),
@@ -102,6 +103,18 @@ internal fun EmptyLibrarySearchMessage(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+        if (onBrowseClick != null) {
+            Spacer(modifier = Modifier.height(EmptyStateDefaults.CtaSpacing))
+            Button(onClick = onBrowseClick) {
+                Icon(
+                    imageVector = Icons.Default.Explore,
+                    contentDescription = null,
+                    modifier = Modifier.size(EmptyStateDefaults.CtaIconSize),
+                )
+                Spacer(modifier = Modifier.width(EmptyStateDefaults.CtaIconGap))
+                Text(stringResource(R.string.library_search_globally))
+            }
+        }
     }
 }
 
