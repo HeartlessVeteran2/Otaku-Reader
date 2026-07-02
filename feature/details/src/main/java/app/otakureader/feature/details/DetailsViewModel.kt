@@ -841,16 +841,21 @@ class DetailsViewModel @Inject constructor(
         viewModelScope.launch {
             val chapter = _state.value.chapters.firstOrNull { it.id == chapterId }
             val manga = _state.value.manga
-            if (chapter != null && manga != null) {
+            if (chapter == null || manga == null) return@launch
+
+            // The same download icon tap doubles as "cancel" while a chapter is mid-download
+            // and as "delete" once it has finished — there's nothing downloaded yet to delete
+            // while DOWNLOADING, so deleteChapterDownload() would be a silent no-op there.
+            if (chapter.downloadStatus == DetailsContract.DownloadStatus.DOWNLOADING) {
+                downloadRepository.cancelDownload(chapterId)
+                _effect.send(DetailsContract.Effect.ShowSnackbar("Download cancelled"))
+            } else {
                 downloadRepository.deleteChapterDownload(
                     chapterId = chapterId,
                     sourceName = sourceRepository.resolveDownloadFolderName(manga.sourceId),
                     mangaTitle = manga.title,
                     chapterTitle = chapter.name
                 )
-                _effect.send(DetailsContract.Effect.ShowSnackbar("Download removed"))
-            } else {
-                downloadRepository.cancelDownload(chapterId)
                 _effect.send(DetailsContract.Effect.ShowSnackbar("Download removed"))
             }
         }

@@ -378,7 +378,15 @@ fun ChapterListItem(
                     }
                 )
             }
-            else -> { /* Downloading - no action */ }
+            DetailsContract.DownloadStatus.DOWNLOADING -> {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.details_chapter_cancel_download)) },
+                    onClick = {
+                        onDeleteDownload()
+                        showMenu = false
+                    }
+                )
+            }
         }
     }
 }
@@ -407,14 +415,16 @@ private fun DownloadIcon(
             when (status) {
                 DetailsContract.DownloadStatus.NOT_DOWNLOADED -> onDownload()
                 DetailsContract.DownloadStatus.DOWNLOADED -> onDelete()
-                else -> { /* Do nothing while downloading */ }
+                // Same callback as DOWNLOADED — the ViewModel branches on the chapter's actual
+                // status to cancel an in-flight download instead of deleting finished files.
+                DetailsContract.DownloadStatus.DOWNLOADING -> onDelete()
             }
         },
         modifier = modifier
     ) {
         val downloadContentDesc = when (status) {
             DetailsContract.DownloadStatus.NOT_DOWNLOADED -> stringResource(R.string.details_chapter_download)
-            DetailsContract.DownloadStatus.DOWNLOADING -> stringResource(R.string.details_chapter_downloading)
+            DetailsContract.DownloadStatus.DOWNLOADING -> stringResource(R.string.details_chapter_cancel_download)
             DetailsContract.DownloadStatus.DOWNLOADED -> stringResource(R.string.details_chapter_delete_download)
         }
         Icon(

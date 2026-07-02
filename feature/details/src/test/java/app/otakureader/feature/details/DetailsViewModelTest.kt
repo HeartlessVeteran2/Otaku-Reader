@@ -5,6 +5,8 @@ import app.otakureader.core.preferences.DownloadPreferences
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.domain.model.Category
 import app.otakureader.domain.model.Chapter
+import app.otakureader.domain.model.DownloadItem
+import app.otakureader.domain.model.DownloadStatus
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.repository.CategoryRepository
@@ -751,5 +753,65 @@ class DetailsViewModelTest {
             assertTrue(effect is DetailsContract.Effect.NavigateToGlobalSearch)
             assertEquals("Shounen", (effect as DetailsContract.Effect.NavigateToGlobalSearch).query)
         }
+    }
+
+    // ---- DeleteChapterDownload (cancel while downloading vs delete once downloaded) ----
+
+    @Test
+    fun onEvent_DeleteChapterDownload_whileDownloading_cancelsInsteadOfDeletingFiles() = runTest {
+        setUpDefaultMocks()
+        val downloadingChapterId = sampleChapters[1].id
+        every { downloadRepository.observeDownloads() } returns flowOf(
+            listOf(
+                DownloadItem(
+                    id = 1L,
+                    mangaId = mangaId,
+                    chapterId = downloadingChapterId,
+                    mangaTitle = sampleManga.title,
+                    chapterTitle = "Chapter 2",
+                    status = DownloadStatus.DOWNLOADING,
+                )
+            )
+        )
+        coEvery { downloadRepository.cancelDownload(downloadingChapterId) } returns Unit
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onEvent(DetailsContract.Event.DeleteChapterDownload(downloadingChapterId))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { downloadRepository.cancelDownload(downloadingChapterId) }
+        coVerify(exactly = 0) { downloadRepository.deleteChapterDownload(any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun onEvent_DeleteChapterDownload_whenDownloaded_deletesFilesInsteadOfCancelling() = runTest {
+        setUpDefaultMocks()
+        val downloadedChapterId = sampleChapters[1].id
+        every { downloadRepository.observeDownloads() } returns flowOf(
+            listOf(
+                DownloadItem(
+                    id = 1L,
+                    mangaId = mangaId,
+                    chapterId = downloadedChapterId,
+                    mangaTitle = sampleManga.title,
+                    chapterTitle = "Chapter 2",
+                    status = DownloadStatus.COMPLETED,
+                )
+            )
+        )
+        coEvery {
+            downloadRepository.deleteChapterDownload(downloadedChapterId, any(), any(), any())
+        } returns Unit
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onEvent(DetailsContract.Event.DeleteChapterDownload(downloadedChapterId))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { downloadRepository.deleteChapterDownload(downloadedChapterId, any(), any(), any()) }
+        coVerify(exactly = 0) { downloadRepository.cancelDownload(any()) }
     }
 }

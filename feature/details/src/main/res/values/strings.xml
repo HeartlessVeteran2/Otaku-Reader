@@ -124,8 +124,8 @@
     <string name="details_chapter_edit_note">Edit note</string>
     <string name="details_chapter_note_preview">📝 %1$s</string>
     <string name="details_chapter_download">Download chapter</string>
-    <string name="details_chapter_downloading">Downloading</string>
     <string name="details_chapter_delete_download">Delete download</string>
+    <string name="details_chapter_cancel_download">Cancel download</string>
     <string name="details_chapter_thumbnail_cd">Chapter thumbnail</string>
     <string name="details_chapter_load_preview">Load\npreview</string>
     <string name="details_chapter_reading_progress">Page %1$d / %2$d</string>
