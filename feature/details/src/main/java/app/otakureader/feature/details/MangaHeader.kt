@@ -229,7 +229,9 @@ internal fun MangaHeader(
                             color = Color.White,
                             maxLines = HEADER_TITLE_MAX_LINES,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.clickable { onSearchGlobal(manga.title) },
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .clickable { onSearchGlobal(manga.title) },
                         )
 
                         val author = manga.author?.takeIf { it.isNotBlank() }
@@ -247,7 +249,9 @@ internal fun MangaHeader(
                                     color = Color.White.copy(alpha = HEADER_SUBTITLE_ALPHA),
                                     maxLines = HEADER_SUBTITLE_MAX_LINES,
                                     overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.clickable { onSearchGlobal(it) },
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .clickable { onSearchGlobal(it) },
                                 )
                             }
                             artist?.let {
@@ -257,7 +261,9 @@ internal fun MangaHeader(
                                     color = Color.White.copy(alpha = HEADER_SUBTITLE_ALPHA),
                                     maxLines = HEADER_SUBTITLE_MAX_LINES,
                                     overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.clickable { onSearchGlobal(it) },
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .clickable { onSearchGlobal(it) },
                                 )
                             }
                         }
@@ -285,7 +291,9 @@ internal fun MangaHeader(
                     style = MaterialTheme.typography.headlineSmall,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.clickable { onSearchGlobal(manga.title) },
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .clickable { onSearchGlobal(manga.title) },
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -295,7 +303,9 @@ internal fun MangaHeader(
                         text = stringResource(R.string.details_author, author),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.clickable { onSearchGlobal(author) },
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .clickable { onSearchGlobal(author) },
                     )
                 }
 
@@ -304,7 +314,9 @@ internal fun MangaHeader(
                         text = stringResource(R.string.details_artist, artist),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.clickable { onSearchGlobal(artist) },
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .clickable { onSearchGlobal(artist) },
                     )
                 }
 

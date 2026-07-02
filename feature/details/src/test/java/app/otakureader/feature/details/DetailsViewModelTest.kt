@@ -725,6 +725,19 @@ class DetailsViewModelTest {
     }
 
     @Test
+    fun onEvent_SearchGlobally_withBlankQuery_doesNotEmitEffect() = runTest {
+        setUpDefaultMocks()
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.SearchGlobally("   "))
+            expectNoEvents()
+        }
+    }
+
+    @Test
     fun onEvent_GenreLongClick_emitsNavigateToGlobalSearchEffect() = runTest {
         setUpDefaultMocks()
 

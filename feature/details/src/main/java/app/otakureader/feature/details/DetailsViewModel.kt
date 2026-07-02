@@ -227,6 +227,7 @@ class DetailsViewModel @Inject constructor(
 
     /** Tag long-press, or a title/author/artist tap: search [query] across all sources. */
     private fun searchGlobally(query: String) {
+        if (query.isBlank()) return
         viewModelScope.launch {
             _effect.send(DetailsContract.Effect.NavigateToGlobalSearch(query = query))
         }
