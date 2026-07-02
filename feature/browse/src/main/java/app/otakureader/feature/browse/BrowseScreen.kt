@@ -517,6 +517,7 @@ private fun SourcesTabContent(
                     hasNextPage = state.hasNextPage,
                     isLoading = state.isSearching || state.isLoading,
                     onMangaLongClick = { onEvent(BrowseEvent.LongClickManga(it)) },
+                    favoritedMangaUrls = state.favoritedMangaUrls,
                 )
             }
             state.currentSourceId != null -> {
@@ -540,6 +541,7 @@ private fun SourcesTabContent(
                         isLoading = state.isLoading,
                         currentSourceId = state.currentSourceId,
                         onMangaLongClick = { onEvent(BrowseEvent.LongClickManga(it)) },
+                        favoritedMangaUrls = state.favoritedMangaUrls,
                     )
                 }
                 state.error?.let { error ->
@@ -1046,6 +1048,7 @@ private fun MangaGrid(
     isLoading: Boolean,
     currentSourceId: String? = null,
     onMangaLongClick: ((SourceManga) -> Unit)? = null,
+    favoritedMangaUrls: Set<String> = emptySet(),
 ) {
     val otaku = LocalOtakuColors.current
     LazyVerticalGrid(
@@ -1060,6 +1063,7 @@ private fun MangaGrid(
                 onClick = { onMangaClick(mangaItem) },
                 currentSourceId = currentSourceId,
                 onLongClick = onMangaLongClick?.let { { it(mangaItem) } },
+                isInLibrary = mangaItem.url in favoritedMangaUrls,
             )
         }
         if (hasNextPage || isLoading) {
@@ -1090,6 +1094,7 @@ private fun MangaCard(
     onClick: () -> Unit,
     currentSourceId: String? = null,
     onLongClick: (() -> Unit)? = null,
+    isInLibrary: Boolean = false,
 ) {
     val isManga = currentSourceId == null || !isManhwaSource(currentSourceId)
     Card(
@@ -1126,6 +1131,25 @@ private fun MangaCard(
                         )
                     }
                 }
+                if (isInLibrary) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(6.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.primary,
+                                shape = RoundedCornerShape(6.dp),
+                            )
+                            .padding(4.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Done,
+                            contentDescription = stringResource(R.string.browse_in_library_badge),
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(14.dp),
+                        )
+                    }
+                }
             }
             Text(
                 text = manga.title,
@@ -1146,6 +1170,7 @@ private fun SearchResultsContent(
     hasNextPage: Boolean,
     isLoading: Boolean,
     onMangaLongClick: ((SourceManga) -> Unit)? = null,
+    favoritedMangaUrls: Set<String> = emptySet(),
 ) {
     if (results.isEmpty() && !isLoading) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -1162,6 +1187,7 @@ private fun SearchResultsContent(
             hasNextPage = hasNextPage,
             isLoading = isLoading,
             onMangaLongClick = onMangaLongClick,
+            favoritedMangaUrls = favoritedMangaUrls,
         )
     }
 }
