@@ -259,17 +259,26 @@ class DetailsViewModel @Inject constructor(
     private fun loadMangaDetails() {
         mangaRepository.getMangaByIdFlow(mangaId)
             .onEach { manga ->
-                _state.update { state ->
-                    val restored = if (!hasAppliedChapterFlags && manga != null) {
-                        hasAppliedChapterFlags = true
+                // The hasAppliedChapterFlags check+mutation must happen outside _state.update's
+                // lambda: update() retries its lambda on a failed compare-and-set, and mutating
+                // a class member as a side effect inside it means a retry would see the guard
+                // already flipped to true and skip restoring the sort order/filter entirely.
+                if (!hasAppliedChapterFlags && manga != null) {
+                    hasAppliedChapterFlags = true
+                    _state.update { state ->
                         state.copy(
+                            manga = manga,
+                            isLoading = false,
                             chapterSortOrder = chapterSortOrderFromFlags(manga.chapterFlags),
-                            chapterFilter = chapterFilterFromFlags(manga.chapterFlags),
+                            chapterFilter = chapterFilterFromFlags(
+                                flags = manga.chapterFlags,
+                                scanlator = state.chapterFilter.scanlator,
+                                chapterSearchQuery = state.chapterFilter.chapterSearchQuery,
+                            ),
                         )
-                    } else {
-                        state
                     }
-                    restored.copy(manga = manga, isLoading = false)
+                } else {
+                    _state.update { state -> state.copy(manga = manga, isLoading = false) }
                 }
             }
             .launchIn(viewModelScope)
