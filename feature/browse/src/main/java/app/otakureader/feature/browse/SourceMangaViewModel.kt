@@ -6,6 +6,7 @@ import app.otakureader.core.common.mvi.UiEffect
 import app.otakureader.core.common.mvi.UiEvent
 import app.otakureader.core.common.mvi.UiState
 import app.otakureader.domain.repository.SourceRepository
+import app.otakureader.domain.usecase.source.GetLatestUpdatesUseCase
 import app.otakureader.domain.usecase.source.GetPopularMangaUseCase
 import app.otakureader.domain.usecase.source.SearchMangaUseCase
 import app.otakureader.sourceapi.SourceManga
@@ -30,7 +31,9 @@ data class SourceMangaState(
     val isSearchMode: Boolean = false,
     val error: String? = null,
     val hasNextPage: Boolean = false,
-    val currentPage: Int = 1
+    val currentPage: Int = 1,
+    val supportsLatest: Boolean = true,
+    val isShowingLatest: Boolean = false,
 ) : UiState
 
 sealed interface SourceMangaEvent : UiEvent {
@@ -41,6 +44,7 @@ sealed interface SourceMangaEvent : UiEvent {
     data object EnterSearchMode : SourceMangaEvent
     data object Search : SourceMangaEvent
     data object CloseSearch : SourceMangaEvent
+    data object ToggleLatest : SourceMangaEvent
 }
 
 sealed interface SourceMangaEffect : UiEffect {
@@ -51,6 +55,7 @@ sealed interface SourceMangaEffect : UiEffect {
 @HiltViewModel
 class SourceMangaViewModel @Inject constructor(
     private val getPopularMangaUseCase: GetPopularMangaUseCase,
+    private val getLatestUpdatesUseCase: GetLatestUpdatesUseCase,
     private val searchMangaUseCase: SearchMangaUseCase,
     private val sourceRepository: SourceRepository,
 ) : ViewModel() {
@@ -75,11 +80,13 @@ class SourceMangaViewModel @Inject constructor(
             current.isSearchMode == hasQuery
         if (sameRequest) return
         viewModelScope.launch {
-            val sourceName = sourceRepository.getSource(sourceId)?.name ?: sourceId
+            val source = sourceRepository.getSource(sourceId)
             _state.update {
                 it.copy(
                     sourceId = sourceId,
-                    sourceName = sourceName,
+                    sourceName = source?.name ?: sourceId,
+                    supportsLatest = source?.supportsLatest ?: true,
+                    isShowingLatest = false,
                     manga = emptyList(),
                     currentPage = 1,
                     hasNextPage = false,
@@ -103,18 +110,34 @@ class SourceMangaViewModel @Inject constructor(
             is SourceMangaEvent.EnterSearchMode -> _state.update { it.copy(isSearchMode = true, searchQuery = "") }
             is SourceMangaEvent.Search -> performSearch()
             is SourceMangaEvent.CloseSearch -> closeSearch()
+            is SourceMangaEvent.ToggleLatest -> toggleLatest()
         }
+    }
+
+    private fun toggleLatest() {
+        val currentState = _state.value
+        if (currentState.isSearchMode) return
+        _state.update {
+            it.copy(isShowingLatest = !it.isShowingLatest, manga = emptyList(), currentPage = 1, hasNextPage = false)
+        }
+        loadManga(currentState.sourceId, page = 1)
     }
 
     private fun loadManga(sourceId: String, page: Int = 1) {
         val isFirstPage = page == 1
+        val showLatest = _state.value.isShowingLatest
         if (isFirstPage) {
             _state.update { it.copy(isLoading = true, error = null) }
         } else {
             _state.update { it.copy(isLoadingMore = true) }
         }
         viewModelScope.launch {
-            getPopularMangaUseCase(sourceId, page)
+            val result = if (showLatest) {
+                getLatestUpdatesUseCase(sourceId, page)
+            } else {
+                getPopularMangaUseCase(sourceId, page)
+            }
+            result
                 .onSuccess { mangaPage ->
                     _state.update { state ->
                         state.copy(
