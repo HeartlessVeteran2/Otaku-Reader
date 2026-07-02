@@ -173,15 +173,15 @@ class DownloadsViewModel @Inject constructor(
         viewModelScope.launch {
             val items = _state.value.items
             val chapters = items
-                .map { item -> async { item.id to chapterRepository.getChapterById(item.chapterId) } }
+                .map { item -> async { item.chapterId to chapterRepository.getChapterById(item.chapterId) } }
                 .awaitAll()
-                .mapNotNull { (id, chapter) -> chapter?.let { id to it } }
+                .mapNotNull { (chapterId, chapter) -> chapter?.let { chapterId to it } }
 
             val comparator = compareBy<Pair<Long, app.otakureader.domain.model.Chapter>> { selector(it.second) }
             val ordered = if (descending) chapters.sortedWith(comparator.reversed()) else chapters.sortedWith(comparator)
 
-            ordered.forEachIndexed { index, (id, _) ->
-                downloadRepository.reorderDownload(id, index)
+            ordered.forEachIndexed { index, (chapterId, _) ->
+                downloadRepository.reorderDownload(chapterId, index)
             }
         }
     }
