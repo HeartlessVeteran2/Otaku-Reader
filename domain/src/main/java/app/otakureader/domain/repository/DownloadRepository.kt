@@ -164,4 +164,14 @@ interface DownloadRepository {
         toChapterName: String,
         copy: Boolean = false
     ): Boolean
+
+    /**
+     * One-time migration for downloads saved before source folders were named after the
+     * source's display name: renames any download source directory still named with a bare
+     * numeric sourceId to the resolved source name, wherever that source can still be resolved.
+     * Safe to call more than once — already-migrated or unresolvable directories are no-ops.
+     *
+     * @return the number of directories renamed.
+     */
+    suspend fun migrateSourceFolderNames(): Int
 }

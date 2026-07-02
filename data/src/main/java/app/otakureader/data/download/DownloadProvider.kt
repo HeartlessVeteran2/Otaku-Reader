@@ -420,6 +420,36 @@ object DownloadProvider {
         }
     }
 
+    /**
+     * Renames each direct child of [root] whose name is a bare numeric sourceId (the on-disk
+     * layout used before source folders were named after the source itself) to the resolved
+     * name looked up in [resolvedNames] by that same numeric string.
+     *
+     * A directory is left untouched — never merged or overwritten — if: its name isn't purely
+     * numeric (already migrated, or something unrelated), [resolvedNames] has no entry for it,
+     * the resolved name sanitizes to the same string it already has, or a directory with the
+     * target name already exists. The "already exists" case is intentionally conservative:
+     * silently merging could shadow or clobber files from either side.
+     *
+     * @return the number of directories renamed.
+     */
+    fun migrateSourceFolderNames(root: File, resolvedNames: Map<String, String>): Int {
+        if (!root.isDirectory) return 0
+        val sourceDirs = root.listFiles { f -> f.isDirectory } ?: return 0
+        return sourceDirs.count { dir -> renameSourceDirIfResolvable(dir, root, resolvedNames) }
+    }
+
+    /** The single rename attempt behind [migrateSourceFolderNames]; see its doc for the rules. */
+    private fun renameSourceDirIfResolvable(dir: File, root: File, resolvedNames: Map<String, String>): Boolean {
+        dir.name.toLongOrNull() ?: return false
+        val resolvedName = resolvedNames[dir.name] ?: return false
+        val sanitizedName = sanitize(resolvedName)
+        if (sanitizedName == dir.name) return false
+        val target = File(root, sanitizedName)
+        if (target.exists()) return false
+        return dir.renameTo(target)
+    }
+
     // -------------------------------------------------------------------------
     // Shared helpers
     // -------------------------------------------------------------------------

@@ -67,3 +67,13 @@ interface SourceRepository {
      */
     suspend fun getPageList(sourceId: String, chapter: SourceChapter): Result<List<app.otakureader.sourceapi.Page>>
 }
+
+/**
+ * Resolves the on-disk folder name used for a manga's downloads: the source's actual display
+ * name (e.g. "MangaDex") when the source can be looked up, falling back to the numeric
+ * [sourceId] string when it can't (e.g. its extension was uninstalled). Every download
+ * enqueue/read/delete call site must resolve through this so they all agree on the same
+ * folder — never build a download path from a raw sourceId directly.
+ */
+suspend fun SourceRepository.resolveDownloadFolderName(sourceId: Long): String =
+    getSource(sourceId.toString())?.name ?: sourceId.toString()

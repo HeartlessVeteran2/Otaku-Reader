@@ -20,6 +20,8 @@ import app.otakureader.core.preferences.LibraryPreferences
 import app.otakureader.data.download.ChapterDownloadRequest
 import app.otakureader.data.download.DownloadManager
 import app.otakureader.domain.repository.ChapterRepository
+import app.otakureader.domain.repository.SourceRepository
+import app.otakureader.domain.repository.resolveDownloadFolderName
 import app.otakureader.domain.usecase.GetLibraryMangaUseCase
 import app.otakureader.domain.usecase.UpdateLibraryMangaUseCase
 import dagger.assisted.Assisted
@@ -47,6 +49,7 @@ class LibraryUpdateWorker @AssistedInject constructor(
     private val notificationPreferences: app.otakureader.core.preferences.NotificationPreferences,
     private val updateRunSummaryDao: UpdateRunSummaryDao,
     private val libraryUpdateFilter: LibraryUpdateFilter,
+    private val sourceRepository: SourceRepository,
 ) : CoroutineWorker(context, workerParams) {
 
     @Suppress("LongMethod", "CyclomaticComplexMethod", "CognitiveComplexMethod")
@@ -256,8 +259,7 @@ class LibraryUpdateWorker @AssistedInject constructor(
                 .sortedByDescending { it.chapterNumber }
                 .take(safeLimit)
 
-            // Use sourceId as a stable directory key (same as in DetailsViewModel)
-            val sourceName = sourceId.toString()
+            val sourceName = sourceRepository.resolveDownloadFolderName(sourceId)
 
             for (chapter in chapters) {
                 // Enqueue with empty pageUrls - DownloadManager will handle fetching them later

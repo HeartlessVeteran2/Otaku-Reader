@@ -12,6 +12,8 @@ import app.otakureader.domain.model.DownloadItem
 import app.otakureader.domain.model.OrphanScanResult
 import app.otakureader.domain.model.ReindexResult
 import app.otakureader.domain.repository.DownloadRepository
+import app.otakureader.domain.repository.SourceRepository
+import app.otakureader.domain.repository.resolveDownloadFolderName
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import javax.inject.Inject
@@ -29,6 +31,7 @@ class DownloadRepositoryImpl @Inject constructor(
     private val downloadManager: DownloadManager,
     private val mangaDao: MangaDao,
     private val chapterDao: ChapterDao,
+    private val sourceRepository: SourceRepository,
     @ApplicationScope private val scope: CoroutineScope
 ) : DownloadRepository {
 
@@ -227,8 +230,11 @@ class DownloadRepositoryImpl @Inject constructor(
      * A directory is "orphaned" when its parent manga was deleted from the library without
      * cleaning up the downloaded files.
      *
-     * The directory path is derived from the same sanitization logic used when the download
-     * was originally created: sourceId.toString() / sanitize(title) / sanitize(name).
+     * The directory path is derived from the same folder-name resolution used when the
+     * download was originally created: [resolveDownloadFolderName] / sanitize(title) /
+     * sanitize(name). This must stay in lockstep with every enqueue/delete call site — a
+     * mismatch here would make every real download look "orphaned" and get deleted by
+     * [deleteOrphanedDownloads].
      */
     private suspend fun findOrphanedChapterDirs(): List<File> {
         val rootDir = DownloadProvider.getRootDir(context)
@@ -239,12 +245,16 @@ class DownloadRepositoryImpl @Inject constructor(
         // N+1 query per manga which would stall on large libraries.
         val rootParent = rootDir.parentFile ?: return emptyList()
         val mangaById = mangaDao.getAllMangaOnce().associateBy { it.id }
+        val sourceNameById = mangaById.values
+            .map { it.sourceId }
+            .distinct()
+            .associateWith { sourceRepository.resolveDownloadFolderName(it) }
         val expectedPaths = buildSet<String> {
             for (chapter in chapterDao.getAllChaptersOnce()) {
                 val manga = mangaById[chapter.mangaId] ?: continue
                 val dir = DownloadProvider.getChapterDir(
                     rootParent,
-                    manga.sourceId.toString(),
+                    sourceNameById.getValue(manga.sourceId),
                     manga.title,
                     chapter.name,
                 )
@@ -288,5 +298,16 @@ class DownloadRepositoryImpl @Inject constructor(
             toChapterName,
             copy
         )
+    }
+
+    override suspend fun migrateSourceFolderNames(): Int = withContext(Dispatchers.IO) {
+        val rootDir = DownloadProvider.getRootDir(context)
+        val candidateIds = rootDir.listFiles { f -> f.isDirectory }
+            ?.mapNotNull { it.name.toLongOrNull() }
+            ?: return@withContext 0
+        val resolvedNames = candidateIds.associate { id ->
+            id.toString() to sourceRepository.resolveDownloadFolderName(id)
+        }
+        DownloadProvider.migrateSourceFolderNames(rootDir, resolvedNames)
     }
 }

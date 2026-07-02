@@ -9,6 +9,7 @@ import app.otakureader.core.preferences.CrashReportingStore
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.crash.CrashHandler
 import app.otakureader.crash.CrashReporter
+import app.otakureader.domain.scheduler.DownloadFolderMigrationScheduler
 import eu.kanade.tachiyomi.network.NetworkHelper
 import kotlinx.serialization.json.Json
 import uy.kohesive.injekt.Injekt
@@ -53,6 +54,9 @@ class OtakuReaderApplication : Application(), Configuration.Provider, SingletonI
 
     @Inject
     lateinit var generalPreferences: GeneralPreferences
+
+    @Inject
+    lateinit var downloadFolderMigrationScheduler: DownloadFolderMigrationScheduler
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -111,6 +115,14 @@ class OtakuReaderApplication : Application(), Configuration.Provider, SingletonI
             appShortcutManager.initialize()
         } catch (e: Throwable) {
             android.util.Log.e("OtakuReaderApp", "App shortcut init failed", e)
+        }
+        try {
+            // One-time migration of download folders from numeric sourceId to source display
+            // name; the underlying worker checks GeneralPreferences.downloadFolderMigrationDone
+            // and no-ops if already run.
+            downloadFolderMigrationScheduler.schedule()
+        } catch (e: Throwable) {
+            android.util.Log.e("OtakuReaderApp", "Download folder migration enqueue failed", e)
         }
     }
 

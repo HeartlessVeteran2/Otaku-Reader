@@ -11,6 +11,7 @@ import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.domain.repository.SourceRepository
+import app.otakureader.domain.repository.resolveDownloadFolderName
 import app.otakureader.domain.tracking.TrackRepository
 import app.otakureader.sourceapi.SourceChapter
 import app.otakureader.sourceapi.SourceManga
@@ -207,9 +208,9 @@ class MigrateMangaUseCase @Inject constructor(
             .associateBy { it.chapterNumber }
 
         // Source names for download migration
-        val fromSourceName = sourceManga.sourceId.toString()
+        val fromSourceName = sourceRepository.resolveDownloadFolderName(sourceManga.sourceId)
         val fromMangaTitle = sourceManga.title
-        val toSourceName = targetManga.sourceId.toString()
+        val toSourceName = sourceRepository.resolveDownloadFolderName(targetManga.sourceId)
         val toMangaTitle = targetManga.title
 
         // Insert target chapters with matched reading progress

@@ -25,6 +25,7 @@ import app.otakureader.core.extension.domain.repository.ExtensionRepository
 import app.otakureader.domain.repository.EhFavoritesRepository
 import app.otakureader.domain.repository.PageBookmarkRepository
 import app.otakureader.domain.repository.SourceRepository
+import app.otakureader.domain.repository.resolveDownloadFolderName
 import app.otakureader.domain.usecase.SyncEhFavoritesUseCase
 import app.otakureader.domain.usecase.SyncLibraryUseCase
 import app.otakureader.domain.usecase.downloads.ReindexDownloadsUseCase
@@ -615,7 +616,7 @@ class LibraryViewModel @Inject constructor(
                     val downloadDeferred = mangaList.map { manga ->
                         async {
                             val hasDownloads = downloadRepository.hasMangaDownloads(
-                                sourceName = manga.sourceId.toString(),
+                                sourceName = sourceRepository.resolveDownloadFolderName(manga.sourceId),
                                 mangaTitle = manga.title
                             )
                             if (hasDownloads) manga.id else null
@@ -861,14 +862,15 @@ class LibraryViewModel @Inject constructor(
             mangaIds.forEach { mangaId ->
                 val manga = mangaById[mangaId] ?: return@forEach
                 val chapters = chapterRepository.getChaptersByMangaId(mangaId).first()
+                // Must match the folder-name resolution used everywhere else; a mismatch here
+                // stores files under a path isChapterDownloaded()/deleteChapterDownload() would
+                // never find when checking under the resolved name.
+                val sourceName = sourceRepository.resolveDownloadFolderName(manga.sourceId)
                 chapters.filter { !it.read }.forEach { chapter ->
                     downloadRepository.enqueueChapter(
                         mangaId = mangaId,
                         chapterId = chapter.id,
-                        // Must match the sourceId-based directory key used everywhere else;
-                        // omitting it stored files under a malformed path that
-                        // isChapterDownloaded()/deleteChapterDownload() could never find.
-                        sourceName = manga.sourceId.toString(),
+                        sourceName = sourceName,
                         mangaTitle = manga.title,
                         chapterTitle = chapter.name
                     )
