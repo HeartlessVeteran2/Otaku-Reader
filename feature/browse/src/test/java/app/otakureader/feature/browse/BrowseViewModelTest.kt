@@ -21,6 +21,7 @@ import app.otakureader.sourceapi.FilterList
 import app.otakureader.sourceapi.MangaPage
 import app.otakureader.sourceapi.MangaSource
 import app.otakureader.sourceapi.SourceManga
+import app.otakureader.sourceapi.toSourceId
 import io.mockk.Awaits
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -524,16 +525,19 @@ class BrowseViewModelTest {
     fun `buildSourceFilterResult excludes disabled sources from the filtered list`() {
         val visible = createMangaSource(id = "1", name = "Visible Source", lang = "en", isNsfw = false)
         val disabled = createMangaSource(id = "2", name = "Disabled Source", lang = "en", isNsfw = false)
+        // Real disabledSourceIds are always source.id.toSourceId() (a hashCode-derived Long,
+        // not the literal numeric string) — match that here rather than hardcoding a Long.
+        val disabledId = disabled.id.toSourceId()
 
         val result = buildSourceFilterResult(
             sources = listOf(visible, disabled),
             showNsfw = false,
             enabledLangs = emptySet(),
-            disabledIds = setOf(2L),
+            disabledIds = setOf(disabledId),
         )
 
         assertEquals(listOf("1"), result.sources.map { it.id })
-        assertEquals(setOf(2L), result.disabledIds)
+        assertEquals(setOf(disabledId), result.disabledIds)
     }
 
     @Test
