@@ -12,6 +12,7 @@ import app.otakureader.domain.usecase.source.SearchMangaUseCase
 import app.otakureader.sourceapi.SourceManga
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -69,6 +70,11 @@ class SourceMangaViewModel @Inject constructor(
 
     private val _effect = Channel<SourceMangaEffect>()
     val effect = _effect.receiveAsFlow()
+
+    /** Tracks the in-flight manga load so rapid ToggleLatest taps cancel the stale request
+     * instead of racing it — otherwise whichever network call resolves last wins, regardless
+     * of which mode (Popular/Latest) is still actually selected. */
+    private var loadJob: Job? = null
 
     fun setSourceId(sourceId: String, initialQuery: String = "") {
         val hasQuery = initialQuery.isNotBlank()
@@ -131,7 +137,8 @@ class SourceMangaViewModel @Inject constructor(
         } else {
             _state.update { it.copy(isLoadingMore = true) }
         }
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             val result = if (showLatest) {
                 getLatestUpdatesUseCase(sourceId, page)
             } else {
