@@ -188,7 +188,8 @@ class DetailsViewModel @Inject constructor(
             is DetailsContract.Event.RemoveCustomCover -> removeCustomCover()
 
             is DetailsContract.Event.GenreClick -> searchGenreInSource(event.genre)
-            is DetailsContract.Event.GenreLongClick -> searchGenreGlobally(event.genre)
+            is DetailsContract.Event.GenreLongClick -> searchGlobally(event.genre)
+            is DetailsContract.Event.SearchGlobally -> searchGlobally(event.query)
             is DetailsContract.Event.OpenWebView -> openInWebView()
 
             is DetailsContract.Event.DismissCategoryPicker ->
@@ -224,10 +225,10 @@ class DetailsViewModel @Inject constructor(
         }
     }
 
-    /** Tag long-press: search [genre] across all sources (global search). */
-    private fun searchGenreGlobally(genre: String) {
+    /** Tag long-press, or a title/author/artist tap: search [query] across all sources. */
+    private fun searchGlobally(query: String) {
         viewModelScope.launch {
-            _effect.send(DetailsContract.Effect.NavigateToGlobalSearch(query = genre))
+            _effect.send(DetailsContract.Effect.NavigateToGlobalSearch(query = query))
         }
     }
 

@@ -5,6 +5,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -69,6 +70,7 @@ internal fun MangaHeader(
     manga: app.otakureader.domain.model.Manga,
     showPanoramaCover: Boolean,
     onTogglePanoramaCover: () -> Unit,
+    onSearchGlobal: (String) -> Unit = {},
     scrollOffset: () -> Float = { 0f },
     modifier: Modifier = Modifier
 ) {
@@ -227,6 +229,7 @@ internal fun MangaHeader(
                             color = Color.White,
                             maxLines = HEADER_TITLE_MAX_LINES,
                             overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.clickable { onSearchGlobal(manga.title) },
                         )
 
                         val author = manga.author?.takeIf { it.isNotBlank() }
@@ -244,6 +247,7 @@ internal fun MangaHeader(
                                     color = Color.White.copy(alpha = HEADER_SUBTITLE_ALPHA),
                                     maxLines = HEADER_SUBTITLE_MAX_LINES,
                                     overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.clickable { onSearchGlobal(it) },
                                 )
                             }
                             artist?.let {
@@ -253,6 +257,7 @@ internal fun MangaHeader(
                                     color = Color.White.copy(alpha = HEADER_SUBTITLE_ALPHA),
                                     maxLines = HEADER_SUBTITLE_MAX_LINES,
                                     overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.clickable { onSearchGlobal(it) },
                                 )
                             }
                         }
@@ -279,7 +284,8 @@ internal fun MangaHeader(
                     text = manga.title,
                     style = MaterialTheme.typography.headlineSmall,
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.clickable { onSearchGlobal(manga.title) },
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -288,7 +294,8 @@ internal fun MangaHeader(
                     Text(
                         text = stringResource(R.string.details_author, author),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.clickable { onSearchGlobal(author) },
                     )
                 }
 
@@ -296,7 +303,8 @@ internal fun MangaHeader(
                     Text(
                         text = stringResource(R.string.details_artist, artist),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.clickable { onSearchGlobal(artist) },
                     )
                 }
 

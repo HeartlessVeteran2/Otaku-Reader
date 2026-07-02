@@ -705,4 +705,38 @@ class DetailsViewModelTest {
         val sorted = viewModel.state.value.sortedChapters
         assertTrue(sorted[0].chapterNumber >= sorted[1].chapterNumber)
     }
+
+    // ---- SearchGlobally (title/author/artist tap, and genre long-press) ----
+
+    @Test
+    fun onEvent_SearchGlobally_emitsNavigateToGlobalSearchEffect() = runTest {
+        setUpDefaultMocks()
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.SearchGlobally("Attack on Titan"))
+
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.NavigateToGlobalSearch)
+            assertEquals("Attack on Titan", (effect as DetailsContract.Effect.NavigateToGlobalSearch).query)
+        }
+    }
+
+    @Test
+    fun onEvent_GenreLongClick_emitsNavigateToGlobalSearchEffect() = runTest {
+        setUpDefaultMocks()
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.GenreLongClick("Shounen"))
+
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.NavigateToGlobalSearch)
+            assertEquals("Shounen", (effect as DetailsContract.Effect.NavigateToGlobalSearch).query)
+        }
+    }
 }

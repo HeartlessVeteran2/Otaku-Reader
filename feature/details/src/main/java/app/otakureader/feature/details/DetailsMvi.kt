@@ -296,6 +296,9 @@ object DetailsContract {
         /** Genre/tag chip long-press: search this tag across all sources (global search). */
         data class GenreLongClick(val genre: String) : Event
 
+        /** Title/author/artist tap in the header: search that text across all sources. */
+        data class SearchGlobally(val query: String) : Event
+
         /** Opens the manga's source web page in the system browser. */
         data object OpenWebView : Event
 

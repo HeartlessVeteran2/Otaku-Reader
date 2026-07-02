@@ -702,6 +702,7 @@ private fun DetailsContent(
                     manga = manga,
                     showPanoramaCover = state.showPanoramaCover,
                     onTogglePanoramaCover = { onEvent(DetailsContract.Event.TogglePanoramaCover) },
+                    onSearchGlobal = { query -> onEvent(DetailsContract.Event.SearchGlobally(query)) },
                     scrollOffset = scrollOffset,
                 )
             }
@@ -796,6 +797,7 @@ private fun LazyListScope.detailsInfoItems(
             manga = manga,
             showPanoramaCover = state.showPanoramaCover,
             onTogglePanoramaCover = { onEvent(DetailsContract.Event.TogglePanoramaCover) },
+            onSearchGlobal = { query -> onEvent(DetailsContract.Event.SearchGlobally(query)) },
             scrollOffset = scrollOffset,
         )
     }
