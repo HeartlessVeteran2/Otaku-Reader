@@ -40,4 +40,10 @@ sealed interface DownloadsEvent : UiEvent {
     data object CancelSelected : DownloadsEvent
     /** Move all selected items to the front of the download queue. */
     data object PrioritizeSelected : DownloadsEvent
+
+    /** Reorder the entire queue by each chapter's upload date (Komikku parity). */
+    data class SortByUploadDate(val newestFirst: Boolean) : DownloadsEvent
+
+    /** Reorder the entire queue by each chapter's chapter number (Komikku parity). */
+    data class SortByChapterNumber(val ascending: Boolean) : DownloadsEvent
 }

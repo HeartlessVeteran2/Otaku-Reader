@@ -28,6 +28,10 @@
     <string name="downloads_priority_high">High priority</string>
     <string name="downloads_empty_title">No downloads yet</string>
     <string name="downloads_empty_message">Start a chapter download to see progress here.</string>
+    <string name="downloads_sort_newest_first">Sort: newest upload first</string>
+    <string name="downloads_sort_oldest_first">Sort: oldest upload first</string>
+    <string name="downloads_sort_chapter_asc">Sort: chapter number ascending</string>
+    <string name="downloads_sort_chapter_desc">Sort: chapter number descending</string>
     <string name="downloads_empty_icon">No downloads</string>
     <string name="downloads_status_queued">Queued</string>
     <string name="downloads_status_downloading">Downloading</string>
