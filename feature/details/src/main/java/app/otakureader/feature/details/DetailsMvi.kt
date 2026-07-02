@@ -322,6 +322,14 @@ object DetailsContract {
         /** Search [query] within a single source's browse listing (tag short-press). */
         data class NavigateToSourceSearch(val sourceId: String, val query: String) : Effect
         data class OpenDownloadFolder(val sourceName: String, val mangaTitle: String) : Effect
+
+        /**
+         * Shown right after removing a manga from the library when it has downloaded chapters.
+         * The UI presents this as an action snackbar ("Delete downloaded chapters?" / Delete);
+         * tapping the action sends [Event.ClearMangaDownloads] back. Downloads are kept by
+         * default — this is opt-in deletion, not an undo of the removal itself.
+         */
+        data object ShowDeleteDownloadsPrompt : Effect
     }
 }
 

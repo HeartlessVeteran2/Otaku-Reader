@@ -38,6 +38,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
+// DetailsViewModel covers a large surface area (favorite/categories, chapters, downloads,
+// reader settings, tracking, notes, custom cover...), so its test class grows past Detekt's
+// LargeClass threshold along with it. Splitting by concern would fragment the shared fixtures
+// and mock setup more than it would help readability.
+@Suppress("LargeClass")
 @OptIn(ExperimentalCoroutinesApi::class)
 class DetailsViewModelTest {
 
@@ -269,6 +274,63 @@ class DetailsViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         assertFalse(viewModel.state.value.showCategoryPickerDialog)
+    }
+
+    @Test
+    fun onEvent_ToggleFavorite_removingWithDownloads_showsDeleteDownloadsPrompt() = runTest {
+        stubManga(sampleManga.copy(favorite = true))
+        every { chapterRepository.getChaptersByMangaId(mangaId) } returns flowOf(sampleChapters)
+        every { mangaRepository.isFavorite(mangaId) } returns flowOf(true)
+        every { downloadRepository.observeDownloads() } returns flowOf(
+            listOf(
+                DownloadItem(
+                    id = 1L,
+                    mangaId = mangaId,
+                    chapterId = sampleChapters[0].id,
+                    mangaTitle = sampleManga.title,
+                    chapterTitle = sampleChapters[0].name,
+                    status = DownloadStatus.COMPLETED,
+                )
+            )
+        )
+        coEvery { chapterRepository.getNextUnreadChapter(mangaId) } returns sampleChapters[1]
+        every { downloadPreferences.deleteAfterReading } returns flowOf(false)
+        every { downloadPreferences.perMangaOverrides } returns flowOf(emptyMap())
+        every { categoryRepository.getCategories() } returns flowOf(emptyList())
+        coEvery { mangaRepository.toggleFavorite(mangaId) } returns Unit
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.ToggleFavorite)
+
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.ShowDeleteDownloadsPrompt)
+        }
+    }
+
+    @Test
+    fun onEvent_ToggleFavorite_removingWithNoDownloads_showsPlainSnackbar() = runTest {
+        stubManga(sampleManga.copy(favorite = true))
+        every { chapterRepository.getChaptersByMangaId(mangaId) } returns flowOf(sampleChapters)
+        every { mangaRepository.isFavorite(mangaId) } returns flowOf(true)
+        every { downloadRepository.observeDownloads() } returns flowOf(emptyList())
+        coEvery { chapterRepository.getNextUnreadChapter(mangaId) } returns sampleChapters[1]
+        every { downloadPreferences.deleteAfterReading } returns flowOf(false)
+        every { downloadPreferences.perMangaOverrides } returns flowOf(emptyMap())
+        every { categoryRepository.getCategories() } returns flowOf(emptyList())
+        coEvery { mangaRepository.toggleFavorite(mangaId) } returns Unit
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.ToggleFavorite)
+
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.ShowSnackbar)
+        }
     }
 
     // ---- Category picker ----

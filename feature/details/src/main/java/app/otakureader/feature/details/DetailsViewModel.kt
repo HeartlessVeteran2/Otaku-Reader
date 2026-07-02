@@ -455,11 +455,22 @@ class DetailsViewModel @Inject constructor(
             val wasFavorite = _state.value.isFavorite
             try {
                 mangaRepository.toggleFavorite(mangaId)
-                val message = if (wasFavorite) "Removed from library" else "Added to library"
-                _effect.send(DetailsContract.Effect.ShowSnackbar(message))
-                // Mirrors Komikku: right after adding to library (not on remove), offer to file
-                // the manga into a category if any exist, instead of always leaving it uncategorized.
-                if (!wasFavorite) showCategoryPickerIfNeeded()
+                if (wasFavorite) {
+                    // Mirrors Komikku: removing keeps downloads by default, but if there are
+                    // any, offer to delete them via an action snackbar instead of the plain
+                    // confirmation — deletion only happens if the user taps the action.
+                    if (hasDownloadedOrDownloadingChapters()) {
+                        _effect.send(DetailsContract.Effect.ShowDeleteDownloadsPrompt)
+                    } else {
+                        _effect.send(DetailsContract.Effect.ShowSnackbar("Removed from library"))
+                    }
+                } else {
+                    _effect.send(DetailsContract.Effect.ShowSnackbar("Added to library"))
+                    // Mirrors Komikku: right after adding to library (not on remove), offer to
+                    // file the manga into a category if any exist, instead of always leaving it
+                    // uncategorized.
+                    showCategoryPickerIfNeeded()
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -467,6 +478,12 @@ class DetailsViewModel @Inject constructor(
             }
         }
     }
+
+    private fun hasDownloadedOrDownloadingChapters(): Boolean =
+        _state.value.chapters.any {
+            it.downloadStatus == DetailsContract.DownloadStatus.DOWNLOADED ||
+                it.downloadStatus == DetailsContract.DownloadStatus.DOWNLOADING
+        }
 
     private fun observeCategories() {
         categoryRepository.getCategories()

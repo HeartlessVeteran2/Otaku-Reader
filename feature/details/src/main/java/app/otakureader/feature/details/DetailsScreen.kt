@@ -71,6 +71,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -260,6 +261,16 @@ fun DetailsScreen(
                         } else {
                             snackbarHostState.showSnackbar(context.getString(R.string.details_no_downloads))
                         }
+                    }
+                }
+                is DetailsContract.Effect.ShowDeleteDownloadsPrompt -> {
+                    val result = snackbarHostState.showSnackbar(
+                        message = context.getString(R.string.details_delete_downloads_prompt),
+                        actionLabel = context.getString(R.string.details_delete_downloads_action),
+                        withDismissAction = true,
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.onEvent(DetailsContract.Event.ClearMangaDownloads)
                     }
                 }
                 else -> { /* no-op */ }
