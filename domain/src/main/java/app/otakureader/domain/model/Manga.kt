@@ -61,6 +61,14 @@ data class Manga(
 
     /** True when [thumbnailUrl] is a user-chosen custom cover rather than the source cover. */
     val hasCustomCover: Boolean = false,
+
+    /**
+     * Chapter list sort direction + read/downloaded filter state, packed using the same bit
+     * layout as Tachiyomi/Mihon's `Manga.chapterFlags` so it round-trips meaningfully through
+     * native backup export/import. See `chapterFlagsOf`/`chapterSortOrderFromFlags`/
+     * `chapterFilterFromFlags` in `feature/details` for the encode/decode.
+     */
+    val chapterFlags: Int = 0,
 )
 
 @Serializable

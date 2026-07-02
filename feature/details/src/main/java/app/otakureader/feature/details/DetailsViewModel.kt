@@ -68,6 +68,12 @@ class DetailsViewModel @Inject constructor(
     private val _effect = Channel<DetailsContract.Effect>(Channel.BUFFERED)
     val effect: Flow<DetailsContract.Effect> = _effect.receiveAsFlow()
 
+    // Chapter sort/filter is restored from the manga's persisted chapterFlags exactly once per
+    // screen visit (on the first non-null emission). Without this guard, every later emission
+    // from loadMangaDetails() (e.g. a background metadata refresh) would re-decode and stomp
+    // whatever sort/filter the user has since chosen in this session.
+    private var hasAppliedChapterFlags = false
+
     // Thumbnail cache: chapterId -> Pair(thumbnailUrl, totalPages)
     // LRU bounded to 50 entries to prevent unbounded memory growth.
     // Wrapped in a synchronized map: this is an access-order LinkedHashMap (accessOrder=true), so
@@ -103,8 +109,7 @@ class DetailsViewModel @Inject constructor(
                 _state.update { it.copy(showChapterFilter = true) }
             is DetailsContract.Event.HideChapterFilter ->
                 _state.update { it.copy(showChapterFilter = false) }
-            is DetailsContract.Event.SetChapterFilter ->
-                _state.update { it.copy(chapterFilter = event.filter, showChapterFilter = false) }
+            is DetailsContract.Event.SetChapterFilter -> setChapterFilter(event.filter)
             is DetailsContract.Event.SetChapterSearchQuery ->
                 _state.update { it.copy(chapterFilter = it.chapterFilter.copy(chapterSearchQuery = event.query)) }
             is DetailsContract.Event.StartReading -> startReading()
@@ -254,7 +259,18 @@ class DetailsViewModel @Inject constructor(
     private fun loadMangaDetails() {
         mangaRepository.getMangaByIdFlow(mangaId)
             .onEach { manga ->
-                _state.update { it.copy(manga = manga, isLoading = false) }
+                _state.update { state ->
+                    val restored = if (!hasAppliedChapterFlags && manga != null) {
+                        hasAppliedChapterFlags = true
+                        state.copy(
+                            chapterSortOrder = chapterSortOrderFromFlags(manga.chapterFlags),
+                            chapterFilter = chapterFilterFromFlags(manga.chapterFlags),
+                        )
+                    } else {
+                        state
+                    }
+                    restored.copy(manga = manga, isLoading = false)
+                }
             }
             .launchIn(viewModelScope)
     }
@@ -466,12 +482,30 @@ class DetailsViewModel @Inject constructor(
     }
 
     private fun toggleSortOrder() {
-        _state.update {
-            val newOrder = when (it.chapterSortOrder) {
-                DetailsContract.ChapterSortOrder.ASCENDING -> DetailsContract.ChapterSortOrder.DESCENDING
-                DetailsContract.ChapterSortOrder.DESCENDING -> DetailsContract.ChapterSortOrder.ASCENDING
+        val newOrder = when (_state.value.chapterSortOrder) {
+            DetailsContract.ChapterSortOrder.ASCENDING -> DetailsContract.ChapterSortOrder.DESCENDING
+            DetailsContract.ChapterSortOrder.DESCENDING -> DetailsContract.ChapterSortOrder.ASCENDING
+        }
+        _state.update { it.copy(chapterSortOrder = newOrder) }
+        persistChapterFlags(newOrder, _state.value.chapterFilter)
+    }
+
+    private fun setChapterFilter(filter: DetailsContract.ChapterFilter) {
+        _state.update { it.copy(chapterFilter = filter, showChapterFilter = false) }
+        persistChapterFlags(_state.value.chapterSortOrder, filter)
+    }
+
+    private fun persistChapterFlags(sortOrder: DetailsContract.ChapterSortOrder, filter: DetailsContract.ChapterFilter) {
+        viewModelScope.launch {
+            try {
+                mangaRepository.updateChapterFlags(mangaId, chapterFlagsOf(sortOrder, filter))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // In-memory state already reflects the change; only the persisted copy failed
+                // to save, so the choice won't survive re-opening this manga.
+                _effect.send(DetailsContract.Effect.ShowSnackbar("Failed to save chapter sort/filter"))
             }
-            it.copy(chapterSortOrder = newOrder)
         }
     }
 

@@ -206,6 +206,10 @@ class MangaRepositoryImpl @Inject constructor(
         mangaDao.updateMangaThemeOverride(id, override)
     }
 
+    override suspend fun updateChapterFlags(id: Long, flags: Int) {
+        mangaDao.updateChapterFlags(id, flags)
+    }
+
     override suspend fun updateLocalOverrides(
         id: Long,
         title: String?,
@@ -340,6 +344,7 @@ class MangaRepositoryImpl @Inject constructor(
         // via Edit Info also lives in userThumbnailUrl but must not enable the
         // "Remove custom cover" path, which would silently discard that URL override.
         hasCustomCover = userThumbnailUrl?.contains("/$CUSTOM_COVERS_DIR/") == true,
+        chapterFlags = chapterFlags,
     )
 
     private fun Manga.toEntity() = MangaEntity(
@@ -372,6 +377,7 @@ class MangaRepositoryImpl @Inject constructor(
         userCompleted = userCompleted,
         userDropped = userDropped,
         mangaThemeOverride = mangaThemeOverride,
+        chapterFlags = chapterFlags,
     )
 
     private companion object {

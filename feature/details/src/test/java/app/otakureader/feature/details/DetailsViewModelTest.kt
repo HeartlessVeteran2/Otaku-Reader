@@ -118,6 +118,7 @@ class DetailsViewModelTest {
         coEvery { chapterRepository.getNextUnreadChapter(mangaId) } returns sampleChapters[1]
         every { downloadPreferences.deleteAfterReading } returns flowOf(false)
         every { downloadPreferences.perMangaOverrides } returns flowOf(emptyMap())
+        coEvery { mangaRepository.updateChapterFlags(any(), any()) } returns Unit
     }
 
     // ---- Initial load ----
@@ -238,6 +239,60 @@ class DetailsViewModelTest {
         val toggled = viewModel.state.value.chapterSortOrder
 
         assertTrue(initial != toggled)
+    }
+
+    @Test
+    fun onEvent_ToggleSortOrder_persistsFlagsToRepository() = runTest {
+        setUpDefaultMocks()
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onEvent(DetailsContract.Event.ToggleSortOrder)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val expectedFlags = chapterFlagsOf(
+            DetailsContract.ChapterSortOrder.ASCENDING,
+            DetailsContract.ChapterFilter(),
+        )
+        coVerify { mangaRepository.updateChapterFlags(mangaId, expectedFlags) }
+    }
+
+    @Test
+    fun onEvent_SetChapterFilter_persistsFlagsToRepository() = runTest {
+        setUpDefaultMocks()
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val filter = DetailsContract.ChapterFilter(read = DetailsContract.TriState.EXCLUDE)
+        viewModel.onEvent(DetailsContract.Event.SetChapterFilter(filter))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val expectedFlags = chapterFlagsOf(DetailsContract.ChapterSortOrder.DESCENDING, filter)
+        coVerify { mangaRepository.updateChapterFlags(mangaId, expectedFlags) }
+    }
+
+    @Test
+    fun init_restoresSortOrderAndFilterFromMangaChapterFlags() = runTest {
+        val flags = chapterFlagsOf(
+            DetailsContract.ChapterSortOrder.ASCENDING,
+            DetailsContract.ChapterFilter(downloaded = DetailsContract.TriState.ONLY),
+        )
+        stubManga(sampleManga.copy(chapterFlags = flags))
+        every { chapterRepository.getChaptersByMangaId(mangaId) } returns flowOf(sampleChapters)
+        every { mangaRepository.isFavorite(mangaId) } returns flowOf(false)
+        every { downloadRepository.observeDownloads() } returns flowOf(emptyList())
+        coEvery { chapterRepository.getNextUnreadChapter(mangaId) } returns sampleChapters[1]
+        every { downloadPreferences.deleteAfterReading } returns flowOf(false)
+        every { downloadPreferences.perMangaOverrides } returns flowOf(emptyMap())
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.state.value
+        assertEquals(DetailsContract.ChapterSortOrder.ASCENDING, state.chapterSortOrder)
+        assertEquals(DetailsContract.TriState.ONLY, state.chapterFilter.downloaded)
     }
 
     // ---- StartReading ----

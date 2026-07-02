@@ -101,6 +101,10 @@ interface MangaDao {
     @Query("UPDATE manga SET mangaThemeOverride = :override WHERE id = :id")
     suspend fun updateMangaThemeOverride(id: Long, override: Boolean?)
 
+    /** Persists chapter list sort direction + read/downloaded filter state (Mihon-compatible bit layout). */
+    @Query("UPDATE manga SET chapterFlags = :flags WHERE id = :id")
+    suspend fun updateChapterFlags(id: Long, flags: Int)
+
     /** Persist user-info overrides (#998). Pass null for any field to clear that override. */
     @Query("""UPDATE manga SET userTitle = :title, userDescription = :description,
         userAuthor = :author, userArtist = :artist, userThumbnailUrl = :thumbnailUrl,
