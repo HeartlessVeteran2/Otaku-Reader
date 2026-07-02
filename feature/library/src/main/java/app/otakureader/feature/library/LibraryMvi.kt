@@ -188,6 +188,7 @@ data class LibraryMangaItem(
     val genres: List<String> = emptyList(),
     val sourceName: String = "",
     val sourceLanguage: String = "",
+    val sourceIconUrl: String? = null,
 )
 
 data class CategoryItem(
