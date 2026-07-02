@@ -155,6 +155,7 @@ class ReadingListRepositoryImpl @Inject constructor(
         initialized = initialized,
         autoDownload = autoDownload,
         dateAdded = dateAdded,
-        readerBackgroundColor = readerBackgroundColor
+        readerBackgroundColor = readerBackgroundColor,
+        chapterFlags = chapterFlags,
     )
 }

@@ -5,6 +5,7 @@ import app.otakureader.core.common.mvi.UiEffect
 import app.otakureader.core.common.mvi.UiEvent
 import app.otakureader.core.common.mvi.UiState
 import app.otakureader.core.preferences.DeleteAfterReadMode
+import app.otakureader.domain.model.Category
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MangaStatus
@@ -60,6 +61,13 @@ object DetailsContract {
         val trackingCount: Int = 0,
         /** Full web URL for this manga (source baseUrl + manga url). Null for local sources. */
         val mangaWebUrl: String? = null,
+
+        /** User-defined library categories, for the "add to library" category picker. */
+        val libraryCategories: List<Category> = emptyList(),
+        /** Shown right after favoriting, so the manga can be filed into a category immediately. */
+        val showCategoryPickerDialog: Boolean = false,
+        /** Category IDs checked in the currently-open [showCategoryPickerDialog]. */
+        val categoryPickerSelection: Set<Long> = emptySet(),
     ) : UiState {
 
         /** Estimated time remaining to finish all unread chapters of this manga. */
@@ -290,6 +298,11 @@ object DetailsContract {
 
         /** Opens the manga's source web page in the system browser. */
         data object OpenWebView : Event
+
+        // Category picker shown right after favoriting
+        data object DismissCategoryPicker : Event
+        data class ToggleCategoryPickerSelection(val categoryId: Long) : Event
+        data object ConfirmCategoryPicker : Event
     }
 
     /**
@@ -307,6 +320,78 @@ object DetailsContract {
         data class NavigateToSourceSearch(val sourceId: String, val query: String) : Effect
         data class OpenDownloadFolder(val sourceName: String, val mangaTitle: String) : Effect
     }
+}
+
+// Bit layout matches Tachiyomi/Mihon's Manga.CHAPTER_SORT_*/CHAPTER_SHOW_* constants, so a
+// native backup export of chapterFlags reflects the user's actual in-app sort/filter choice
+// instead of an opaque, always-zero number, and importing a real Tachiyomi backup seeds our
+// own sort/filter state meaningfully too.
+private const val CHAPTER_SORT_ASC = 0x00000001
+private const val CHAPTER_SORT_DIR_MASK = 0x00000001
+
+private const val CHAPTER_SHOW_UNREAD = 0x00000002
+private const val CHAPTER_SHOW_READ = 0x00000004
+private const val CHAPTER_UNREAD_MASK = 0x00000006
+
+private const val CHAPTER_SHOW_DOWNLOADED = 0x00000008
+private const val CHAPTER_SHOW_NOT_DOWNLOADED = 0x00000010
+private const val CHAPTER_DOWNLOADED_MASK = 0x00000018
+
+/**
+ * Packs [sortOrder] and the read/downloaded parts of [filter] into a single flags Int for
+ * persistence on [app.otakureader.domain.model.Manga.chapterFlags]. The scanlator filter and
+ * chapter search query are session-only (matching Mihon, which doesn't persist its search bar
+ * either) and are intentionally not encoded here.
+ */
+fun chapterFlagsOf(sortOrder: DetailsContract.ChapterSortOrder, filter: DetailsContract.ChapterFilter): Int {
+    var flags = if (sortOrder == DetailsContract.ChapterSortOrder.ASCENDING) CHAPTER_SORT_ASC else 0
+    flags = flags or when (filter.read) {
+        DetailsContract.TriState.ALL -> 0
+        DetailsContract.TriState.ONLY -> CHAPTER_SHOW_READ
+        DetailsContract.TriState.EXCLUDE -> CHAPTER_SHOW_UNREAD
+    }
+    flags = flags or when (filter.downloaded) {
+        DetailsContract.TriState.ALL -> 0
+        DetailsContract.TriState.ONLY -> CHAPTER_SHOW_DOWNLOADED
+        DetailsContract.TriState.EXCLUDE -> CHAPTER_SHOW_NOT_DOWNLOADED
+    }
+    return flags
+}
+
+/** Decodes the sort direction bit packed by [chapterFlagsOf]. */
+fun chapterSortOrderFromFlags(flags: Int): DetailsContract.ChapterSortOrder =
+    if (flags and CHAPTER_SORT_DIR_MASK == CHAPTER_SORT_ASC) {
+        DetailsContract.ChapterSortOrder.ASCENDING
+    } else {
+        DetailsContract.ChapterSortOrder.DESCENDING
+    }
+
+/**
+ * Decodes the read/downloaded filter bits packed by [chapterFlagsOf]. [scanlator] and
+ * [chapterSearchQuery] aren't persisted, so the caller supplies whatever the current in-session
+ * values are (normally defaults, on initial load).
+ */
+fun chapterFilterFromFlags(
+    flags: Int,
+    scanlator: String? = null,
+    chapterSearchQuery: String = "",
+): DetailsContract.ChapterFilter {
+    val read = when (flags and CHAPTER_UNREAD_MASK) {
+        CHAPTER_SHOW_UNREAD -> DetailsContract.TriState.EXCLUDE
+        CHAPTER_SHOW_READ -> DetailsContract.TriState.ONLY
+        else -> DetailsContract.TriState.ALL
+    }
+    val downloaded = when (flags and CHAPTER_DOWNLOADED_MASK) {
+        CHAPTER_SHOW_DOWNLOADED -> DetailsContract.TriState.ONLY
+        CHAPTER_SHOW_NOT_DOWNLOADED -> DetailsContract.TriState.EXCLUDE
+        else -> DetailsContract.TriState.ALL
+    }
+    return DetailsContract.ChapterFilter(
+        read = read,
+        downloaded = downloaded,
+        scanlator = scanlator,
+        chapterSearchQuery = chapterSearchQuery,
+    )
 }
 
 /**

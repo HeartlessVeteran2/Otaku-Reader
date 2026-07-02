@@ -11,6 +11,8 @@ import app.otakureader.domain.model.ContentRating
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.repository.MangaRepository
+import app.otakureader.domain.repository.SourceRepository
+import app.otakureader.domain.repository.resolveDownloadFolderName
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import kotlinx.coroutines.Dispatchers
@@ -30,7 +32,8 @@ class MangaRepositoryImpl @Inject constructor(
     private val chapterDao: ChapterDao,
     private val mangaCategoryDao: MangaCategoryDao,
     private val altSourceDao: MangaAlternativeSourceDao,
-    private val downloadRepository: dagger.Lazy<app.otakureader.domain.repository.DownloadRepository>
+    private val downloadRepository: dagger.Lazy<app.otakureader.domain.repository.DownloadRepository>,
+    private val sourceRepository: SourceRepository,
 ) : MangaRepository {
 
     override fun getLibraryManga(): Flow<List<Manga>> {
@@ -161,7 +164,7 @@ class MangaRepositoryImpl @Inject constructor(
         val chapters = chapterDao.getChaptersByMangaId(mangaId).first()
 
         // Delete downloads for each chapter
-        val sourceName = manga.sourceId.toString()
+        val sourceName = sourceRepository.resolveDownloadFolderName(manga.sourceId)
         val mangaTitle = manga.title
 
         chapters.forEach { chapterEntity ->
@@ -204,6 +207,10 @@ class MangaRepositoryImpl @Inject constructor(
 
     override suspend fun updateMangaThemeOverride(id: Long, override: Boolean?) {
         mangaDao.updateMangaThemeOverride(id, override)
+    }
+
+    override suspend fun updateChapterFlags(id: Long, flags: Int) {
+        mangaDao.updateChapterFlags(id, flags)
     }
 
     override suspend fun updateLocalOverrides(
@@ -340,6 +347,7 @@ class MangaRepositoryImpl @Inject constructor(
         // via Edit Info also lives in userThumbnailUrl but must not enable the
         // "Remove custom cover" path, which would silently discard that URL override.
         hasCustomCover = userThumbnailUrl?.contains("/$CUSTOM_COVERS_DIR/") == true,
+        chapterFlags = chapterFlags,
     )
 
     private fun Manga.toEntity() = MangaEntity(
@@ -372,6 +380,7 @@ class MangaRepositoryImpl @Inject constructor(
         userCompleted = userCompleted,
         userDropped = userDropped,
         mangaThemeOverride = mangaThemeOverride,
+        chapterFlags = chapterFlags,
     )
 
     private companion object {

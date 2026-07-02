@@ -17,6 +17,7 @@ import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.repository.CategoryRepository
 import app.otakureader.domain.repository.ChapterRepository
+import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.domain.usecase.GetLibraryMangaUseCase
 import app.otakureader.domain.usecase.UpdateLibraryMangaUseCase
 import io.mockk.coEvery
@@ -58,6 +59,7 @@ class LibraryUpdateWorkerTest {
     private lateinit var notificationPreferences: NotificationPreferences
     private lateinit var updateRunSummaryDao: UpdateRunSummaryDao
     private lateinit var libraryUpdateFilter: LibraryUpdateFilter
+    private lateinit var sourceRepository: SourceRepository
     private lateinit var worker: LibraryUpdateWorker
 
     private lateinit var connectivityManager: ConnectivityManager
@@ -124,6 +126,7 @@ class LibraryUpdateWorkerTest {
         categoryRepository = mockk()
         notificationPreferences = mockk(relaxed = true)
         updateRunSummaryDao = mockk(relaxed = true)
+        sourceRepository = mockk(relaxed = true)
 
         connectivityManager = mockk()
         network = mockk()
@@ -174,6 +177,7 @@ class LibraryUpdateWorkerTest {
             notificationPreferences,
             updateRunSummaryDao,
             libraryUpdateFilter,
+            sourceRepository,
         )
     }
 

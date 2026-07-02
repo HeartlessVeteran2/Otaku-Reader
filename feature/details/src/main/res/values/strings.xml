@@ -237,4 +237,8 @@
     </plurals>
     <string name="details_action_webview">Web</string>
     <string name="details_no_browser">No browser app found</string>
+
+    <string name="details_category_picker_title">Add to categories</string>
+    <string name="details_category_picker_confirm">Add</string>
+    <string name="details_category_picker_skip">Skip</string>
 </resources>

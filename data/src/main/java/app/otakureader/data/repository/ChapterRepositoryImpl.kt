@@ -208,7 +208,8 @@ class ChapterRepositoryImpl @Inject constructor(
         initialized = initialized,
         autoDownload = autoDownload,
         dateAdded = dateAdded,
-        readerBackgroundColor = readerBackgroundColor
+        readerBackgroundColor = readerBackgroundColor,
+        chapterFlags = chapterFlags,
     )
 
     private fun Chapter.toEntity() = ChapterEntity(

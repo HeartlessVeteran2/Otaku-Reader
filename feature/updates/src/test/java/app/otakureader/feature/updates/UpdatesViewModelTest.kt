@@ -9,6 +9,7 @@ import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.model.MangaUpdate
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
+import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.domain.scheduler.LibraryUpdateScheduler
 import app.otakureader.domain.usecase.GetLastUpdateRunSummaryUseCase
 import app.otakureader.domain.usecase.GetLibraryMangaUseCase
@@ -47,6 +48,7 @@ class UpdatesViewModelTest {
     private lateinit var downloadRepository: DownloadRepository
     private lateinit var chapterRepository: ChapterRepository
     private lateinit var libraryUpdateScheduler: LibraryUpdateScheduler
+    private lateinit var sourceRepository: SourceRepository
     private lateinit var context: Context
 
     private val sampleManga = Manga(
@@ -73,6 +75,7 @@ class UpdatesViewModelTest {
         downloadRepository = mockk(relaxed = true)
         chapterRepository = mockk(relaxed = true)
         libraryUpdateScheduler = mockk(relaxed = true)
+        sourceRepository = mockk(relaxed = true)
         context = mockk(relaxed = true)
     }
 
@@ -91,6 +94,7 @@ class UpdatesViewModelTest {
             downloadRepository,
             chapterRepository,
             libraryUpdateScheduler,
+            sourceRepository,
         )
     }
 

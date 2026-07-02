@@ -9,6 +9,7 @@ import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.domain.repository.SourceRepository
+import app.otakureader.domain.repository.resolveDownloadFolderName
 import app.otakureader.core.preferences.DownloadPreferences
 import app.otakureader.sourceapi.Page
 import app.otakureader.sourceapi.SourceChapter
@@ -27,15 +28,20 @@ class ReaderDownloadAheadDelegate @Inject constructor(
     private val mangaRepository: MangaRepository,
 ) {
     suspend fun enqueueCurrentChapter(manga: Manga, chapter: Chapter): Boolean {
-        val sourceName = manga.sourceId.toString()
+        val sourceIdString = manga.sourceId.toString()
+        val downloadFolderName = sourceRepository.resolveDownloadFolderName(manga.sourceId)
         val existingDownloads = downloadRepository.observeDownloads().first()
         if (existingDownloads.any { it.chapterId == chapter.id }) return false
-        if (downloadRepository.isChapterDownloaded(sourceName, manga.title, chapter.name)) return false
-        return tryEnqueueChapter(manga, chapter, sourceName, existingDownloads)
+        if (downloadRepository.isChapterDownloaded(downloadFolderName, manga.title, chapter.name)) return false
+        return tryEnqueueChapter(manga, chapter, sourceIdString, downloadFolderName, existingDownloads)
     }
 
     suspend fun isChapterDownloaded(manga: Manga, chapter: Chapter): Boolean =
-        downloadRepository.isChapterDownloaded(manga.sourceId.toString(), manga.title, chapter.name)
+        downloadRepository.isChapterDownloaded(
+            sourceRepository.resolveDownloadFolderName(manga.sourceId),
+            manga.title,
+            chapter.name,
+        )
 
     fun maybeDownloadNextChapter(
         scope: CoroutineScope,
@@ -61,12 +67,13 @@ class ReaderDownloadAheadDelegate @Inject constructor(
             if (currentIndex == -1 || currentIndex >= chapters.size - 1) return@launch
 
             val manga = getCurrentManga() ?: mangaRepository.getMangaById(mangaId) ?: return@launch
-            val sourceName = manga.sourceId.toString()
+            val sourceIdString = manga.sourceId.toString()
+            val downloadFolderName = sourceRepository.resolveDownloadFolderName(manga.sourceId)
             val existingDownloads = downloadRepository.observeDownloads().first()
 
             val endIndex = minOf(currentIndex + downloadAheadChapters, chapters.size - 1)
             for (i in currentIndex + 1..endIndex) {
-                tryEnqueueChapter(manga, chapters[i], sourceName, existingDownloads)
+                tryEnqueueChapter(manga, chapters[i], sourceIdString, downloadFolderName, existingDownloads)
             }
         }
     }
@@ -74,11 +81,12 @@ class ReaderDownloadAheadDelegate @Inject constructor(
     private suspend fun tryEnqueueChapter(
         manga: Manga,
         chapter: Chapter,
-        sourceName: String,
+        sourceIdString: String,
+        downloadFolderName: String,
         existingDownloads: List<DownloadItem>,
     ): Boolean {
         if (existingDownloads.any { it.chapterId == chapter.id }) return false
-        if (downloadRepository.isChapterDownloaded(sourceName, manga.title, chapter.name)) return false
+        if (downloadRepository.isChapterDownloaded(downloadFolderName, manga.title, chapter.name)) return false
 
         val sourceChapter = SourceChapter(
             url = chapter.url,
@@ -87,7 +95,7 @@ class ReaderDownloadAheadDelegate @Inject constructor(
             chapterNumber = chapter.chapterNumber,
             scanlator = chapter.scanlator ?: "",
         )
-        val pageListResult = sourceRepository.getPageList(sourceName, sourceChapter)
+        val pageListResult = sourceRepository.getPageList(sourceIdString, sourceChapter)
         pageListResult.onFailure { throwable ->
             runCatching {
                 Log.w(TAG, "Failed to fetch page list for download-ahead " +
@@ -103,7 +111,7 @@ class ReaderDownloadAheadDelegate @Inject constructor(
         downloadRepository.enqueueChapter(
             mangaId = manga.id,
             chapterId = chapter.id,
-            sourceName = sourceName,
+            sourceName = downloadFolderName,
             mangaTitle = manga.title,
             chapterTitle = chapter.name,
             pageUrls = pageUrls,

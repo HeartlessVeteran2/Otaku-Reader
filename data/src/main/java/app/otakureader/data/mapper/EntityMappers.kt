@@ -36,6 +36,7 @@ fun MangaEntity.toManga(): Manga = Manga(
     preloadPagesBefore = preloadPagesBefore,
     preloadPagesAfter = preloadPagesAfter,
     contentRating = ContentRating.fromOrdinal(contentRating),
+    chapterFlags = chapterFlags,
 )
 
 /** Maps domain [Manga] to [MangaEntity]. */
@@ -69,6 +70,7 @@ fun Manga.toEntity(): MangaEntity = MangaEntity(
     preloadPagesBefore = preloadPagesBefore,
     preloadPagesAfter = preloadPagesAfter,
     contentRating = contentRating.ordinal,
+    chapterFlags = chapterFlags,
 )
 
 /** Maps [ChapterEntity] to domain [Chapter]. */

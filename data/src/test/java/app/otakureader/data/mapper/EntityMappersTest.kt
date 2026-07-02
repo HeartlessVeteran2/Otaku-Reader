@@ -92,7 +92,8 @@ class EntityMappersTest {
             status = MangaStatus.ONGOING.ordinal,
             thumbnailUrl = "https://example.com/cover.jpg",
             favorite = true,
-            initialized = true
+            initialized = true,
+            chapterFlags = 3
         )
 
         // Act
@@ -111,6 +112,7 @@ class EntityMappersTest {
         assertEquals(entity.thumbnailUrl, manga.thumbnailUrl)
         assertEquals(entity.favorite, manga.favorite)
         assertEquals(entity.initialized, manga.initialized)
+        assertEquals(entity.chapterFlags, manga.chapterFlags)
     }
 
     @Test
@@ -143,7 +145,8 @@ class EntityMappersTest {
             status = MangaStatus.ONGOING,
             thumbnailUrl = "https://example.com/cover.jpg",
             favorite = true,
-            initialized = true
+            initialized = true,
+            chapterFlags = 3
         )
 
         // Act
@@ -162,6 +165,7 @@ class EntityMappersTest {
         assertEquals(manga.thumbnailUrl, entity.thumbnailUrl)
         assertEquals(manga.favorite, entity.favorite)
         assertEquals(manga.initialized, entity.initialized)
+        assertEquals(manga.chapterFlags, entity.chapterFlags)
     }
 
     @Test

@@ -50,6 +50,9 @@ interface MangaRepository {
     /** Per-manga cover theme override (#947). Pass null to inherit global pref. */
     suspend fun updateMangaThemeOverride(id: Long, override: Boolean?)
 
+    /** Persists chapter list sort direction + read/downloaded filter state. */
+    suspend fun updateChapterFlags(id: Long, flags: Int)
+
     // User-info overrides (#998)
     /**
      * Persist user-edited metadata overrides. A null argument clears that field's override

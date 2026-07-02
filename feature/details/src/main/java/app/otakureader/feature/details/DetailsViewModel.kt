@@ -7,6 +7,7 @@ import app.otakureader.domain.model.DownloadBlockedException
 import app.otakureader.domain.model.DownloadStatus
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
+import app.otakureader.domain.repository.CategoryRepository
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.MangaRepository
@@ -33,6 +34,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import app.otakureader.domain.repository.SourceRepository
+import app.otakureader.domain.repository.resolveDownloadFolderName
 import app.otakureader.domain.tracking.TrackRepository
 import app.otakureader.sourceapi.SourceChapter
 import kotlinx.coroutines.async
@@ -49,6 +51,7 @@ class DetailsViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
     private val mangaRepository: MangaRepository,
     private val chapterRepository: ChapterRepository,
+    private val categoryRepository: CategoryRepository,
     private val downloadRepository: DownloadRepository,
     private val sourceRepository: SourceRepository,
     private val downloadPreferences: DownloadPreferences,
@@ -67,6 +70,12 @@ class DetailsViewModel @Inject constructor(
 
     private val _effect = Channel<DetailsContract.Effect>(Channel.BUFFERED)
     val effect: Flow<DetailsContract.Effect> = _effect.receiveAsFlow()
+
+    // Chapter sort/filter is restored from the manga's persisted chapterFlags exactly once per
+    // screen visit (on the first non-null emission). Without this guard, every later emission
+    // from loadMangaDetails() (e.g. a background metadata refresh) would re-decode and stomp
+    // whatever sort/filter the user has since chosen in this session.
+    private var hasAppliedChapterFlags = false
 
     // Thumbnail cache: chapterId -> Pair(thumbnailUrl, totalPages)
     // LRU bounded to 50 entries to prevent unbounded memory growth.
@@ -90,6 +99,7 @@ class DetailsViewModel @Inject constructor(
         observeStaticSettings()
         observeTrackingCount()
         loadMangaWebUrl()
+        observeCategories()
     }
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")
@@ -103,8 +113,7 @@ class DetailsViewModel @Inject constructor(
                 _state.update { it.copy(showChapterFilter = true) }
             is DetailsContract.Event.HideChapterFilter ->
                 _state.update { it.copy(showChapterFilter = false) }
-            is DetailsContract.Event.SetChapterFilter ->
-                _state.update { it.copy(chapterFilter = event.filter, showChapterFilter = false) }
+            is DetailsContract.Event.SetChapterFilter -> setChapterFilter(event.filter)
             is DetailsContract.Event.SetChapterSearchQuery ->
                 _state.update { it.copy(chapterFilter = it.chapterFilter.copy(chapterSearchQuery = event.query)) }
             is DetailsContract.Event.StartReading -> startReading()
@@ -181,6 +190,12 @@ class DetailsViewModel @Inject constructor(
             is DetailsContract.Event.GenreClick -> searchGenreInSource(event.genre)
             is DetailsContract.Event.GenreLongClick -> searchGenreGlobally(event.genre)
             is DetailsContract.Event.OpenWebView -> openInWebView()
+
+            is DetailsContract.Event.DismissCategoryPicker ->
+                _state.update { it.copy(showCategoryPickerDialog = false) }
+            is DetailsContract.Event.ToggleCategoryPickerSelection ->
+                toggleCategoryPickerSelection(event.categoryId)
+            is DetailsContract.Event.ConfirmCategoryPicker -> confirmCategoryPicker()
         }
     }
 
@@ -254,7 +269,27 @@ class DetailsViewModel @Inject constructor(
     private fun loadMangaDetails() {
         mangaRepository.getMangaByIdFlow(mangaId)
             .onEach { manga ->
-                _state.update { it.copy(manga = manga, isLoading = false) }
+                // The hasAppliedChapterFlags check+mutation must happen outside _state.update's
+                // lambda: update() retries its lambda on a failed compare-and-set, and mutating
+                // a class member as a side effect inside it means a retry would see the guard
+                // already flipped to true and skip restoring the sort order/filter entirely.
+                if (!hasAppliedChapterFlags && manga != null) {
+                    hasAppliedChapterFlags = true
+                    _state.update { state ->
+                        state.copy(
+                            manga = manga,
+                            isLoading = false,
+                            chapterSortOrder = chapterSortOrderFromFlags(manga.chapterFlags),
+                            chapterFilter = chapterFilterFromFlags(
+                                flags = manga.chapterFlags,
+                                scanlator = state.chapterFilter.scanlator,
+                                chapterSearchQuery = state.chapterFilter.chapterSearchQuery,
+                            ),
+                        )
+                    }
+                } else {
+                    _state.update { state -> state.copy(manga = manga, isLoading = false) }
+                }
             }
             .launchIn(viewModelScope)
     }
@@ -415,18 +450,52 @@ class DetailsViewModel @Inject constructor(
 
     private fun toggleFavorite() {
         viewModelScope.launch {
+            val wasFavorite = _state.value.isFavorite
             try {
                 mangaRepository.toggleFavorite(mangaId)
-                val message = if (_state.value.isFavorite) {
-                    "Removed from library"
-                } else {
-                    "Added to library"
-                }
+                val message = if (wasFavorite) "Removed from library" else "Added to library"
                 _effect.send(DetailsContract.Effect.ShowSnackbar(message))
+                // Mirrors Komikku: right after adding to library (not on remove), offer to file
+                // the manga into a category if any exist, instead of always leaving it uncategorized.
+                if (!wasFavorite) showCategoryPickerIfNeeded()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 _effect.send(DetailsContract.Effect.ShowError("Failed to update library: ${e.message}"))
+            }
+        }
+    }
+
+    private fun observeCategories() {
+        categoryRepository.getCategories()
+            .onEach { categories -> _state.update { it.copy(libraryCategories = categories) } }
+            .launchIn(viewModelScope)
+    }
+
+    private fun showCategoryPickerIfNeeded() {
+        if (_state.value.libraryCategories.isEmpty()) return
+        _state.update { it.copy(showCategoryPickerDialog = true, categoryPickerSelection = emptySet()) }
+    }
+
+    private fun toggleCategoryPickerSelection(categoryId: Long) {
+        _state.update {
+            val selection = it.categoryPickerSelection
+            val updated = if (categoryId in selection) selection - categoryId else selection + categoryId
+            it.copy(categoryPickerSelection = updated)
+        }
+    }
+
+    private fun confirmCategoryPicker() {
+        val selection = _state.value.categoryPickerSelection
+        _state.update { it.copy(showCategoryPickerDialog = false) }
+        if (selection.isEmpty()) return
+        viewModelScope.launch {
+            try {
+                selection.forEach { categoryId -> categoryRepository.addMangaToCategory(mangaId, categoryId) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _effect.send(DetailsContract.Effect.ShowError("Failed to assign categories"))
             }
         }
     }
@@ -466,12 +535,30 @@ class DetailsViewModel @Inject constructor(
     }
 
     private fun toggleSortOrder() {
-        _state.update {
-            val newOrder = when (it.chapterSortOrder) {
-                DetailsContract.ChapterSortOrder.ASCENDING -> DetailsContract.ChapterSortOrder.DESCENDING
-                DetailsContract.ChapterSortOrder.DESCENDING -> DetailsContract.ChapterSortOrder.ASCENDING
+        val newOrder = when (_state.value.chapterSortOrder) {
+            DetailsContract.ChapterSortOrder.ASCENDING -> DetailsContract.ChapterSortOrder.DESCENDING
+            DetailsContract.ChapterSortOrder.DESCENDING -> DetailsContract.ChapterSortOrder.ASCENDING
+        }
+        _state.update { it.copy(chapterSortOrder = newOrder) }
+        persistChapterFlags(newOrder, _state.value.chapterFilter)
+    }
+
+    private fun setChapterFilter(filter: DetailsContract.ChapterFilter) {
+        _state.update { it.copy(chapterFilter = filter, showChapterFilter = false) }
+        persistChapterFlags(_state.value.chapterSortOrder, filter)
+    }
+
+    private fun persistChapterFlags(sortOrder: DetailsContract.ChapterSortOrder, filter: DetailsContract.ChapterFilter) {
+        viewModelScope.launch {
+            try {
+                mangaRepository.updateChapterFlags(mangaId, chapterFlagsOf(sortOrder, filter))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // In-memory state already reflects the change; only the persisted copy failed
+                // to save, so the choice won't survive re-opening this manga.
+                _effect.send(DetailsContract.Effect.ShowSnackbar("Failed to save chapter sort/filter"))
             }
-            it.copy(chapterSortOrder = newOrder)
         }
     }
 
@@ -565,7 +652,7 @@ class DetailsViewModel @Inject constructor(
             val manga = _state.value.manga
             val chapters = _state.value.chapters.filter { selectedIds.contains(it.id) }
             val mangaTitle = manga?.title ?: "Manga"
-            val sourceName = manga?.sourceId?.toString() ?: ""
+            val sourceName = manga?.sourceId?.let { sourceRepository.resolveDownloadFolderName(it) } ?: ""
 
             val enqueuedCount = try {
                 enqueueChapters(chapters, sourceName, mangaTitle)
@@ -590,10 +677,11 @@ class DetailsViewModel @Inject constructor(
             val chapters = _state.value.chapters.filter { selectedIds.contains(it.id) }
 
             if (manga != null) {
+                val sourceName = sourceRepository.resolveDownloadFolderName(manga.sourceId)
                 chapters.forEach { chapter ->
                     downloadRepository.deleteChapterDownload(
                         chapterId = chapter.id,
-                        sourceName = manga.sourceId.toString(),
+                        sourceName = sourceName,
                         mangaTitle = manga.title,
                         chapterTitle = chapter.name
                     )
@@ -670,9 +758,7 @@ class DetailsViewModel @Inject constructor(
             val chapter = _state.value.chapters.firstOrNull { it.id == chapterId }
             val manga = _state.value.manga
             val mangaTitle = manga?.title ?: "Manga"
-            // Use sourceId as a stable directory key. Once a SourceManager is available
-            // this can be replaced with the source's display name.
-            val sourceName = manga?.sourceId?.toString() ?: ""
+            val sourceName = manga?.sourceId?.let { sourceRepository.resolveDownloadFolderName(it) } ?: ""
 
             if (chapter != null) {
                 try {
@@ -698,7 +784,7 @@ class DetailsViewModel @Inject constructor(
     private fun downloadAllChapters(unreadOnly: Boolean) {
         viewModelScope.launch {
             val manga = _state.value.manga ?: return@launch
-            val sourceName = manga.sourceId.toString()
+            val sourceName = sourceRepository.resolveDownloadFolderName(manga.sourceId)
             val chapters = if (unreadOnly) {
                 _state.value.chapters.filter { !it.read }
             } else {
@@ -756,7 +842,7 @@ class DetailsViewModel @Inject constructor(
             if (chapter != null && manga != null) {
                 downloadRepository.deleteChapterDownload(
                     chapterId = chapterId,
-                    sourceName = manga.sourceId.toString(),
+                    sourceName = sourceRepository.resolveDownloadFolderName(manga.sourceId),
                     mangaTitle = manga.title,
                     chapterTitle = chapter.name
                 )
@@ -777,7 +863,7 @@ class DetailsViewModel @Inject constructor(
                 return@launch
             }
             downloadRepository.exportChapterAsCbz(
-                sourceName = manga.sourceId.toString(),
+                sourceName = sourceRepository.resolveDownloadFolderName(manga.sourceId),
                 mangaTitle = manga.title,
                 chapterTitle = chapter.name
             ).fold(
@@ -848,7 +934,7 @@ class DetailsViewModel @Inject constructor(
             val manga = _state.value.manga ?: return@launch
             _effect.send(
                 DetailsContract.Effect.OpenDownloadFolder(
-                    sourceName = manga.sourceId.toString(),
+                    sourceName = sourceRepository.resolveDownloadFolderName(manga.sourceId),
                     mangaTitle = manga.title,
                 )
             )
@@ -868,11 +954,12 @@ class DetailsViewModel @Inject constructor(
                 return@launch
             }
             var cleared = 0
+            val sourceName = sourceRepository.resolveDownloadFolderName(manga.sourceId)
             downloadedChapters.forEach { chapter ->
                 try {
                     downloadRepository.deleteChapterDownload(
                         chapterId = chapter.id,
-                        sourceName = manga.sourceId.toString(),
+                        sourceName = sourceName,
                         mangaTitle = manga.title,
                         chapterTitle = chapter.name,
                     )

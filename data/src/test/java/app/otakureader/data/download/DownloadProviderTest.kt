@@ -630,4 +630,118 @@ class DownloadProviderTest {
             root.deleteRecursively()
         }
     }
+
+    // -------------------------------------------------------------------------
+    // migrateSourceFolderNames()
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun migrateSourceFolderNames_renamesNumericDirToResolvedName() {
+        val root = tempDir()
+        try {
+            File(root, "1943584017").mkdirs()
+
+            val renamed = DownloadProvider.migrateSourceFolderNames(root, mapOf("1943584017" to "MangaDex"))
+
+            assertEquals(1, renamed)
+            assertFalse(File(root, "1943584017").exists())
+            assertTrue(File(root, "MangaDex").isDirectory)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun migrateSourceFolderNames_preservesContentsOfRenamedDir() {
+        val root = tempDir()
+        try {
+            val mangaDir = File(File(root, "1943584017"), "One Piece")
+            mangaDir.mkdirs()
+            File(mangaDir, "marker.txt").writeText("hello")
+
+            DownloadProvider.migrateSourceFolderNames(root, mapOf("1943584017" to "MangaDex"))
+
+            val migratedFile = File(File(File(root, "MangaDex"), "One Piece"), "marker.txt")
+            assertTrue(migratedFile.exists())
+            assertEquals("hello", migratedFile.readText())
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun migrateSourceFolderNames_leavesNonNumericDirsAlone() {
+        val root = tempDir()
+        try {
+            File(root, "MangaDex").mkdirs()
+
+            val renamed = DownloadProvider.migrateSourceFolderNames(root, mapOf("MangaDex" to "SomethingElse"))
+
+            assertEquals(0, renamed)
+            assertTrue(File(root, "MangaDex").isDirectory)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun migrateSourceFolderNames_leavesUnresolvableDirAlone() {
+        val root = tempDir()
+        try {
+            File(root, "1943584017").mkdirs()
+
+            // No entry in resolvedNames for this id — source can't be resolved (e.g. its
+            // extension was uninstalled) — the directory must be left exactly as-is.
+            val renamed = DownloadProvider.migrateSourceFolderNames(root, emptyMap())
+
+            assertEquals(0, renamed)
+            assertTrue(File(root, "1943584017").isDirectory)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun migrateSourceFolderNames_doesNotOverwriteExistingTargetDir() {
+        val root = tempDir()
+        try {
+            File(root, "1943584017").mkdirs()
+            File(root, "MangaDex").mkdirs()
+            File(File(root, "MangaDex"), "existing.txt").writeText("do not touch")
+
+            val renamed = DownloadProvider.migrateSourceFolderNames(root, mapOf("1943584017" to "MangaDex"))
+
+            // Conservative: never merge into an existing directory, even though it means the
+            // numeric-named directory is left behind rather than fully migrated.
+            assertEquals(0, renamed)
+            assertTrue(File(root, "1943584017").isDirectory)
+            assertTrue(File(File(root, "MangaDex"), "existing.txt").exists())
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun migrateSourceFolderNames_isIdempotent() {
+        val root = tempDir()
+        try {
+            File(root, "1943584017").mkdirs()
+            val resolvedNames = mapOf("1943584017" to "MangaDex")
+
+            val firstPass = DownloadProvider.migrateSourceFolderNames(root, resolvedNames)
+            val secondPass = DownloadProvider.migrateSourceFolderNames(root, resolvedNames)
+
+            assertEquals(1, firstPass)
+            assertEquals(0, secondPass)
+            assertTrue(File(root, "MangaDex").isDirectory)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun migrateSourceFolderNames_nonExistentRoot_returnsZero() {
+        val root = File(tempDir(), "does_not_exist")
+        assertEquals(0, DownloadProvider.migrateSourceFolderNames(root, emptyMap()))
+    }
 }

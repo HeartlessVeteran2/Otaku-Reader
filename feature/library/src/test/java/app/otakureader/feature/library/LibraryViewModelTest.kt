@@ -95,6 +95,7 @@ class LibraryViewModelTest {
     }
     private val sourceRepository: SourceRepository = mockk {
         every { getSources() } returns flowOf(emptyList())
+        coEvery { getSource(any()) } returns null
     }
     private val extensionRepository: ExtensionRepository = mockk {
         every { getInstalledExtensions() } returns flowOf(emptyList())

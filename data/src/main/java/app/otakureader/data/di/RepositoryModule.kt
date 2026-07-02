@@ -36,6 +36,7 @@ import app.otakureader.data.backup.tachiyomi.TachiyomiBackupImporter as Tachiyom
 import app.otakureader.data.tracking.TrackManager as TrackManagerImpl
 import app.otakureader.data.updater.AppUpdateChecker as AppUpdateCheckerImpl
 import app.otakureader.data.worker.CoverRefreshSchedulerImpl
+import app.otakureader.data.worker.DownloadFolderMigrationSchedulerImpl
 import app.otakureader.data.worker.LibraryUpdateScheduler as LibraryUpdateSchedulerImpl
 import app.otakureader.data.worker.ReadingReminderScheduler as ReadingReminderSchedulerImpl
 import app.otakureader.domain.backup.BackupRepository
@@ -59,6 +60,7 @@ import app.otakureader.data.worker.ExtensionUpdateSchedulerImpl
 import app.otakureader.data.worker.SyncSchedulerImpl
 import app.otakureader.data.worker.TrackerSyncSchedulerImpl
 import app.otakureader.domain.scheduler.CoverRefreshScheduler
+import app.otakureader.domain.scheduler.DownloadFolderMigrationScheduler
 import app.otakureader.domain.scheduler.ExtensionUpdateScheduler
 import app.otakureader.domain.scheduler.LibraryUpdateScheduler
 import app.otakureader.domain.scheduler.ReminderScheduler
@@ -156,6 +158,11 @@ abstract class RepositoryModule {
 
     @Binds
     abstract fun bindCoverRefreshScheduler(impl: CoverRefreshSchedulerImpl): CoverRefreshScheduler
+
+    @Binds
+    abstract fun bindDownloadFolderMigrationScheduler(
+        impl: DownloadFolderMigrationSchedulerImpl
+    ): DownloadFolderMigrationScheduler
 
     @Binds
     abstract fun bindTrackerSyncScheduler(impl: TrackerSyncSchedulerImpl): TrackerSyncScheduler

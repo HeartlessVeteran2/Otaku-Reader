@@ -770,6 +770,9 @@ class ReaderViewModelTest {
         every { downloadPreferences.downloadAheadWhileReading } returns flowOf(1)
         every { downloadPreferences.downloadAheadOnlyOnWifi } returns flowOf(false)
         every { downloadRepository.observeDownloads() } returns flowOf(emptyList())
+        // No installed source for this fixture id, so the download folder name falls back to
+        // the numeric sourceId string, matching testSourceIdString below.
+        coEvery { sourceRepository.getSource(testSourceIdString) } returns null
         coEvery {
             sourceRepository.getPageList(
                 testSourceIdString,

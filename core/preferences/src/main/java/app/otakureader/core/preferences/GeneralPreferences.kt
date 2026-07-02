@@ -124,6 +124,17 @@ class GeneralPreferences(private val dataStore: DataStore<Preferences>) {
     val displayName: Flow<String> = dataStore.data.map { it[Keys.DISPLAY_NAME] ?: "" }
     suspend fun setDisplayName(value: String) = dataStore.edit { it[Keys.DISPLAY_NAME] = value.trim() }
 
+    /**
+     * Whether [app.otakureader.data.worker.DownloadFolderMigrationWorker] has already renamed
+     * download source folders from numeric sourceId to the source's display name. Default:
+     * false (run the migration once). Never reset once true — safe to check even if the
+     * one-time WorkManager work record itself has aged out of WorkManager's history.
+     */
+    val downloadFolderMigrationDone: Flow<Boolean> =
+        dataStore.data.map { it[Keys.DOWNLOAD_FOLDER_MIGRATION_DONE] ?: false }
+    suspend fun setDownloadFolderMigrationDone(value: Boolean) =
+        dataStore.edit { it[Keys.DOWNLOAD_FOLDER_MIGRATION_DONE] = value }
+
     // --- Auto Theme Color ---
 
     /**
@@ -504,6 +515,7 @@ class GeneralPreferences(private val dataStore: DataStore<Preferences>) {
         val DISCORD_RPC_ENABLED = booleanPreferencesKey("discord_rpc_enabled")
         val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
         val DISPLAY_NAME = stringPreferencesKey("display_name")
+        val DOWNLOAD_FOLDER_MIGRATION_DONE = booleanPreferencesKey("download_folder_migration_done")
         val AUTO_THEME_COLOR = booleanPreferencesKey("auto_theme_color")
         val VISUAL_EFFECTS_ENABLED = booleanPreferencesKey("visual_effects_enabled")
         val MANHWA_OVERRIDE_IDS = stringSetPreferencesKey("manhwa_override_ids")
