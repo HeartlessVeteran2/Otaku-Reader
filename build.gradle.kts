@@ -90,8 +90,8 @@ allprojects {
             // logback — fixes CVE-2024-12798 (ACE, 7.3), CVE-2023-6378 (DoS, 7.1),
             // CVE-2025-11226 (ACE, 6.9), CVE-2026-1225 (class instantiation, 5.0),
             // CVE-2024-12801 (SSRF, 4.6); all resolved in 1.5.18+
-            force("ch.qos.logback:logback-core:1.5.25")
-            force("ch.qos.logback:logback-classic:1.5.25")
+            force("ch.qos.logback:logback-core:1.5.33")
+            force("ch.qos.logback:logback-classic:1.5.33")
 
             // Plexus Utils - fixes directory traversal (CVSS 7.5)
             force("org.codehaus.plexus:plexus-utils:4.0.3")
