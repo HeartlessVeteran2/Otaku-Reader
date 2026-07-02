@@ -47,6 +47,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import kotlin.time.Duration.Companion.seconds
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -544,9 +545,14 @@ class BrowseViewModelTest {
             extensionRepository = extensionRepository,
         )
 
-        viewModel.state.test {
+        viewModel.state.test(timeout = 10.seconds) {
             skipItems(1)
-            val state = awaitUntil { it.sources.isNotEmpty() && it.allSources.isNotEmpty() }
+            // sources and allSources are populated by two independent subscriptions, so don't
+            // assume they land in the same emitted snapshot — await each in turn.
+            var state = awaitUntil { it.sources.isNotEmpty() }
+            if (state.allSources.isEmpty()) {
+                state = awaitUntil { it.allSources.isNotEmpty() }
+            }
 
             assertEquals(listOf("1"), state.sources.map { it.id })
             assertEquals(setOf("1", "2"), state.allSources.map { it.id }.toSet())
