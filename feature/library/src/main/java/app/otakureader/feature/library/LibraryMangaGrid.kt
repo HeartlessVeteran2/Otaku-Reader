@@ -73,6 +73,12 @@ import coil3.compose.AsyncImage
 import java.util.Calendar
 import java.util.Locale
 
+/** Layout constants for the source icon badge. */
+private object SourceIconBadgeDefaults {
+    val IconSize = 20.dp
+    val CornerRadius = 4.dp
+}
+
 /** Layout constants for the compact list-mode row. */
 private object LibraryListRowDefaults {
     val HorizontalPadding = 12.dp
@@ -334,7 +340,7 @@ private fun LibraryMangaPageContent(
                     isSelected = manga.id in state.selectedManga,
                     unreadCount = if (state.showBadges) manga.unreadCount else 0,
                     downloadCount = if (state.showDownloadBadge) downloadCount else 0,
-                    showLanguageBadge = state.showBadges,
+                    showBadges = state.showBadges,
                     onClick = { onMangaTap(manga) },
                     onLongClick = { onMangaLongClick(manga.id) },
                 )
@@ -579,7 +585,7 @@ private fun LibraryListRow(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
-    showLanguageBadge: Boolean = true,
+    showBadges: Boolean = true,
 ) {
     Row(
         modifier = modifier
@@ -619,11 +625,11 @@ private fun LibraryListRow(
         if (unreadCount > 0) {
             UnreadBadge(count = unreadCount)
         }
-        if (showLanguageBadge && manga.sourceLanguage.isNotBlank()) {
+        if (showBadges && manga.sourceLanguage.isNotBlank()) {
             LanguageBadge(manga.sourceLanguage)
         }
-        if (showLanguageBadge && manga.sourceIconUrl != null) {
-            SourceIconBadge(manga.sourceIconUrl)
+        if (showBadges && manga.sourceIconUrl != null) {
+            SourceIconBadge(manga.sourceIconUrl, contentDescription = manga.sourceName.ifBlank { null })
         }
     }
 }
@@ -757,14 +763,15 @@ internal fun LanguageBadge(
 internal fun SourceIconBadge(
     iconUrl: String,
     modifier: Modifier = Modifier,
+    contentDescription: String? = null,
 ) {
     AsyncImage(
         model = iconUrl,
-        contentDescription = null,
+        contentDescription = contentDescription,
         contentScale = ContentScale.Crop,
         modifier = modifier
-            .size(20.dp)
-            .clip(RoundedCornerShape(4.dp)),
+            .size(SourceIconBadgeDefaults.IconSize)
+            .clip(RoundedCornerShape(SourceIconBadgeDefaults.CornerRadius)),
     )
 }
 

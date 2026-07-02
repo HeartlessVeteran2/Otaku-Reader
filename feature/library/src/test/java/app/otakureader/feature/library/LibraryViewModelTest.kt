@@ -230,6 +230,47 @@ class LibraryViewModelTest {
     }
 
     @Test
+    fun loadLibrary_populatesSourceIconUrl_fromInstalledExtensions() = runTest {
+        every { getLibraryManga() } returns flowOf(sampleMangas)
+        val testIconUrl = "https://test.icon/source10.png"
+        val fakeExtension = app.otakureader.core.extension.domain.model.Extension(
+            id = 1L,
+            pkgName = "eu.kanade.tachiyomi.extension.en.testsource",
+            name = "Test Source",
+            versionCode = 1,
+            versionName = "1.0",
+            sources = listOf(
+                app.otakureader.core.extension.domain.model.ExtensionSource(
+                    id = 10L,
+                    name = "Test Source",
+                    lang = "en",
+                    baseUrl = "https://example.com",
+                )
+            ),
+            status = app.otakureader.core.extension.domain.model.InstallStatus.INSTALLED,
+            apkPath = null,
+            iconUrl = testIconUrl,
+            lang = "en",
+            isNsfw = false,
+            installDate = null,
+            signatureHash = "abc123",
+        )
+        every { extensionRepository.getInstalledExtensions() } returns flowOf(listOf(fakeExtension))
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // sourceId 10 → icon URL from the extension
+        viewModel.state.value.mangaList
+            .filter { it.sourceId == 10L }
+            .forEach { assertEquals(testIconUrl, it.sourceIconUrl) }
+        // sourceId 20 → no matching extension, so null
+        viewModel.state.value.mangaList
+            .filter { it.sourceId == 20L }
+            .forEach { assertNull(it.sourceIconUrl) }
+    }
+
+    @Test
     fun init_setsLoadingFalseAfterLoad() = runTest {
         every { getLibraryManga() } returns flowOf(sampleMangas)
 
