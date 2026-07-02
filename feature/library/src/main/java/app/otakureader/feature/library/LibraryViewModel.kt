@@ -569,6 +569,11 @@ class LibraryViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
+    private suspend fun buildSourceIconUrlMap(): Map<Long, String?> =
+        extensionRepository.getInstalledExtensions().first()
+            .flatMap { ext -> ext.sources.map { src -> src.id to ext.iconUrl } }
+            .toMap()
+
     private fun loadLibrary() {
         val isRefreshing = _state.value.mangaList.isNotEmpty()
         _state.update { it.copy(isLoading = !isRefreshing, isRefreshing = isRefreshing) }
@@ -585,12 +590,7 @@ class LibraryViewModel @Inject constructor(
                             .toMap()
                     }
 
-                    // Build extension icon URL lookup in parallel (sourceId → iconUrl)
-                    val sourceIconUrlDeferred = async {
-                        extensionRepository.getInstalledExtensions().first()
-                            .flatMap { ext -> ext.sources.map { src -> src.id to ext.iconUrl } }
-                            .toMap()
-                    }
+                    val sourceIconUrlDeferred = async { buildSourceIconUrlMap() }
 
                     // Build tracking lookup in parallel
                     val trackingDeferred = mangaList.map { manga ->
