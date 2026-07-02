@@ -22,6 +22,7 @@ import app.otakureader.sourceapi.MangaSource
 import app.otakureader.sourceapi.SourceManga
 import io.mockk.Awaits
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
