@@ -39,32 +39,37 @@ For each screen area, follow this loop:
 |---|------|--------|-------|
 | 1 | Browse: Extensions + Sources | Done (PR #1145) | Extension install → source appears fix |
 | 2 | Library | Done (PR #1155) | Grid/list/comfortable/cover-only modes, tristate filters, filter sheet, RANDOM sort, bulk-select |
-| 3 | Manga detail | **Next** | Collapsing header, chapter list, tracker sheet, tag press |
-| 4 | Reader | Pending | Modes, tap zones, end/start overlays, slider snap, rotation, real-time settings |
+| 3 | Manga detail | Done (PR #1156, #1186) | Collapsing header, chapter list, tracker sheet, tag press, tap-to-search, cancel download, delete-downloads prompt, migrate action, source label |
+| 4 | Reader | **Next** | Modes, tap zones, end/start overlays, slider snap, rotation, real-time settings |
 | 5 | Updates / History / Downloads | Pending | J2K grouping, swipe actions, real-time progress |
 | 6 | Browse: global search / migrate / feed ordering | Pending | |
 | 7 | Settings | Pending | Match Komikku's settings tree, immediate-apply semantics |
 | 8 | More / stats / remaining screens | Pending | |
 
-## Current Session: Manga Detail (item #3)
+## Current Session: Reader (item #4)
 
 Komikku spec files to read:
-- `eu.kanade.presentation.manga.MangaScreen` (the composable)
-- `eu.kanade.tachiyomi.ui.manga.MangaScreenModel` (the ScreenModel)
+- `eu.kanade.presentation.reader.ReaderPageActionsDialog`, `ReaderContentOverlay`,
+  `ReaderAppBars.kt` (composables)
+- `eu.kanade.tachiyomi.ui.reader.ReaderActivity`, `ReaderViewModel` (state/behavior)
+- Per-mode viewers: `eu.kanade.tachiyomi.ui.reader.viewer.pager.*` (L2R/R2L/vertical pager),
+  `eu.kanade.tachiyomi.ui.reader.viewer.webtoon.*` (continuous vertical)
 
 Key elements to check (known Komikku behaviors):
-- Collapsing toolbar with cover image as hero
-- Summary expandable with "Read more" — max 3 lines collapsed
-- Genre/tag chips (tap → filter library by tag)
-- Chapter list: ascending/descending sort, read/unread filter, bookmarked filter, download filter
-- Chapter download state badges per row
-- Chapter multi-select: mark read, download, delete, bookmark
-- Tracker sheet bottom sheet with per-tracker row (status, score, chapter)
-- "Start reading" / "Resume" FAB that context-switches based on read state
-- Context menu on chapter long-press: bookmark, mark read/unread, download, delete
+- Reading modes: L2R, R2L, vertical, webtoon, continuous-vertical — per-manga override + global default
+- Tap zones: configurable (L/R/edge) with a "tap zones" preview/config screen; navigation vs menu-toggle zones
+- Top/bottom overlay bars: chapter title, page slider with snap-to-page, page count, settings shortcut
+- Slider: drag to seek pages within the chapter, snapping to discrete page positions
+- Volume-key paging toggle
+- Auto-rotation / forced orientation per-manga override
+- Real-time settings changes (brightness, color filter, crop borders, background color) applied without reopening the reader
+- Chapter transition screens (previous/next chapter preview at the edges of a chapter)
+- Double-tap to zoom (pager modes); pinch-to-zoom
+- Long-press page → save/share/set-as-cover context menu
 
 Gap areas likely in Otaku:
-- `feature/details/` Screen + ViewModel
+- `feature/reader/` Screen + ViewModel (4 modes already shipped per CLAUDE.md — verify tap zones,
+  slider snap, chapter transition screens, and real-time settings match Komikku exactly)
 
 ## Commit / PR Workflow
 
