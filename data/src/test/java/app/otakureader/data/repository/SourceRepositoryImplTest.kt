@@ -189,6 +189,35 @@ class SourceRepositoryImplTest {
     }
 
     @Test
+    fun getSources_afterRefresh_keepsAllSourcesWhenDisabledExtensionLookupFails() = runTest {
+        // A DB read failure while checking disabled state must not wipe out every
+        // loaded extension source — it should degrade to "treat nothing as disabled".
+        val localSource = makeFakeSource(id = "local", name = "Local")
+        val extSource = makeFakeCatalogueSource(id = 12345L, name = "MangaDex")
+
+        mockLocalSource(localSource)
+        every { extensionLoader.loadAllExtensions() } returns listOf(
+            makeSuccessResult(
+                pkgName = "eu.kanade.tachiyomi.extension.en.mangadex",
+                name = "MangaDex",
+                sources = listOf(extSource),
+                isNsfw = false,
+            )
+        )
+        every { extensionRepository.getInstalledExtensions() } throws
+            RuntimeException("DB unavailable")
+
+        val result = repository.refreshSources()
+        advanceUntilIdle()
+
+        assertTrue(result.isSuccess)
+        val sources = repository.getSources().first()
+        assertEquals(2, sources.size)
+        assertTrue(sources.any { it.id == "local" })
+        assertTrue(sources.any { it.id == "12345" })
+    }
+
+    @Test
     fun getSources_deduplicatesById() = runTest {
         // After refresh, only one source with id "999" should remain even if two
         // extensions both provide a CatalogueSource with the same Long ID (999).

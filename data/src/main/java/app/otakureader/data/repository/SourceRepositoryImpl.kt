@@ -467,11 +467,20 @@ class SourceRepositoryImpl @Inject constructor(
                 // Sources are parsed fresh from the APK on every load, so ExtensionLoadResult's
                 // Extension.isEnabled is always the model default (true) and never reflects the
                 // user's stored preference. Cross-reference the DB-persisted flag here so a
-                // disabled extension's sources stay out of Browse.
-                val disabledPkgNames = extensionRepository.getInstalledExtensions().first()
-                    .filterNot { it.isEnabled }
-                    .map { it.pkgName }
-                    .toSet()
+                // disabled extension's sources stay out of Browse. A failure to read this is
+                // non-fatal — fall back to treating nothing as disabled rather than losing every
+                // loaded source below.
+                val disabledPkgNames = try {
+                    extensionRepository.getInstalledExtensions().first()
+                        .filterNot { it.isEnabled }
+                        .map { it.pkgName }
+                        .toSet()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    android.util.Log.w(TAG, "Failed to read disabled extensions, treating all as enabled", e)
+                    emptySet()
+                }
                 val extensionSources = results
                     .filterIsInstance<ExtensionLoadResult.Success>()
                     .filterNot { it.extension.pkgName in disabledPkgNames }
