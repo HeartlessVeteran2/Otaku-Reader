@@ -1,5 +1,6 @@
 package app.otakureader.feature.browse
 
+import app.cash.turbine.ReceiveTurbine
 import app.cash.turbine.test
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.domain.model.FeedSavedSearch
@@ -144,6 +145,19 @@ class BrowseViewModelTest {
     // Called after reassigning viewModel inside a test to re-activate stateIn for the new instance.
     private fun activateStateCollection() {
         collectScope.launch { viewModel.state.collect { } }
+    }
+
+    /** Awaits state emissions until [predicate] matches, bounded so a wrong stub can't hang the test. */
+    private suspend fun ReceiveTurbine<BrowseState>.awaitUntil(
+        predicate: (BrowseState) -> Boolean,
+    ): BrowseState {
+        var state = awaitItem()
+        var attempts = 0
+        while (!predicate(state) && attempts < MAX_AWAIT_ATTEMPTS) {
+            state = awaitItem()
+            attempts++
+        }
+        return state
     }
 
     private fun createMangaSource(id: String, name: String = "Test Source", lang: String = "en", isNsfw: Boolean = false) =
@@ -529,13 +543,16 @@ class BrowseViewModelTest {
             extensionManagementRepository = extensionManagementRepository,
             extensionRepository = extensionRepository,
         )
-        activateStateCollection()
-        testDispatcher.scheduler.advanceUntilIdle()
 
-        val state = viewModel.state.value
-        assertEquals(listOf("1"), state.sources.map { it.id })
-        assertEquals(setOf("1", "2"), state.allSources.map { it.id }.toSet())
-        assertEquals(setOf(2L), state.disabledSourceIds)
+        viewModel.state.test {
+            skipItems(1)
+            val state = awaitUntil { it.sources.isNotEmpty() && it.allSources.isNotEmpty() }
+
+            assertEquals(listOf("1"), state.sources.map { it.id })
+            assertEquals(setOf("1", "2"), state.allSources.map { it.id }.toSet())
+            assertEquals(setOf(2L), state.disabledSourceIds)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
@@ -548,12 +565,23 @@ class BrowseViewModelTest {
 
     @Test
     fun `ShowSourcesFilterDialog and DismissSourcesFilterDialog toggle dialog visibility`() = runTest {
-        assertFalse(viewModel.state.value.showSourcesFilterDialog)
+        viewModel.state.test {
+            val initial = awaitItem()
+            assertFalse(initial.showSourcesFilterDialog)
 
-        viewModel.onEvent(BrowseEvent.ShowSourcesFilterDialog)
-        assertTrue(viewModel.state.value.showSourcesFilterDialog)
+            viewModel.onEvent(BrowseEvent.ShowSourcesFilterDialog)
+            val shown = awaitUntil { it.showSourcesFilterDialog }
+            assertTrue(shown.showSourcesFilterDialog)
 
-        viewModel.onEvent(BrowseEvent.DismissSourcesFilterDialog)
-        assertFalse(viewModel.state.value.showSourcesFilterDialog)
+            viewModel.onEvent(BrowseEvent.DismissSourcesFilterDialog)
+            val dismissed = awaitUntil { !it.showSourcesFilterDialog }
+            assertFalse(dismissed.showSourcesFilterDialog)
+
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    private companion object {
+        const val MAX_AWAIT_ATTEMPTS = 20
     }
 }

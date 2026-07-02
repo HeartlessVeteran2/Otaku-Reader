@@ -1,5 +1,7 @@
 package app.otakureader.feature.browse
 
+import app.cash.turbine.ReceiveTurbine
+import app.cash.turbine.test
 import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.domain.usecase.source.GetLatestUpdatesUseCase
 import app.otakureader.domain.usecase.source.GetPopularMangaUseCase
@@ -10,6 +12,7 @@ import app.otakureader.sourceapi.SourceManga
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -21,7 +24,6 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import kotlinx.coroutines.Dispatchers
 
 /**
  * Covers the Latest/Popular toggle added to bring SourceMangaScreen (the source browse
@@ -62,6 +64,19 @@ class SourceMangaViewModelTest {
             every { this@mockk.supportsLatest } returns supportsLatest
         }
 
+    /** Awaits state emissions until [predicate] matches, bounded so a wrong stub can't hang the test. */
+    private suspend fun ReceiveTurbine<SourceMangaState>.awaitUntil(
+        predicate: (SourceMangaState) -> Boolean,
+    ): SourceMangaState {
+        var state = awaitItem()
+        var attempts = 0
+        while (!predicate(state) && attempts < MAX_AWAIT_ATTEMPTS) {
+            state = awaitItem()
+            attempts++
+        }
+        return state
+    }
+
     @Test
     fun `setSourceId loads popular manga and reads supportsLatest from the source`() = runTest {
         val source = createMangaSource(id = "1", supportsLatest = true)
@@ -69,13 +84,16 @@ class SourceMangaViewModelTest {
         coEvery { sourceRepository.getPopularManga("1", 1) } returns
             Result.success(MangaPage(listOf(SourceManga(title = "Manga 1", url = "url1", thumbnailUrl = null)), false))
 
-        viewModel.setSourceId("1")
-        testDispatcher.scheduler.advanceUntilIdle()
+        viewModel.state.test {
+            skipItems(1)
+            viewModel.setSourceId("1")
+            val state = awaitUntil { it.manga.isNotEmpty() }
 
-        val state = viewModel.state.value
-        assertTrue(state.supportsLatest)
-        assertFalse(state.isShowingLatest)
-        assertEquals(1, state.manga.size)
+            assertTrue(state.supportsLatest)
+            assertFalse(state.isShowingLatest)
+            assertEquals(1, state.manga.size)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
@@ -87,16 +105,19 @@ class SourceMangaViewModelTest {
         coEvery { sourceRepository.getLatestUpdates("1", 1) } returns
             Result.success(MangaPage(listOf(SourceManga(title = "Latest", url = "latest", thumbnailUrl = null)), false))
 
-        viewModel.setSourceId("1")
-        testDispatcher.scheduler.advanceUntilIdle()
+        viewModel.state.test {
+            skipItems(1)
+            viewModel.setSourceId("1")
+            awaitUntil { it.manga.isNotEmpty() }
 
-        viewModel.onEvent(SourceMangaEvent.ToggleLatest)
-        testDispatcher.scheduler.advanceUntilIdle()
+            viewModel.onEvent(SourceMangaEvent.ToggleLatest)
+            val state = awaitUntil { it.isShowingLatest && it.manga.isNotEmpty() }
 
-        val state = viewModel.state.value
-        assertTrue(state.isShowingLatest)
-        assertEquals(1, state.manga.size)
-        assertEquals("Latest", state.manga[0].title)
+            assertTrue(state.isShowingLatest)
+            assertEquals(1, state.manga.size)
+            assertEquals("Latest", state.manga[0].title)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
@@ -108,17 +129,21 @@ class SourceMangaViewModelTest {
         coEvery { sourceRepository.getLatestUpdates("1", 1) } returns
             Result.success(MangaPage(listOf(SourceManga(title = "Latest", url = "latest", thumbnailUrl = null)), false))
 
-        viewModel.setSourceId("1")
-        testDispatcher.scheduler.advanceUntilIdle()
+        viewModel.state.test {
+            skipItems(1)
+            viewModel.setSourceId("1")
+            awaitUntil { it.manga.isNotEmpty() }
 
-        viewModel.onEvent(SourceMangaEvent.ToggleLatest)
-        testDispatcher.scheduler.advanceUntilIdle()
-        viewModel.onEvent(SourceMangaEvent.ToggleLatest)
-        testDispatcher.scheduler.advanceUntilIdle()
+            viewModel.onEvent(SourceMangaEvent.ToggleLatest)
+            awaitUntil { it.isShowingLatest && it.manga.isNotEmpty() }
 
-        val state = viewModel.state.value
-        assertFalse(state.isShowingLatest)
-        assertEquals("Popular", state.manga[0].title)
+            viewModel.onEvent(SourceMangaEvent.ToggleLatest)
+            val state = awaitUntil { !it.isShowingLatest && it.manga.isNotEmpty() }
+
+            assertFalse(state.isShowingLatest)
+            assertEquals("Popular", state.manga[0].title)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
@@ -130,15 +155,25 @@ class SourceMangaViewModelTest {
         coEvery { sourceRepository.searchManga("1", "query", 1, any()) } returns
             Result.success(MangaPage(listOf(SourceManga(title = "Result", url = "result", thumbnailUrl = null)), false))
 
-        viewModel.setSourceId("1", initialQuery = "query")
-        testDispatcher.scheduler.advanceUntilIdle()
+        viewModel.state.test {
+            skipItems(1)
+            viewModel.setSourceId("1", initialQuery = "query")
+            val loaded = awaitUntil { it.manga.isNotEmpty() }
+            assertTrue(loaded.isSearchMode)
 
-        viewModel.onEvent(SourceMangaEvent.ToggleLatest)
-        testDispatcher.scheduler.advanceUntilIdle()
+            viewModel.onEvent(SourceMangaEvent.ToggleLatest)
 
-        val state = viewModel.state.value
-        assertFalse(state.isShowingLatest)
-        assertTrue(state.isSearchMode)
-        assertEquals(1, state.manga.size)
+            // No new emission should follow from the no-op event; re-check state is unchanged
+            // by asserting directly rather than awaiting (there is nothing further to await).
+            val state = viewModel.state.value
+            assertFalse(state.isShowingLatest)
+            assertTrue(state.isSearchMode)
+            assertEquals(1, state.manga.size)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    private companion object {
+        const val MAX_AWAIT_ATTEMPTS = 20
     }
 }
