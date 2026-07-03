@@ -871,7 +871,6 @@ private fun SourceListContent(
                                         if (index > 0) {
                                             IconButton(
                                                 onClick = { onEvent(BrowseEvent.MoveNamedSavedSearchUp(search.id)) },
-                                                modifier = Modifier.size(24.dp),
                                             ) {
                                                 Icon(
                                                     Icons.AutoMirrored.Filled.KeyboardArrowLeft,
@@ -883,7 +882,6 @@ private fun SourceListContent(
                                         if (index < state.namedSavedSearches.lastIndex) {
                                             IconButton(
                                                 onClick = { onEvent(BrowseEvent.MoveNamedSavedSearchDown(search.id)) },
-                                                modifier = Modifier.size(24.dp),
                                             ) {
                                                 Icon(
                                                     Icons.AutoMirrored.Filled.KeyboardArrowRight,
@@ -894,7 +892,6 @@ private fun SourceListContent(
                                         }
                                         IconButton(
                                             onClick = { onEvent(BrowseEvent.DeleteNamedSavedSearch(search.id)) },
-                                            modifier = Modifier.size(24.dp),
                                         ) {
                                             Icon(
                                                 Icons.Default.Close,

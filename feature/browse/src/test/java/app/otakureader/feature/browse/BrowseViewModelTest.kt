@@ -459,6 +459,46 @@ class BrowseViewModelTest {
     }
 
     @Test
+    fun `MoveNamedSavedSearchDown still reorders when neighbors share the same legacy order value`() = runTest {
+        // Simulates entries persisted before the `order` field existed — they all decode to the
+        // default 0. Without normalizing first, swapping two same-valued neighbors would write
+        // the same value back to both and silently do nothing.
+        val searchA = SavedSourceSearch(id = "a", name = "A", query = "a", sourceId = 1L, sourceName = "1", order = 0)
+        val searchB = SavedSourceSearch(id = "b", name = "B", query = "b", sourceId = 1L, sourceName = "1", order = 0)
+        val initialJson = Json.encodeToString(listOf(searchA, searchB))
+
+        every { generalPreferences.savedSourceSearchesJson } returns flowOf(initialJson)
+        val writtenJson = slot<String>()
+        coEvery { generalPreferences.setSavedSourceSearchesJson(capture(writtenJson)) } just Awaits
+
+        viewModel = BrowseViewModel(
+            getSourcesUseCase = getSourcesUseCase,
+            getPopularMangaUseCase = getPopularMangaUseCase,
+            getLatestUpdatesUseCase = getLatestUpdatesUseCase,
+            searchMangaUseCase = searchMangaUseCase,
+            getSourceFiltersUseCase = getSourceFiltersUseCase,
+            addMangaToLibraryUseCase = addMangaToLibraryUseCase,
+            toggleFavoriteMangaUseCase = toggleFavoriteMangaUseCase,
+            mangaRepository = mangaRepository,
+            generalPreferences = generalPreferences,
+            searchLibraryMangaUseCase = searchLibraryMangaUseCase,
+            extensionManagementRepository = extensionManagementRepository,
+            extensionRepository = extensionRepository,
+        )
+        activateStateCollection()
+
+        viewModel.onEvent(BrowseEvent.SelectSource("1"))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onEvent(BrowseEvent.MoveNamedSavedSearchDown("a"))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val updated = Json.decodeFromString<List<SavedSourceSearch>>(writtenJson.captured).associateBy { it.id }
+        assertEquals(1, updated.getValue("a").order)
+        assertEquals(0, updated.getValue("b").order)
+    }
+
+    @Test
     fun `MoveNamedSavedSearchUp on the first item is a no-op`() = runTest {
         val searchA = SavedSourceSearch(id = "a", name = "A", query = "a", sourceId = 1L, sourceName = "1", order = 0)
         val searchB = SavedSourceSearch(id = "b", name = "B", query = "b", sourceId = 1L, sourceName = "1", order = 1)

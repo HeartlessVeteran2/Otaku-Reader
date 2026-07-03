@@ -718,26 +718,33 @@ class BrowseViewModel @Inject constructor(
     }
 
     /**
-     * Swaps [id]'s display order with its neighbor [offset] positions away (within the same
+     * Swaps [id]'s display position with its neighbor [offset] positions away (within the same
      * source's saved searches, matching Komikku's `FeedOrderScreen` move-up/move-down actions).
      * A no-op if [id] is already at that edge of the list.
+     *
+     * The scoped list is first normalized to unique sequential orders (0, 1, 2, ...) before
+     * swapping. Without this, entries decoded from JSON persisted before the `order` field
+     * existed all default to 0 — swapping two same-valued neighbors would write the same value
+     * back to both, making reorder a silent no-op for any legacy saved search.
      */
     private fun moveNamedSavedSearch(id: String, offset: Int) {
         viewModelScope.launch {
             try {
                 val all = readAllNamedSearches()
                 val sourceId = _state.value.currentSourceId
-                val scoped = all.filter { it.sourceName == sourceId }.sortedBy { it.order }
-                val currentIndex = scoped.indexOfFirst { it.id == id }
+                val normalized = all.filter { it.sourceName == sourceId }
+                    .sortedBy { it.order }
+                    .mapIndexed { index, search -> search.copy(order = index) }
+                val currentIndex = normalized.indexOfFirst { it.id == id }
                 val targetIndex = currentIndex + offset
-                if (currentIndex == -1 || targetIndex !in scoped.indices) return@launch
+                if (currentIndex == -1 || targetIndex !in normalized.indices) return@launch
 
-                val current = scoped[currentIndex]
-                val target = scoped[targetIndex]
-                val swappedOrders = mapOf(current.id to target.order, target.id to current.order)
-                writeAllNamedSearches(
-                    all.map { search -> swappedOrders[search.id]?.let { search.copy(order = it) } ?: search }
-                )
+                val reordered = normalized.toMutableList()
+                reordered[currentIndex] = normalized[targetIndex].copy(order = currentIndex)
+                reordered[targetIndex] = normalized[currentIndex].copy(order = targetIndex)
+                val byId = reordered.associateBy { it.id }
+
+                writeAllNamedSearches(all.map { search -> byId[search.id] ?: search })
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
