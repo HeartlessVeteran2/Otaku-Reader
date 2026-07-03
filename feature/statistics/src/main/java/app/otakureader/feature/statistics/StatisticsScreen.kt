@@ -180,6 +180,16 @@ private fun StatisticsContent(
         // Gradient hero card — reading overview
         item { StatsHeroCard(stats = stats) }
 
+        // Library detail — completed titles, total chapters (Komikku's Titles/Chapters sections)
+        item {
+            HorizontalDivider()
+            Spacer(modifier = Modifier.height(4.dp))
+            LibraryDetailCard(
+                completedMangaCount = stats.completedMangaCount,
+                totalChapterCount = stats.totalChapterCount,
+            )
+        }
+
         // Reading goals progress
         if (readingGoal.dailyGoal > 0 || readingGoal.weeklyGoal > 0) {
             item {
@@ -455,6 +465,51 @@ private fun StreakCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp),
+                )
+            }
+        }
+    }
+}
+
+/** Completed titles and total chapter count across the library — mirrors Komikku's Titles/Chapters stat sections. */
+@Composable
+private fun LibraryDetailCard(
+    completedMangaCount: Int,
+    totalChapterCount: Int,
+    modifier: Modifier = Modifier
+) {
+    val otaku = LocalOtakuColors.current
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.statistics_library_detail),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                StreakStatItem(
+                    value = completedMangaCount.toString(),
+                    label = stringResource(R.string.statistics_completed_titles),
+                    valueColor = otaku.accent,
+                    modifier = Modifier.weight(1f),
+                )
+                StreakStatItem(
+                    value = totalChapterCount.toString(),
+                    label = stringResource(R.string.statistics_total_chapters),
+                    valueColor = otaku.accent,
+                    modifier = Modifier.weight(1f),
                 )
             }
         }

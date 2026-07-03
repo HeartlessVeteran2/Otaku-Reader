@@ -12,6 +12,7 @@ import app.otakureader.core.database.dao.DownloadQueueDao
 import app.otakureader.core.database.dao.MangaAlternativeSourceDao
 import app.otakureader.core.database.dao.SyncQueueDao
 import app.otakureader.core.database.dao.TrackEntryDao
+import app.otakureader.core.database.dao.UpdateErrorDao
 import app.otakureader.core.database.dao.UpdateRunSummaryDao
 import app.otakureader.core.database.migrations.ALL_MIGRATIONS
 import dagger.Module
@@ -116,4 +117,7 @@ object DatabaseModule {
 
     @Provides
     fun provideReaderCommentDao(database: OtakuReaderDatabase) = database.readerCommentDao()
+
+    @Provides
+    fun provideUpdateErrorDao(database: OtakuReaderDatabase): UpdateErrorDao = database.updateErrorDao()
 }

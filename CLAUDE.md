@@ -206,7 +206,7 @@ LibraryScreen.kt    — stateless composable consuming state
 - Migrations must be explicit. **Never use `fallbackToDestructiveMigration()` in production.**
 - Entities are separate from domain models. Always write and use mapper functions.
 - For tests, use in-memory Room databases — no `MigrationTestHelper`.
-- Current schema version: **v39** (PR #1130, merged 2026-06-20 — adds `bookmark_collections` table and `page_bookmarks.collection_id` FK).
+- Current schema version: **v40** (adds `update_errors` table — per-manga current-unresolved library update failures, keyed by `mangaId`, replaced on each new failure and cleared on the manga's next successful update).
 - **SQLite cannot `DROP COLUMN`** — to remove a column, CREATE TABLE new → INSERT INTO SELECT (omit removed column) → DROP TABLE old → RENAME new. When child tables have FK references to the table being recreated, wrap the entire block with `PRAGMA foreign_keys = OFF` (before) and `PRAGMA foreign_keys = ON` (after) to prevent `SQLITE_CONSTRAINT_FOREIGNKEY` on the DROP step.
 
 ---

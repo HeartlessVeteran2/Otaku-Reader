@@ -23,6 +23,7 @@ import app.otakureader.core.database.dao.RecommendationDao
 import app.otakureader.core.database.dao.SyncQueueDao
 import app.otakureader.core.database.dao.TrackEntryDao
 import app.otakureader.core.database.dao.TrackerSyncDao
+import app.otakureader.core.database.dao.UpdateErrorDao
 import app.otakureader.core.database.dao.UpdateRunSummaryDao
 import app.otakureader.core.database.dao.MangaAlternativeSourceDao
 import app.otakureader.core.database.entity.AchievementEntity
@@ -51,6 +52,7 @@ import app.otakureader.core.database.entity.SyncConfigurationEntity
 import app.otakureader.core.database.entity.SyncQueueEntity
 import app.otakureader.core.database.entity.TrackEntryEntity
 import app.otakureader.core.database.entity.TrackerSyncStateEntity
+import app.otakureader.core.database.entity.UpdateErrorEntity
 import app.otakureader.core.database.entity.UpdateRunSummaryEntity
 
 @Database(
@@ -98,8 +100,10 @@ import app.otakureader.core.database.entity.UpdateRunSummaryEntity
         ReaderCommentEntity::class,
         // Bookmark collections (#1128)
         BookmarkCollectionEntity::class,
+        // Current unresolved per-manga library update errors (Update Errors screen)
+        UpdateErrorEntity::class,
     ],
-    version = 39,
+    version = 40,
     exportSchema = true
 )
 @TypeConverters(DatabaseConverters::class)
@@ -128,6 +132,7 @@ abstract class OtakuReaderDatabase : RoomDatabase() {
     abstract fun mangaAlternativeSourceDao(): MangaAlternativeSourceDao
     abstract fun readerCommentDao(): ReaderCommentDao
     abstract fun bookmarkCollectionDao(): BookmarkCollectionDao
+    abstract fun updateErrorDao(): UpdateErrorDao
 
     companion object {
         const val DATABASE_NAME = "otakureader.db"

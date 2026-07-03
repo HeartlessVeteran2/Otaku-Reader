@@ -54,6 +54,7 @@ import app.otakureader.data.repository.SourceRepositoryImpl
 import app.otakureader.data.repository.StatisticsRepositoryImpl
 import app.otakureader.data.repository.DynamicCategoryRepositoryImpl
 import app.otakureader.data.repository.RecommendationRepositoryImpl
+import app.otakureader.data.repository.UpdateErrorRepositoryImpl
 import app.otakureader.data.repository.UpdateRunSummaryRepositoryImpl
 import app.otakureader.data.sync.SyncRepositoryImpl
 import app.otakureader.data.worker.ExtensionUpdateSchedulerImpl
@@ -64,6 +65,7 @@ import app.otakureader.domain.scheduler.DownloadFolderMigrationScheduler
 import app.otakureader.domain.scheduler.ExtensionUpdateScheduler
 import app.otakureader.domain.scheduler.LibraryUpdateScheduler
 import app.otakureader.domain.scheduler.ReminderScheduler
+import app.otakureader.domain.repository.UpdateErrorRepository
 import app.otakureader.domain.repository.UpdateRunSummaryRepository
 import app.otakureader.domain.scheduler.SyncScheduler
 import app.otakureader.domain.scheduler.TrackerSyncScheduler
@@ -187,6 +189,9 @@ abstract class RepositoryModule {
 
     @Binds
     abstract fun bindUpdateRunSummaryRepository(impl: UpdateRunSummaryRepositoryImpl): UpdateRunSummaryRepository
+
+    @Binds
+    abstract fun bindUpdateErrorRepository(impl: UpdateErrorRepositoryImpl): UpdateErrorRepository
 
     @Binds
     abstract fun bindEhFavoritesRepository(impl: EhFavoritesRepositoryImpl): EhFavoritesRepository

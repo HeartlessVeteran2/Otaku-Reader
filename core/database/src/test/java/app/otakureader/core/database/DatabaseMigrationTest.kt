@@ -30,6 +30,7 @@ import app.otakureader.core.database.migrations.MIGRATION_35_36
 import app.otakureader.core.database.migrations.MIGRATION_36_37
 import app.otakureader.core.database.migrations.MIGRATION_37_38
 import app.otakureader.core.database.migrations.MIGRATION_38_39
+import app.otakureader.core.database.migrations.MIGRATION_39_40
 import app.otakureader.core.database.migrations.MIGRATION_9_10
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -41,7 +42,8 @@ import org.junit.runner.RunWith
 private const val TEST_DB = "migration-test"
 private const val SCHEMA_V37 = 37
 private const val SCHEMA_V39 = 39
-private const val EXPECTED_MIGRATION_COUNT = 37
+private const val SCHEMA_V40 = 40
+private const val EXPECTED_MIGRATION_COUNT = 38
 
 @RunWith(AndroidJUnit4::class)
 // One test class per migration chain: it grows by design with every schema version.
@@ -60,7 +62,7 @@ class DatabaseMigrationTest {
     fun allMigrations_formsContiguousChain() {
         val sorted = ALL_MIGRATIONS.sortedBy { it.startVersion }
         assertEquals("Migration chain must start at version 2", 2, sorted.first().startVersion)
-        assertEquals("Migration chain must end at version 39", SCHEMA_V39, sorted.last().endVersion)
+        assertEquals("Migration chain must end at version 40", SCHEMA_V40, sorted.last().endVersion)
 
         for (i in 0 until sorted.size - 1) {
             val current = sorted[i]
@@ -87,7 +89,7 @@ class DatabaseMigrationTest {
 
     @Test
     fun allMigrations_count() {
-        assertEquals("Expected 37 migrations (v2→v39)", EXPECTED_MIGRATION_COUNT, ALL_MIGRATIONS.size)
+        assertEquals("Expected 38 migrations (v2→v40)", EXPECTED_MIGRATION_COUNT, ALL_MIGRATIONS.size)
     }
 
     // ── Migration 9 → 10 ────────────────────────────────────────────────────
@@ -896,6 +898,43 @@ class DatabaseMigrationTest {
             "bookmark_collections" in db.tableNames())
         assertTrue("collection_id must exist in page_bookmarks after full chain",
             "collection_id" in db.columnNames("page_bookmarks"))
+        db.close()
+    }
+
+    // ── Migration 39 → 40 ───────────────────────────────────────────────────
+    // Adds: update_errors table (current unresolved per-manga library update failures).
+
+    @Test
+    fun migration39To40_createsUpdateErrorsTable() {
+        val db = helper.createDatabase(TEST_DB, SCHEMA_V39)
+        assertFalse("update_errors must NOT exist at v39", "update_errors" in db.tableNames())
+        MIGRATION_39_40.migrate(db)
+        assertTrue("update_errors must exist after 39→40", "update_errors" in db.tableNames())
+        val cols = db.columnNames("update_errors")
+        assertTrue("mangaId must exist", "mangaId" in cols)
+        assertTrue("errorMessage must exist", "errorMessage" in cols)
+        assertTrue("timestamp must exist", "timestamp" in cols)
+        db.close()
+    }
+
+    @Test
+    fun migration39To40_updateErrorsHasMangaIdForeignKeyToManga() {
+        val db = helper.createDatabase(TEST_DB, SCHEMA_V39)
+        MIGRATION_39_40.migrate(db)
+        val fkCursor = db.query("PRAGMA foreign_key_list('update_errors')")
+        var foundMangaFk = false
+        while (fkCursor.moveToNext()) {
+            val table = fkCursor.getString(fkCursor.getColumnIndexOrThrow("table"))
+            val from = fkCursor.getString(fkCursor.getColumnIndexOrThrow("from"))
+            val to = fkCursor.getString(fkCursor.getColumnIndexOrThrow("to"))
+            val onDelete = fkCursor.getString(fkCursor.getColumnIndexOrThrow("on_delete"))
+            if (table == "manga" && from == "mangaId" && to == "id" && onDelete == "CASCADE") {
+                foundMangaFk = true
+                break
+            }
+        }
+        fkCursor.close()
+        assertTrue("mangaId FK must reference manga(id) ON DELETE CASCADE", foundMangaFk)
         db.close()
     }
 

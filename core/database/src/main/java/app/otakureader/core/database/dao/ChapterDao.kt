@@ -60,6 +60,10 @@ interface ChapterDao {
     
     @Query("SELECT COUNT(*) FROM chapters WHERE mangaId = :mangaId AND read = 0")
     fun getUnreadCountByMangaId(mangaId: Long): Flow<Int>
+
+    /** Total chapter count across every favorited (library) manga, for the Statistics screen. */
+    @Query("SELECT COUNT(*) FROM chapters INNER JOIN manga ON chapters.mangaId = manga.id WHERE manga.favorite = 1")
+    fun getTotalChapterCountForLibrary(): Flow<Int>
     
     @Query("SELECT COUNT(*) FROM chapters WHERE mangaId = :mangaId AND read = 1")
     fun getReadCountByMangaId(mangaId: Long): Flow<Int>
