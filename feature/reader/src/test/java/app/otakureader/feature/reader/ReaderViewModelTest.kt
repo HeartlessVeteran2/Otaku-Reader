@@ -619,14 +619,21 @@ class ReaderViewModelTest {
     // production — see ReaderDeleteAfterReadDelegate's KDoc and RecordReadingHistoryWorkerTest
     // for the durable WorkManager-based counterpart that covers reader-exit-before-debounce.
 
+    // stubDeleteAfterReadFixture() and the downloadPreferences overrides are applied AFTER the
+    // ViewModel is constructed and its init-time chapter load has settled — the base setUp()
+    // deliberately returns null manga/chapter so that init-time load "exits early without
+    // side-effects" (see its comment); swapping in a real manga/chapter before construction was
+    // found to perturb that init path and made saveCurrentProgress() never actually reach the
+    // debounced delegate call.
+
     @Test
     fun `reaching the last page deletes the download when delete-after-reading is globally enabled`() = runTest {
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
         stubDeleteAfterReadFixture()
         every { downloadPreferences.deleteAfterReading } returns flowOf(true)
         every { downloadPreferences.perMangaOverrides } returns flowOf(emptyMap())
 
-        val vm = createViewModel()
-        testDispatcher.scheduler.advanceUntilIdle()
         vm.setPages(List(5) { ReaderPage(index = it) })
         vm.jumpToPage(4)
         testDispatcher.scheduler.advanceUntilIdle()
@@ -639,12 +646,12 @@ class ReaderViewModelTest {
     @Test
     fun `reaching the last page does not delete when a per-manga override disables it despite the global setting`() =
         runTest {
+            val vm = createViewModel()
+            testDispatcher.scheduler.advanceUntilIdle()
             stubDeleteAfterReadFixture()
             every { downloadPreferences.deleteAfterReading } returns flowOf(true)
             every { downloadPreferences.perMangaOverrides } returns flowOf(mapOf(mangaId to DeleteAfterReadMode.DISABLED))
 
-            val vm = createViewModel()
-            testDispatcher.scheduler.advanceUntilIdle()
             vm.setPages(List(5) { ReaderPage(index = it) })
             vm.jumpToPage(4)
             testDispatcher.scheduler.advanceUntilIdle()
@@ -654,12 +661,12 @@ class ReaderViewModelTest {
 
     @Test
     fun `reaching the last page deletes when a per-manga override enables it despite the global setting`() = runTest {
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
         stubDeleteAfterReadFixture()
         every { downloadPreferences.deleteAfterReading } returns flowOf(false)
         every { downloadPreferences.perMangaOverrides } returns flowOf(mapOf(mangaId to DeleteAfterReadMode.ENABLED))
 
-        val vm = createViewModel()
-        testDispatcher.scheduler.advanceUntilIdle()
         vm.setPages(List(5) { ReaderPage(index = it) })
         vm.jumpToPage(4)
         testDispatcher.scheduler.advanceUntilIdle()
@@ -671,13 +678,13 @@ class ReaderViewModelTest {
 
     @Test
     fun `reaching the last page does not delete a chapter that has no downloaded pages`() = runTest {
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
         stubDeleteAfterReadFixture()
         coEvery { downloadRepository.isChapterDownloaded(any(), any(), any()) } returns false
         every { downloadPreferences.deleteAfterReading } returns flowOf(true)
         every { downloadPreferences.perMangaOverrides } returns flowOf(emptyMap())
 
-        val vm = createViewModel()
-        testDispatcher.scheduler.advanceUntilIdle()
         vm.setPages(List(5) { ReaderPage(index = it) })
         vm.jumpToPage(4)
         testDispatcher.scheduler.advanceUntilIdle()
@@ -687,12 +694,12 @@ class ReaderViewModelTest {
 
     @Test
     fun `does not delete when the chapter is not on its last page`() = runTest {
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
         stubDeleteAfterReadFixture()
         every { downloadPreferences.deleteAfterReading } returns flowOf(true)
         every { downloadPreferences.perMangaOverrides } returns flowOf(emptyMap())
 
-        val vm = createViewModel()
-        testDispatcher.scheduler.advanceUntilIdle()
         vm.setPages(List(5) { ReaderPage(index = it) })
         vm.jumpToPage(2)
         testDispatcher.scheduler.advanceUntilIdle()
