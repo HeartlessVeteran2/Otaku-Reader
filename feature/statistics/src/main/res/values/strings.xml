@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="statistics_title">Statistics</string>
+    <string name="statistics_achievements_title">Achievements</string>
     <string name="statistics_back">Back</string>
     <string name="statistics_unknown_error">Unknown error</string>
     <string name="statistics_reading_goals">Reading Goals</string>

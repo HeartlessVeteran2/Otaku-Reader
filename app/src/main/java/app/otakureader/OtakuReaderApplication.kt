@@ -25,6 +25,8 @@ import coil3.request.allowRgb565
 import coil3.request.crossfade
 import com.google.android.material.color.DynamicColors
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import okio.Path.Companion.toOkioPath
 import javax.inject.Inject
@@ -165,12 +167,17 @@ class OtakuReaderApplication : Application(), Configuration.Provider, SingletonI
                     .build()
             }
             .diskCache {
-                // Use the user-configured disk cache size if readable, otherwise fall back
-                // to the preference default so the ImageLoader can be constructed without
-                // blocking the calling thread.
+                // This factory lambda is invoked lazily by Coil on first disk-cache access
+                // (not synchronously here at ImageLoader construction time), so a blocking
+                // DataStore read is safe — it never blocks app startup or the calling thread
+                // that builds the ImageLoader. Falls back to the preference default if the
+                // read fails for any reason.
+                val sizeMb = runCatching {
+                    runBlocking { generalPreferences.coilDiskCacheSizeMb.first() }
+                }.getOrDefault(GeneralPreferences.DEFAULT_COIL_DISK_CACHE_MB)
                 DiskCache.Builder()
                     .directory(context.cacheDir.resolve("image_cache").toOkioPath())
-                    .maxSizeBytes(GeneralPreferences.DEFAULT_COIL_DISK_CACHE_MB.toLong() * 1024 * 1024)
+                    .maxSizeBytes(sizeMb.toLong() * 1024 * 1024)
                     .build()
             }
             .components {

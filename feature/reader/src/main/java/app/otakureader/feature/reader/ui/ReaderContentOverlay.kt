@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Comment
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.BookmarkBorder
@@ -63,6 +64,7 @@ private val readerTopBarFade = tween<Float>(READER_TOP_BAR_FADE_MS)
  * @param isCurrentChapterDownloaded When true, the download button is hidden.
  * @param onBookmarkPage Called when the bookmark icon is tapped; null hides the button.
  * @param isCurrentPageBookmarked When true, shows a solid bookmark; when false, shows an outlined bookmark border.
+ * @param onOpenComments Called when the comments icon is tapped; null hides the button.
  */
 @Composable
 fun ReaderContentOverlay(
@@ -76,6 +78,7 @@ fun ReaderContentOverlay(
     isCurrentChapterDownloaded: Boolean = false,
     onBookmarkPage: (() -> Unit)? = null,
     isCurrentPageBookmarked: Boolean = false,
+    onOpenComments: (() -> Unit)? = null,
 ) {
     AnimatedVisibility(
         visible = isVisible,
@@ -151,6 +154,15 @@ fun ReaderContentOverlay(
                         } else {
                             onSurfaceVariant
                         }
+                    )
+                }
+            }
+            if (onOpenComments != null) {
+                IconButton(onClick = onOpenComments) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.Comment,
+                        contentDescription = stringResource(R.string.reader_comments_title),
+                        tint = onSurfaceVariant
                     )
                 }
             }

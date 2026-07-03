@@ -66,14 +66,16 @@ fun LoadingScreen(
 fun ErrorScreen(
     message: String,
     modifier: Modifier = Modifier,
-    onRetry: (() -> Unit)? = null
+    onRetry: (() -> Unit)? = null,
+    onOpenInBrowser: (() -> Unit)? = null,
 ) {
     ErrorScreen(
         icon = Icons.Default.Error,
         title = stringResource(R.string.core_ui_error_title),
         message = message,
         modifier = modifier,
-        onRetry = onRetry
+        onRetry = onRetry,
+        onOpenInBrowser = onOpenInBrowser,
     )
 }
 
@@ -85,7 +87,10 @@ fun ErrorScreen(
     message: String,
     modifier: Modifier = Modifier,
     retryText: String = stringResource(R.string.core_ui_retry),
-    onRetry: (() -> Unit)? = null
+    onRetry: (() -> Unit)? = null,
+    /** Secondary "try in browser" escape hatch; null hides the button. */
+    onOpenInBrowser: (() -> Unit)? = null,
+    openInBrowserText: String = stringResource(R.string.core_ui_open_in_browser),
 ) {
     val otaku = LocalOtakuColors.current
     Column(
@@ -127,6 +132,13 @@ fun ErrorScreen(
                 Icon(Icons.Default.Refresh, contentDescription = null)
                 Spacer(modifier = Modifier.size(8.dp))
                 Text(retryText)
+            }
+        }
+
+        if (onOpenInBrowser != null) {
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedButton(onClick = onOpenInBrowser) {
+                Text(openInBrowserText)
             }
         }
     }

@@ -125,7 +125,6 @@ data class SettingsState(
     val showBadges get() = library.showBadges
     val showDownloadBadge get() = library.showDownloadBadge
     val updateOnlyOnWifi get() = library.updateOnlyOnWifi
-    val updateOnlyPinnedCategories get() = library.updateOnlyPinnedCategories
     val autoRefreshOnStart get() = library.autoRefreshOnStart
     val showUpdateProgress get() = library.showUpdateProgress
     val skipUpdatesWithUnread get() = library.skipUpdatesWithUnread
@@ -260,7 +259,6 @@ sealed interface SettingsEvent : UiEvent {
     data class SetShowBadges(val enabled: Boolean) : SettingsEvent
     data class SetShowDownloadBadge(val enabled: Boolean) : SettingsEvent
     data class SetUpdateOnlyOnWifi(val enabled: Boolean) : SettingsEvent
-    data class SetUpdateOnlyPinnedCategories(val enabled: Boolean) : SettingsEvent
     data class SetAutoRefreshOnStart(val enabled: Boolean) : SettingsEvent
     data class SetShowUpdateProgress(val enabled: Boolean) : SettingsEvent
     data class SetSkipUpdatesWithUnread(val enabled: Boolean) : SettingsEvent

@@ -104,6 +104,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.otakureader.core.ui.adaptive.isExpanded
 import app.otakureader.core.ui.adaptive.rememberWindowWidthSizeClass
 import app.otakureader.domain.model.Category
+import app.otakureader.domain.model.ReadingList
 import app.otakureader.core.ui.component.ErrorScreen
 import app.otakureader.core.ui.component.LoadingScreen
 import app.otakureader.core.ui.theme.MangaDynamicTheme
@@ -156,6 +157,7 @@ fun DetailsScreen(
     onNavigateToGlobalSearch: (query: String) -> Unit = {},
     onNavigateToSourceSearch: (sourceId: String, query: String) -> Unit = { _, _ -> },
     onNavigateToMigration: (mangaId: Long) -> Unit = {},
+    onNavigateToWebViewFallback: (url: String, title: String) -> Unit = { _, _ -> },
     viewModel: DetailsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -221,6 +223,9 @@ fun DetailsScreen(
                 }
                 is DetailsContract.Effect.NavigateToMigration -> {
                     onNavigateToMigration(effect.mangaId)
+                }
+                is DetailsContract.Effect.NavigateToWebViewFallback -> {
+                    onNavigateToWebViewFallback(effect.url, effect.title)
                 }
                 is DetailsContract.Effect.OpenInBrowser -> {
                     try {
@@ -430,6 +435,13 @@ fun DetailsScreen(
                                 }
                             )
                         }
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.details_add_to_reading_list)) },
+                            onClick = {
+                                viewModel.onEvent(DetailsContract.Event.ShowReadingListPicker)
+                                overflowExpanded = false
+                            }
+                        )
                         androidx.compose.material3.HorizontalDivider()
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.details_open_download_folder)) },
@@ -520,6 +532,11 @@ fun DetailsScreen(
             state.error != null -> ErrorScreen(
                 message = state.error ?: stringResource(R.string.details_unknown_error),
                 onRetry = { viewModel.onEvent(DetailsContract.Event.Refresh) },
+                onOpenInBrowser = if (state.mangaWebUrl != null) {
+                    { viewModel.onEvent(DetailsContract.Event.OpenWebViewFallback) }
+                } else {
+                    null
+                },
                 modifier = Modifier.padding(paddingValues)
             )
             state.manga != null -> DetailsContent(
@@ -790,6 +807,15 @@ private fun DetailsContent(
             onToggle = { categoryId -> onEvent(DetailsContract.Event.ToggleCategoryPickerSelection(categoryId)) },
             onConfirm = { onEvent(DetailsContract.Event.ConfirmCategoryPicker) },
             onDismiss = { onEvent(DetailsContract.Event.DismissCategoryPicker) }
+        )
+    }
+
+    if (state.showReadingListPickerDialog) {
+        ReadingListPickerDialog(
+            readingLists = state.readingLists,
+            selectedIds = state.readingListPickerSelection,
+            onToggle = { listId -> onEvent(DetailsContract.Event.ToggleReadingListPickerSelection(listId)) },
+            onDismiss = { onEvent(DetailsContract.Event.DismissReadingListPicker) }
         )
     }
 
@@ -1180,6 +1206,51 @@ private fun CategoryPickerDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.details_category_picker_skip)) }
+        }
+    )
+}
+
+/**
+ * Opened on demand from the overflow menu's "Add to Reading List" item. Unlike
+ * [CategoryPickerDialog], each checkbox toggle persists immediately (add/remove from the list)
+ * rather than batching on a confirm button — [selectedIds] reflects live membership.
+ */
+@Composable
+private fun ReadingListPickerDialog(
+    readingLists: List<ReadingList>,
+    selectedIds: Set<Long>,
+    onToggle: (Long) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.details_reading_list_picker_title)) },
+        text = {
+            if (readingLists.isEmpty()) {
+                Text(stringResource(R.string.details_reading_list_picker_empty))
+            } else {
+                LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
+                    items(readingLists, key = { it.id }) { list ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onToggle(list.id) }
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Checkbox(
+                                checked = list.id in selectedIds,
+                                onCheckedChange = { onToggle(list.id) },
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(text = list.name)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.details_reading_list_picker_done)) }
         }
     )
 }

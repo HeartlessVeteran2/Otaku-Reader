@@ -34,15 +34,13 @@ class LibrarySettingsDelegate @Inject constructor(
                 libraryPreferences.gridSize,
                 libraryPreferences.showBadges,
                 libraryPreferences.updateOnlyOnWifi,
-                libraryPreferences.updateOnlyPinnedCategories,
                 libraryPreferences.autoRefreshOnStart,
-            ) { gridSize, showBadges, updateOnWifi, updatePinned, autoRefresh ->
+            ) { gridSize, showBadges, updateOnWifi, autoRefresh ->
                 latestUpdateOnlyOnWifi = updateOnWifi
                 updateState { it.copy(library = it.library.copy(
                     libraryGridSize = gridSize,
                     showBadges = showBadges,
                     updateOnlyOnWifi = updateOnWifi,
-                    updateOnlyPinnedCategories = updatePinned,
                     autoRefreshOnStart = autoRefresh,
                 )) }
             }.collect { }
@@ -97,10 +95,6 @@ class LibrarySettingsDelegate @Inject constructor(
             libraryPreferences.setUpdateOnlyOnWifi(event.enabled)
             latestUpdateOnlyOnWifi = event.enabled
             scheduleLibraryUpdateOrShowError(latestUpdateCheckInterval, event.enabled, sendEffect)
-            true
-        }
-        is SettingsEvent.SetUpdateOnlyPinnedCategories -> {
-            libraryPreferences.setUpdateOnlyPinnedCategories(event.enabled)
             true
         }
         is SettingsEvent.SetAutoRefreshOnStart -> { libraryPreferences.setAutoRefreshOnStart(event.enabled); true }

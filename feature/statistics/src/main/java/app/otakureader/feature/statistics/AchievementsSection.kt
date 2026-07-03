@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.otakureader.core.ui.components.HankoBadge
 import app.otakureader.domain.model.Achievement
@@ -32,7 +33,7 @@ fun AchievementsSection(
 
     Column(modifier = modifier) {
         Text(
-            text = "Achievements",
+            text = stringResource(R.string.statistics_achievements_title),
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.fillMaxWidth()
         )

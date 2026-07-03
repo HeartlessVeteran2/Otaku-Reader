@@ -82,7 +82,7 @@ fun OtakuReaderNavHost(
                 onDeepLinkConsumed()
             }
             is DeepLinkResult.NavigateToUpdates -> {
-                navController.navigate(Route.Updates) {
+                navController.navigate(Route.Updates()) {
                     launchSingleTop = true
                 }
                 onDeepLinkConsumed()
@@ -306,6 +306,9 @@ fun OtakuReaderNavHost(
             onNavigateToExtensionDetail = { packageName ->
                 navController.navigate(Route.ExtensionDetail(packageName))
             },
+            onNavigateToExtensionInstall = {
+                navController.navigate(Route.ExtensionInstall)
+            },
         )
 
         // Extension detail screen (#1047)
@@ -359,6 +362,9 @@ fun OtakuReaderNavHost(
             },
             onNavigateToMigration = { mangaId ->
                 navController.navigate(Route.Migration(selectedMangaIds = listOf(mangaId)))
+            },
+            onNavigateToWebViewFallback = { url, title ->
+                navController.navigate(Route.WebViewFallback(url, title))
             }
         )
 
@@ -543,7 +549,7 @@ fun OtakuReaderNavHost(
                 navController.navigate(Route.ScanLibrary)
             },
             onNavigateToUpdateErrors = {
-                navController.navigate(Route.Updates)
+                navController.navigate(Route.Updates(openErrors = true))
             },
             onNavigateToBackup = {
                 navController.navigate(Route.SettingsBackup)

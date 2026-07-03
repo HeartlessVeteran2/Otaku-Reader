@@ -8,7 +8,6 @@ data class LibrarySettingsState(
     val showBadges: Boolean = true,
     val showDownloadBadge: Boolean = true,
     val updateOnlyOnWifi: Boolean = false,
-    val updateOnlyPinnedCategories: Boolean = false,
     val autoRefreshOnStart: Boolean = false,
     val showUpdateProgress: Boolean = true,
     val skipUpdatesWithUnread: Boolean = false,

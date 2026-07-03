@@ -64,7 +64,7 @@ Otaku-Reader/
 - 4 reading modes: single-page, dual-page, webtoon (vertical scroll), smart-panels (auto-crop)
 - Page-level bookmarks (toggle per page, persisted in `page_bookmarks` DB table)
 - Bookmark collections (group bookmarks, filter by collection in BookmarksScreen)
-- Reader comments / notes per chapter (`reader_comments` DB table, PR #1098)
+- Reader comments / notes per chapter (`reader_comments` DB table, PR #1098; opened via the comment icon in the reader's top bar)
 - Gesture controls: tap-zones, swipe navigation, volume-key paging
 - Download while reading (per-chapter download button in top bar, PR #1127)
 - Chapter list overlay with progress indicator
@@ -88,6 +88,7 @@ Otaku-Reader/
 - Multi-select chapters: mark read, download, delete, bookmark (chapter-level bookmarks removed in PR #1130)
 - Tracker status chips inline (tap to open tracker)
 - Track manga on multiple services simultaneously
+- Add to Reading List (overflow menu, live-toggle checkbox picker against `feature/library/readinglist/`)
 
 ### Tracking (`feature/tracking/`)
 - MAL, AniList, Kitsu, MangaUpdates, Shikimori all fully integrated
@@ -113,6 +114,7 @@ Otaku-Reader/
 ### Statistics (`feature/statistics/`)
 - Total chapters read, total reading time, average per day
 - Per-manga reading stats, streak tracking (PR #1122)
+- Reading achievements — earned badges shown in a grid on the Statistics screen, checked live on every chapter read (`data/worker/AchievementCheckWorker.kt`)
 - Stats summary widget on MoreScreen (Glance)
 
 ### Settings (`feature/settings/`)
@@ -131,8 +133,13 @@ Otaku-Reader/
 - Feed screen (activity from followed manga)
 - First-run Onboarding wizard
 - About screen (version, credits, links)
-- Update Errors screen (PR #1119)
+- Update Errors dialog (PR #1119; auto-opens from the More tab entry, or via the badge icon on the Updates screen's top bar)
 - QR Library Share / Scan (PR #1110/#1125)
+
+### Home-Screen Widgets (`app/src/main/java/app/otakureader/widget/`)
+- 4 Glance-based Android home-screen widgets: `HomeWidget`, `NowReadingWidget`, `ContinueReadingWidget`, `RecentUpdatesWidget`
+- Configured via Settings → Widgets; placed via Android's native "Add Widget" home-screen flow
+- Distinct from the in-app Statistics summary card on MoreScreen (also Glance, but that's a Compose card, not a home-screen widget)
 
 ### Security
 - Certificate pinning (`cert-pin-check.yml` CI gate)

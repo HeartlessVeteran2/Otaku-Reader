@@ -115,6 +115,7 @@ fun UpdatesScreen(
     onNavigateBack: () -> Unit,
     onNavigateToDownloads: () -> Unit,
     modifier: Modifier = Modifier,
+    openErrorsOnLaunch: Boolean = false,
     viewModel: UpdatesViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -125,6 +126,14 @@ fun UpdatesScreen(
 
     BackHandler(enabled = state.selectedItems.isNotEmpty()) {
         viewModel.onEvent(UpdatesEvent.ClearSelection)
+    }
+
+    // Auto-open the update-errors dialog when navigated here from the More tab's
+    // "Update Errors" entry — otherwise there's no way to reach the error view from there.
+    LaunchedEffect(openErrorsOnLaunch) {
+        if (openErrorsOnLaunch) {
+            viewModel.onEvent(UpdatesEvent.ShowUpdateErrors)
+        }
     }
 
     LaunchedEffect(viewModel.effect) {
