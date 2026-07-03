@@ -11,5 +11,7 @@ data class ReadingStats(
     val currentStreak: Int = 0,
     val bestStreak: Int = 0,
     val genreDistribution: Map<String, Int> = emptyMap(),
-    val readingActivityByDay: Map<String, Int> = emptyMap()
+    val readingActivityByDay: Map<String, Int> = emptyMap(),
+    val completedMangaCount: Int = 0,
+    val totalChapterCount: Int = 0,
 )

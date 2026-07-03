@@ -1,5 +1,6 @@
 package app.otakureader.data.repository
 
+import app.otakureader.core.database.dao.ChapterDao
 import app.otakureader.core.database.dao.MangaDao
 import app.otakureader.core.database.dao.ReadingHistoryDao
 import app.otakureader.core.database.entity.ReadingHistoryEntity
@@ -20,6 +21,7 @@ class StatisticsRepositoryImplTest {
 
     private lateinit var readingHistoryDao: ReadingHistoryDao
     private lateinit var mangaDao: MangaDao
+    private lateinit var chapterDao: ChapterDao
     private lateinit var repository: StatisticsRepository
 
     private fun makeEntry(readAt: Long, durationMs: Long = 0L) =
@@ -34,12 +36,15 @@ class StatisticsRepositoryImplTest {
     fun setUp() {
         readingHistoryDao = mockk()
         mangaDao = mockk()
-        repository = StatisticsRepositoryImpl(readingHistoryDao, mangaDao)
+        chapterDao = mockk()
+        repository = StatisticsRepositoryImpl(readingHistoryDao, mangaDao, chapterDao)
 
         // Default stub
         every { readingHistoryDao.observeHistory() } returns flowOf(emptyList())
         every { mangaDao.countFavorites() } returns flowOf(0)
         every { mangaDao.getFavoriteMangaGenres() } returns flowOf(emptyList())
+        every { mangaDao.getCompletedMangaCount() } returns flowOf(0)
+        every { chapterDao.getTotalChapterCountForLibrary() } returns flowOf(0)
     }
 
     // ── getReadingStats: totals ────────────────────────────────────────────────
@@ -212,6 +217,21 @@ class StatisticsRepositoryImplTest {
                 ),
                 stats.genreDistribution,
             )
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // ── getReadingStats: library detail ────────────────────────────────────────
+
+    @Test
+    fun `getReadingStats surfaces completed manga count and total chapter count`() = runTest {
+        every { mangaDao.getCompletedMangaCount() } returns flowOf(7)
+        every { chapterDao.getTotalChapterCountForLibrary() } returns flowOf(142)
+
+        repository.getReadingStats().test {
+            val stats = awaitItem()
+            assertEquals(7, stats.completedMangaCount)
+            assertEquals(142, stats.totalChapterCount)
             cancelAndIgnoreRemainingEvents()
         }
     }

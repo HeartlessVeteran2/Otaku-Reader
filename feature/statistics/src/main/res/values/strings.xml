@@ -15,6 +15,9 @@
     <string name="statistics_current_streak">Current Streak</string>
     <string name="statistics_best_streak">Best Streak</string>
     <string name="statistics_streak_days_short">%1$dd</string>
+    <string name="statistics_library_detail">Library</string>
+    <string name="statistics_completed_titles">Completed</string>
+    <string name="statistics_total_chapters">Total Chapters</string>
     <string name="statistics_daily_goal">Daily Goal</string>
     <string name="statistics_weekly_goal">Weekly Goal</string>
     <string name="statistics_goal_complete">✓ Complete!</string>

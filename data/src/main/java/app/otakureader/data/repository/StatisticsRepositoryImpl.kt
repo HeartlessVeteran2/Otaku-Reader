@@ -1,6 +1,7 @@
 @file:Suppress("MaxLineLength")
 package app.otakureader.data.repository
 
+import app.otakureader.core.database.dao.ChapterDao
 import app.otakureader.core.database.dao.MangaDao
 import app.otakureader.core.database.dao.ReadingHistoryDao
 import app.otakureader.domain.model.ReadingStats
@@ -20,13 +21,16 @@ import javax.inject.Singleton
 class StatisticsRepositoryImpl @Inject constructor(
     private val readingHistoryDao: ReadingHistoryDao,
     private val mangaDao: MangaDao,
+    private val chapterDao: ChapterDao,
 ) : StatisticsRepository {
 
     override fun getReadingStats(sinceMs: Long?): Flow<ReadingStats> = combine(
         readingHistoryDao.observeHistory(),
         mangaDao.countFavorites(),
         mangaDao.getFavoriteMangaGenres(),
-    ) { allHistory, libraryCount, favoriteGenreValues ->
+        mangaDao.getCompletedMangaCount(),
+        chapterDao.getTotalChapterCountForLibrary(),
+    ) { allHistory, libraryCount, favoriteGenreValues, completedMangaCount, totalChapterCount ->
         val history = if (sinceMs != null) allHistory.filter { it.readAt >= sinceMs } else allHistory
         val today = LocalDate.now()
 
@@ -55,7 +59,9 @@ class StatisticsRepositoryImpl @Inject constructor(
             currentStreak = currentStreak,
             bestStreak = bestStreak,
             genreDistribution = buildGenreDistribution(favoriteGenreValues),
-            readingActivityByDay = activityByDay
+            readingActivityByDay = activityByDay,
+            completedMangaCount = completedMangaCount,
+            totalChapterCount = totalChapterCount,
         )
     }
     
