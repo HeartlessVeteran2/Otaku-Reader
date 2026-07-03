@@ -388,7 +388,7 @@ class MigrateMangaUseCaseTest {
     }
 
     @Test
-    fun `migrates notes to a newly created target manga`() = runTest {
+    fun `migrates notes to a newly created target manga at insert time`() = runTest {
         val sourceMangaId = 1L
         val targetMangaId = 2L
 
@@ -405,7 +405,8 @@ class MigrateMangaUseCaseTest {
         val result = useCase(sourceManga, targetCandidate, MigrationMode.MOVE)
 
         assertTrue(result.isSuccess)
-        coVerify(exactly = 1) { mangaRepository.updateMangaNote(targetMangaId, "Great art style") }
+        coVerify(exactly = 1) { mangaRepository.insertManga(match { it.notes == "Great art style" }) }
+        coVerify(exactly = 0) { mangaRepository.updateMangaNote(any(), any()) }
     }
 
     @Test
@@ -427,6 +428,27 @@ class MigrateMangaUseCaseTest {
 
         assertTrue(result.isSuccess)
         coVerify(exactly = 0) { mangaRepository.updateMangaNote(any(), any()) }
+    }
+
+    @Test
+    fun `migrates notes to an existing target manga that has none of its own`() = runTest {
+        val sourceMangaId = 1L
+        val targetMangaId = 2L
+
+        val sourceManga = createTestManga(id = sourceMangaId, title = "Test Manga", notes = "Source notes")
+        val targetCandidate = createTestCandidate(title = "Test Manga (New Source)")
+        val existingTarget = createTestManga(id = targetMangaId, title = "Test Manga (New Source)", notes = null)
+
+        coEvery { mangaRepository.getMangaBySourceAndUrl(any(), any()) } returns existingTarget
+        coEvery { sourceRepository.getMangaDetails(any(), any()) } returns Result.success(mockk())
+        coEvery { sourceRepository.getChapterList(any(), any()) } returns Result.success(emptyList())
+        coEvery { chapterRepository.getChaptersByMangaIdSync(sourceMangaId) } returns emptyList()
+        coEvery { trackRepository.observeEntriesForManga(sourceMangaId) } returns flowOf(emptyList())
+
+        val result = useCase(sourceManga, targetCandidate, MigrationMode.MOVE)
+
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 1) { mangaRepository.updateMangaNote(targetMangaId, "Source notes") }
     }
 
     // Helper functions

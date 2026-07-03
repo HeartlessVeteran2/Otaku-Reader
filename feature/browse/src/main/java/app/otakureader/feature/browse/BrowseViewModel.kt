@@ -6,7 +6,6 @@ import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.ui.selection.SelectionManager
 import app.otakureader.core.extension.domain.repository.ExtensionRepository
 import app.otakureader.domain.repository.ExtensionManagementRepository
-import app.otakureader.domain.repository.FeedRepository
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.domain.usecase.library.AddMangaToLibraryUseCase
 import app.otakureader.domain.usecase.ToggleFavoriteMangaUseCase
@@ -29,6 +28,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -89,7 +89,6 @@ class BrowseViewModel @Inject constructor(
     private val addMangaToLibraryUseCase: AddMangaToLibraryUseCase,
     private val toggleFavoriteMangaUseCase: ToggleFavoriteMangaUseCase,
     private val mangaRepository: MangaRepository,
-    private val feedRepository: FeedRepository,
     private val generalPreferences: GeneralPreferences,
     private val searchLibraryMangaUseCase: SearchLibraryMangaUseCase,
     private val extensionManagementRepository: ExtensionManagementRepository,
@@ -142,7 +141,6 @@ class BrowseViewModel @Inject constructor(
         getSourcesUseCase()
             .onEach { sources -> _state.update { it.copy(allSources = sources) } }
             .launchIn(viewModelScope)
-        observeSavedSearches()
         observeLibraryFavorites()
         // Sync selection manager into state so UI recomposes
         combine(selection.selected, selection.isActive) { ids, active ->
@@ -260,9 +258,6 @@ class BrowseViewModel @Inject constructor(
                 selection.clear()
             }
             is BrowseEvent.LongClickManga -> quickToggleFavorite(event.manga)
-            is BrowseEvent.SaveCurrentSearch -> saveCurrentSearch()
-            is BrowseEvent.DeleteSavedSearch -> deleteSavedSearch(event.searchId)
-            is BrowseEvent.ApplySavedSearch -> applySavedSearch(event.search)
             is BrowseEvent.SetSearchScope -> _state.update {
                 it.copy(searchScope = event.scope, searchResults = emptyList(), hasSearchResults = false)
             }
@@ -312,6 +307,8 @@ class BrowseViewModel @Inject constructor(
             is BrowseEvent.ConfirmSaveSearch -> confirmSaveNamedSearch()
             is BrowseEvent.ApplyNamedSavedSearch -> applyNamedSavedSearch(event.search)
             is BrowseEvent.DeleteNamedSavedSearch -> deleteNamedSavedSearch(event.id)
+            is BrowseEvent.MoveNamedSavedSearchUp -> moveNamedSavedSearch(event.id, offset = -1)
+            is BrowseEvent.MoveNamedSavedSearchDown -> moveNamedSavedSearch(event.id, offset = 1)
             is BrowseEvent.ToggleNsfwFilter -> {
                 // Mutex serializes rapid taps: the second tap waits until the first write
                 // has been queued, so both reads see different values and the toggle is correct.
@@ -631,10 +628,24 @@ class BrowseViewModel @Inject constructor(
             },
             _state.map { it.currentSourceId }.distinctUntilChanged()
         ) { list, sourceId ->
-            if (sourceId != null) list.filter { it.sourceName == sourceId } else emptyList()
+            if (sourceId != null) list.filter { it.sourceName == sourceId }.sortedBy { it.order } else emptyList()
         }
             .onEach { filtered -> _state.update { it.copy(namedSavedSearches = filtered) } }
             .launchIn(viewModelScope)
+    }
+
+    /**
+     * Reads the full, unfiltered saved-search list from preferences. [BrowseState.namedSavedSearches]
+     * only holds the current source's subset, so mutations must read+write the full list — writing
+     * back the filtered subset would silently drop every other source's saved searches.
+     */
+    private suspend fun readAllNamedSearches(): List<SavedSourceSearch> =
+        runCatching {
+            Json.decodeFromString<List<SavedSourceSearch>>(generalPreferences.savedSourceSearchesJson.first())
+        }.getOrDefault(emptyList())
+
+    private suspend fun writeAllNamedSearches(searches: List<SavedSourceSearch>) {
+        generalPreferences.setSavedSourceSearchesJson(Json.encodeToString(searches))
     }
 
     private fun confirmSaveNamedSearch() {
@@ -650,16 +661,17 @@ class BrowseViewModel @Inject constructor(
             return
         }
         val sourceId = state.currentSourceId
-        val newSearch = SavedSourceSearch(
-            name = name,
-            query = query,
-            sourceId = sourceId?.toLongOrNull() ?: 0L,
-            sourceName = sourceId ?: "",
-        )
-        val updated = state.namedSavedSearches + newSearch
         viewModelScope.launch {
+            val all = readAllNamedSearches()
+            val newSearch = SavedSourceSearch(
+                name = name,
+                query = query,
+                sourceId = sourceId?.toLongOrNull() ?: 0L,
+                sourceName = sourceId ?: "",
+                order = (all.maxOfOrNull { it.order } ?: -1) + 1,
+            )
             runCatching {
-                generalPreferences.setSavedSourceSearchesJson(Json.encodeToString(updated))
+                writeAllNamedSearches(all + newSearch)
             }.onSuccess {
                 _effect.send(BrowseEffect.ShowSnackbar("Search \"$name\" saved"))
             }.onFailure {
@@ -692,15 +704,44 @@ class BrowseViewModel @Inject constructor(
     }
 
     private fun deleteNamedSavedSearch(id: String) {
-        val updated = _state.value.namedSavedSearches.filterNot { it.id == id }
         viewModelScope.launch {
             try {
-                generalPreferences.setSavedSourceSearchesJson(Json.encodeToString(updated))
+                val all = readAllNamedSearches()
+                writeAllNamedSearches(all.filterNot { it.id == id })
                 _effect.send(BrowseEffect.ShowSnackbar("Saved search removed"))
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
                 _effect.send(BrowseEffect.ShowSnackbar("Failed to remove saved search"))
+            }
+        }
+    }
+
+    /**
+     * Swaps [id]'s display order with its neighbor [offset] positions away (within the same
+     * source's saved searches, matching Komikku's `FeedOrderScreen` move-up/move-down actions).
+     * A no-op if [id] is already at that edge of the list.
+     */
+    private fun moveNamedSavedSearch(id: String, offset: Int) {
+        viewModelScope.launch {
+            try {
+                val all = readAllNamedSearches()
+                val sourceId = _state.value.currentSourceId
+                val scoped = all.filter { it.sourceName == sourceId }.sortedBy { it.order }
+                val currentIndex = scoped.indexOfFirst { it.id == id }
+                val targetIndex = currentIndex + offset
+                if (currentIndex == -1 || targetIndex !in scoped.indices) return@launch
+
+                val current = scoped[currentIndex]
+                val target = scoped[targetIndex]
+                val swappedOrders = mapOf(current.id to target.order, target.id to current.order)
+                writeAllNamedSearches(
+                    all.map { search -> swappedOrders[search.id]?.let { search.copy(order = it) } ?: search }
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                _effect.send(BrowseEffect.ShowSnackbar("Failed to reorder saved search"))
             }
         }
     }
@@ -726,59 +767,4 @@ class BrowseViewModel @Inject constructor(
         }
     }
 
-    private fun observeSavedSearches() {
-        combine(
-            feedRepository.getSavedSearches(),
-            _state.map { it.currentSourceId }.distinctUntilChanged()
-        ) { searches, sourceId ->
-            if (sourceId != null) searches.filter { it.sourceName == sourceId }
-            else searches
-        }
-            .onEach { filtered -> _state.update { it.copy(savedSearches = filtered) } }
-            .launchIn(viewModelScope)
-    }
-
-    private fun saveCurrentSearch() {
-        val state = _state.value
-        val sourceId = state.currentSourceId ?: return
-        val query = state.searchQuery.trim()
-        if (query.isBlank()) {
-            viewModelScope.launch { _effect.send(BrowseEffect.ShowSnackbar("Enter a search query to save")) }
-            return
-        }
-        viewModelScope.launch {
-            runCatching {
-                feedRepository.addSavedSearch(
-                    sourceId = sourceId.toLongOrNull() ?: 0L,
-                    sourceName = sourceId,
-                    query = query,
-                    filters = emptyMap(),
-                )
-            }.onSuccess {
-                _effect.send(BrowseEffect.ShowSnackbar("Search saved"))
-            }.onFailure {
-                _effect.send(BrowseEffect.ShowSnackbar("Failed to save search"))
-            }
-        }
-    }
-
-    private fun deleteSavedSearch(searchId: Long) {
-        viewModelScope.launch {
-            // try/catch with explicit CancellationException rethrow so coroutine cancellation
-            // (e.g. ViewModel cleared mid-delete) doesn't get routed through the failure snackbar.
-            try {
-                feedRepository.removeSavedSearch(searchId)
-                _effect.send(BrowseEffect.ShowSnackbar("Search deleted"))
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Exception) {
-                _effect.send(BrowseEffect.ShowSnackbar("Failed to delete search"))
-            }
-        }
-    }
-
-    private fun applySavedSearch(search: app.otakureader.domain.model.FeedSavedSearch) {
-        _state.update { it.copy(searchQuery = search.query) }
-        performSearch()
-    }
 }

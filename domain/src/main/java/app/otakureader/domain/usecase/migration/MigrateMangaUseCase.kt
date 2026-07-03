@@ -56,10 +56,13 @@ class MigrateMangaUseCase @Inject constructor(
                 // Target already exists, use it
                 existingTarget.id
             } else {
-                // Create new manga entry for target
+                // Create new manga entry for target, carrying over notes (Komikku's NOTES
+                // migration flag) directly at insert time — there's no existing target row to
+                // conflict with, so this avoids a separate update query.
                 val newManga = targetCandidate.toManga(
                     favorite = sourceManga.favorite,
-                    autoDownload = sourceManga.autoDownload
+                    autoDownload = sourceManga.autoDownload,
+                    notes = sourceManga.notes
                 )
                 mangaRepository.insertManga(newManga)
             }
@@ -102,10 +105,10 @@ class MigrateMangaUseCase @Inject constructor(
                 mode = mode
             )
 
-            // Migrate user notes (Komikku's NOTES migration flag). Skipped when the target manga
-            // already existed in the library with its own notes, so migration never clobbers
-            // notes the user already wrote against that entry.
-            if (!sourceManga.notes.isNullOrBlank() && existingTarget?.notes.isNullOrBlank()) {
+            // A newly-created target already got its notes set at insert time above. An
+            // existing target needs an explicit update — but only when it has no notes of its
+            // own yet, so migration never clobbers notes the user already wrote against it.
+            if (existingTarget != null && !sourceManga.notes.isNullOrBlank() && existingTarget.notes.isNullOrBlank()) {
                 try {
                     mangaRepository.updateMangaNote(targetMangaId, sourceManga.notes)
                 } catch (e: CancellationException) {
@@ -275,7 +278,8 @@ class MigrateMangaUseCase @Inject constructor(
 
     private fun MigrationCandidate.toManga(
         favorite: Boolean = false,
-        autoDownload: Boolean = false
+        autoDownload: Boolean = false,
+        notes: String? = null
     ) = Manga(
         id = 0L, // Auto-generate
         sourceId = sourceId,
@@ -289,6 +293,7 @@ class MigrateMangaUseCase @Inject constructor(
         status = status,
         favorite = favorite,
         initialized = true,
-        autoDownload = autoDownload
+        autoDownload = autoDownload,
+        notes = notes
     )
 }

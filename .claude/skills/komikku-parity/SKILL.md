@@ -46,23 +46,28 @@ For each screen area, follow this loop:
 | 7 | Settings | Pending | Match Komikku's settings tree, immediate-apply semantics |
 | 8 | More / stats / remaining screens | Pending | |
 
-## Open Question: two competing saved-search concepts in Browse (blocks feed-ordering reorder UI)
+## Resolved: consolidated onto SavedSourceSearch (feed-ordering reorder UI shipped)
 
-`feature/browse/BrowseMvi.kt`/`BrowseViewModel.kt` carry two parallel "saved search" features:
-- `SavedSourceSearch` (`namedSavedSearches` in state) — no `order` field, rendered as chips in
-  `BrowseScreen.kt`, fully wired (apply/delete work from the UI).
-- `FeedSavedSearch` (`savedSearches` in state) — HAS an `order` field and a working
-  `FeedRepository.updateSavedSearchOrder()`, but `BrowseEvent.ApplySavedSearch`/`DeleteSavedSearch`
-  are never dispatched from any UI element, and `state.savedSearches` is never rendered anywhere.
-  Same story for `FeedRepository.updateFeedSourceOrder()` / `FeedSource` — plumbing exists,
-  nothing calls it.
-
-Before building Komikku's `FeedOrderScreen`-equivalent reorder UI, need a decision: consolidate
-onto one saved-search concept (likely delete the unused `FeedSavedSearch` path and add an `order`
-field to `SavedSourceSearch` instead, since that's the one actually wired to the UI), or determine
-`FeedSavedSearch` was meant for a different, not-yet-built screen and should stay separate. Ask the
-user before removing or repurposing either — this is exactly the kind of architectural fork that
-needs their call, not a guess.
+User chose "consolidate onto SavedSourceSearch." Implemented:
+- Added `order: Int = 0` to `SavedSourceSearch` (backward-compatible — old persisted JSON without
+  the field just defaults to 0 on decode).
+- Removed `BrowseViewModel`/`BrowseMvi`'s entire dead `FeedSavedSearch` wiring: `savedSearches`
+  state, `SaveCurrentSearch`/`DeleteSavedSearch`/`ApplySavedSearch` events and handlers,
+  `observeSavedSearches()`. Confirmed via grep these were unreachable from any UI before removal.
+  **Left `FeedRepository`/`FeedSavedSearch`/`FeedDao`/`FeedEntities` and the backup
+  create/restore integration completely untouched** — that's a real Room-backed, backed-up
+  subsystem (found via a broader grep after the initial "looks dead" read), just not currently
+  wired to Browse's UI. Deleting the DB/backup layer would need a schema migration and touches
+  backup format compatibility, which is out of scope for a UI cleanup — only the ViewModel-level
+  dead code was removed.
+- Added `MoveNamedSavedSearchUp`/`MoveNamedSavedSearchDown` events, wired to left/right arrow
+  buttons in each saved-search chip's trailing row in `BrowseScreen.kt` (edge items only show the
+  arrow that's valid, matching the existing delete-icon pattern).
+- Fixed a real pre-existing data-loss bug while doing this: `confirmSaveNamedSearch()`/
+  `deleteNamedSavedSearch()` previously read+wrote `state.namedSavedSearches`, which is already
+  filtered to the *current* source — persisting it back would silently drop every other source's
+  saved searches. Added `readAllNamedSearches()`/`writeAllNamedSearches()` that always
+  round-trip the full unfiltered list, and reused them for the new reorder function too.
 
 ## Current Session: Settings (item #7)
 
