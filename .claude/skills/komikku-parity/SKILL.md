@@ -39,32 +39,43 @@ For each screen area, follow this loop:
 |---|------|--------|-------|
 | 1 | Browse: Extensions + Sources | Done (PR #1145) | Extension install → source appears fix |
 | 2 | Library | Done (PR #1155) | Grid/list/comfortable/cover-only modes, tristate filters, filter sheet, RANDOM sort, bulk-select |
-| 3 | Manga detail | **Next** | Collapsing header, chapter list, tracker sheet, tag press |
-| 4 | Reader | Pending | Modes, tap zones, end/start overlays, slider snap, rotation, real-time settings |
-| 5 | Updates / History / Downloads | Pending | J2K grouping, swipe actions, real-time progress |
+| 3 | Manga detail | Done (PR #1156, #1186) | Collapsing header, chapter list, tracker sheet, tag press, tap-to-search, cancel download, delete-downloads prompt, migrate action, source label |
+| 4 | Reader | Done (verified pre-existing) | Diffed against Komikku's ViewerNavigation/PagerConfig/WebtoonConfig, ChapterNavigator, ReadingModePage — tap zones (exact NavigationRegion color/enum match), slider snap, chapter transitions w/ gap warnings, live-applied settings, rotation, volume keys, save/share all already at parity. No gaps found worth a PR. |
+| 5 | Updates / History / Downloads | **Next** | J2K grouping, swipe actions, real-time progress |
 | 6 | Browse: global search / migrate / feed ordering | Pending | |
 | 7 | Settings | Pending | Match Komikku's settings tree, immediate-apply semantics |
 | 8 | More / stats / remaining screens | Pending | |
 
-## Current Session: Manga Detail (item #3)
+## Current Session: Updates / History / Downloads (item #5)
 
 Komikku spec files to read:
-- `eu.kanade.presentation.manga.MangaScreen` (the composable)
-- `eu.kanade.tachiyomi.ui.manga.MangaScreenModel` (the ScreenModel)
+- `eu.kanade.presentation.updates.UpdatesScreen` + `UpdatesScreenModel` — J2K-style date grouping,
+  swipe/long-press actions, per-item download/read state
+- `eu.kanade.presentation.history.HistoryScreen` + `HistoryScreenModel` — timeline grouping, resume
+- `eu.kanade.presentation.download.DownloadQueueScreen` — real-time progress, reorder, pause/resume
 
-Key elements to check (known Komikku behaviors):
-- Collapsing toolbar with cover image as hero
-- Summary expandable with "Read more" — max 3 lines collapsed
-- Genre/tag chips (tap → filter library by tag)
-- Chapter list: ascending/descending sort, read/unread filter, bookmarked filter, download filter
-- Chapter download state badges per row
-- Chapter multi-select: mark read, download, delete, bookmark
-- Tracker sheet bottom sheet with per-tracker row (status, score, chapter)
-- "Start reading" / "Resume" FAB that context-switches based on read state
-- Context menu on chapter long-press: bookmark, mark read/unread, download, delete
+Key elements to check:
+- Date-header grouping (Today/Yesterday/this week/older) matching J2K conventions
+- Swipe-to-* actions (mark read, delete, bookmark) vs long-press context menus
+- Real-time download queue progress (bytes/percent, reorder via drag, pause/resume/cancel per item)
+- Bulk actions + undo snackbars (compare against Otaku's existing undo patterns — CLAUDE.md
+  documents Pattern A/B already used for Library/History)
 
 Gap areas likely in Otaku:
-- `feature/details/` Screen + ViewModel
+- `feature/updates/`, `feature/history/`, `feature/more/downloads` (or wherever the download
+  manager screen lives) — Screen + ViewModel
+
+## Previous Session: Reader (item #4) — done, no gaps
+
+Diffed against Komikku's `ViewerNavigation`/`KindlishNavigation`/`EdgeNavigation`/
+`RightAndLeftNavigation`/`LNavigation`, `PagerConfig`, `WebtoonConfig`, `ReadingModePage.kt`
+(settings), `ChapterNavigator`. Otaku's `feature/reader/ui/TapZoneOverlay.kt` and `PageSlider.kt`
+explicitly document themselves as ports of these Komikku systems (exact `NavigationRegion` color
+values, same 6 navigation-mode layouts, same tapping-invert-mode semantics). Real-time settings
+(brightness/color filter/crop borders) are plain `StateFlow` fields consumed directly in
+`ReaderScreen.kt`, so they apply live. Chapter transitions include gap-warning detection matching
+Komikku. Rotation override, volume-key paging, and save/share hooks are all present in
+`ReaderMvi.kt`/`ReaderViewModel.kt`. Conclusion: no PR needed for this item.
 
 ## Commit / PR Workflow
 

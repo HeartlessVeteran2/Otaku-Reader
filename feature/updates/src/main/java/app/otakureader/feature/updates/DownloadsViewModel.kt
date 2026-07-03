@@ -2,9 +2,12 @@ package app.otakureader.feature.updates
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,7 +18,8 @@ import kotlinx.coroutines.launch
 
 @HiltViewModel
 class DownloadsViewModel @Inject constructor(
-    private val downloadRepository: DownloadRepository
+    private val downloadRepository: DownloadRepository,
+    private val chapterRepository: ChapterRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(DownloadsState())
@@ -63,6 +67,11 @@ class DownloadsViewModel @Inject constructor(
             DownloadsEvent.ResumeSelected -> resumeSelected()
             DownloadsEvent.CancelSelected -> cancelSelected()
             DownloadsEvent.PrioritizeSelected -> prioritizeSelected()
+
+            is DownloadsEvent.SortByUploadDate ->
+                sortQueue(descending = event.newestFirst) { it.dateUpload }
+            is DownloadsEvent.SortByChapterNumber ->
+                sortQueue(descending = !event.ascending) { it.chapterNumber }
         }
     }
 
@@ -149,6 +158,37 @@ class DownloadsViewModel @Inject constructor(
             _state.value.items
                 .filter { it.status == app.otakureader.domain.model.DownloadStatus.FAILED }
                 .forEach { downloadRepository.retryDownload(it.id) }
+        }
+    }
+
+    /**
+     * Reorders the entire queue by a comparable chapter field (upload date / chapter number),
+     * matching Komikku's download-queue "Sort" menu. Chapter metadata isn't stored on
+     * [DownloadItem] itself, so each queued chapter is looked up to read the field, then the
+     * whole queue is reassigned sequential priorities in the new order via the existing
+     * single-item [DownloadRepository.reorderDownload] call (same pattern as
+     * [pauseSelected]/[resumeSelected]).
+     *
+     * Items whose chapter lookup returns null (e.g. the chapter row was deleted while still
+     * queued) can't be placed by [selector], so they're appended after the sorted items in
+     * their original queue order instead of being silently dropped — every queued item still
+     * gets an explicit, consistent priority.
+     */
+    private fun <R : Comparable<R>> sortQueue(descending: Boolean, selector: (app.otakureader.domain.model.Chapter) -> R) {
+        viewModelScope.launch {
+            val items = _state.value.items
+            val resolved = items
+                .map { item -> async { item.chapterId to chapterRepository.getChapterById(item.chapterId) } }
+                .awaitAll()
+            val withChapter = resolved.mapNotNull { (chapterId, chapter) -> chapter?.let { chapterId to it } }
+            val withoutChapter = resolved.filter { (_, chapter) -> chapter == null }
+
+            val comparator = compareBy<Pair<Long, app.otakureader.domain.model.Chapter>> { selector(it.second) }
+            val sortable = if (descending) withChapter.sortedWith(comparator.reversed()) else withChapter.sortedWith(comparator)
+
+            (sortable + withoutChapter).forEachIndexed { index, (chapterId, _) ->
+                downloadRepository.reorderDownload(chapterId, index)
+            }
         }
     }
 

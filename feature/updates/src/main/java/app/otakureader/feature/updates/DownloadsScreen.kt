@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -163,6 +164,40 @@ fun DownloadsScreen(
                                         overflowExpanded = false
                                     },
                                 )
+                                androidx.compose.material3.HorizontalDivider()
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.downloads_sort_newest_first)) },
+                                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = null) },
+                                    onClick = {
+                                        viewModel.onEvent(DownloadsEvent.SortByUploadDate(newestFirst = true))
+                                        overflowExpanded = false
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.downloads_sort_oldest_first)) },
+                                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = null) },
+                                    onClick = {
+                                        viewModel.onEvent(DownloadsEvent.SortByUploadDate(newestFirst = false))
+                                        overflowExpanded = false
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.downloads_sort_chapter_asc)) },
+                                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = null) },
+                                    onClick = {
+                                        viewModel.onEvent(DownloadsEvent.SortByChapterNumber(ascending = true))
+                                        overflowExpanded = false
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.downloads_sort_chapter_desc)) },
+                                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = null) },
+                                    onClick = {
+                                        viewModel.onEvent(DownloadsEvent.SortByChapterNumber(ascending = false))
+                                        overflowExpanded = false
+                                    },
+                                )
+                                androidx.compose.material3.HorizontalDivider()
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.downloads_clear_all)) },
                                     leadingIcon = { Icon(Icons.Default.Close, contentDescription = null) },
