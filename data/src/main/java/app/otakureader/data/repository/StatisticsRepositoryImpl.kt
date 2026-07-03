@@ -9,6 +9,7 @@ import app.otakureader.domain.model.ReadingGoal
 import app.otakureader.domain.repository.StatisticsRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import java.time.Instant
 import java.time.LocalDate
@@ -28,8 +29,8 @@ class StatisticsRepositoryImpl @Inject constructor(
         readingHistoryDao.observeHistory(),
         mangaDao.countFavorites(),
         mangaDao.getFavoriteMangaGenres(),
-        mangaDao.getCompletedMangaCount(),
-        chapterDao.getTotalChapterCountForLibrary(),
+        mangaDao.getCompletedMangaCount().distinctUntilChanged(),
+        chapterDao.getTotalChapterCountForLibrary().distinctUntilChanged(),
     ) { allHistory, libraryCount, favoriteGenreValues, completedMangaCount, totalChapterCount ->
         val history = if (sinceMs != null) allHistory.filter { it.readAt >= sinceMs } else allHistory
         val today = LocalDate.now()
