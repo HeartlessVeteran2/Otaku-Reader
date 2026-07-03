@@ -1028,8 +1028,10 @@ class DetailsViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         assertNull(viewModel.state.value.mangaWebUrl)
-        viewModel.onEvent(DetailsContract.Event.OpenWebViewFallback)
-        testDispatcher.scheduler.advanceUntilIdle()
-        // No assertion needed beyond "doesn't crash" — openWebViewFallback() returns early.
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.OpenWebViewFallback)
+            testDispatcher.scheduler.advanceUntilIdle()
+            expectNoEvents()
+        }
     }
 }

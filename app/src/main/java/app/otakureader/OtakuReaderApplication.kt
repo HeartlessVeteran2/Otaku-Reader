@@ -25,6 +25,7 @@ import coil3.request.allowRgb565
 import coil3.request.crossfade
 import com.google.android.material.color.DynamicColors
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
@@ -149,7 +150,9 @@ class OtakuReaderApplication : Application(), Configuration.Provider, SingletonI
      *
      * - Memory cache: capped at 15% of the application's available memory class with
      *   a hard ceiling of 256 MB, preventing excessive heap use on large-RAM tablets.
-     * - Disk cache: capped at 512 MB to support large manga chapter image caches.
+     * - Disk cache: sized from the user's Settings preference
+     *   ([GeneralPreferences.coilDiskCacheSizeMb]), falling back to
+     *   [GeneralPreferences.DEFAULT_COIL_DISK_CACHE_MB] if the read fails.
      * - allowRgb565: opaque images (most manga pages) decode as RGB_565 (2 bytes/pixel)
      *   instead of ARGB_8888 (4 bytes/pixel), halving per-page memory cost.
      * - Networking: backed by the shared [OkHttpClient] for connection pooling and
@@ -170,10 +173,11 @@ class OtakuReaderApplication : Application(), Configuration.Provider, SingletonI
                 // This factory lambda is invoked lazily by Coil on first disk-cache access
                 // (not synchronously here at ImageLoader construction time), so a blocking
                 // DataStore read is safe — it never blocks app startup or the calling thread
-                // that builds the ImageLoader. Falls back to the preference default if the
-                // read fails for any reason.
+                // that builds the ImageLoader. The read is pinned to Dispatchers.IO as
+                // defense-in-depth in case a future Coil version invokes this on the main
+                // thread. Falls back to the preference default if the read fails.
                 val sizeMb = runCatching {
-                    runBlocking { generalPreferences.coilDiskCacheSizeMb.first() }
+                    runBlocking(Dispatchers.IO) { generalPreferences.coilDiskCacheSizeMb.first() }
                 }.getOrDefault(GeneralPreferences.DEFAULT_COIL_DISK_CACHE_MB)
                 DiskCache.Builder()
                     .directory(context.cacheDir.resolve("image_cache").toOkioPath())

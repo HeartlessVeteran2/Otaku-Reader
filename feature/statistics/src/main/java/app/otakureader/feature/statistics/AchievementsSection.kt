@@ -33,7 +33,7 @@ fun AchievementsSection(
 
     Column(modifier = modifier) {
         Text(
-            text = stringResource(R.string.statistics_achievements_title),
+            text = stringResource(R.string.achievements_title),
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.fillMaxWidth()
         )

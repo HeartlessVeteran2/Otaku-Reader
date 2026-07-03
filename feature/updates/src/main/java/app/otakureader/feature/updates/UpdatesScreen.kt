@@ -73,6 +73,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -130,8 +131,13 @@ fun UpdatesScreen(
 
     // Auto-open the update-errors dialog when navigated here from the More tab's
     // "Update Errors" entry — otherwise there's no way to reach the error view from there.
+    // rememberSaveable guards against re-firing: the openErrors route arg is restored with the
+    // back stack entry, so without this the dialog would reopen every time the user navigated
+    // away from Updates and back.
+    var hasAutoOpenedErrors by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(openErrorsOnLaunch) {
-        if (openErrorsOnLaunch) {
+        if (openErrorsOnLaunch && !hasAutoOpenedErrors) {
+            hasAutoOpenedErrors = true
             viewModel.onEvent(UpdatesEvent.ShowUpdateErrors)
         }
     }

@@ -578,11 +578,17 @@ class DetailsViewModel @Inject constructor(
 
     private fun showReadingListPicker() {
         viewModelScope.launch {
-            val currentListIds = readingListRepository.getListsForManga(mangaId).first()
-                .map { it.listId }
-                .toSet()
-            _state.update {
-                it.copy(showReadingListPickerDialog = true, readingListPickerSelection = currentListIds)
+            try {
+                val currentListIds = readingListRepository.getListsForManga(mangaId).first()
+                    .map { it.listId }
+                    .toSet()
+                _state.update {
+                    it.copy(showReadingListPickerDialog = true, readingListPickerSelection = currentListIds)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _effect.send(DetailsContract.Effect.ShowError("Failed to load reading lists"))
             }
         }
     }
