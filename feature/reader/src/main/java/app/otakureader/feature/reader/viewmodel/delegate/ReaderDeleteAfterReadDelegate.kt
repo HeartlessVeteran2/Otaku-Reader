@@ -2,6 +2,7 @@ package app.otakureader.feature.reader.viewmodel.delegate
 
 import app.otakureader.core.preferences.DeleteAfterReadMode
 import app.otakureader.core.preferences.DownloadPreferences
+import app.otakureader.core.preferences.resolveShouldDeleteAfterRead
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.MangaRepository
@@ -28,11 +29,10 @@ class ReaderDeleteAfterReadDelegate @Inject constructor(
 ) {
     suspend fun maybeDeleteAfterRead(mangaId: Long, chapterId: Long) {
         val overrideMode = downloadPreferences.perMangaOverrides.first()[mangaId] ?: DeleteAfterReadMode.INHERIT
-        val shouldDelete = when (overrideMode) {
-            DeleteAfterReadMode.ENABLED -> true
-            DeleteAfterReadMode.DISABLED -> false
-            DeleteAfterReadMode.INHERIT -> downloadPreferences.deleteAfterReading.first()
-        }
+        val shouldDelete = resolveShouldDeleteAfterRead(
+            overrideMode = overrideMode,
+            globalEnabled = downloadPreferences.deleteAfterReading.first(),
+        )
         if (!shouldDelete) return
 
         val manga = mangaRepository.getMangaById(mangaId) ?: return

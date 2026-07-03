@@ -614,8 +614,13 @@ class ReaderViewModelTest {
         coEvery { downloadRepository.deleteChapterDownload(any(), any(), any(), any()) } just runs
     }
 
+    // These exercise the live in-session path (the debounced auto-save in saveCurrentProgress(),
+    // triggered here via jumpToPage()) since that's the only path that actually runs in
+    // production — see ReaderDeleteAfterReadDelegate's KDoc and RecordReadingHistoryWorkerTest
+    // for the durable WorkManager-based counterpart that covers reader-exit-before-debounce.
+
     @Test
-    fun `cleanupOnExit deletes the download when delete-after-reading is globally enabled`() = runTest {
+    fun `reaching the last page deletes the download when delete-after-reading is globally enabled`() = runTest {
         stubDeleteAfterReadFixture()
         every { downloadPreferences.deleteAfterReading } returns flowOf(true)
         every { downloadPreferences.perMangaOverrides } returns flowOf(emptyMap())
@@ -624,8 +629,7 @@ class ReaderViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
         vm.setPages(List(5) { ReaderPage(index = it) })
         vm.jumpToPage(4)
-
-        vm.cleanupOnExit(durationMs = 0L, currentState = vm.state.value)
+        testDispatcher.scheduler.advanceUntilIdle()
 
         coVerify(exactly = 1) {
             downloadRepository.deleteChapterDownload(chapterId, testSourceIdString, "Test Manga", "Chapter 10")
@@ -633,23 +637,23 @@ class ReaderViewModelTest {
     }
 
     @Test
-    fun `cleanupOnExit does not delete when a per-manga override disables it despite the global setting`() = runTest {
-        stubDeleteAfterReadFixture()
-        every { downloadPreferences.deleteAfterReading } returns flowOf(true)
-        every { downloadPreferences.perMangaOverrides } returns flowOf(mapOf(mangaId to DeleteAfterReadMode.DISABLED))
+    fun `reaching the last page does not delete when a per-manga override disables it despite the global setting`() =
+        runTest {
+            stubDeleteAfterReadFixture()
+            every { downloadPreferences.deleteAfterReading } returns flowOf(true)
+            every { downloadPreferences.perMangaOverrides } returns flowOf(mapOf(mangaId to DeleteAfterReadMode.DISABLED))
 
-        val vm = createViewModel()
-        testDispatcher.scheduler.advanceUntilIdle()
-        vm.setPages(List(5) { ReaderPage(index = it) })
-        vm.jumpToPage(4)
+            val vm = createViewModel()
+            testDispatcher.scheduler.advanceUntilIdle()
+            vm.setPages(List(5) { ReaderPage(index = it) })
+            vm.jumpToPage(4)
+            testDispatcher.scheduler.advanceUntilIdle()
 
-        vm.cleanupOnExit(durationMs = 0L, currentState = vm.state.value)
-
-        coVerify(exactly = 0) { downloadRepository.deleteChapterDownload(any(), any(), any(), any()) }
-    }
+            coVerify(exactly = 0) { downloadRepository.deleteChapterDownload(any(), any(), any(), any()) }
+        }
 
     @Test
-    fun `cleanupOnExit deletes when a per-manga override enables it despite the global setting`() = runTest {
+    fun `reaching the last page deletes when a per-manga override enables it despite the global setting`() = runTest {
         stubDeleteAfterReadFixture()
         every { downloadPreferences.deleteAfterReading } returns flowOf(false)
         every { downloadPreferences.perMangaOverrides } returns flowOf(mapOf(mangaId to DeleteAfterReadMode.ENABLED))
@@ -658,8 +662,7 @@ class ReaderViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
         vm.setPages(List(5) { ReaderPage(index = it) })
         vm.jumpToPage(4)
-
-        vm.cleanupOnExit(durationMs = 0L, currentState = vm.state.value)
+        testDispatcher.scheduler.advanceUntilIdle()
 
         coVerify(exactly = 1) {
             downloadRepository.deleteChapterDownload(chapterId, testSourceIdString, "Test Manga", "Chapter 10")
@@ -667,7 +670,7 @@ class ReaderViewModelTest {
     }
 
     @Test
-    fun `cleanupOnExit does not delete a chapter that has no downloaded pages`() = runTest {
+    fun `reaching the last page does not delete a chapter that has no downloaded pages`() = runTest {
         stubDeleteAfterReadFixture()
         coEvery { downloadRepository.isChapterDownloaded(any(), any(), any()) } returns false
         every { downloadPreferences.deleteAfterReading } returns flowOf(true)
@@ -677,14 +680,13 @@ class ReaderViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
         vm.setPages(List(5) { ReaderPage(index = it) })
         vm.jumpToPage(4)
-
-        vm.cleanupOnExit(durationMs = 0L, currentState = vm.state.value)
+        testDispatcher.scheduler.advanceUntilIdle()
 
         coVerify(exactly = 0) { downloadRepository.deleteChapterDownload(any(), any(), any(), any()) }
     }
 
     @Test
-    fun `cleanupOnExit does not delete when the chapter is not on its last page`() = runTest {
+    fun `does not delete when the chapter is not on its last page`() = runTest {
         stubDeleteAfterReadFixture()
         every { downloadPreferences.deleteAfterReading } returns flowOf(true)
         every { downloadPreferences.perMangaOverrides } returns flowOf(emptyMap())
@@ -693,8 +695,7 @@ class ReaderViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
         vm.setPages(List(5) { ReaderPage(index = it) })
         vm.jumpToPage(2)
-
-        vm.cleanupOnExit(durationMs = 0L, currentState = vm.state.value)
+        testDispatcher.scheduler.advanceUntilIdle()
 
         coVerify(exactly = 0) { downloadRepository.deleteChapterDownload(any(), any(), any(), any()) }
     }

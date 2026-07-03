@@ -9,10 +9,18 @@ import androidx.work.WorkManager
 import androidx.work.WorkRequest
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import app.otakureader.core.preferences.DeleteAfterReadMode
+import app.otakureader.core.preferences.DownloadPreferences
+import app.otakureader.core.preferences.resolveShouldDeleteAfterRead
 import app.otakureader.domain.repository.ChapterRepository
+import app.otakureader.domain.repository.DownloadRepository
+import app.otakureader.domain.repository.MangaRepository
+import app.otakureader.domain.repository.SourceRepository
+import app.otakureader.domain.repository.resolveDownloadFolderName
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.first
 
 /**
  * One-shot WorkManager task that persists a reading-session history record and
@@ -32,10 +40,15 @@ class RecordReadingHistoryWorker @AssistedInject constructor(
     @Assisted workerParams: WorkerParameters,
     private val chapterRepository: ChapterRepository,
     private val goalCompletionNotifier: GoalCompletionNotifier,
+    private val downloadPreferences: DownloadPreferences,
+    private val downloadRepository: DownloadRepository,
+    private val mangaRepository: MangaRepository,
+    private val sourceRepository: SourceRepository,
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
         val chapterId = inputData.getLong(KEY_CHAPTER_ID, INVALID_ID)
+        val mangaId = inputData.getLong(KEY_MANGA_ID, INVALID_ID)
         val readAt = inputData.getLong(KEY_READ_AT, INVALID_ID)
         val durationMs = inputData.getLong(KEY_DURATION_MS, 0L)
         val isIncognito = inputData.getBoolean(KEY_IS_INCOGNITO, false)
@@ -65,6 +78,9 @@ class RecordReadingHistoryWorker @AssistedInject constructor(
                     read = isRead,
                     lastPageRead = lastPageRead,
                 )
+                if (isRead && mangaId != INVALID_ID) {
+                    deleteDownloadIfEligible(mangaId = mangaId, chapterId = chapterId)
+                }
             }
             // Check if the daily reading goal was just reached and notify if so.
             // Isolate notifier failures so they don't cause the worker to retry.
@@ -85,8 +101,37 @@ class RecordReadingHistoryWorker @AssistedInject constructor(
         }
     }
 
+    /**
+     * Deletes the chapter's downloaded pages when the global "delete after reading" preference
+     * (or a per-manga override) says to. Mirrors [app.otakureader.feature.reader.viewmodel.delegate
+     * .ReaderDeleteAfterReadDelegate], which handles the same decision for the live in-session
+     * save path — this is the durable counterpart that still runs if the reader is closed before
+     * that path's debounce timer fires, or the process dies before it completes.
+     */
+    private suspend fun deleteDownloadIfEligible(mangaId: Long, chapterId: Long) {
+        val overrideMode = downloadPreferences.perMangaOverrides.first()[mangaId] ?: DeleteAfterReadMode.INHERIT
+        val shouldDelete = resolveShouldDeleteAfterRead(
+            overrideMode = overrideMode,
+            globalEnabled = downloadPreferences.deleteAfterReading.first(),
+        )
+        if (!shouldDelete) return
+
+        val manga = mangaRepository.getMangaById(mangaId) ?: return
+        val chapter = chapterRepository.getChapterById(chapterId) ?: return
+        val downloadFolderName = sourceRepository.resolveDownloadFolderName(manga.sourceId)
+        if (!downloadRepository.isChapterDownloaded(downloadFolderName, manga.title, chapter.name)) return
+
+        downloadRepository.deleteChapterDownload(
+            chapterId = chapterId,
+            sourceName = downloadFolderName,
+            mangaTitle = manga.title,
+            chapterTitle = chapter.name,
+        )
+    }
+
     companion object {
         const val KEY_CHAPTER_ID = "chapter_id"
+        const val KEY_MANGA_ID = "manga_id"
         const val KEY_READ_AT = "read_at"
         const val KEY_DURATION_MS = "duration_ms"
         const val KEY_IS_INCOGNITO = "is_incognito"
@@ -100,6 +145,8 @@ class RecordReadingHistoryWorker @AssistedInject constructor(
          * Builds a [WorkRequest] for persisting a reading session record.
          *
          * @param chapterId    The ID of the chapter that was read.
+         * @param mangaId      The ID of the chapter's parent manga, used to resolve delete-after-
+         *                     reading eligibility.
          * @param readAt       Epoch-millisecond timestamp for when the session started.
          * @param durationMs   Duration of the reading session in milliseconds.
          * @param isIncognito  When `true` the worker exits immediately without writing.
@@ -108,6 +155,7 @@ class RecordReadingHistoryWorker @AssistedInject constructor(
          */
         fun buildRequest(
             chapterId: Long,
+            mangaId: Long,
             readAt: Long,
             durationMs: Long,
             isIncognito: Boolean = false,
@@ -116,6 +164,7 @@ class RecordReadingHistoryWorker @AssistedInject constructor(
         ): WorkRequest {
             val inputData: Data = workDataOf(
                 KEY_CHAPTER_ID to chapterId,
+                KEY_MANGA_ID to mangaId,
                 KEY_READ_AT to readAt,
                 KEY_DURATION_MS to durationMs,
                 KEY_IS_INCOGNITO to isIncognito,

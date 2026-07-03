@@ -16,6 +16,7 @@ class WorkManagerHistoryScheduler @Inject constructor(
 
     override fun scheduleExit(
         chapterId: Long,
+        mangaId: Long,
         readAt: Long,
         durationMs: Long,
         isIncognito: Boolean,
@@ -25,6 +26,7 @@ class WorkManagerHistoryScheduler @Inject constructor(
         runCatching {
             val request = RecordReadingHistoryWorker.buildRequest(
                 chapterId = chapterId,
+                mangaId = mangaId,
                 readAt = readAt,
                 durationMs = durationMs,
                 isIncognito = isIncognito,

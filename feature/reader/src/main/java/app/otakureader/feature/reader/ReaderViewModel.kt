@@ -945,6 +945,7 @@ class ReaderViewModel @Inject constructor(
         // the OS kills the process before a raw coroutine could complete.
         historyDelegate.enqueueExit(
             chapterId = chapterId,
+            mangaId = mangaId,
             sessionReadAt = sessionReadAt,
             durationMs = durationMs,
             currentState = currentState,
@@ -1015,7 +1016,6 @@ class ReaderViewModel @Inject constructor(
                     // non-fatal: tracker sync failure must not interrupt reader exit
                 }
             }
-            deleteAfterReadDelegate.maybeDeleteAfterRead(mangaId = mangaId, chapterId = chapterId)
         }
     }
 
