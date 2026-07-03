@@ -66,7 +66,6 @@ import app.otakureader.feature.about.R
 @Composable
 fun AboutScreen(
     onNavigateBack: () -> Unit,
-    onNavigateToLicenses: () -> Unit = {},
     onNavigateToPrivacyPolicy: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -154,14 +153,20 @@ fun AboutScreen(
                 icon = Icons.Default.History,
                 title = stringResource(R.string.about_changelog_title),
                 subtitle = stringResource(R.string.about_changelog_subtitle),
-                onClick = onNavigateToLicenses
+                onClick = {
+                    context.openUrl("https://heartless-veteran.github.io/Otaku-Reader/changelog")
+                }
             )
 
             AboutListItem(
                 icon = Icons.Default.Gavel,
                 title = stringResource(R.string.about_open_source_licenses_title),
                 subtitle = stringResource(R.string.about_open_source_licenses_subtitle),
-                onClick = onNavigateToLicenses
+                onClick = {
+                    context.openUrl(
+                        "https://github.com/Heartless-Veteran/Otaku-Reader/blob/main/docs/DEPENDENCY_LICENSES.md"
+                    )
+                }
             )
 
             AboutListItem(
