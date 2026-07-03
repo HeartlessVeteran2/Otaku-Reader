@@ -634,15 +634,24 @@ class BrowseViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
+    /** Serializes read-modify-write cycles on the saved-search JSON so concurrent mutations
+     * (e.g. rapid taps on move-up/move-down, or a delete racing a reorder) can't silently lose
+     * each other's changes — the same class of race [nsfwToggleMutex] guards against elsewhere. */
+    private val namedSearchMutex = Mutex()
+
     /**
-     * Reads the full, unfiltered saved-search list from preferences. [BrowseState.namedSavedSearches]
-     * only holds the current source's subset, so mutations must read+write the full list — writing
-     * back the filtered subset would silently drop every other source's saved searches.
+     * Reads the full, unfiltered saved-search list from preferences, or `null` if the persisted
+     * JSON fails to decode. [BrowseState.namedSavedSearches] only holds the current source's
+     * subset, so mutations must read+write the full list — writing back the filtered subset
+     * would silently drop every other source's saved searches. Callers that mutate must treat a
+     * `null` result as "abort" rather than falling back to an empty list, or a decode failure
+     * (corruption, an incompatible future schema change) would silently wipe every saved search
+     * on the next write.
      */
-    private suspend fun readAllNamedSearches(): List<SavedSourceSearch> =
+    private suspend fun readAllNamedSearches(): List<SavedSourceSearch>? =
         runCatching {
             Json.decodeFromString<List<SavedSourceSearch>>(generalPreferences.savedSourceSearchesJson.first())
-        }.getOrDefault(emptyList())
+        }.getOrNull()
 
     private suspend fun writeAllNamedSearches(searches: List<SavedSourceSearch>) {
         generalPreferences.setSavedSourceSearchesJson(Json.encodeToString(searches))
@@ -662,20 +671,26 @@ class BrowseViewModel @Inject constructor(
         }
         val sourceId = state.currentSourceId
         viewModelScope.launch {
-            val all = readAllNamedSearches()
-            val newSearch = SavedSourceSearch(
-                name = name,
-                query = query,
-                sourceId = sourceId?.toLongOrNull() ?: 0L,
-                sourceName = sourceId ?: "",
-                order = (all.maxOfOrNull { it.order } ?: -1) + 1,
-            )
-            runCatching {
-                writeAllNamedSearches(all + newSearch)
-            }.onSuccess {
-                _effect.send(BrowseEffect.ShowSnackbar("Search \"$name\" saved"))
-            }.onFailure {
-                _effect.send(BrowseEffect.ShowSnackbar("Failed to save search"))
+            namedSearchMutex.withLock {
+                val all = readAllNamedSearches()
+                if (all == null) {
+                    _effect.send(BrowseEffect.ShowSnackbar("Failed to save search"))
+                    return@withLock
+                }
+                val newSearch = SavedSourceSearch(
+                    name = name,
+                    query = query,
+                    sourceId = sourceId?.toLongOrNull() ?: 0L,
+                    sourceName = sourceId ?: "",
+                    order = (all.maxOfOrNull { it.order } ?: -1) + 1,
+                )
+                runCatching {
+                    writeAllNamedSearches(all + newSearch)
+                }.onSuccess {
+                    _effect.send(BrowseEffect.ShowSnackbar("Search \"$name\" saved"))
+                }.onFailure {
+                    _effect.send(BrowseEffect.ShowSnackbar("Failed to save search"))
+                }
             }
         }
         _state.update { it.copy(showSaveSearchDialog = false, saveSearchName = "") }
@@ -706,9 +721,15 @@ class BrowseViewModel @Inject constructor(
     private fun deleteNamedSavedSearch(id: String) {
         viewModelScope.launch {
             try {
-                val all = readAllNamedSearches()
-                writeAllNamedSearches(all.filterNot { it.id == id })
-                _effect.send(BrowseEffect.ShowSnackbar("Saved search removed"))
+                namedSearchMutex.withLock {
+                    val all = readAllNamedSearches()
+                    if (all == null) {
+                        _effect.send(BrowseEffect.ShowSnackbar("Failed to remove saved search"))
+                        return@withLock
+                    }
+                    writeAllNamedSearches(all.filterNot { it.id == id })
+                    _effect.send(BrowseEffect.ShowSnackbar("Saved search removed"))
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
@@ -730,21 +751,27 @@ class BrowseViewModel @Inject constructor(
     private fun moveNamedSavedSearch(id: String, offset: Int) {
         viewModelScope.launch {
             try {
-                val all = readAllNamedSearches()
-                val sourceId = _state.value.currentSourceId
-                val normalized = all.filter { it.sourceName == sourceId }
-                    .sortedBy { it.order }
-                    .mapIndexed { index, search -> search.copy(order = index) }
-                val currentIndex = normalized.indexOfFirst { it.id == id }
-                val targetIndex = currentIndex + offset
-                if (currentIndex == -1 || targetIndex !in normalized.indices) return@launch
+                namedSearchMutex.withLock {
+                    val all = readAllNamedSearches()
+                    if (all == null) {
+                        _effect.send(BrowseEffect.ShowSnackbar("Failed to reorder saved search"))
+                        return@withLock
+                    }
+                    val sourceId = _state.value.currentSourceId
+                    val normalized = all.filter { it.sourceName == sourceId }
+                        .sortedBy { it.order }
+                        .mapIndexed { index, search -> search.copy(order = index) }
+                    val currentIndex = normalized.indexOfFirst { it.id == id }
+                    val targetIndex = currentIndex + offset
+                    if (currentIndex == -1 || targetIndex !in normalized.indices) return@withLock
 
-                val reordered = normalized.toMutableList()
-                reordered[currentIndex] = normalized[targetIndex].copy(order = currentIndex)
-                reordered[targetIndex] = normalized[currentIndex].copy(order = targetIndex)
-                val byId = reordered.associateBy { it.id }
+                    val reordered = normalized.toMutableList()
+                    reordered[currentIndex] = normalized[targetIndex].copy(order = currentIndex)
+                    reordered[targetIndex] = normalized[currentIndex].copy(order = targetIndex)
+                    val byId = reordered.associateBy { it.id }
 
-                writeAllNamedSearches(all.map { search -> byId[search.id] ?: search })
+                    writeAllNamedSearches(all.map { search -> byId[search.id] ?: search })
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {

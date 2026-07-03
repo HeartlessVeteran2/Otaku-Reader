@@ -108,9 +108,16 @@ class MigrateMangaUseCase @Inject constructor(
             // A newly-created target already got its notes set at insert time above. An
             // existing target needs an explicit update — but only when it has no notes of its
             // own yet, so migration never clobbers notes the user already wrote against it.
-            if (existingTarget != null && !sourceManga.notes.isNullOrBlank() && existingTarget.notes.isNullOrBlank()) {
+            // Re-fetches the target's current notes rather than reusing the `existingTarget`
+            // snapshot taken before this point: several suspending calls (source detail/chapter
+            // fetches, chapter matching, download migration) run in between, and a note the user
+            // added during that window would otherwise be silently overwritten.
+            if (existingTarget != null && !sourceManga.notes.isNullOrBlank()) {
                 try {
-                    mangaRepository.updateMangaNote(targetMangaId, sourceManga.notes)
+                    val currentNotes = mangaRepository.getMangaById(targetMangaId)?.notes
+                    if (currentNotes.isNullOrBlank()) {
+                        mangaRepository.updateMangaNote(targetMangaId, sourceManga.notes)
+                    }
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
