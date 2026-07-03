@@ -11,6 +11,14 @@
     <!-- Downloads -->
     <string name="more_downloads">Downloads</string>
     <string name="more_downloads_desc">Manage your offline manga</string>
+    <plurals name="more_download_queue_paused">
+        <item quantity="one">Paused • %1$d chapter</item>
+        <item quantity="other">Paused • %1$d chapters</item>
+    </plurals>
+    <plurals name="more_download_queue_downloading">
+        <item quantity="one">%1$d chapter</item>
+        <item quantity="other">%1$d chapters</item>
+    </plurals>
     
     <!-- Statistics -->
     <string name="more_statistics">Statistics</string>

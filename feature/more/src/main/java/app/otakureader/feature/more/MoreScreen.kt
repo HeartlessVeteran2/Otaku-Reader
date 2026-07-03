@@ -57,6 +57,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -199,7 +200,19 @@ fun MoreScreen(
                 iconContainerColor = MaterialTheme.colorScheme.errorContainer,
                 iconTint = MaterialTheme.colorScheme.onErrorContainer,
                 headline = stringResource(R.string.more_downloads),
-                supporting = stringResource(R.string.more_downloads_desc),
+                supporting = when (val queueState = state.downloadQueueState) {
+                    DownloadQueueDisplayState.Stopped -> stringResource(R.string.more_downloads_desc)
+                    is DownloadQueueDisplayState.Paused -> pluralStringResource(
+                        R.plurals.more_download_queue_paused,
+                        queueState.pending,
+                        queueState.pending,
+                    )
+                    is DownloadQueueDisplayState.Downloading -> pluralStringResource(
+                        R.plurals.more_download_queue_downloading,
+                        queueState.pending,
+                        queueState.pending,
+                    )
+                },
                 onClick = onNavigateToDownloads
             )
             HorizontalDivider()
