@@ -77,7 +77,10 @@ class MoreViewModelTest {
         every { downloadRepository.observeDownloads() } returns flowOf(emptyList())
 
         createViewModel().state.test {
-            skipItems(1) // initial MoreState() default before the combine() emits
+            // No skipItems() here: the computed result is structurally equal to MoreState()'s
+            // default (downloadQueueState = Stopped, all other fields also at their defaults),
+            // and StateFlow only emits when the new value differs (by equals()) from the
+            // current one — so this scenario produces exactly one emission, not two.
             val state = awaitItem()
             assertEquals(DownloadQueueDisplayState.Stopped, state.downloadQueueState)
         }
