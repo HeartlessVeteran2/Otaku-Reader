@@ -17,4 +17,6 @@ data class SavedSourceSearch(
     val sourceId: Long,
     val sourceName: String,
     val createdAt: Long = System.currentTimeMillis(),
+    /** Manual display order (ascending). Reorderable from the Browse screen (Komikku parity). */
+    val order: Int = 0,
 )

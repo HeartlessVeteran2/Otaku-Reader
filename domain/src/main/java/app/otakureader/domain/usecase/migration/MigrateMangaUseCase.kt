@@ -56,10 +56,13 @@ class MigrateMangaUseCase @Inject constructor(
                 // Target already exists, use it
                 existingTarget.id
             } else {
-                // Create new manga entry for target
+                // Create new manga entry for target, carrying over notes (Komikku's NOTES
+                // migration flag) directly at insert time — there's no existing target row to
+                // conflict with, so this avoids a separate update query.
                 val newManga = targetCandidate.toManga(
                     favorite = sourceManga.favorite,
-                    autoDownload = sourceManga.autoDownload
+                    autoDownload = sourceManga.autoDownload,
+                    notes = sourceManga.notes
                 )
                 mangaRepository.insertManga(newManga)
             }
@@ -101,6 +104,26 @@ class MigrateMangaUseCase @Inject constructor(
                 targetChapters = targetChapters,
                 mode = mode
             )
+
+            // A newly-created target already got its notes set at insert time above. An
+            // existing target needs an explicit update — but only when it has no notes of its
+            // own yet, so migration never clobbers notes the user already wrote against it.
+            // Re-fetches the target's current notes rather than reusing the `existingTarget`
+            // snapshot taken before this point: several suspending calls (source detail/chapter
+            // fetches, chapter matching, download migration) run in between, and a note the user
+            // added during that window would otherwise be silently overwritten.
+            if (existingTarget != null && !sourceManga.notes.isNullOrBlank()) {
+                try {
+                    val currentNotes = mangaRepository.getMangaById(targetMangaId)?.notes
+                    if (currentNotes.isNullOrBlank()) {
+                        mangaRepository.updateMangaNote(targetMangaId, sourceManga.notes)
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // Notes are a non-critical field; a failure here shouldn't abort migration.
+                }
+            }
 
             // Migrate categories
             if (sourceManga.categoryIds.isNotEmpty()) {
@@ -262,7 +285,8 @@ class MigrateMangaUseCase @Inject constructor(
 
     private fun MigrationCandidate.toManga(
         favorite: Boolean = false,
-        autoDownload: Boolean = false
+        autoDownload: Boolean = false,
+        notes: String? = null
     ) = Manga(
         id = 0L, // Auto-generate
         sourceId = sourceId,
@@ -276,6 +300,7 @@ class MigrateMangaUseCase @Inject constructor(
         status = status,
         favorite = favorite,
         initialized = true,
-        autoDownload = autoDownload
+        autoDownload = autoDownload,
+        notes = notes
     )
 }

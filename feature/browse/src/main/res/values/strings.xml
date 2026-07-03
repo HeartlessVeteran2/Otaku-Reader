@@ -32,6 +32,8 @@
     <string name="browse_save_search_hint">Search name</string>
     <string name="browse_save_search_confirm">Save</string>
     <string name="browse_delete_saved_search">Delete saved search</string>
+    <string name="browse_move_saved_search_earlier">Move saved search earlier</string>
+    <string name="browse_move_saved_search_later">Move saved search later</string>
     <string name="browse_install_extension">Install Extension</string>
     <string name="browse_search_placeholder">Search manga&#8230;</string>
     <string name="browse_filters">Filters</string>

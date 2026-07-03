@@ -387,12 +387,107 @@ class MigrateMangaUseCaseTest {
         coVerify(exactly = 1) { mangaRepository.deleteManga(sourceMangaId) }
     }
 
+    @Test
+    fun `migrates notes to a newly created target manga at insert time`() = runTest {
+        val sourceMangaId = 1L
+        val targetMangaId = 2L
+
+        val sourceManga = createTestManga(id = sourceMangaId, title = "Test Manga", notes = "Great art style")
+        val targetCandidate = createTestCandidate(title = "Test Manga (New Source)")
+
+        coEvery { mangaRepository.getMangaBySourceAndUrl(any(), any()) } returns null
+        coEvery { mangaRepository.insertManga(any()) } returns targetMangaId
+        coEvery { sourceRepository.getMangaDetails(any(), any()) } returns Result.success(mockk())
+        coEvery { sourceRepository.getChapterList(any(), any()) } returns Result.success(emptyList())
+        coEvery { chapterRepository.getChaptersByMangaIdSync(sourceMangaId) } returns emptyList()
+        coEvery { trackRepository.observeEntriesForManga(sourceMangaId) } returns flowOf(emptyList())
+
+        val result = useCase(sourceManga, targetCandidate, MigrationMode.MOVE)
+
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 1) { mangaRepository.insertManga(match { it.notes == "Great art style" }) }
+        coVerify(exactly = 0) { mangaRepository.updateMangaNote(any(), any()) }
+    }
+
+    @Test
+    fun `does not overwrite an existing target manga's notes`() = runTest {
+        val sourceMangaId = 1L
+        val targetMangaId = 2L
+
+        val sourceManga = createTestManga(id = sourceMangaId, title = "Test Manga", notes = "Source notes")
+        val targetCandidate = createTestCandidate(title = "Test Manga (New Source)")
+        val existingTarget = createTestManga(id = targetMangaId, title = "Test Manga (New Source)", notes = "Already has notes")
+
+        coEvery { mangaRepository.getMangaBySourceAndUrl(any(), any()) } returns existingTarget
+        // The notes check re-fetches the target's current state rather than reusing the
+        // getMangaBySourceAndUrl snapshot (fixes a stale-read race — see MigrateMangaUseCase).
+        coEvery { mangaRepository.getMangaById(targetMangaId) } returns existingTarget
+        coEvery { sourceRepository.getMangaDetails(any(), any()) } returns Result.success(mockk())
+        coEvery { sourceRepository.getChapterList(any(), any()) } returns Result.success(emptyList())
+        coEvery { chapterRepository.getChaptersByMangaIdSync(sourceMangaId) } returns emptyList()
+        coEvery { trackRepository.observeEntriesForManga(sourceMangaId) } returns flowOf(emptyList())
+
+        val result = useCase(sourceManga, targetCandidate, MigrationMode.MOVE)
+
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 0) { mangaRepository.updateMangaNote(any(), any()) }
+    }
+
+    @Test
+    fun `migrates notes to an existing target manga that has none of its own`() = runTest {
+        val sourceMangaId = 1L
+        val targetMangaId = 2L
+
+        val sourceManga = createTestManga(id = sourceMangaId, title = "Test Manga", notes = "Source notes")
+        val targetCandidate = createTestCandidate(title = "Test Manga (New Source)")
+        val existingTarget = createTestManga(id = targetMangaId, title = "Test Manga (New Source)", notes = null)
+
+        coEvery { mangaRepository.getMangaBySourceAndUrl(any(), any()) } returns existingTarget
+        coEvery { mangaRepository.getMangaById(targetMangaId) } returns existingTarget
+        coEvery { sourceRepository.getMangaDetails(any(), any()) } returns Result.success(mockk())
+        coEvery { sourceRepository.getChapterList(any(), any()) } returns Result.success(emptyList())
+        coEvery { chapterRepository.getChaptersByMangaIdSync(sourceMangaId) } returns emptyList()
+        coEvery { trackRepository.observeEntriesForManga(sourceMangaId) } returns flowOf(emptyList())
+
+        val result = useCase(sourceManga, targetCandidate, MigrationMode.MOVE)
+
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 1) { mangaRepository.updateMangaNote(targetMangaId, "Source notes") }
+    }
+
+    @Test
+    fun `re-fetches the existing target's notes instead of reusing the stale lookup snapshot`() = runTest {
+        // The user adds a note to the target manga (e.g. from another screen) after the initial
+        // getMangaBySourceAndUrl lookup but before the notes-migration step runs — simulating the
+        // race the re-fetch fix guards against.
+        val sourceMangaId = 1L
+        val targetMangaId = 2L
+
+        val sourceManga = createTestManga(id = sourceMangaId, title = "Test Manga", notes = "Source notes")
+        val targetCandidate = createTestCandidate(title = "Test Manga (New Source)")
+        val staleTarget = createTestManga(id = targetMangaId, title = "Test Manga (New Source)", notes = null)
+        val freshTarget = createTestManga(id = targetMangaId, title = "Test Manga (New Source)", notes = "Added mid-migration")
+
+        coEvery { mangaRepository.getMangaBySourceAndUrl(any(), any()) } returns staleTarget
+        coEvery { mangaRepository.getMangaById(targetMangaId) } returns freshTarget
+        coEvery { sourceRepository.getMangaDetails(any(), any()) } returns Result.success(mockk())
+        coEvery { sourceRepository.getChapterList(any(), any()) } returns Result.success(emptyList())
+        coEvery { chapterRepository.getChaptersByMangaIdSync(sourceMangaId) } returns emptyList()
+        coEvery { trackRepository.observeEntriesForManga(sourceMangaId) } returns flowOf(emptyList())
+
+        val result = useCase(sourceManga, targetCandidate, MigrationMode.MOVE)
+
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 0) { mangaRepository.updateMangaNote(any(), any()) }
+    }
+
     // Helper functions
     private fun createTestManga(
         id: Long,
         title: String,
         sourceId: Long = 1L,
-        categoryIds: List<Long> = emptyList()
+        categoryIds: List<Long> = emptyList(),
+        notes: String? = null
     ) = Manga(
         id = id,
         sourceId = sourceId,
@@ -400,7 +495,8 @@ class MigrateMangaUseCaseTest {
         title = title,
         thumbnailUrl = "https://example.com/cover.jpg",
         favorite = true,
-        categoryIds = categoryIds
+        categoryIds = categoryIds,
+        notes = notes
     )
 
     private fun createTestCandidate(

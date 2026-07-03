@@ -34,11 +34,14 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.ClearAll
@@ -858,21 +861,44 @@ private fun SourceListContent(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        items(state.namedSavedSearches, key = { "ns_${it.id}" }) { search ->
+                        itemsIndexed(state.namedSavedSearches, key = { _, search -> "ns_${search.id}" }) { index, search ->
                             FilterChip(
                                 selected = false,
                                 onClick = { onEvent(BrowseEvent.ApplyNamedSavedSearch(search)) },
                                 label = { Text(search.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                                 trailingIcon = {
-                                    IconButton(
-                                        onClick = { onEvent(BrowseEvent.DeleteNamedSavedSearch(search.id)) },
-                                        modifier = Modifier.size(24.dp),
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Close,
-                                            contentDescription = stringResource(R.string.browse_delete_saved_search),
-                                            modifier = Modifier.size(18.dp),
-                                        )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        if (index > 0) {
+                                            IconButton(
+                                                onClick = { onEvent(BrowseEvent.MoveNamedSavedSearchUp(search.id)) },
+                                            ) {
+                                                Icon(
+                                                    Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                                                    contentDescription = stringResource(R.string.browse_move_saved_search_earlier),
+                                                    modifier = Modifier.size(18.dp),
+                                                )
+                                            }
+                                        }
+                                        if (index < state.namedSavedSearches.lastIndex) {
+                                            IconButton(
+                                                onClick = { onEvent(BrowseEvent.MoveNamedSavedSearchDown(search.id)) },
+                                            ) {
+                                                Icon(
+                                                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                                    contentDescription = stringResource(R.string.browse_move_saved_search_later),
+                                                    modifier = Modifier.size(18.dp),
+                                                )
+                                            }
+                                        }
+                                        IconButton(
+                                            onClick = { onEvent(BrowseEvent.DeleteNamedSavedSearch(search.id)) },
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Close,
+                                                contentDescription = stringResource(R.string.browse_delete_saved_search),
+                                                modifier = Modifier.size(18.dp),
+                                            )
+                                        }
                                     }
                                 },
                             )

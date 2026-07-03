@@ -3,8 +3,7 @@ package app.otakureader.feature.browse
 import app.cash.turbine.ReceiveTurbine
 import app.cash.turbine.test
 import app.otakureader.core.preferences.GeneralPreferences
-import app.otakureader.domain.model.FeedSavedSearch
-import app.otakureader.domain.repository.FeedRepository
+import app.otakureader.domain.model.SavedSourceSearch
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.domain.usecase.library.AddMangaToLibraryUseCase
@@ -28,6 +27,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
+import io.mockk.slot
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -42,6 +42,8 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -56,7 +58,6 @@ class BrowseViewModelTest {
     // Repository mocks — coEvery works correctly with interface mocks
     private val sourceRepository: SourceRepository = mockk()
     private val mangaRepository: MangaRepository = mockk()
-    private val feedRepository: FeedRepository = mockk()
     private val generalPreferences: GeneralPreferences = mockk()
     private val extensionManagementRepository: ExtensionManagementRepository = mockk(relaxed = true)
     private val extensionRepository: ExtensionRepository = mockk()
@@ -91,7 +92,6 @@ class BrowseViewModelTest {
         coEvery { generalPreferences.addBrowseSearchHistory(any()) } returns mockk(relaxed = true)
         coEvery { generalPreferences.getBrowseFilterState(any()) } returns null
         coEvery { generalPreferences.setBrowseFilterState(any(), any()) } just Awaits
-        every { feedRepository.getSavedSearches() } returns flowOf(emptyList())
         every { generalPreferences.pinnedSourceIds } returns flowOf(emptySet())
         every { generalPreferences.disabledSourceIds } returns flowOf(emptySet())
         coEvery { generalPreferences.toggleDisabledSource(any()) } just Awaits
@@ -126,7 +126,6 @@ class BrowseViewModelTest {
             addMangaToLibraryUseCase = addMangaToLibraryUseCase,
             toggleFavoriteMangaUseCase = toggleFavoriteMangaUseCase,
             mangaRepository = mangaRepository,
-            feedRepository = feedRepository,
             generalPreferences = generalPreferences,
             searchLibraryMangaUseCase = searchLibraryMangaUseCase,
             extensionManagementRepository = extensionManagementRepository,
@@ -419,15 +418,15 @@ class BrowseViewModelTest {
     }
 
     @Test
-    fun `saved searches filtered to selected source`() = runTest {
-        val search1 = FeedSavedSearch(id = 1L, sourceId = 1L, sourceName = "1", query = "one piece", filters = emptyMap())
-        val search2 = FeedSavedSearch(id = 2L, sourceId = 2L, sourceName = "2", query = "naruto", filters = emptyMap())
-        val source = createMangaSource(id = "1", name = "Source 1", lang = "en", isNsfw = false)
+    fun `MoveNamedSavedSearchDown swaps order with the next search for the same source`() = runTest {
+        val searchA = SavedSourceSearch(id = "a", name = "A", query = "a", sourceId = 1L, sourceName = "1", order = 0)
+        val searchB = SavedSourceSearch(id = "b", name = "B", query = "b", sourceId = 1L, sourceName = "1", order = 1)
+        val otherSourceSearch = SavedSourceSearch(id = "c", name = "C", query = "c", sourceId = 2L, sourceName = "2", order = 0)
+        val initialJson = Json.encodeToString(listOf(searchA, searchB, otherSourceSearch))
 
-        every { feedRepository.getSavedSearches() } returns flowOf(listOf(search1, search2))
-        every { sourceRepository.getSources() } returns flowOf(listOf(source))
-        coEvery { sourceRepository.getSourceFilters("1") } returns FilterList()
-        coEvery { sourceRepository.getPopularManga("1", 1) } returns Result.success(MangaPage(emptyList(), false))
+        every { generalPreferences.savedSourceSearchesJson } returns flowOf(initialJson)
+        val writtenJson = slot<String>()
+        coEvery { generalPreferences.setSavedSourceSearchesJson(capture(writtenJson)) } just Awaits
 
         viewModel = BrowseViewModel(
             getSourcesUseCase = getSourcesUseCase,
@@ -438,7 +437,6 @@ class BrowseViewModelTest {
             addMangaToLibraryUseCase = addMangaToLibraryUseCase,
             toggleFavoriteMangaUseCase = toggleFavoriteMangaUseCase,
             mangaRepository = mangaRepository,
-            feedRepository = feedRepository,
             generalPreferences = generalPreferences,
             searchLibraryMangaUseCase = searchLibraryMangaUseCase,
             extensionManagementRepository = extensionManagementRepository,
@@ -449,23 +447,29 @@ class BrowseViewModelTest {
         viewModel.onEvent(BrowseEvent.SelectSource("1"))
         testDispatcher.scheduler.advanceUntilIdle()
 
-        val savedSearches = viewModel.state.value.savedSearches
-        assertEquals(1, savedSearches.size)
-        assertEquals("one piece", savedSearches[0].query)
+        viewModel.onEvent(BrowseEvent.MoveNamedSavedSearchDown("a"))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val updated = Json.decodeFromString<List<SavedSourceSearch>>(writtenJson.captured).associateBy { it.id }
+        assertEquals(1, updated.getValue("a").order)
+        assertEquals(0, updated.getValue("b").order)
+        // Other sources' searches are untouched — this is the fix for the data-loss bug where
+        // persisting only the currently-filtered subset would have dropped search "c" entirely.
+        assertEquals(0, updated.getValue("c").order)
     }
 
     @Test
-    fun `saved searches update when source changes`() = runTest {
-        val search1 = FeedSavedSearch(id = 1L, sourceId = 1L, sourceName = "1", query = "one piece", filters = emptyMap())
-        val search2 = FeedSavedSearch(id = 2L, sourceId = 2L, sourceName = "2", query = "naruto", filters = emptyMap())
-        val source1 = createMangaSource(id = "1", name = "Source 1", lang = "en", isNsfw = false)
-        val source2 = createMangaSource(id = "2", name = "Source 2", lang = "en", isNsfw = false)
+    fun `MoveNamedSavedSearchDown still reorders when neighbors share the same legacy order value`() = runTest {
+        // Simulates entries persisted before the `order` field existed — they all decode to the
+        // default 0. Without normalizing first, swapping two same-valued neighbors would write
+        // the same value back to both and silently do nothing.
+        val searchA = SavedSourceSearch(id = "a", name = "A", query = "a", sourceId = 1L, sourceName = "1", order = 0)
+        val searchB = SavedSourceSearch(id = "b", name = "B", query = "b", sourceId = 1L, sourceName = "1", order = 0)
+        val initialJson = Json.encodeToString(listOf(searchA, searchB))
 
-        val savedSearchFlow = MutableStateFlow(listOf(search1, search2))
-        every { feedRepository.getSavedSearches() } returns savedSearchFlow
-        every { sourceRepository.getSources() } returns flowOf(listOf(source1, source2))
-        coEvery { sourceRepository.getSourceFilters(any()) } returns FilterList()
-        coEvery { sourceRepository.getPopularManga(any(), 1) } returns Result.success(MangaPage(emptyList(), false))
+        every { generalPreferences.savedSourceSearchesJson } returns flowOf(initialJson)
+        val writtenJson = slot<String>()
+        coEvery { generalPreferences.setSavedSourceSearchesJson(capture(writtenJson)) } just Awaits
 
         viewModel = BrowseViewModel(
             getSourcesUseCase = getSourcesUseCase,
@@ -476,7 +480,6 @@ class BrowseViewModelTest {
             addMangaToLibraryUseCase = addMangaToLibraryUseCase,
             toggleFavoriteMangaUseCase = toggleFavoriteMangaUseCase,
             mangaRepository = mangaRepository,
-            feedRepository = feedRepository,
             generalPreferences = generalPreferences,
             searchLibraryMangaUseCase = searchLibraryMangaUseCase,
             extensionManagementRepository = extensionManagementRepository,
@@ -486,13 +489,46 @@ class BrowseViewModelTest {
 
         viewModel.onEvent(BrowseEvent.SelectSource("1"))
         testDispatcher.scheduler.advanceUntilIdle()
-        assertEquals(1, viewModel.state.value.savedSearches.size)
-        assertEquals("one piece", viewModel.state.value.savedSearches[0].query)
 
-        viewModel.onEvent(BrowseEvent.SelectSource("2"))
+        viewModel.onEvent(BrowseEvent.MoveNamedSavedSearchDown("a"))
         testDispatcher.scheduler.advanceUntilIdle()
-        assertEquals(1, viewModel.state.value.savedSearches.size)
-        assertEquals("naruto", viewModel.state.value.savedSearches[0].query)
+
+        val updated = Json.decodeFromString<List<SavedSourceSearch>>(writtenJson.captured).associateBy { it.id }
+        assertEquals(1, updated.getValue("a").order)
+        assertEquals(0, updated.getValue("b").order)
+    }
+
+    @Test
+    fun `MoveNamedSavedSearchUp on the first item is a no-op`() = runTest {
+        val searchA = SavedSourceSearch(id = "a", name = "A", query = "a", sourceId = 1L, sourceName = "1", order = 0)
+        val searchB = SavedSourceSearch(id = "b", name = "B", query = "b", sourceId = 1L, sourceName = "1", order = 1)
+        val initialJson = Json.encodeToString(listOf(searchA, searchB))
+
+        every { generalPreferences.savedSourceSearchesJson } returns flowOf(initialJson)
+
+        viewModel = BrowseViewModel(
+            getSourcesUseCase = getSourcesUseCase,
+            getPopularMangaUseCase = getPopularMangaUseCase,
+            getLatestUpdatesUseCase = getLatestUpdatesUseCase,
+            searchMangaUseCase = searchMangaUseCase,
+            getSourceFiltersUseCase = getSourceFiltersUseCase,
+            addMangaToLibraryUseCase = addMangaToLibraryUseCase,
+            toggleFavoriteMangaUseCase = toggleFavoriteMangaUseCase,
+            mangaRepository = mangaRepository,
+            generalPreferences = generalPreferences,
+            searchLibraryMangaUseCase = searchLibraryMangaUseCase,
+            extensionManagementRepository = extensionManagementRepository,
+            extensionRepository = extensionRepository,
+        )
+        activateStateCollection()
+
+        viewModel.onEvent(BrowseEvent.SelectSource("1"))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onEvent(BrowseEvent.MoveNamedSavedSearchUp("a"))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 0) { generalPreferences.setSavedSourceSearchesJson(any()) }
     }
 
     @Test

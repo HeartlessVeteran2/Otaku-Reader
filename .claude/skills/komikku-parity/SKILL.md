@@ -41,29 +41,79 @@ For each screen area, follow this loop:
 | 2 | Library | Done (PR #1155) | Grid/list/comfortable/cover-only modes, tristate filters, filter sheet, RANDOM sort, bulk-select |
 | 3 | Manga detail | Done (PR #1156, #1186) | Collapsing header, chapter list, tracker sheet, tag press, tap-to-search, cancel download, delete-downloads prompt, migrate action, source label |
 | 4 | Reader | Done (verified pre-existing) | Diffed against Komikku's ViewerNavigation/PagerConfig/WebtoonConfig, ChapterNavigator, ReadingModePage — tap zones (exact NavigationRegion color/enum match), slider snap, chapter transitions w/ gap warnings, live-applied settings, rotation, volume keys, save/share all already at parity. No gaps found worth a PR. |
-| 5 | Updates / History / Downloads | **Next** | J2K grouping, swipe actions, real-time progress |
-| 6 | Browse: global search / migrate / feed ordering | Pending | |
+| 5 | Updates / History / Downloads | Done (PR #1187) | Updates/History already had J2K-style date grouping + swipe-to-dismiss (no gaps). Downloads queue was missing Komikku's Sort-by-upload-date/chapter-number menu — added, reusing existing reorderDownload API. Per-item drag-reorder (Komikku's legacy RecyclerView) not ported — out of scope for a pure-Compose project. |
+| 6 | Browse: global search / migrate / feed ordering | Partially done (PR pending) | Global search: already matches Komikku (per-source sections, independent loading/error states). Migrate: fixed a real gap — user notes weren't copied to the target manga on migration (now fixed, guarded against clobbering an existing target's notes). Custom-cover migration and a Komikku-style configurable migration-options dialog (toggle chapters/categories/tracking/notes/custom-cover/remove-old-download individually, matching `MigrationFlag`) are NOT implemented — Otaku's `MigrateMangaUseCase` always migrates everything unconditionally with no per-field opt-out UI. Feed ordering: found `FeedRepository.updateSavedSearchOrder()` and `updateFeedSourceOrder()` already exist but are entirely unused/orphaned — no UI anywhere calls them. Also found two overlapping, competing "saved search" concepts in Browse: `SavedSourceSearch` (no order field, IS wired to UI as chips) and `FeedSavedSearch` (has an `order` field, observed into `BrowseState.savedSearches` but never rendered or wired to any button). Needs a decision on which concept to keep/consolidate before building reorder UI — flagged rather than guessed. |
 | 7 | Settings | Pending | Match Komikku's settings tree, immediate-apply semantics |
 | 8 | More / stats / remaining screens | Pending | |
 
-## Current Session: Updates / History / Downloads (item #5)
+## Resolved: consolidated onto SavedSourceSearch (feed-ordering reorder UI shipped)
+
+User chose "consolidate onto SavedSourceSearch." Implemented:
+- Added `order: Int = 0` to `SavedSourceSearch` (backward-compatible — old persisted JSON without
+  the field just defaults to 0 on decode).
+- Removed `BrowseViewModel`/`BrowseMvi`'s entire dead `FeedSavedSearch` wiring: `savedSearches`
+  state, `SaveCurrentSearch`/`DeleteSavedSearch`/`ApplySavedSearch` events and handlers,
+  `observeSavedSearches()`. Confirmed via grep these were unreachable from any UI before removal.
+  **Left `FeedRepository`/`FeedSavedSearch`/`FeedDao`/`FeedEntities` and the backup
+  create/restore integration completely untouched** — that's a real Room-backed, backed-up
+  subsystem (found via a broader grep after the initial "looks dead" read), just not currently
+  wired to Browse's UI. Deleting the DB/backup layer would need a schema migration and touches
+  backup format compatibility, which is out of scope for a UI cleanup — only the ViewModel-level
+  dead code was removed.
+- Added `MoveNamedSavedSearchUp`/`MoveNamedSavedSearchDown` events, wired to left/right arrow
+  buttons in each saved-search chip's trailing row in `BrowseScreen.kt` (edge items only show the
+  arrow that's valid, matching the existing delete-icon pattern).
+- Fixed a real pre-existing data-loss bug while doing this: `confirmSaveNamedSearch()`/
+  `deleteNamedSavedSearch()` previously read+wrote `state.namedSavedSearches`, which is already
+  filtered to the *current* source — persisting it back would silently drop every other source's
+  saved searches. Added `readAllNamedSearches()`/`writeAllNamedSearches()` that always
+  round-trip the full unfiltered list, and reused them for the new reorder function too.
+
+## Current Session: Settings (item #7)
 
 Komikku spec files to read:
-- `eu.kanade.presentation.updates.UpdatesScreen` + `UpdatesScreenModel` — J2K-style date grouping,
-  swipe/long-press actions, per-item download/read state
-- `eu.kanade.presentation.history.HistoryScreen` + `HistoryScreenModel` — timeline grouping, resume
-- `eu.kanade.presentation.download.DownloadQueueScreen` — real-time progress, reorder, pause/resume
+- `eu.kanade.presentation.more.settings.screen.*` — the full settings tree (Appearance, Library,
+  Reader, Downloads, Tracking, Backup, Browse, Security, Advanced, etc.)
+- Check immediate-apply semantics: Komikku settings changes apply live (no "Save" button, no
+  restart needed) — verify every Otaku settings screen matches this.
 
 Key elements to check:
-- Date-header grouping (Today/Yesterday/this week/older) matching J2K conventions
-- Swipe-to-* actions (mark read, delete, bookmark) vs long-press context menus
-- Real-time download queue progress (bytes/percent, reorder via drag, pause/resume/cancel per item)
-- Bulk actions + undo snackbars (compare against Otaku's existing undo patterns — CLAUDE.md
-  documents Pattern A/B already used for Library/History)
+- Does Otaku's settings tree structure/grouping match Komikku's screen-by-screen (missing
+  sections, extra sections not clearly marked Otaku-exclusive)?
+- Do all toggles/pickers apply immediately, matching Komikku's DataStore-backed live-apply pattern?
+- Backup: does export/import cover the same fields Komikku's backup format does?
 
 Gap areas likely in Otaku:
-- `feature/updates/`, `feature/history/`, `feature/more/downloads` (or wherever the download
-  manager screen lives) — Screen + ViewModel
+- `feature/settings/` — all screens under it
+
+## Previous Session: Browse — global search / migrate / feed ordering (item #6) — partially done
+
+Global search already matches Komikku (per-source sections, independent per-source loading/error
+states, results grouped correctly). Migrate: fixed a real gap in `MigrateMangaUseCase` — user
+notes weren't being copied to the target manga (Komikku's `NOTES` migration flag equivalent); now
+copied, guarded so it never overwrites notes already present on an existing target. Two migrate
+gaps remain, deliberately deferred as bigger scope: (1) custom-cover migration (would need file
+I/O across manga IDs, harder to verify without a device), (2) a configurable migration-options
+dialog matching Komikku's `MigrationFlag` (CHAPTER/CATEGORY/TRACK/CUSTOM_COVER/NOTES/
+REMOVE_DOWNLOAD) — Otaku always migrates everything unconditionally today, which is a reasonable
+default but not user-configurable like Komikku's dialog. Feed ordering: investigation surfaced an
+architectural question (see "Open Question" above) rather than a simple gap — deferred pending
+user input rather than guessed at.
+
+## Previous Session: Updates / History / Downloads (item #5) — done
+
+Updates already had J2K-style date grouping (`buildJk2UiModel`/`Jk2DateHeader`/`Jk2UpdateItem`) and
+swipe-to-dismiss via `SwipeToDismissBox` — matches Komikku, no gap. History already had date-bucket
+grouping (`historyDateBucket`/`HistoryDateHeader`) and swipe-to-dismiss — matches Komikku, no gap.
+Downloads queue was missing Komikku's `DownloadQueueScreen` "Sort" menu (order by upload date
+newest/oldest, order by chapter number asc/desc) — added in PR #1187 via `DownloadsViewModel
+.sortQueue()`, which looks up each queued chapter's metadata and reassigns sequential priorities
+through the existing `DownloadRepository.reorderDownload()` call (confirmed `prioritizeDownloads()`
+can't be reused for this — it preserves each target's *existing* relative priority order rather than
+accepting a caller-supplied order, so it can't express an arbitrary sort). Per-item manual
+drag-to-reorder (Komikku's side uses a legacy `RecyclerView`+`ItemTouchHelper` via `AndroidView`) was
+deliberately not ported — this is a pure-Compose project and a custom drag-reorder `LazyColumn`
+would be a much larger, separate effort; flagged here in case it's wanted as a future item.
 
 ## Previous Session: Reader (item #4) — done, no gaps
 
