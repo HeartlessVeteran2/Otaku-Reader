@@ -43,25 +43,29 @@ For each screen area, follow this loop:
 | 4 | Reader | Done (verified pre-existing) | Diffed against Komikku's ViewerNavigation/PagerConfig/WebtoonConfig, ChapterNavigator, ReadingModePage — tap zones (exact NavigationRegion color/enum match), slider snap, chapter transitions w/ gap warnings, live-applied settings, rotation, volume keys, save/share all already at parity. No gaps found worth a PR. |
 | 5 | Updates / History / Downloads | Done (PR #1187) | Updates/History already had J2K-style date grouping + swipe-to-dismiss (no gaps). Downloads queue was missing Komikku's Sort-by-upload-date/chapter-number menu — added, reusing existing reorderDownload API. Per-item drag-reorder (Komikku's legacy RecyclerView) not ported — out of scope for a pure-Compose project. |
 | 6 | Browse: global search / migrate / feed ordering | Done (PR #1188) | Global search already matched Komikku. Migrate: fixed notes not being copied to the target manga (Komikku's NOTES flag equivalent); custom-cover migration and a full configurable migration-options dialog (matching Komikku's `MigrationFlag` toggles) remain unimplemented — Otaku migrates everything unconditionally, a reasonable default but not user-configurable — flagged as a possible future item, not blocking. Feed ordering: consolidated two competing saved-search concepts onto `SavedSourceSearch` (added `order` field, removed dead `FeedSavedSearch` UI wiring, added move-earlier/move-later reorder buttons) per user decision; `FeedRepository`/`FeedDao`/backup integration left untouched since it's a real Room-backed subsystem, not dead code. |
-| 7 | Settings | **Next** | Match Komikku's settings tree, immediate-apply semantics |
+| 7 | Settings | Done (PR pending) | Full screen-by-screen diff done (Appearance/Library/Reader/Downloads/Tracking/Security/Data/Browse/Advanced). Every live toggle already applies immediately via DataStore, no save/restart gaps found. Biggest find wasn't structural: **delete-after-reading was completely unwired** — the global toggle and per-manga override (Settings > Downloads, manga detail) persisted to DataStore and had a full UI, but nothing anywhere consumed them, so toggling it silently did nothing (a live "Never Stub Live UI" violation, same class of bug as the pre-#1114 `setDeleteAfterReadOverride` stub CLAUDE.md calls out). Fixed by wiring a new `ReaderDeleteAfterReadDelegate` into `ReaderViewModel`'s mark-as-read paths (`saveCurrentProgress()` debounced save + the `cleanupOnExit()` exit path), resolving per-manga override precedence over the global default before deleting. Also deleted a pair of dead `OpenAutoDownloadCategoryIncludePicker`/`ExcludePicker` events (`DownloadSettingsDelegate`) left over from before the category picker was wired directly into the screen. Remaining structural gaps catalogued but deliberately left out of scope (see below) since they either need substantial new infra Otaku doesn't have (cookie jar, DoH, user agent override, verbose-logging plumbing) or don't map onto Otaku's data model (Komikku's "protect bookmarked chapters from delete" — Otaku only has page-level bookmarks since PR #1130, not chapter-level). |
 | 8 | More / stats / remaining screens | Pending | |
 
-## Current Session: Settings (item #7)
+## Prior Session: Settings (item #7) — deferred gaps, not implemented
 
-Komikku spec files to read:
-- `eu.kanade.presentation.more.settings.screen.*` — the full settings tree (Appearance, Library,
-  Reader, Downloads, Tracking, Backup, Browse, Security, Advanced, etc.)
-- Check immediate-apply semantics: Komikku settings changes apply live (no "Save" button, no
-  restart needed) — verify every Otaku settings screen matches this.
-
-Key elements to check:
-- Does Otaku's settings tree structure/grouping match Komikku's screen-by-screen (missing
-  sections, extra sections not clearly marked Otaku-exclusive)?
-- Do all toggles/pickers apply immediately, matching Komikku's DataStore-backed live-apply pattern?
-- Backup: does export/import cover the same fields Komikku's backup format does?
-
-Gap areas likely in Otaku:
-- `feature/settings/` — all screens under it
+Catalogued via full screen diff but intentionally not built this round — flagged as possible
+future items, not blockers:
+- **Selective backup/restore content** — Komikku's `CreateBackupScreen`/`RestoreBackupScreen` let
+  you check/uncheck exactly which data categories (library, tracking, history, settings, ...) go
+  into a backup or get restored. Otaku's backup is all-or-nothing. Biggest real capability gap
+  found; a substantial feature on its own.
+- **Komikku's "Advanced" settings screen has no Otaku equivalent at all** — clear database, clear
+  cookies/WebView data, DNS-over-HTTPS provider, user-agent override, verbose-logging toggle,
+  extension-installer choice (System/Shizuku/Private). None of these have supporting
+  infrastructure in Otaku today (no cookie jar is even configured on the shared OkHttpClient —
+  it's `CookieJar.NO_COOKIES` by default); building the screen would mean building the
+  infrastructure first, out of scope for a settings-parity pass. The two trivially-portable items
+  (disable-battery-optimization shortcut, "Don't kill my app" link) already exist in Otaku's
+  onboarding flow but aren't reachable again afterward — small, low-priority gap.
+- Reader: no `removeAfterReadSlots` (keep last N read chapters), Library: no
+  charging/network-metered auto-update restrictions (Wi-Fi-only boolean only), Tracking: no
+  `trackOnAddingToLibrary`/`autoUpdateTrackOnMarkRead` opt-outs, Security: no
+  `hideNotificationContent` — all real but small, independent gaps, none blocking.
 
 ## Prior Session Summaries (items #1–6)
 

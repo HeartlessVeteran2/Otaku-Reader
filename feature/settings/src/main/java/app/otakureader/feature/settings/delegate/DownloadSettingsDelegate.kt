@@ -130,16 +130,6 @@ class DownloadSettingsDelegate @Inject constructor(
             { generalPreferences.setSmartDownloadMinStorageMb(event.mb); true }
         is SettingsEvent.SetDownloadDataSaverEnabled ->
             { downloadPreferences.setDataSaverEnabled(event.enabled); true }
-        is SettingsEvent.OpenAutoDownloadCategoryIncludePicker -> {
-            // Full multi-select picker UI is a follow-up task (#1057).
-            // For now emit a snackbar so the entry point is wired up and visible.
-            sendEffect(SettingsEffect.ShowSnackbar("Category picker coming soon"))
-            true
-        }
-        is SettingsEvent.OpenAutoDownloadCategoryExcludePicker -> {
-            sendEffect(SettingsEffect.ShowSnackbar("Category picker coming soon"))
-            true
-        }
         is SettingsEvent.SetAutoDownloadCategoryInclude -> {
             downloadPreferences.setAutoDownloadCategoryInclude(event.categoryIds)
             true

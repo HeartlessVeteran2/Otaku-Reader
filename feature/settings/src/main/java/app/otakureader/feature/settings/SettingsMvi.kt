@@ -388,8 +388,6 @@ sealed interface SettingsEvent : UiEvent {
     data class SetDownloadDataSaverEnabled(val enabled: Boolean) : SettingsEvent
 
     // Downloads — Per-category auto-download filter
-    data object OpenAutoDownloadCategoryIncludePicker : SettingsEvent
-    data object OpenAutoDownloadCategoryExcludePicker : SettingsEvent
     data class SetAutoDownloadCategoryInclude(val categoryIds: Set<Long>) : SettingsEvent
     data class SetAutoDownloadCategoryExclude(val categoryIds: Set<Long>) : SettingsEvent
 

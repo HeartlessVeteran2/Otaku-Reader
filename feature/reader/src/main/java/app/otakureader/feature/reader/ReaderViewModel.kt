@@ -31,6 +31,7 @@ import app.otakureader.domain.tracking.TrackManager
 import app.otakureader.domain.tracking.TrackRepository
 import app.otakureader.feature.reader.prefetch.ReadingBehaviorTracker
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderChapterLoaderDelegate
+import app.otakureader.feature.reader.viewmodel.delegate.ReaderDeleteAfterReadDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderDiscordDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderDisplayDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderDownloadAheadDelegate
@@ -103,6 +104,7 @@ class ReaderViewModel @Inject constructor(
     private val discordDelegate: ReaderDiscordDelegate,
     private val prefetchDelegate: ReaderPrefetchDelegate,
     private val downloadAheadDelegate: ReaderDownloadAheadDelegate,
+    private val deleteAfterReadDelegate: ReaderDeleteAfterReadDelegate,
     private val trackerSyncRepository: TrackerSyncRepository,
     private val readerCommentRepository: ReaderCommentRepository,
     private val trackRepository: TrackRepository,
@@ -858,6 +860,10 @@ class ReaderViewModel @Inject constructor(
                 read = currentState.isLastPage,
                 lastPageRead = currentState.currentPage
             )
+
+            if (currentState.isLastPage) {
+                deleteAfterReadDelegate.maybeDeleteAfterRead(mangaId = mangaId, chapterId = chapterId)
+            }
         }
     }
 
@@ -1009,6 +1015,7 @@ class ReaderViewModel @Inject constructor(
                     // non-fatal: tracker sync failure must not interrupt reader exit
                 }
             }
+            deleteAfterReadDelegate.maybeDeleteAfterRead(mangaId = mangaId, chapterId = chapterId)
         }
     }
 
