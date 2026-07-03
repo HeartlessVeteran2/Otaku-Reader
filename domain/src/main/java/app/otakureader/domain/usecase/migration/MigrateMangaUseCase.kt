@@ -102,6 +102,19 @@ class MigrateMangaUseCase @Inject constructor(
                 mode = mode
             )
 
+            // Migrate user notes (Komikku's NOTES migration flag). Skipped when the target manga
+            // already existed in the library with its own notes, so migration never clobbers
+            // notes the user already wrote against that entry.
+            if (!sourceManga.notes.isNullOrBlank() && existingTarget?.notes.isNullOrBlank()) {
+                try {
+                    mangaRepository.updateMangaNote(targetMangaId, sourceManga.notes)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // Notes are a non-critical field; a failure here shouldn't abort migration.
+                }
+            }
+
             // Migrate categories
             if (sourceManga.categoryIds.isNotEmpty()) {
                 sourceManga.categoryIds.forEach { categoryId ->

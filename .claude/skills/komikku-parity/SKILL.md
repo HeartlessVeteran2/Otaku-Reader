@@ -42,38 +42,58 @@ For each screen area, follow this loop:
 | 3 | Manga detail | Done (PR #1156, #1186) | Collapsing header, chapter list, tracker sheet, tag press, tap-to-search, cancel download, delete-downloads prompt, migrate action, source label |
 | 4 | Reader | Done (verified pre-existing) | Diffed against Komikku's ViewerNavigation/PagerConfig/WebtoonConfig, ChapterNavigator, ReadingModePage — tap zones (exact NavigationRegion color/enum match), slider snap, chapter transitions w/ gap warnings, live-applied settings, rotation, volume keys, save/share all already at parity. No gaps found worth a PR. |
 | 5 | Updates / History / Downloads | Done (PR #1187) | Updates/History already had J2K-style date grouping + swipe-to-dismiss (no gaps). Downloads queue was missing Komikku's Sort-by-upload-date/chapter-number menu — added, reusing existing reorderDownload API. Per-item drag-reorder (Komikku's legacy RecyclerView) not ported — out of scope for a pure-Compose project. |
-| 6 | Browse: global search / migrate / feed ordering | **Next** | |
+| 6 | Browse: global search / migrate / feed ordering | Partially done (PR pending) | Global search: already matches Komikku (per-source sections, independent loading/error states). Migrate: fixed a real gap — user notes weren't copied to the target manga on migration (now fixed, guarded against clobbering an existing target's notes). Custom-cover migration and a Komikku-style configurable migration-options dialog (toggle chapters/categories/tracking/notes/custom-cover/remove-old-download individually, matching `MigrationFlag`) are NOT implemented — Otaku's `MigrateMangaUseCase` always migrates everything unconditionally with no per-field opt-out UI. Feed ordering: found `FeedRepository.updateSavedSearchOrder()` and `updateFeedSourceOrder()` already exist but are entirely unused/orphaned — no UI anywhere calls them. Also found two overlapping, competing "saved search" concepts in Browse: `SavedSourceSearch` (no order field, IS wired to UI as chips) and `FeedSavedSearch` (has an `order` field, observed into `BrowseState.savedSearches` but never rendered or wired to any button). Needs a decision on which concept to keep/consolidate before building reorder UI — flagged rather than guessed. |
 | 7 | Settings | Pending | Match Komikku's settings tree, immediate-apply semantics |
 | 8 | More / stats / remaining screens | Pending | |
 
-## Current Session: Browse — global search / migrate / feed ordering (item #6)
+## Open Question: two competing saved-search concepts in Browse (blocks feed-ordering reorder UI)
+
+`feature/browse/BrowseMvi.kt`/`BrowseViewModel.kt` carry two parallel "saved search" features:
+- `SavedSourceSearch` (`namedSavedSearches` in state) — no `order` field, rendered as chips in
+  `BrowseScreen.kt`, fully wired (apply/delete work from the UI).
+- `FeedSavedSearch` (`savedSearches` in state) — HAS an `order` field and a working
+  `FeedRepository.updateSavedSearchOrder()`, but `BrowseEvent.ApplySavedSearch`/`DeleteSavedSearch`
+  are never dispatched from any UI element, and `state.savedSearches` is never rendered anywhere.
+  Same story for `FeedRepository.updateFeedSourceOrder()` / `FeedSource` — plumbing exists,
+  nothing calls it.
+
+Before building Komikku's `FeedOrderScreen`-equivalent reorder UI, need a decision: consolidate
+onto one saved-search concept (likely delete the unused `FeedSavedSearch` path and add an `order`
+field to `SavedSourceSearch` instead, since that's the one actually wired to the UI), or determine
+`FeedSavedSearch` was meant for a different, not-yet-built screen and should stay separate. Ask the
+user before removing or repurposing either — this is exactly the kind of architectural fork that
+needs their call, not a guess.
+
+## Current Session: Settings (item #7)
 
 Komikku spec files to read:
-- `eu.kanade.presentation.browse.GlobalSearchScreen` + `GlobalSearchScreenModel` — cross-source
-  search results grid, per-source section headers, "no results"/error states, source loading order
-- `eu.kanade.tachiyomi.ui.browse.migration.*` (`MigrateSourceScreen`, `MigrateMangaScreen`,
-  `SearchScreen` under `browse/migration/search/`) — full migration wizard flow (source picker →
-  manga picker → per-manga replacement search → confirm & migrate options: chapters/categories/
-  tracking/custom cover/notes to keep)
-- `eu.kanade.presentation.more.settings.screen.browse.SettingsBrowseScreen` (feed/latest ordering
-  prefs) or wherever `FeedScreen`/latest-updates source ordering lives
+- `eu.kanade.presentation.more.settings.screen.*` — the full settings tree (Appearance, Library,
+  Reader, Downloads, Tracking, Backup, Browse, Security, Advanced, etc.)
+- Check immediate-apply semantics: Komikku settings changes apply live (no "Save" button, no
+  restart needed) — verify every Otaku settings screen matches this.
 
 Key elements to check:
-- Global search: does Otaku's `feature/browse/GlobalSearchScreen.kt` group results by source with
-  the same section-header/loading/error-per-source behavior as Komikku, and does search from the
-  Details header/genre-long-press (added this session in PR #1186) land there correctly?
-- Migrate: item #3 (Manga Detail, PR #1186) added a single-manga "Migrate" overflow action that
-  jumps into `feature/migration`'s existing wizard (`MigrationEntryScreen`/`MigrationScreen`) —
-  verify that wizard's actual replacement-search and confirm-options screens match Komikku's
-  `MigrateMangaScreen` (does it offer to keep chapters/categories/tracking/notes on migrate, same
-  as Komikku's migration dialog options?).
-- Feed ordering: does Otaku's `feature/feed/` respect the same source/category ordering Komikku
-  uses for its latest-updates feed, and is there a matching settings toggle?
+- Does Otaku's settings tree structure/grouping match Komikku's screen-by-screen (missing
+  sections, extra sections not clearly marked Otaku-exclusive)?
+- Do all toggles/pickers apply immediately, matching Komikku's DataStore-backed live-apply pattern?
+- Backup: does export/import cover the same fields Komikku's backup format does?
 
 Gap areas likely in Otaku:
-- `feature/browse/` (GlobalSearchScreen, SourceMangaScreen), `feature/migration/` (MigrationScreen
-  specifically — MigrationEntryScreen was already diffed indirectly via PR #1186's wiring, but the
-  actual per-manga replacement/confirm flow hasn't been diffed yet), `feature/feed/`
+- `feature/settings/` — all screens under it
+
+## Previous Session: Browse — global search / migrate / feed ordering (item #6) — partially done
+
+Global search already matches Komikku (per-source sections, independent per-source loading/error
+states, results grouped correctly). Migrate: fixed a real gap in `MigrateMangaUseCase` — user
+notes weren't being copied to the target manga (Komikku's `NOTES` migration flag equivalent); now
+copied, guarded so it never overwrites notes already present on an existing target. Two migrate
+gaps remain, deliberately deferred as bigger scope: (1) custom-cover migration (would need file
+I/O across manga IDs, harder to verify without a device), (2) a configurable migration-options
+dialog matching Komikku's `MigrationFlag` (CHAPTER/CATEGORY/TRACK/CUSTOM_COVER/NOTES/
+REMOVE_DOWNLOAD) — Otaku always migrates everything unconditionally today, which is a reasonable
+default but not user-configurable like Komikku's dialog. Feed ordering: investigation surfaced an
+architectural question (see "Open Question" above) rather than a simple gap — deferred pending
+user input rather than guessed at.
 
 ## Previous Session: Updates / History / Downloads (item #5) — done
 
