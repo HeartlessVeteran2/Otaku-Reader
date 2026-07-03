@@ -1240,7 +1240,7 @@ private fun ReadingListPickerDialog(
                         ) {
                             Checkbox(
                                 checked = list.id in selectedIds,
-                                onCheckedChange = null,
+                                onCheckedChange = { onToggle(list.id) },
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(text = list.name)
