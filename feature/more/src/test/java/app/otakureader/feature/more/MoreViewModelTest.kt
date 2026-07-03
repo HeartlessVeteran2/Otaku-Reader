@@ -77,6 +77,7 @@ class MoreViewModelTest {
         every { downloadRepository.observeDownloads() } returns flowOf(emptyList())
 
         createViewModel().state.test {
+            testDispatcher.scheduler.advanceUntilIdle()
             // No skipItems() here: the computed result is structurally equal to MoreState()'s
             // default (downloadQueueState = Stopped, all other fields also at their defaults),
             // and StateFlow only emits when the new value differs (by equals()) from the
@@ -98,6 +99,7 @@ class MoreViewModelTest {
 
         createViewModel().state.test {
             skipItems(1) // initial MoreState() default before the combine() emits
+            testDispatcher.scheduler.advanceUntilIdle()
             val state = awaitItem()
             assertTrue(state.downloadQueueState is DownloadQueueDisplayState.Downloading)
             assertEquals(2, (state.downloadQueueState as DownloadQueueDisplayState.Downloading).pending)
@@ -115,6 +117,7 @@ class MoreViewModelTest {
 
         createViewModel().state.test {
             skipItems(1) // initial MoreState() default before the combine() emits
+            testDispatcher.scheduler.advanceUntilIdle()
             val state = awaitItem()
             assertTrue(state.downloadQueueState is DownloadQueueDisplayState.Paused)
             assertEquals(2, (state.downloadQueueState as DownloadQueueDisplayState.Paused).pending)
