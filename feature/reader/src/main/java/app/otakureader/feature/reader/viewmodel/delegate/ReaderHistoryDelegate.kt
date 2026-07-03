@@ -66,12 +66,14 @@ class ReaderHistoryDelegate @Inject constructor(
      */
     fun enqueueExit(
         chapterId: Long,
+        mangaId: Long,
         sessionReadAt: Long,
         durationMs: Long,
         currentState: ReaderState,
     ) {
         historyScheduler.scheduleExit(
             chapterId = chapterId,
+            mangaId = mangaId,
             readAt = sessionReadAt,
             durationMs = durationMs,
             isIncognito = currentState.incognitoMode,

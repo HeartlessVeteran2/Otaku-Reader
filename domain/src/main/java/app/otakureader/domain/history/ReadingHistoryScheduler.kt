@@ -15,6 +15,7 @@ interface ReadingHistoryScheduler {
      */
     fun scheduleExit(
         chapterId: Long,
+        mangaId: Long,
         readAt: Long,
         durationMs: Long,
         isIncognito: Boolean,

@@ -15,6 +15,7 @@ import app.otakureader.domain.repository.ReaderSettingsRepository
 import app.otakureader.domain.repository.TrackerSyncRepository
 import app.otakureader.core.discord.DiscordRpcService
 import app.otakureader.core.preferences.GeneralPreferences
+import app.otakureader.core.preferences.DeleteAfterReadMode
 import app.otakureader.core.preferences.DownloadPreferences
 import app.otakureader.core.preferences.ReaderPreferences
 import app.otakureader.domain.model.ColorFilterMode
@@ -31,6 +32,7 @@ import app.otakureader.feature.reader.prefetch.SmartPrefetchManager
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderChapterLoaderDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderDiscordDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderDisplayDelegate
+import app.otakureader.feature.reader.viewmodel.delegate.ReaderDeleteAfterReadDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderDownloadAheadDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderHistoryDelegate
 import app.otakureader.feature.reader.viewmodel.delegate.ReaderPrefetchDelegate
@@ -162,6 +164,8 @@ class ReaderViewModelTest {
         every { settingsRepository.prefetchOnlyOnWiFi } returns flowOf(false)
         every { downloadPreferences.downloadAheadWhileReading } returns flowOf(0)
         every { downloadPreferences.downloadAheadOnlyOnWifi } returns flowOf(false)
+        every { downloadPreferences.deleteAfterReading } returns flowOf(false)
+        every { downloadPreferences.perMangaOverrides } returns flowOf(emptyMap())
         every { downloadRepository.observeDownloads() } returns flowOf(emptyList())
         coEvery { downloadRepository.enqueueChapter(any(), any(), any(), any(), any(), any(), any()) } just runs
         coEvery { downloadRepository.isChapterDownloaded(any(), any(), any()) } returns false
@@ -261,6 +265,13 @@ class ReaderViewModelTest {
             prefetchDelegate = prefetchDelegate,
             downloadAheadDelegate = ReaderDownloadAheadDelegate(
                 context = context,
+                downloadPreferences = downloadPreferences,
+                downloadRepository = downloadRepository,
+                sourceRepository = sourceRepository,
+                chapterRepository = chapterRepository,
+                mangaRepository = mangaRepository,
+            ),
+            deleteAfterReadDelegate = ReaderDeleteAfterReadDelegate(
                 downloadPreferences = downloadPreferences,
                 downloadRepository = downloadRepository,
                 sourceRepository = sourceRepository,
@@ -582,6 +593,124 @@ class ReaderViewModelTest {
 
         coVerify(exactly = 0) { chapterRepository.recordHistory(any(), any(), any()) }
         coVerify(exactly = 0) { chapterRepository.updateChapterProgress(any<Long>(), any<Boolean>(), any<Int>()) }
+    }
+
+    // ---- delete after read ----
+
+    private fun stubDeleteAfterReadFixture() {
+        val manga = Manga(id = mangaId, sourceId = testSourceId, url = "https://example.com/manga", title = "Test Manga")
+        val chapter = Chapter(
+            id = chapterId,
+            mangaId = mangaId,
+            url = "https://example.com/chapter-10",
+            name = "Chapter 10",
+            chapterNumber = 10f,
+        )
+        coEvery { mangaRepository.getMangaById(mangaId) } returns manga
+        coEvery { chapterRepository.getChapterById(chapterId) } returns chapter
+        coEvery { chapterRepository.recordHistory(any(), any(), any()) } just runs
+        coEvery { chapterRepository.updateChapterProgress(any<Long>(), any<Boolean>(), any<Int>()) } just runs
+        coEvery { downloadRepository.isChapterDownloaded(any(), any(), any()) } returns true
+        coEvery { downloadRepository.deleteChapterDownload(any(), any(), any(), any()) } just runs
+        // sourceRepository is a relaxed mock — an unstubbed getSource() call returns a relaxed
+        // Source mock (not null), whose .name resolves to "" instead of falling through to the
+        // numeric sourceId fallback that resolveDownloadFolderName() expects. Stub it explicitly
+        // so the folder name resolves to testSourceIdString, matching the other fixtures in this
+        // file that already do this for the same reason.
+        coEvery { sourceRepository.getSource(testSourceIdString) } returns null
+    }
+
+    // These exercise the live in-session path (the debounced auto-save in saveCurrentProgress(),
+    // triggered here via jumpToPage()) since that's the only path that actually runs in
+    // production — see ReaderDeleteAfterReadDelegate's KDoc and RecordReadingHistoryWorkerTest
+    // for the durable WorkManager-based counterpart that covers reader-exit-before-debounce.
+
+    // stubDeleteAfterReadFixture() and the downloadPreferences overrides are applied AFTER the
+    // ViewModel is constructed and its init-time chapter load has settled — the base setUp()
+    // deliberately returns null manga/chapter so that init-time load "exits early without
+    // side-effects" (see its comment); swapping in a real manga/chapter before construction was
+    // found to perturb that init path and made saveCurrentProgress() never actually reach the
+    // debounced delegate call.
+
+    @Test
+    fun `reaching the last page deletes the download when delete-after-reading is globally enabled`() = runTest {
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        stubDeleteAfterReadFixture()
+        every { downloadPreferences.deleteAfterReading } returns flowOf(true)
+        every { downloadPreferences.perMangaOverrides } returns flowOf(emptyMap())
+
+        vm.setPages(List(5) { ReaderPage(index = it) })
+        vm.jumpToPage(4)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 1) {
+            downloadRepository.deleteChapterDownload(chapterId, testSourceIdString, "Test Manga", "Chapter 10")
+        }
+    }
+
+    @Test
+    fun `reaching the last page does not delete when a per-manga override disables it despite the global setting`() =
+        runTest {
+            val vm = createViewModel()
+            testDispatcher.scheduler.advanceUntilIdle()
+            stubDeleteAfterReadFixture()
+            every { downloadPreferences.deleteAfterReading } returns flowOf(true)
+            every { downloadPreferences.perMangaOverrides } returns flowOf(mapOf(mangaId to DeleteAfterReadMode.DISABLED))
+
+            vm.setPages(List(5) { ReaderPage(index = it) })
+            vm.jumpToPage(4)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            coVerify(exactly = 0) { downloadRepository.deleteChapterDownload(any(), any(), any(), any()) }
+        }
+
+    @Test
+    fun `reaching the last page deletes when a per-manga override enables it despite the global setting`() = runTest {
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        stubDeleteAfterReadFixture()
+        every { downloadPreferences.deleteAfterReading } returns flowOf(false)
+        every { downloadPreferences.perMangaOverrides } returns flowOf(mapOf(mangaId to DeleteAfterReadMode.ENABLED))
+
+        vm.setPages(List(5) { ReaderPage(index = it) })
+        vm.jumpToPage(4)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 1) {
+            downloadRepository.deleteChapterDownload(chapterId, testSourceIdString, "Test Manga", "Chapter 10")
+        }
+    }
+
+    @Test
+    fun `reaching the last page does not delete a chapter that has no downloaded pages`() = runTest {
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        stubDeleteAfterReadFixture()
+        coEvery { downloadRepository.isChapterDownloaded(any(), any(), any()) } returns false
+        every { downloadPreferences.deleteAfterReading } returns flowOf(true)
+        every { downloadPreferences.perMangaOverrides } returns flowOf(emptyMap())
+
+        vm.setPages(List(5) { ReaderPage(index = it) })
+        vm.jumpToPage(4)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 0) { downloadRepository.deleteChapterDownload(any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `does not delete when the chapter is not on its last page`() = runTest {
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        stubDeleteAfterReadFixture()
+        every { downloadPreferences.deleteAfterReading } returns flowOf(true)
+        every { downloadPreferences.perMangaOverrides } returns flowOf(emptyMap())
+
+        vm.setPages(List(5) { ReaderPage(index = it) })
+        vm.jumpToPage(2)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 0) { downloadRepository.deleteChapterDownload(any(), any(), any(), any()) }
     }
 
     // ---- Settings write failure ----
