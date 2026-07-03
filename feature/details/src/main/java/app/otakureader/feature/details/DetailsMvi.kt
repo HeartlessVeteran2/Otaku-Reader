@@ -9,6 +9,7 @@ import app.otakureader.domain.model.Category
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MangaStatus
+import app.otakureader.domain.model.ReadingList
 import app.otakureader.core.ui.theme.OtakuColors
 import androidx.annotation.StringRes
 
@@ -70,6 +71,13 @@ object DetailsContract {
         val showCategoryPickerDialog: Boolean = false,
         /** Category IDs checked in the currently-open [showCategoryPickerDialog]. */
         val categoryPickerSelection: Set<Long> = emptySet(),
+
+        /** User-defined reading lists, for the "add to reading list" picker. */
+        val readingLists: List<ReadingList> = emptyList(),
+        /** Whether the reading-list picker dialog is open. */
+        val showReadingListPickerDialog: Boolean = false,
+        /** IDs of the reading lists this manga currently belongs to; toggled live from the picker. */
+        val readingListPickerSelection: Set<Long> = emptySet(),
     ) : UiState {
 
         /** Estimated time remaining to finish all unread chapters of this manga. */
@@ -307,10 +315,18 @@ object DetailsContract {
         /** Opens the manga's source web page in the system browser. */
         data object OpenWebView : Event
 
+        /** Error-state "try in browser" fallback — opens the in-app WebView viewer instead. */
+        data object OpenWebViewFallback : Event
+
         // Category picker shown right after favoriting
         data object DismissCategoryPicker : Event
         data class ToggleCategoryPickerSelection(val categoryId: Long) : Event
         data object ConfirmCategoryPicker : Event
+
+        // Reading-list picker, opened on demand from the overflow menu
+        data object ShowReadingListPicker : Event
+        data object DismissReadingListPicker : Event
+        data class ToggleReadingListPickerSelection(val listId: Long) : Event
 
         /** Overflow menu "Migrate" — jump straight into the migration search for this manga. */
         data object MigrateManga : Event
@@ -326,6 +342,8 @@ object DetailsContract {
         data class ShareManga(val title: String, val url: String) : Effect
         data class NavigateToTracking(val mangaId: Long, val mangaTitle: String) : Effect
         data class OpenInBrowser(val url: String) : Effect
+        /** Navigate to the in-app WebView fallback (Route.WebViewFallback) after a load failure. */
+        data class NavigateToWebViewFallback(val url: String, val title: String) : Effect
         data class NavigateToGlobalSearch(val query: String) : Effect
         /** Search [query] within a single source's browse listing (tag short-press). */
         data class NavigateToSourceSearch(val sourceId: String, val query: String) : Effect

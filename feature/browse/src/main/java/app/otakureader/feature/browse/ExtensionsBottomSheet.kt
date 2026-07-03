@@ -284,6 +284,7 @@ private fun ExtensionsContent(
     onNavigateToSettings: () -> Unit = {},
     onNavigateToRepositories: () -> Unit = {},
     onNavigateToExtensionDetail: (packageName: String) -> Unit = {},
+    onNavigateToExtensionInstall: () -> Unit = {},
 ) {
     var searchActive by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
@@ -361,6 +362,13 @@ private fun ExtensionsContent(
                                     },
                                 )
                                 DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.extensions_menu_install_from_url)) },
+                                    onClick = {
+                                        overflowExpanded = false
+                                        onNavigateToExtensionInstall()
+                                    },
+                                )
+                                DropdownMenuItem(
                                     text = {
                                         Text(
                                             if (state.showNsfw) {
@@ -419,6 +427,7 @@ fun ExtensionsScreen(
     onNavigateToSettings: () -> Unit = {},
     onNavigateToRepositories: () -> Unit = {},
     onNavigateToExtensionDetail: (packageName: String) -> Unit = {},
+    onNavigateToExtensionInstall: () -> Unit = {},
     viewModel: ExtensionsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -441,6 +450,7 @@ fun ExtensionsScreen(
         onNavigateToSettings = onNavigateToSettings,
         onNavigateToRepositories = onNavigateToRepositories,
         onNavigateToExtensionDetail = onNavigateToExtensionDetail,
+        onNavigateToExtensionInstall = onNavigateToExtensionInstall,
     )
 }
 

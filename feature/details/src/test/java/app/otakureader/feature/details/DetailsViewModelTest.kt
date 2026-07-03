@@ -13,6 +13,7 @@ import app.otakureader.domain.repository.CategoryRepository
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.domain.repository.DownloadRepository
+import app.otakureader.domain.repository.ReadingListRepository
 import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.domain.tracking.TrackRepository
 import app.otakureader.domain.usecase.SetMangaNotificationsUseCase
@@ -60,6 +61,7 @@ class DetailsViewModelTest {
     private lateinit var setMangaNotifications: SetMangaNotificationsUseCase
     private lateinit var statisticsRepository: app.otakureader.domain.repository.StatisticsRepository
     private lateinit var trackRepository: TrackRepository
+    private lateinit var readingListRepository: ReadingListRepository
     private lateinit var savedStateHandle: SavedStateHandle
 
     private val sampleManga = Manga(
@@ -92,6 +94,7 @@ class DetailsViewModelTest {
         setMangaNotifications = mockk()
         statisticsRepository = mockk(relaxed = true)
         trackRepository = mockk(relaxed = true)
+        readingListRepository = mockk(relaxed = true)
         savedStateHandle = SavedStateHandle(mapOf(DetailsViewModel.MANGA_ID_ARG to mangaId))
     }
 
@@ -114,6 +117,7 @@ class DetailsViewModelTest {
             setMangaNotifications,
             statisticsRepository,
             trackRepository,
+            readingListRepository,
         )
     }
 
@@ -928,5 +932,106 @@ class DetailsViewModelTest {
 
         coVerify { downloadRepository.deleteChapterDownload(downloadedChapterId, any(), any(), any()) }
         coVerify(exactly = 0) { downloadRepository.cancelDownload(any()) }
+    }
+
+    // ---- Reading list picker ----
+
+    @Test
+    fun onEvent_ShowReadingListPicker_seedsSelectionFromCurrentMembership() = runTest {
+        setUpDefaultMocks()
+        val existingList = app.otakureader.domain.model.ReadingList(id = 5L, name = "Currently Reading")
+        every { readingListRepository.getAllLists() } returns flowOf(listOf(existingList))
+        coEvery { readingListRepository.getListsForManga(mangaId) } returns flowOf(
+            listOf(app.otakureader.domain.model.ReadingListItem(listId = 5L, mangaId = mangaId))
+        )
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onEvent(DetailsContract.Event.ShowReadingListPicker)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.state.value
+        assertTrue(state.showReadingListPickerDialog)
+        assertEquals(setOf(5L), state.readingListPickerSelection)
+    }
+
+    @Test
+    fun onEvent_ToggleReadingListPickerSelection_addsMangaWhenNotSelected() = runTest {
+        setUpDefaultMocks()
+        coEvery { readingListRepository.getListsForManga(mangaId) } returns flowOf(emptyList())
+        coEvery { readingListRepository.addMangaToList(5L, mangaId) } returns Unit
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        viewModel.onEvent(DetailsContract.Event.ShowReadingListPicker)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onEvent(DetailsContract.Event.ToggleReadingListPickerSelection(5L))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(5L in viewModel.state.value.readingListPickerSelection)
+        coVerify(exactly = 1) { readingListRepository.addMangaToList(5L, mangaId) }
+    }
+
+    @Test
+    fun onEvent_ToggleReadingListPickerSelection_removesMangaWhenAlreadySelected() = runTest {
+        setUpDefaultMocks()
+        coEvery { readingListRepository.getListsForManga(mangaId) } returns flowOf(
+            listOf(app.otakureader.domain.model.ReadingListItem(listId = 5L, mangaId = mangaId))
+        )
+        coEvery { readingListRepository.removeMangaFromList(5L, mangaId) } returns Unit
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        viewModel.onEvent(DetailsContract.Event.ShowReadingListPicker)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onEvent(DetailsContract.Event.ToggleReadingListPickerSelection(5L))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertFalse(5L in viewModel.state.value.readingListPickerSelection)
+        coVerify(exactly = 1) { readingListRepository.removeMangaFromList(5L, mangaId) }
+    }
+
+    // ---- Error-state "try in browser" fallback ----
+
+    @Test
+    fun onEvent_OpenWebViewFallback_emitsNavigateEffectWithWebUrl() = runTest {
+        setUpDefaultMocks()
+        val source = mockk<app.otakureader.sourceapi.MangaSource>(relaxed = true)
+        every { source.baseUrl } returns "https://example.com"
+        coEvery { sourceRepository.getSource(sampleManga.sourceId.toString()) } returns source
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.OpenWebViewFallback)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val effect = awaitItem()
+            assertTrue(effect is DetailsContract.Effect.NavigateToWebViewFallback)
+            assertEquals(
+                "https://example.com/m/42",
+                (effect as DetailsContract.Effect.NavigateToWebViewFallback).url,
+            )
+        }
+    }
+
+    @Test
+    fun onEvent_OpenWebViewFallback_doesNothingWhenWebUrlUnavailable() = runTest {
+        setUpDefaultMocks()
+        // Default relaxed sourceRepository mock resolves an empty baseUrl, so mangaWebUrl stays null.
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertNull(viewModel.state.value.mangaWebUrl)
+        viewModel.effect.test {
+            viewModel.onEvent(DetailsContract.Event.OpenWebViewFallback)
+            testDispatcher.scheduler.advanceUntilIdle()
+            expectNoEvents()
+        }
     }
 }

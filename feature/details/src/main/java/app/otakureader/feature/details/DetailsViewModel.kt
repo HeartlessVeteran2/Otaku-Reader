@@ -11,6 +11,7 @@ import app.otakureader.domain.repository.CategoryRepository
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.MangaRepository
+import app.otakureader.domain.repository.ReadingListRepository
 import app.otakureader.domain.repository.StatisticsRepository
 import app.otakureader.core.preferences.DeleteAfterReadMode
 import app.otakureader.core.preferences.DownloadPreferences
@@ -60,6 +61,7 @@ class DetailsViewModel @Inject constructor(
     private val setMangaNotifications: SetMangaNotificationsUseCase,
     private val statisticsRepository: StatisticsRepository,
     private val trackRepository: TrackRepository,
+    private val readingListRepository: ReadingListRepository,
 ) : ViewModel() {
 
     private val mangaId: Long = savedStateHandle.get<Long>(MANGA_ID_ARG) 
@@ -101,6 +103,7 @@ class DetailsViewModel @Inject constructor(
         loadMangaWebUrl()
         observeCategories()
         loadSourceName()
+        observeReadingLists()
     }
 
     @Suppress("CyclomaticComplexMethod", "LongMethod")
@@ -192,6 +195,7 @@ class DetailsViewModel @Inject constructor(
             is DetailsContract.Event.GenreLongClick -> searchGlobally(event.genre)
             is DetailsContract.Event.SearchGlobally -> searchGlobally(event.query)
             is DetailsContract.Event.OpenWebView -> openInWebView()
+            is DetailsContract.Event.OpenWebViewFallback -> openWebViewFallback()
 
             is DetailsContract.Event.DismissCategoryPicker ->
                 _state.update { it.copy(showCategoryPickerDialog = false) }
@@ -200,6 +204,12 @@ class DetailsViewModel @Inject constructor(
             is DetailsContract.Event.ConfirmCategoryPicker -> confirmCategoryPicker()
             is DetailsContract.Event.MigrateManga -> migrateManga()
             is DetailsContract.Event.SourceClick -> onSourceClick()
+
+            is DetailsContract.Event.ShowReadingListPicker -> showReadingListPicker()
+            is DetailsContract.Event.DismissReadingListPicker ->
+                _state.update { it.copy(showReadingListPickerDialog = false) }
+            is DetailsContract.Event.ToggleReadingListPickerSelection ->
+                toggleReadingListPickerSelection(event.listId)
         }
     }
 
@@ -298,6 +308,14 @@ class DetailsViewModel @Inject constructor(
         val url = _state.value.mangaWebUrl ?: return
         viewModelScope.launch {
             _effect.send(DetailsContract.Effect.OpenInBrowser(url))
+        }
+    }
+
+    private fun openWebViewFallback() {
+        val url = _state.value.mangaWebUrl ?: return
+        val title = _state.value.manga?.title.orEmpty()
+        viewModelScope.launch {
+            _effect.send(DetailsContract.Effect.NavigateToWebViewFallback(url, title))
         }
     }
 
@@ -548,6 +566,64 @@ class DetailsViewModel @Inject constructor(
                 throw e
             } catch (e: Exception) {
                 _effect.send(DetailsContract.Effect.ShowError("Failed to assign categories"))
+            }
+        }
+    }
+
+    private fun observeReadingLists() {
+        readingListRepository.getAllLists()
+            .onEach { lists -> _state.update { it.copy(readingLists = lists) } }
+            .launchIn(viewModelScope)
+    }
+
+    private fun showReadingListPicker() {
+        viewModelScope.launch {
+            try {
+                val currentListIds = readingListRepository.getListsForManga(mangaId).first()
+                    .map { it.listId }
+                    .toSet()
+                _state.update {
+                    it.copy(showReadingListPickerDialog = true, readingListPickerSelection = currentListIds)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _effect.send(DetailsContract.Effect.ShowError("Failed to load reading lists"))
+            }
+        }
+    }
+
+    /**
+     * Toggles membership immediately — checking/unchecking a list persists right away. Serialized
+     * by [readingListMutex] so rapid taps on multiple lists can't race their DB writes (and any
+     * failure-rollback) against each other and desync the picker's state from the database.
+     */
+    private fun toggleReadingListPickerSelection(listId: Long) {
+        viewModelScope.launch {
+            readingListMutex.withLock {
+                val wasSelected = listId in _state.value.readingListPickerSelection
+                _state.update {
+                    val selection = it.readingListPickerSelection
+                    val updated = if (wasSelected) selection - listId else selection + listId
+                    it.copy(readingListPickerSelection = updated)
+                }
+                try {
+                    if (wasSelected) {
+                        readingListRepository.removeMangaFromList(listId, mangaId)
+                    } else {
+                        readingListRepository.addMangaToList(listId, mangaId)
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // Revert the optimistic toggle and let the user know.
+                    _state.update {
+                        val selection = it.readingListPickerSelection
+                        val reverted = if (wasSelected) selection + listId else selection - listId
+                        it.copy(readingListPickerSelection = reverted)
+                    }
+                    _effect.send(DetailsContract.Effect.ShowError("Failed to update reading list"))
+                }
             }
         }
     }
@@ -1452,6 +1528,11 @@ class DetailsViewModel @Inject constructor(
     // Serializes set/remove cover operations: each mutates files + DB, so two running
     // concurrently (rapid taps) could leave the DB pointing at a deleted file.
     private val coverMutex = Mutex()
+
+    // Serializes reading-list picker toggles: each write (+ potential failure-rollback) must
+    // complete before the next tap's write starts, or rapid clicks can race and desync the
+    // picker's optimistic state from the database.
+    private val readingListMutex = Mutex()
 
     private fun setCustomCover(imageUri: String) {
         viewModelScope.launch {

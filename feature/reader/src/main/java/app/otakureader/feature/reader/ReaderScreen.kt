@@ -470,6 +470,7 @@ fun ReaderScreen(
             isCurrentChapterDownloaded = state.isCurrentChapterDownloaded,
             onBookmarkPage = { viewModel.onEvent(ReaderEvent.ToggleBookmark) },
             isCurrentPageBookmarked = state.isCurrentPageBookmarked,
+            onOpenComments = { viewModel.onEvent(ReaderEvent.ToggleCommentsOverlay) },
             modifier = Modifier.align(Alignment.TopCenter)
         )
 

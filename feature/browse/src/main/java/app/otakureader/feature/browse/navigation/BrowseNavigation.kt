@@ -90,6 +90,7 @@ fun NavGraphBuilder.extensionsBottomSheet(
     onNavigateToSettings: () -> Unit = {},
     onNavigateToRepositories: () -> Unit = {},
     onNavigateToExtensionDetail: (packageName: String) -> Unit = {},
+    onNavigateToExtensionInstall: () -> Unit = {},
 ) {
     composable<Route.ExtensionCatalog> {
         ExtensionsScreen(
@@ -97,6 +98,7 @@ fun NavGraphBuilder.extensionsBottomSheet(
             onNavigateToSettings = onNavigateToSettings,
             onNavigateToRepositories = onNavigateToRepositories,
             onNavigateToExtensionDetail = onNavigateToExtensionDetail,
+            onNavigateToExtensionInstall = onNavigateToExtensionInstall,
         )
     }
 }

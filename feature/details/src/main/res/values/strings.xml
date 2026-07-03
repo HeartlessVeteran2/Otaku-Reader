@@ -244,4 +244,9 @@
     <string name="details_category_picker_title">Add to categories</string>
     <string name="details_category_picker_confirm">Add</string>
     <string name="details_category_picker_skip">Skip</string>
+
+    <string name="details_add_to_reading_list">Add to Reading List</string>
+    <string name="details_reading_list_picker_title">Reading lists</string>
+    <string name="details_reading_list_picker_empty">No reading lists yet. Create one from More → Reading Lists.</string>
+    <string name="details_reading_list_picker_done">Done</string>
 </resources>

@@ -506,8 +506,6 @@
     <string name="settings_library_updates">Library Updates</string>
     <string name="settings_update_wifi_only">Update Only on Wi-Fi</string>
     <string name="settings_update_wifi_only_description">Restrict automatic updates to Wi-Fi connections</string>
-    <string name="settings_update_pinned_only">Update Pinned Categories Only</string>
-    <string name="settings_update_pinned_only_description">Only update manga in pinned categories</string>
     <string name="settings_auto_refresh">Auto-Refresh on Start</string>
     <string name="settings_auto_refresh_description">Check for updates when app opens</string>
     <string name="settings_show_update_progress">Show Update Progress</string>

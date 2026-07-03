@@ -96,19 +96,9 @@ class LibraryPreferences(private val dataStore: DataStore<Preferences>) {
     val updateOnlyOnWifi: Flow<Boolean> = dataStore.data.map { it[Keys.UPDATE_ONLY_ON_WIFI] ?: false }
     suspend fun setUpdateOnlyOnWifi(value: Boolean) = dataStore.edit { it[Keys.UPDATE_ONLY_ON_WIFI] = value }
 
-    /** Only update pinned categories */
-    val updateOnlyPinnedCategories: Flow<Boolean> = dataStore.data.map { it[Keys.UPDATE_ONLY_PINNED_CATEGORIES] ?: false }
-    suspend fun setUpdateOnlyPinnedCategories(value: Boolean) = dataStore.edit { it[Keys.UPDATE_ONLY_PINNED_CATEGORIES] = value }
-
     /** Skip updating categories with these IDs */
     val skipUpdateCategoryIds: Flow<Set<String>> = dataStore.data.map { it[Keys.SKIP_UPDATE_CATEGORY_IDS] ?: emptySet() }
     suspend fun setSkipUpdateCategoryIds(value: Set<String>) = dataStore.edit { it[Keys.SKIP_UPDATE_CATEGORY_IDS] = value }
-
-    /** Category to jump to when opening library (null = default/first) */
-    val jumpToCategoryOnOpen: Flow<Int?> = dataStore.data.map { it[Keys.JUMP_TO_CATEGORY_ON_OPEN] }
-    suspend fun setJumpToCategoryOnOpen(value: Int?) = dataStore.edit {
-        if (value != null) it[Keys.JUMP_TO_CATEGORY_ON_OPEN] = value else it.remove(Keys.JUMP_TO_CATEGORY_ON_OPEN)
-    }
 
     /** Auto-refresh library on app start */
     val autoRefreshOnStart: Flow<Boolean> = dataStore.data.map { it[Keys.AUTO_REFRESH_ON_START] ?: false }
@@ -239,9 +229,7 @@ class LibraryPreferences(private val dataStore: DataStore<Preferences>) {
         val SHOW_NSFW_CONTENT = booleanPreferencesKey("library_show_nsfw_content")
         val SHOW_HIDDEN_CATEGORIES = booleanPreferencesKey("library_show_hidden_categories")
         val UPDATE_ONLY_ON_WIFI = booleanPreferencesKey("library_update_only_on_wifi")
-        val UPDATE_ONLY_PINNED_CATEGORIES = booleanPreferencesKey("library_update_only_pinned_categories")
         val SKIP_UPDATE_CATEGORY_IDS = stringSetPreferencesKey("library_skip_update_category_ids")
-        val JUMP_TO_CATEGORY_ON_OPEN = intPreferencesKey("library_jump_to_category_on_open")
         val AUTO_REFRESH_ON_START = booleanPreferencesKey("library_auto_refresh_on_start")
         val SHOW_UPDATE_PROGRESS = booleanPreferencesKey("library_show_update_progress")
         val NEW_UPDATES_COUNT = intPreferencesKey("library_new_updates_count")

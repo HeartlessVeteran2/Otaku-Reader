@@ -140,6 +140,7 @@
     <string name="extensions_add_repository">Add repository</string>
     <string name="extensions_repositories_title">Repositories</string>
     <string name="extensions_manage_repositories">Manage repositories</string>
+    <string name="extensions_menu_install_from_url">Install from URL/File</string>
     <!-- Repository management screen (#953) -->
     <string name="repos_screen_title">Extension Repositories</string>
     <string name="repos_back">Back</string>

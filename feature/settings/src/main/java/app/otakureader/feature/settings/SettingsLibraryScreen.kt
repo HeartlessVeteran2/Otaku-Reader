@@ -171,17 +171,6 @@ private fun LibraryContent(state: SettingsState, onEvent: (SettingsEvent) -> Uni
     )
 
     ListItem(
-        headlineContent = { Text(stringResource(R.string.settings_update_pinned_only)) },
-        supportingContent = { Text(stringResource(R.string.settings_update_pinned_only_description)) },
-        trailingContent = {
-            Switch(
-                checked = state.updateOnlyPinnedCategories,
-                onCheckedChange = { onEvent(SettingsEvent.SetUpdateOnlyPinnedCategories(it)) },
-            )
-        },
-    )
-
-    ListItem(
         headlineContent = { Text(stringResource(R.string.settings_auto_refresh)) },
         supportingContent = { Text(stringResource(R.string.settings_auto_refresh_description)) },
         trailingContent = {
