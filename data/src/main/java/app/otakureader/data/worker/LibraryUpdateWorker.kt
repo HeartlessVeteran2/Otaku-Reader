@@ -12,7 +12,9 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkerParameters
+import app.otakureader.core.database.dao.UpdateErrorDao
 import app.otakureader.core.database.dao.UpdateRunSummaryDao
+import app.otakureader.core.database.entity.UpdateErrorEntity
 import app.otakureader.core.database.entity.UpdateRunSummaryEntity
 import app.otakureader.core.preferences.DownloadPreferences
 import app.otakureader.core.preferences.GeneralPreferences
@@ -48,6 +50,7 @@ class LibraryUpdateWorker @AssistedInject constructor(
     private val chapterRepository: ChapterRepository,
     private val notificationPreferences: app.otakureader.core.preferences.NotificationPreferences,
     private val updateRunSummaryDao: UpdateRunSummaryDao,
+    private val updateErrorDao: UpdateErrorDao,
     private val libraryUpdateFilter: LibraryUpdateFilter,
     private val sourceRepository: SourceRepository,
 ) : CoroutineWorker(context, workerParams) {
@@ -130,6 +133,11 @@ class LibraryUpdateWorker @AssistedInject constructor(
                 val result = updateLibraryManga(manga)
 
                 result.onSuccess { newChapterCount ->
+                    // Clear any previously recorded failure now that this manga updated fine.
+                    try {
+                        updateErrorDao.deleteByMangaId(manga.id)
+                    } catch (_: Exception) { }
+
                     newChapterTotal += newChapterCount
                     successfullyUpdatedCategoryIds.addAll(manga.categoryIds.filter { it in updatedCategoryIds })
                     if (newChapterCount > 0) {
@@ -172,8 +180,17 @@ class LibraryUpdateWorker @AssistedInject constructor(
                             }
                         }
                     }
-                }.onFailure {
+                }.onFailure { throwable ->
                     failedUpdates++
+                    try {
+                        updateErrorDao.upsert(
+                            UpdateErrorEntity(
+                                mangaId = manga.id,
+                                errorMessage = throwable.message ?: throwable::class.simpleName ?: "Unknown error",
+                                timestamp = System.currentTimeMillis(),
+                            )
+                        )
+                    } catch (_: Exception) { }
                 }
 
                 processedCount++

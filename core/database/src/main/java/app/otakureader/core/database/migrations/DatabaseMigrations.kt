@@ -533,6 +533,20 @@ internal val MIGRATION_38_39 = object : Migration(38, 39) {
     }
 }
 
+/** Add update_errors table for the Update Errors screen's current-unresolved-failures list. */
+internal val MIGRATION_39_40 = object : Migration(39, 40) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS update_errors (
+                mangaId INTEGER PRIMARY KEY NOT NULL,
+                errorMessage TEXT NOT NULL,
+                timestamp INTEGER NOT NULL,
+                FOREIGN KEY (mangaId) REFERENCES manga(id) ON DELETE CASCADE
+            )
+        """.trimIndent())
+    }
+}
+
 /** All migrations in order, for use in [Room.databaseBuilder] and migration tests. */
 internal val ALL_MIGRATIONS = arrayOf(
     MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6,
@@ -543,5 +557,5 @@ internal val ALL_MIGRATIONS = arrayOf(
     MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26,
     MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31,
     MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34, MIGRATION_34_35,
-    MIGRATION_35_36, MIGRATION_36_37, MIGRATION_37_38, MIGRATION_38_39,
+    MIGRATION_35_36, MIGRATION_36_37, MIGRATION_37_38, MIGRATION_38_39, MIGRATION_39_40,
 )

@@ -8,6 +8,7 @@ import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.model.DownloadBlockedException
 import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.SourceRepository
+import app.otakureader.domain.repository.UpdateErrorRepository
 import app.otakureader.domain.repository.resolveDownloadFolderName
 import app.otakureader.domain.scheduler.LibraryUpdateScheduler
 import app.otakureader.domain.usecase.GetLastUpdateRunSummaryUseCase
@@ -41,6 +42,7 @@ class UpdatesViewModel @Inject constructor(
     private val chapterRepository: ChapterRepository,
     private val libraryUpdateScheduler: LibraryUpdateScheduler,
     private val sourceRepository: SourceRepository,
+    private val updateErrorRepository: UpdateErrorRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(UpdatesState())
@@ -54,6 +56,7 @@ class UpdatesViewModel @Inject constructor(
         loadLastRunSummary()
         markUpdatesViewed()
         observeActiveDownloads()
+        observeUpdateErrors()
     }
 
     @Suppress("CyclomaticComplexMethod")
@@ -115,10 +118,12 @@ class UpdatesViewModel @Inject constructor(
         when (event) {
             UpdatesEvent.ShowUpdateErrors -> _state.update { it.copy(showUpdateErrors = true) }
             UpdatesEvent.HideUpdateErrors -> _state.update { it.copy(showUpdateErrors = false) }
-            is UpdatesEvent.ClearUpdateError -> _state.update { state ->
-                state.copy(updateErrors = state.updateErrors.filter { it.mangaId != event.mangaId })
+            is UpdatesEvent.ClearUpdateError -> viewModelScope.launch {
+                updateErrorRepository.clearError(event.mangaId)
             }
-            UpdatesEvent.ClearAllUpdateErrors -> _state.update { it.copy(updateErrors = emptyList()) }
+            UpdatesEvent.ClearAllUpdateErrors -> viewModelScope.launch {
+                updateErrorRepository.clearAllErrors()
+            }
             UpdatesEvent.ShowPendingUpdates -> {
                 _state.update { it.copy(showPendingUpdates = true) }
                 loadPendingUpdates()
@@ -373,6 +378,28 @@ class UpdatesViewModel @Inject constructor(
                 _state.update { it.copy(activeDownloads = items.filter { d -> d.isActive }.associateBy { d -> d.chapterId }) }
             }
             .catch { /* download progress failure should not affect the main updates list */ }
+            .launchIn(viewModelScope)
+    }
+
+    /** Observe unresolved library-update failures for the top-bar badge and error dialog. */
+    private fun observeUpdateErrors() {
+        updateErrorRepository.observeErrors()
+            .onEach { errors ->
+                _state.update {
+                    it.copy(
+                        updateErrors = errors.map { error ->
+                            UpdateErrorEntry(
+                                mangaId = error.mangaId,
+                                mangaTitle = error.mangaTitle,
+                                thumbnailUrl = error.thumbnailUrl,
+                                errorMessage = error.errorMessage,
+                                timestamp = error.timestamp,
+                            )
+                        }
+                    )
+                }
+            }
+            .catch { /* error-tracking failure should not affect the main updates list */ }
             .launchIn(viewModelScope)
     }
 

@@ -9,6 +9,7 @@ import androidx.work.WorkerParameters
 import app.otakureader.core.preferences.DownloadPreferences
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.LibraryPreferences
+import app.otakureader.core.database.dao.UpdateErrorDao
 import app.otakureader.core.database.dao.UpdateRunSummaryDao
 import app.otakureader.core.preferences.NotificationPreferences
 import app.otakureader.data.download.DownloadManager
@@ -58,6 +59,7 @@ class LibraryUpdateWorkerTest {
     private lateinit var categoryRepository: CategoryRepository
     private lateinit var notificationPreferences: NotificationPreferences
     private lateinit var updateRunSummaryDao: UpdateRunSummaryDao
+    private lateinit var updateErrorDao: UpdateErrorDao
     private lateinit var libraryUpdateFilter: LibraryUpdateFilter
     private lateinit var sourceRepository: SourceRepository
     private lateinit var worker: LibraryUpdateWorker
@@ -126,6 +128,7 @@ class LibraryUpdateWorkerTest {
         categoryRepository = mockk()
         notificationPreferences = mockk(relaxed = true)
         updateRunSummaryDao = mockk(relaxed = true)
+        updateErrorDao = mockk(relaxed = true)
         sourceRepository = mockk(relaxed = true)
 
         connectivityManager = mockk()
@@ -176,6 +179,7 @@ class LibraryUpdateWorkerTest {
             chapterRepository,
             notificationPreferences,
             updateRunSummaryDao,
+            updateErrorDao,
             libraryUpdateFilter,
             sourceRepository,
         )
@@ -516,6 +520,41 @@ class LibraryUpdateWorkerTest {
         // Then - no download due to unknown network capabilities
         assertEquals(ListenableWorker.Result.success(), result)
         coVerify(exactly = 0) { downloadManager.enqueue(any()) }
+    }
+
+    // -------------------------------------------------------------------------
+    // Update Error Tracking Tests
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `doWork records an update error for a manga whose update fails`() = runTest {
+        // Given
+        coEvery { getLibraryManga() } returns flowOf(listOf(testManga1))
+        coEvery { updateLibraryManga(testManga1) } returns Result.failure(RuntimeException("HTTP 404"))
+
+        // When
+        worker.doWork()
+
+        // Then
+        coVerify(exactly = 1) {
+            updateErrorDao.upsert(
+                match { it.mangaId == testManga1.id && it.errorMessage == "HTTP 404" }
+            )
+        }
+    }
+
+    @Test
+    fun `doWork clears a previously recorded error when the manga updates successfully`() = runTest {
+        // Given
+        coEvery { getLibraryManga() } returns flowOf(listOf(testManga1))
+        coEvery { updateLibraryManga(testManga1) } returns Result.success(1)
+
+        // When
+        worker.doWork()
+
+        // Then
+        coVerify(exactly = 1) { updateErrorDao.deleteByMangaId(testManga1.id) }
+        coVerify(exactly = 0) { updateErrorDao.upsert(any()) }
     }
 
     // -------------------------------------------------------------------------
