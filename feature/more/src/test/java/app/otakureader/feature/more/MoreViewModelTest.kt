@@ -77,6 +77,7 @@ class MoreViewModelTest {
         every { downloadRepository.observeDownloads() } returns flowOf(emptyList())
 
         createViewModel().state.test {
+            skipItems(1) // initial MoreState() default before the combine() emits
             val state = awaitItem()
             assertEquals(DownloadQueueDisplayState.Stopped, state.downloadQueueState)
         }
@@ -93,6 +94,7 @@ class MoreViewModelTest {
         )
 
         createViewModel().state.test {
+            skipItems(1) // initial MoreState() default before the combine() emits
             val state = awaitItem()
             assertTrue(state.downloadQueueState is DownloadQueueDisplayState.Downloading)
             assertEquals(2, (state.downloadQueueState as DownloadQueueDisplayState.Downloading).pending)
@@ -109,6 +111,7 @@ class MoreViewModelTest {
         )
 
         createViewModel().state.test {
+            skipItems(1) // initial MoreState() default before the combine() emits
             val state = awaitItem()
             assertTrue(state.downloadQueueState is DownloadQueueDisplayState.Paused)
             assertEquals(2, (state.downloadQueueState as DownloadQueueDisplayState.Paused).pending)
