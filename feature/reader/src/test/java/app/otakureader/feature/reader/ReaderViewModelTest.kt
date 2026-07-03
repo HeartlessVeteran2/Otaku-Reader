@@ -612,6 +612,12 @@ class ReaderViewModelTest {
         coEvery { chapterRepository.updateChapterProgress(any<Long>(), any<Boolean>(), any<Int>()) } just runs
         coEvery { downloadRepository.isChapterDownloaded(any(), any(), any()) } returns true
         coEvery { downloadRepository.deleteChapterDownload(any(), any(), any(), any()) } just runs
+        // sourceRepository is a relaxed mock — an unstubbed getSource() call returns a relaxed
+        // Source mock (not null), whose .name resolves to "" instead of falling through to the
+        // numeric sourceId fallback that resolveDownloadFolderName() expects. Stub it explicitly
+        // so the folder name resolves to testSourceIdString, matching the other fixtures in this
+        // file that already do this for the same reason.
+        coEvery { sourceRepository.getSource(testSourceIdString) } returns null
     }
 
     // These exercise the live in-session path (the debounced auto-save in saveCurrentProgress(),
