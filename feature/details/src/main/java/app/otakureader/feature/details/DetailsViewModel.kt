@@ -587,31 +587,37 @@ class DetailsViewModel @Inject constructor(
         }
     }
 
-    /** Toggles membership immediately — checking/unchecking a list persists right away. */
+    /**
+     * Toggles membership immediately — checking/unchecking a list persists right away. Serialized
+     * by [readingListMutex] so rapid taps on multiple lists can't race their DB writes (and any
+     * failure-rollback) against each other and desync the picker's state from the database.
+     */
     private fun toggleReadingListPickerSelection(listId: Long) {
-        val wasSelected = listId in _state.value.readingListPickerSelection
-        _state.update {
-            val selection = it.readingListPickerSelection
-            val updated = if (wasSelected) selection - listId else selection + listId
-            it.copy(readingListPickerSelection = updated)
-        }
         viewModelScope.launch {
-            try {
-                if (wasSelected) {
-                    readingListRepository.removeMangaFromList(listId, mangaId)
-                } else {
-                    readingListRepository.addMangaToList(listId, mangaId)
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                // Revert the optimistic toggle and let the user know.
+            readingListMutex.withLock {
+                val wasSelected = listId in _state.value.readingListPickerSelection
                 _state.update {
                     val selection = it.readingListPickerSelection
-                    val reverted = if (wasSelected) selection + listId else selection - listId
-                    it.copy(readingListPickerSelection = reverted)
+                    val updated = if (wasSelected) selection - listId else selection + listId
+                    it.copy(readingListPickerSelection = updated)
                 }
-                _effect.send(DetailsContract.Effect.ShowError("Failed to update reading list"))
+                try {
+                    if (wasSelected) {
+                        readingListRepository.removeMangaFromList(listId, mangaId)
+                    } else {
+                        readingListRepository.addMangaToList(listId, mangaId)
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // Revert the optimistic toggle and let the user know.
+                    _state.update {
+                        val selection = it.readingListPickerSelection
+                        val reverted = if (wasSelected) selection + listId else selection - listId
+                        it.copy(readingListPickerSelection = reverted)
+                    }
+                    _effect.send(DetailsContract.Effect.ShowError("Failed to update reading list"))
+                }
             }
         }
     }
@@ -1516,6 +1522,11 @@ class DetailsViewModel @Inject constructor(
     // Serializes set/remove cover operations: each mutates files + DB, so two running
     // concurrently (rapid taps) could leave the DB pointing at a deleted file.
     private val coverMutex = Mutex()
+
+    // Serializes reading-list picker toggles: each write (+ potential failure-rollback) must
+    // complete before the next tap's write starts, or rapid clicks can race and desync the
+    // picker's optimistic state from the database.
+    private val readingListMutex = Mutex()
 
     private fun setCustomCover(imageUri: String) {
         viewModelScope.launch {

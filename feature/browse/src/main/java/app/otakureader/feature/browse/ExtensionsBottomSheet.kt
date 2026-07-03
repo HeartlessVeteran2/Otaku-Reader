@@ -362,7 +362,7 @@ private fun ExtensionsContent(
                                     },
                                 )
                                 DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.extensions_install_from_url)) },
+                                    text = { Text(stringResource(R.string.extensions_menu_install_from_url)) },
                                     onClick = {
                                         overflowExpanded = false
                                         onNavigateToExtensionInstall()
