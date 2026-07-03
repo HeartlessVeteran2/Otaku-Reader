@@ -93,4 +93,27 @@ class ChapterDaoTest {
         assertEquals(3, readCount)
     }
 
+    @Test
+    fun getTotalChapterCountForLibrary_countsOnlyChaptersOfFavoritedManga() = runBlocking {
+        val favoriteMangaId = 4L
+        val nonFavoriteMangaId = 5L
+        mangaDao.insert(
+            MangaEntity(id = favoriteMangaId, title = "In Library", sourceId = 1L, url = "url4", favorite = true)
+        )
+        mangaDao.insert(
+            MangaEntity(id = nonFavoriteMangaId, title = "Not In Library", sourceId = 1L, url = "url5", favorite = false)
+        )
+
+        val favoriteChapters = (1..3).map { i ->
+            ChapterEntity(id = i.toLong() + 300, mangaId = favoriteMangaId, url = "url_$i", name = "Chapter $i", read = false, chapterNumber = i.toFloat())
+        }
+        val nonFavoriteChapters = (1..7).map { i ->
+            ChapterEntity(id = i.toLong() + 400, mangaId = nonFavoriteMangaId, url = "url_$i", name = "Chapter $i", read = false, chapterNumber = i.toFloat())
+        }
+        chapterDao.insertAll(favoriteChapters + nonFavoriteChapters)
+
+        val totalChapterCount = chapterDao.getTotalChapterCountForLibrary().first()
+        assertEquals(3, totalChapterCount)
+    }
+
 }
