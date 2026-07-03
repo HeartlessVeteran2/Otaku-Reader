@@ -41,29 +41,54 @@ For each screen area, follow this loop:
 | 2 | Library | Done (PR #1155) | Grid/list/comfortable/cover-only modes, tristate filters, filter sheet, RANDOM sort, bulk-select |
 | 3 | Manga detail | Done (PR #1156, #1186) | Collapsing header, chapter list, tracker sheet, tag press, tap-to-search, cancel download, delete-downloads prompt, migrate action, source label |
 | 4 | Reader | Done (verified pre-existing) | Diffed against Komikku's ViewerNavigation/PagerConfig/WebtoonConfig, ChapterNavigator, ReadingModePage — tap zones (exact NavigationRegion color/enum match), slider snap, chapter transitions w/ gap warnings, live-applied settings, rotation, volume keys, save/share all already at parity. No gaps found worth a PR. |
-| 5 | Updates / History / Downloads | **Next** | J2K grouping, swipe actions, real-time progress |
-| 6 | Browse: global search / migrate / feed ordering | Pending | |
+| 5 | Updates / History / Downloads | Done (PR #1187) | Updates/History already had J2K-style date grouping + swipe-to-dismiss (no gaps). Downloads queue was missing Komikku's Sort-by-upload-date/chapter-number menu — added, reusing existing reorderDownload API. Per-item drag-reorder (Komikku's legacy RecyclerView) not ported — out of scope for a pure-Compose project. |
+| 6 | Browse: global search / migrate / feed ordering | **Next** | |
 | 7 | Settings | Pending | Match Komikku's settings tree, immediate-apply semantics |
 | 8 | More / stats / remaining screens | Pending | |
 
-## Current Session: Updates / History / Downloads (item #5)
+## Current Session: Browse — global search / migrate / feed ordering (item #6)
 
 Komikku spec files to read:
-- `eu.kanade.presentation.updates.UpdatesScreen` + `UpdatesScreenModel` — J2K-style date grouping,
-  swipe/long-press actions, per-item download/read state
-- `eu.kanade.presentation.history.HistoryScreen` + `HistoryScreenModel` — timeline grouping, resume
-- `eu.kanade.presentation.download.DownloadQueueScreen` — real-time progress, reorder, pause/resume
+- `eu.kanade.presentation.browse.GlobalSearchScreen` + `GlobalSearchScreenModel` — cross-source
+  search results grid, per-source section headers, "no results"/error states, source loading order
+- `eu.kanade.tachiyomi.ui.browse.migration.*` (`MigrateSourceScreen`, `MigrateMangaScreen`,
+  `SearchScreen` under `browse/migration/search/`) — full migration wizard flow (source picker →
+  manga picker → per-manga replacement search → confirm & migrate options: chapters/categories/
+  tracking/custom cover/notes to keep)
+- `eu.kanade.presentation.more.settings.screen.browse.SettingsBrowseScreen` (feed/latest ordering
+  prefs) or wherever `FeedScreen`/latest-updates source ordering lives
 
 Key elements to check:
-- Date-header grouping (Today/Yesterday/this week/older) matching J2K conventions
-- Swipe-to-* actions (mark read, delete, bookmark) vs long-press context menus
-- Real-time download queue progress (bytes/percent, reorder via drag, pause/resume/cancel per item)
-- Bulk actions + undo snackbars (compare against Otaku's existing undo patterns — CLAUDE.md
-  documents Pattern A/B already used for Library/History)
+- Global search: does Otaku's `feature/browse/GlobalSearchScreen.kt` group results by source with
+  the same section-header/loading/error-per-source behavior as Komikku, and does search from the
+  Details header/genre-long-press (added this session in PR #1186) land there correctly?
+- Migrate: item #3 (Manga Detail, PR #1186) added a single-manga "Migrate" overflow action that
+  jumps into `feature/migration`'s existing wizard (`MigrationEntryScreen`/`MigrationScreen`) —
+  verify that wizard's actual replacement-search and confirm-options screens match Komikku's
+  `MigrateMangaScreen` (does it offer to keep chapters/categories/tracking/notes on migrate, same
+  as Komikku's migration dialog options?).
+- Feed ordering: does Otaku's `feature/feed/` respect the same source/category ordering Komikku
+  uses for its latest-updates feed, and is there a matching settings toggle?
 
 Gap areas likely in Otaku:
-- `feature/updates/`, `feature/history/`, `feature/more/downloads` (or wherever the download
-  manager screen lives) — Screen + ViewModel
+- `feature/browse/` (GlobalSearchScreen, SourceMangaScreen), `feature/migration/` (MigrationScreen
+  specifically — MigrationEntryScreen was already diffed indirectly via PR #1186's wiring, but the
+  actual per-manga replacement/confirm flow hasn't been diffed yet), `feature/feed/`
+
+## Previous Session: Updates / History / Downloads (item #5) — done
+
+Updates already had J2K-style date grouping (`buildJk2UiModel`/`Jk2DateHeader`/`Jk2UpdateItem`) and
+swipe-to-dismiss via `SwipeToDismissBox` — matches Komikku, no gap. History already had date-bucket
+grouping (`historyDateBucket`/`HistoryDateHeader`) and swipe-to-dismiss — matches Komikku, no gap.
+Downloads queue was missing Komikku's `DownloadQueueScreen` "Sort" menu (order by upload date
+newest/oldest, order by chapter number asc/desc) — added in PR #1187 via `DownloadsViewModel
+.sortQueue()`, which looks up each queued chapter's metadata and reassigns sequential priorities
+through the existing `DownloadRepository.reorderDownload()` call (confirmed `prioritizeDownloads()`
+can't be reused for this — it preserves each target's *existing* relative priority order rather than
+accepting a caller-supplied order, so it can't express an arbitrary sort). Per-item manual
+drag-to-reorder (Komikku's side uses a legacy `RecyclerView`+`ItemTouchHelper` via `AndroidView`) was
+deliberately not ported — this is a pure-Compose project and a custom drag-reorder `LazyColumn`
+would be a much larger, separate effort; flagged here in case it's wanted as a future item.
 
 ## Previous Session: Reader (item #4) — done, no gaps
 
