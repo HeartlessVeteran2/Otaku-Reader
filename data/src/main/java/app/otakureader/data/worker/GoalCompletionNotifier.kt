@@ -79,9 +79,28 @@ class GoalCompletionNotifier @Inject constructor(
 
         val launchIntent = context.packageManager
             .getLaunchIntentForPackage(context.packageName)
-            ?: Intent(Intent.ACTION_MAIN).apply {
-                addCategory(Intent.CATEGORY_LAUNCHER)
-                setPackage(context.packageName)
+            ?: run {
+                val launcherResolveIntent = Intent(Intent.ACTION_MAIN).apply {
+                    addCategory(Intent.CATEGORY_LAUNCHER)
+                    setPackage(context.packageName)
+                }
+                val launcherActivity = context.packageManager
+                    .queryIntentActivities(launcherResolveIntent, 0)
+                    .firstOrNull()
+                    ?.activityInfo
+                    ?.name
+
+                if (launcherActivity != null) {
+                    Intent(Intent.ACTION_MAIN).apply {
+                        addCategory(Intent.CATEGORY_LAUNCHER)
+                        setClassName(context.packageName, launcherActivity)
+                    }
+                } else {
+                    Intent(Intent.ACTION_MAIN).apply {
+                        addCategory(Intent.CATEGORY_LAUNCHER)
+                        setPackage(context.packageName)
+                    }
+                }
             }
 
         val pendingIntent = PendingIntent.getActivity(
