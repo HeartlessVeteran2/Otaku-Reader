@@ -18,6 +18,14 @@
     <string name="statistics_library_detail">Library</string>
     <string name="statistics_completed_titles">Completed</string>
     <string name="statistics_total_chapters">Total Chapters</string>
+    <string name="statistics_downloaded_chapters">Downloaded</string>
+
+    <!-- Trackers card -->
+    <string name="statistics_trackers">Trackers</string>
+    <string name="statistics_tracked_titles">Tracked Titles</string>
+    <string name="statistics_mean_score">Mean Score</string>
+    <string name="statistics_tracker_services">Services</string>
+    <string name="statistics_no_score">—</string>
     <string name="statistics_daily_goal">Daily Goal</string>
     <string name="statistics_weekly_goal">Weekly Goal</string>
     <string name="statistics_goal_complete">✓ Complete!</string>

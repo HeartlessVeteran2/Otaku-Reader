@@ -3,6 +3,7 @@ package app.otakureader.data.repository
 import app.otakureader.core.database.dao.ChapterDao
 import app.otakureader.core.database.dao.MangaDao
 import app.otakureader.core.database.dao.ReadingHistoryDao
+import app.otakureader.core.database.dao.TrackEntryDao
 import app.otakureader.core.database.entity.ReadingHistoryEntity
 import app.otakureader.domain.repository.StatisticsRepository
 import app.cash.turbine.test
@@ -22,6 +23,7 @@ class StatisticsRepositoryImplTest {
     private lateinit var readingHistoryDao: ReadingHistoryDao
     private lateinit var mangaDao: MangaDao
     private lateinit var chapterDao: ChapterDao
+    private lateinit var trackEntryDao: TrackEntryDao
     private lateinit var repository: StatisticsRepository
 
     private fun makeEntry(readAt: Long, durationMs: Long = 0L) =
@@ -37,7 +39,8 @@ class StatisticsRepositoryImplTest {
         readingHistoryDao = mockk()
         mangaDao = mockk()
         chapterDao = mockk()
-        repository = StatisticsRepositoryImpl(readingHistoryDao, mangaDao, chapterDao)
+        trackEntryDao = mockk()
+        repository = StatisticsRepositoryImpl(readingHistoryDao, mangaDao, chapterDao, trackEntryDao)
 
         // Default stub
         every { readingHistoryDao.observeHistory() } returns flowOf(emptyList())
@@ -45,6 +48,9 @@ class StatisticsRepositoryImplTest {
         every { mangaDao.getFavoriteMangaGenres() } returns flowOf(emptyList())
         every { mangaDao.getCompletedMangaCount() } returns flowOf(0)
         every { chapterDao.getTotalChapterCountForLibrary() } returns flowOf(0)
+        every { trackEntryDao.getTrackedMangaCount() } returns flowOf(0)
+        every { trackEntryDao.getMeanScore() } returns flowOf(null)
+        every { trackEntryDao.getTrackerServiceCount() } returns flowOf(0)
     }
 
     // ── getReadingStats: totals ────────────────────────────────────────────────
@@ -232,6 +238,34 @@ class StatisticsRepositoryImplTest {
             val stats = awaitItem()
             assertEquals(7, stats.completedMangaCount)
             assertEquals(142, stats.totalChapterCount)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // ── getReadingStats: tracker stats ─────────────────────────────────────────
+
+    @Test
+    fun `getReadingStats surfaces tracker aggregates`() = runTest {
+        every { trackEntryDao.getTrackedMangaCount() } returns flowOf(12)
+        every { trackEntryDao.getMeanScore() } returns flowOf(7.5f)
+        every { trackEntryDao.getTrackerServiceCount() } returns flowOf(3)
+
+        repository.getReadingStats().test {
+            val stats = awaitItem()
+            assertEquals(12, stats.trackedMangaCount)
+            assertEquals(7.5f, stats.meanTrackerScore)
+            assertEquals(3, stats.trackerServiceCount)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `getReadingStats with no tracked manga returns null mean score`() = runTest {
+        repository.getReadingStats().test {
+            val stats = awaitItem()
+            assertEquals(0, stats.trackedMangaCount)
+            assertEquals(null, stats.meanTrackerScore)
+            assertEquals(0, stats.trackerServiceCount)
             cancelAndIgnoreRemainingEvents()
         }
     }

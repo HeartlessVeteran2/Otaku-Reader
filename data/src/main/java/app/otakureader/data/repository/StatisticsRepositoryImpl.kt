@@ -4,6 +4,7 @@ package app.otakureader.data.repository
 import app.otakureader.core.database.dao.ChapterDao
 import app.otakureader.core.database.dao.MangaDao
 import app.otakureader.core.database.dao.ReadingHistoryDao
+import app.otakureader.core.database.dao.TrackEntryDao
 import app.otakureader.domain.model.ReadingStats
 import app.otakureader.domain.model.ReadingGoal
 import app.otakureader.domain.repository.StatisticsRepository
@@ -23,7 +24,22 @@ class StatisticsRepositoryImpl @Inject constructor(
     private val readingHistoryDao: ReadingHistoryDao,
     private val mangaDao: MangaDao,
     private val chapterDao: ChapterDao,
+    private val trackEntryDao: TrackEntryDao,
 ) : StatisticsRepository {
+
+    /** Tracker aggregates bundled so the outer combine stays within Kotlin's 5-flow overloads. */
+    private data class TrackerStats(
+        val trackedMangaCount: Int,
+        val meanScore: Float?,
+        val serviceCount: Int,
+    )
+
+    private fun observeTrackerStats(): Flow<TrackerStats> = combine(
+        trackEntryDao.getTrackedMangaCount().distinctUntilChanged(),
+        trackEntryDao.getMeanScore().distinctUntilChanged(),
+        trackEntryDao.getTrackerServiceCount().distinctUntilChanged(),
+        ::TrackerStats,
+    )
 
     override fun getReadingStats(sinceMs: Long?): Flow<ReadingStats> = combine(
         readingHistoryDao.observeHistory(),
@@ -63,6 +79,12 @@ class StatisticsRepositoryImpl @Inject constructor(
             readingActivityByDay = activityByDay,
             completedMangaCount = completedMangaCount,
             totalChapterCount = totalChapterCount,
+        )
+    }.combine(observeTrackerStats()) { stats, trackerStats ->
+        stats.copy(
+            trackedMangaCount = trackerStats.trackedMangaCount,
+            meanTrackerScore = trackerStats.meanScore,
+            trackerServiceCount = trackerStats.serviceCount,
         )
     }
     
