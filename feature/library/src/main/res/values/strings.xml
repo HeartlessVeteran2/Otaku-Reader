@@ -158,6 +158,9 @@
     <string name="category_unlock_label">Unlock category</string>
     <string name="category_locked">Locked</string>
     <string name="category_dynamic">Dynamic</string>
+    <string name="category_updates_skipped">Excluded from library updates</string>
+    <string name="category_skip_updates">Skip library updates</string>
+    <string name="category_include_in_updates">Include in library updates</string>
     <string name="category_make_dynamic">Make dynamic</string>
     <string name="category_remove_dynamic">Remove dynamic</string>
     <string name="category_unlock_prompt">Unlock to view hidden category</string>

@@ -96,6 +96,10 @@ class LibraryPreferences(private val dataStore: DataStore<Preferences>) {
     val updateOnlyOnWifi: Flow<Boolean> = dataStore.data.map { it[Keys.UPDATE_ONLY_ON_WIFI] ?: false }
     suspend fun setUpdateOnlyOnWifi(value: Boolean) = dataStore.edit { it[Keys.UPDATE_ONLY_ON_WIFI] = value }
 
+    /** Only update library while the device is charging */
+    val updateRequireCharging: Flow<Boolean> = dataStore.data.map { it[Keys.UPDATE_REQUIRE_CHARGING] ?: false }
+    suspend fun setUpdateRequireCharging(value: Boolean) = dataStore.edit { it[Keys.UPDATE_REQUIRE_CHARGING] = value }
+
     /** Skip updating categories with these IDs */
     val skipUpdateCategoryIds: Flow<Set<String>> = dataStore.data.map { it[Keys.SKIP_UPDATE_CATEGORY_IDS] ?: emptySet() }
     suspend fun setSkipUpdateCategoryIds(value: Set<String>) = dataStore.edit { it[Keys.SKIP_UPDATE_CATEGORY_IDS] = value }
@@ -229,6 +233,7 @@ class LibraryPreferences(private val dataStore: DataStore<Preferences>) {
         val SHOW_NSFW_CONTENT = booleanPreferencesKey("library_show_nsfw_content")
         val SHOW_HIDDEN_CATEGORIES = booleanPreferencesKey("library_show_hidden_categories")
         val UPDATE_ONLY_ON_WIFI = booleanPreferencesKey("library_update_only_on_wifi")
+        val UPDATE_REQUIRE_CHARGING = booleanPreferencesKey("library_update_require_charging")
         val SKIP_UPDATE_CATEGORY_IDS = stringSetPreferencesKey("library_skip_update_category_ids")
         val AUTO_REFRESH_ON_START = booleanPreferencesKey("library_auto_refresh_on_start")
         val SHOW_UPDATE_PROGRESS = booleanPreferencesKey("library_show_update_progress")

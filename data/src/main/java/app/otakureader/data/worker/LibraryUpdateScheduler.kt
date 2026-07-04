@@ -18,11 +18,12 @@ class LibraryUpdateScheduler @Inject constructor(
     @ApplicationContext private val context: Context
 ) : LibraryUpdateSchedulerInterface {
 
-    override fun schedule(intervalHours: Int, wifiOnly: Boolean) {
+    override fun schedule(intervalHours: Int, wifiOnly: Boolean, requireCharging: Boolean) {
         LibraryUpdateWorker.schedule(
             context = context,
             intervalHours = intervalHours,
-            wifiOnly = wifiOnly
+            wifiOnly = wifiOnly,
+            requireCharging = requireCharging
         )
     }
 

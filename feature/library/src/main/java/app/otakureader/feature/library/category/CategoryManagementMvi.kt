@@ -15,6 +15,8 @@ data class CategoryUiItem(
     val isLocked: Boolean = false,
     val isDynamic: Boolean = false,
     val updateFrequency: CategoryUpdateFrequency = CategoryUpdateFrequency.DAILY,
+    /** Whether this category is excluded from global library updates. */
+    val skipUpdates: Boolean = false,
 )
 
 /** In-progress smart-rule editing for a single category (null when the editor is closed). */
@@ -50,6 +52,8 @@ sealed interface CategoryEvent : UiEvent {
     data class ToggleHidden(val categoryId: Long) : CategoryEvent
     data class ToggleNsfw(val categoryId: Long) : CategoryEvent
     data class ToggleLocked(val categoryId: Long) : CategoryEvent
+    /** Include/exclude this category from global library updates. */
+    data class ToggleSkipUpdates(val categoryId: Long) : CategoryEvent
     /** Open the smart-rule editor for a category, loading its current rules. */
     data class OpenRuleEditor(val categoryId: Long) : CategoryEvent
     /** Discard the open rule editor without saving. */

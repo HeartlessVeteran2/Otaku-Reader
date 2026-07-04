@@ -3,7 +3,7 @@ package app.otakureader.domain.scheduler
 import kotlinx.coroutines.flow.Flow
 
 interface LibraryUpdateScheduler {
-    fun schedule(intervalHours: Int, wifiOnly: Boolean)
+    fun schedule(intervalHours: Int, wifiOnly: Boolean, requireCharging: Boolean = false)
     fun cancel()
     fun enqueueNow()
 

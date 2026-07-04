@@ -149,6 +149,7 @@ class LibraryUpdateWorkerTest {
         every { libraryPreferences.skipUpdatesNeverStarted } returns flowOf(false)
         every { libraryPreferences.categoryLastUpdateMs } returns flowOf(emptyMap())
         every { libraryPreferences.showUpdateProgress } returns flowOf(false)
+        every { notificationPreferences.hideNotificationContent } returns flowOf(false)
         coEvery { categoryRepository.getCategories() } returns flowOf(emptyList())
         coEvery { libraryPreferences.setCategoryLastUpdateMs(any()) } just runs
 

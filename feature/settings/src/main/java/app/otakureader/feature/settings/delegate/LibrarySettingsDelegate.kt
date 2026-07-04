@@ -24,6 +24,7 @@ class LibrarySettingsDelegate @Inject constructor(
     // Keep latest values to use for rescheduling when the other changes
     private var latestUpdateCheckInterval: Int = 12
     private var latestUpdateOnlyOnWifi: Boolean = false
+    private var latestUpdateRequireCharging: Boolean = false
 
     fun startObserving(
         scope: CoroutineScope,
@@ -61,6 +62,12 @@ class LibrarySettingsDelegate @Inject constructor(
             }
         }
         scope.launch {
+            libraryPreferences.updateRequireCharging.collect { requireCharging ->
+                latestUpdateRequireCharging = requireCharging
+                updateState { it.copy(library = it.library.copy(updateRequireCharging = requireCharging)) }
+            }
+        }
+        scope.launch {
             libraryPreferences.skipUpdatesWithUnread.collect { v ->
                 updateState { it.copy(library = it.library.copy(skipUpdatesWithUnread = v)) }
             }
@@ -94,7 +101,13 @@ class LibrarySettingsDelegate @Inject constructor(
         is SettingsEvent.SetUpdateOnlyOnWifi -> {
             libraryPreferences.setUpdateOnlyOnWifi(event.enabled)
             latestUpdateOnlyOnWifi = event.enabled
-            scheduleLibraryUpdateOrShowError(latestUpdateCheckInterval, event.enabled, sendEffect)
+            scheduleLibraryUpdateOrShowError(latestUpdateCheckInterval, event.enabled, latestUpdateRequireCharging, sendEffect)
+            true
+        }
+        is SettingsEvent.SetUpdateRequireCharging -> {
+            libraryPreferences.setUpdateRequireCharging(event.enabled)
+            latestUpdateRequireCharging = event.enabled
+            scheduleLibraryUpdateOrShowError(latestUpdateCheckInterval, latestUpdateOnlyOnWifi, event.enabled, sendEffect)
             true
         }
         is SettingsEvent.SetAutoRefreshOnStart -> { libraryPreferences.setAutoRefreshOnStart(event.enabled); true }
@@ -105,7 +118,7 @@ class LibrarySettingsDelegate @Inject constructor(
         is SettingsEvent.SetUpdateInterval -> {
             generalPreferences.setUpdateCheckInterval(event.hours)
             latestUpdateCheckInterval = event.hours
-            scheduleLibraryUpdateOrShowError(event.hours, latestUpdateOnlyOnWifi, sendEffect)
+            scheduleLibraryUpdateOrShowError(event.hours, latestUpdateOnlyOnWifi, latestUpdateRequireCharging, sendEffect)
             true
         }
         is SettingsEvent.SetNotificationsEnabled -> {
@@ -119,14 +132,20 @@ class LibrarySettingsDelegate @Inject constructor(
     private suspend fun scheduleLibraryUpdateOrShowError(
         intervalHours: Int,
         wifiOnly: Boolean,
+        requireCharging: Boolean,
         sendEffect: suspend (SettingsEffect) -> Unit,
     ) {
         try {
-            libraryUpdateScheduler.schedule(intervalHours = intervalHours, wifiOnly = wifiOnly)
+            libraryUpdateScheduler.schedule(intervalHours = intervalHours, wifiOnly = wifiOnly, requireCharging = requireCharging)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Log.e("LibrarySettingsDelegate", "Failed to schedule library update (intervalHours=$intervalHours, wifiOnly=$wifiOnly)", e)
+            Log.e(
+                "LibrarySettingsDelegate",
+                "Failed to schedule library update " +
+                    "(intervalHours=$intervalHours, wifiOnly=$wifiOnly, requireCharging=$requireCharging)",
+                e,
+            )
             sendEffect(SettingsEffect.ShowSnackbar("Failed to update library scheduler settings"))
         }
     }

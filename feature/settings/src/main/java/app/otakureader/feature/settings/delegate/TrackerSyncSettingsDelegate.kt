@@ -1,6 +1,7 @@
 package app.otakureader.feature.settings.delegate
 
 import app.otakureader.core.preferences.GeneralPreferences
+import app.otakureader.domain.model.SyncConfiguration
 import app.otakureader.domain.repository.TrackerSyncRepository
 import app.otakureader.domain.tracking.TrackManager
 import app.otakureader.domain.updater.AppUpdateChecker
@@ -11,6 +12,7 @@ import app.otakureader.feature.settings.TrackerInfo
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
@@ -50,6 +52,14 @@ class TrackerSyncSettingsDelegate @Inject constructor(
                 }
             }.collect { }
         }
+
+        // Per-tracker sync configuration (trackers without a row use the domain default: true)
+        scope.launch {
+            trackerSyncRepository.getSyncConfigurations().collect { configs ->
+                val syncOnRead = configs.associate { it.trackerId to it.syncOnChapterRead }
+                updateState { it.copy(tracking = it.tracking.copy(syncOnChapterRead = syncOnRead)) }
+            }
+        }
     }
 
     fun refreshTrackers() {
@@ -70,7 +80,22 @@ class TrackerSyncSettingsDelegate @Inject constructor(
             updateState { it.copy(tracking = it.tracking.copy(batchSyncSummary = null)) }
             true
         }
+        is SettingsEvent.SetTrackerSyncOnChapterRead -> {
+            setSyncOnChapterRead(event.trackerId, event.enabled)
+            true
+        }
         else -> false
+    }
+
+    /**
+     * Persists the per-tracker "sync on chapter read" flag. [TrackerSyncRepository.updateSyncConfiguration]
+     * creates the config row with domain defaults when the tracker has none yet.
+     */
+    private suspend fun setSyncOnChapterRead(trackerId: Int, enabled: Boolean) {
+        val existing = trackerSyncRepository.getSyncConfigurations().first()
+            .firstOrNull { it.trackerId == trackerId }
+            ?: SyncConfiguration(trackerId = trackerId)
+        trackerSyncRepository.updateSyncConfiguration(existing.copy(syncOnChapterRead = enabled))
     }
 
     private suspend fun syncAllTrackers(sendEffect: suspend (SettingsEffect) -> Unit) {

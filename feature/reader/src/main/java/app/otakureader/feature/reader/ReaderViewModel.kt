@@ -963,7 +963,12 @@ class ReaderViewModel @Inject constructor(
                 viewModelScope.launch {
                     withContext(NonCancellable) {
                         try {
+                            // Per-tracker "sync on chapter read" opt-out; trackers without a
+                            // config row keep the SyncConfiguration default (true).
+                            val syncOnReadByTracker = trackerSyncRepository.getSyncConfigurations().first()
+                                .associate { it.trackerId to it.syncOnChapterRead }
                             trackerSyncRepository.getSyncStateForManga(mangaId).first()
+                                .filter { syncOnReadByTracker[it.trackerId] ?: true }
                                 .forEach { syncState ->
                                     trackerSyncRepository.recordLocalChange(
                                         mangaId = mangaId,
@@ -1001,7 +1006,11 @@ class ReaderViewModel @Inject constructor(
             val manga = currentManga
             if (chapter != null && manga != null) {
                 try {
+                    // Same per-tracker gate as onCleared(); default true when no config row.
+                    val syncOnReadByTracker = trackerSyncRepository.getSyncConfigurations().first()
+                        .associate { it.trackerId to it.syncOnChapterRead }
                     trackerSyncRepository.getSyncStateForManga(mangaId).first()
+                        .filter { syncOnReadByTracker[it.trackerId] ?: true }
                         .forEach { syncState ->
                             trackerSyncRepository.recordLocalChange(
                                 mangaId = mangaId,

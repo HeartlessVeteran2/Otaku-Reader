@@ -34,6 +34,13 @@ class NotificationPreferences(
     val respectQuietHours: Flow<Boolean> = dataStore.data
         .map { it[KEY_RESPECT_QUIET] ?: true }
 
+    /**
+     * Hide manga titles and covers from update notifications (generic "New chapters available"
+     * instead), for privacy on shared or visible lock screens.
+     */
+    val hideNotificationContent: Flow<Boolean> = dataStore.data
+        .map { it[KEY_HIDE_CONTENT] ?: false }
+
     /** Start hour of quiet period (24h, inclusive). 22 = 10 PM. */
     val quietHoursStart: Flow<Int> = dataStore.data
         .map { it[KEY_QUIET_START] ?: 22 }
@@ -62,6 +69,10 @@ class NotificationPreferences(
         dataStore.edit { it[KEY_RESPECT_QUIET] = enabled }
     }
 
+    suspend fun setHideNotificationContent(enabled: Boolean) {
+        dataStore.edit { it[KEY_HIDE_CONTENT] = enabled }
+    }
+
     suspend fun setQuietHours(startHour: Int, endHour: Int) {
         dataStore.edit {
             it[KEY_QUIET_START] = startHour.coerceIn(0, 23)
@@ -74,6 +85,7 @@ class NotificationPreferences(
         private val KEY_PER_MANGA_COOLDOWN = intPreferencesKey("notification_per_manga_cooldown")
         private val KEY_MAX_INDIVIDUAL = intPreferencesKey("notification_max_individual")
         private val KEY_RESPECT_QUIET = booleanPreferencesKey("notification_respect_quiet_hours")
+        private val KEY_HIDE_CONTENT = booleanPreferencesKey("notification_hide_content")
         private val KEY_QUIET_START = intPreferencesKey("notification_quiet_start")
         private val KEY_QUIET_END = intPreferencesKey("notification_quiet_end")
     }
