@@ -4,11 +4,16 @@ import app.otakureader.core.preferences.ReadingGoalPreferences
 import app.otakureader.domain.model.Achievement
 import app.otakureader.domain.model.ReadingGoal
 import app.otakureader.domain.model.ReadingStats
+import app.otakureader.domain.model.ReindexResult
 import app.otakureader.domain.repository.AchievementRepository
+import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.StatisticsRepository
 import app.otakureader.domain.usecase.GetReadingStatsUseCase
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkStatic
+import io.mockk.unmockkStatic
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flow
@@ -34,6 +39,7 @@ class StatisticsViewModelTest {
     private lateinit var statisticsRepository: StatisticsRepository
     private lateinit var readingGoalPreferences: ReadingGoalPreferences
     private lateinit var achievementRepository: AchievementRepository
+    private lateinit var downloadRepository: DownloadRepository
 
     private val sampleStats = ReadingStats(
         totalMangaInLibrary = 15,
@@ -53,6 +59,10 @@ class StatisticsViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
+        // The scan-failure path logs at WARN; android.util.Log is not available in
+        // plain JVM unit tests, so stub it to avoid "not mocked" errors.
+        mockkStatic(android.util.Log::class)
+        every { android.util.Log.w(any<String>(), any<String>(), any<Throwable>()) } returns 0
         getReadingStatsUseCase = mockk()
         statisticsRepository = mockk()
         readingGoalPreferences = mockk {
@@ -62,11 +72,15 @@ class StatisticsViewModelTest {
         achievementRepository = mockk {
             every { observeAll() } returns flowOf(emptyList<Achievement>())
         }
+        downloadRepository = mockk {
+            coEvery { reindexDownloads() } returns ReindexResult(verifiedDownloads = 0, emptyDirs = 0)
+        }
     }
 
     @After
     fun tearDown() {
         Dispatchers.resetMain()
+        unmockkStatic(android.util.Log::class)
     }
 
     private fun createViewModel(): StatisticsViewModel {
@@ -75,6 +89,7 @@ class StatisticsViewModelTest {
             statisticsRepository,
             readingGoalPreferences,
             achievementRepository,
+            downloadRepository,
         )
     }
 
@@ -162,6 +177,52 @@ class StatisticsViewModelTest {
 
         // Repository should have been called with values from preferences
         assertEquals(sampleGoal, viewModel.state.value.readingGoal)
+    }
+
+    @Test
+    fun init_loadsDownloadedChapterCountFromReindexScan() = runTest {
+        every { getReadingStatsUseCase() } returns flowOf(sampleStats)
+        every { statisticsRepository.getReadingGoalProgress(any(), any()) } returns flowOf(sampleGoal)
+        coEvery { downloadRepository.reindexDownloads() } returns
+            ReindexResult(verifiedDownloads = 42, emptyDirs = 1)
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(42, viewModel.state.value.downloadedChapterCount)
+    }
+
+    @Test
+    fun onEvent_Refresh_rescansDownloadedChapterCount() = runTest {
+        every { getReadingStatsUseCase() } returns flowOf(sampleStats)
+        every { statisticsRepository.getReadingGoalProgress(any(), any()) } returns flowOf(sampleGoal)
+        coEvery { downloadRepository.reindexDownloads() } returnsMany listOf(
+            ReindexResult(verifiedDownloads = 10, emptyDirs = 0),
+            ReindexResult(verifiedDownloads = 25, emptyDirs = 0),
+        )
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(10, viewModel.state.value.downloadedChapterCount)
+
+        viewModel.onEvent(StatisticsEvent.Refresh)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(25, viewModel.state.value.downloadedChapterCount)
+    }
+
+    @Test
+    fun init_downloadScanFailure_keepsCountNull() = runTest {
+        every { getReadingStatsUseCase() } returns flowOf(sampleStats)
+        every { statisticsRepository.getReadingGoalProgress(any(), any()) } returns flowOf(sampleGoal)
+        coEvery { downloadRepository.reindexDownloads() } throws IllegalStateException("disk error")
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Scan failure is non-fatal: the tile stays hidden, stats still load
+        assertNull(viewModel.state.value.downloadedChapterCount)
+        assertEquals(sampleStats, viewModel.state.value.stats)
     }
 
     @Test

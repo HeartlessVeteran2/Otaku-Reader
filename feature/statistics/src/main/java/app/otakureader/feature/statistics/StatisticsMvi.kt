@@ -21,6 +21,8 @@ data class StatisticsState(
     val achievements: List<Achievement> = emptyList(),
     val selectedPeriod: StatsPeriod = StatsPeriod.ALL,
     val error: String? = null,
+    /** Chapters with files on disk; null while the one-shot filesystem scan is still running. */
+    val downloadedChapterCount: Int? = null,
 ) : UiState
 
 sealed interface StatisticsEvent : UiEvent {

@@ -56,6 +56,7 @@ import app.otakureader.core.ui.theme.LocalOtakuColors
 import app.otakureader.domain.model.Achievement
 import app.otakureader.domain.model.ReadingGoal
 import app.otakureader.domain.model.ReadingStats
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -128,6 +129,7 @@ fun StatisticsScreen(
                 achievements = state.achievements,
                 selectedPeriod = state.selectedPeriod,
                 onSelectPeriod = { viewModel.onEvent(StatisticsEvent.SelectPeriod(it)) },
+                downloadedChapterCount = state.downloadedChapterCount,
                 modifier = Modifier.padding(paddingValues)
             )
         }
@@ -141,6 +143,7 @@ private fun StatisticsContent(
     achievements: List<Achievement>,
     selectedPeriod: StatsPeriod,
     onSelectPeriod: (StatsPeriod) -> Unit,
+    downloadedChapterCount: Int?,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -187,7 +190,22 @@ private fun StatisticsContent(
             LibraryDetailCard(
                 completedMangaCount = stats.completedMangaCount,
                 totalChapterCount = stats.totalChapterCount,
+                downloadedChapterCount = downloadedChapterCount,
             )
+        }
+
+        // Trackers — tracked titles, mean score, services (Komikku's Trackers section).
+        // Hidden entirely when the user doesn't track anything.
+        if (stats.trackedMangaCount > 0) {
+            item {
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(4.dp))
+                TrackersCard(
+                    trackedMangaCount = stats.trackedMangaCount,
+                    meanTrackerScore = stats.meanTrackerScore,
+                    trackerServiceCount = stats.trackerServiceCount,
+                )
+            }
         }
 
         // Reading goals progress
@@ -476,6 +494,7 @@ private fun StreakCard(
 private fun LibraryDetailCard(
     completedMangaCount: Int,
     totalChapterCount: Int,
+    downloadedChapterCount: Int?,
     modifier: Modifier = Modifier
 ) {
     val otaku = LocalOtakuColors.current
@@ -508,6 +527,67 @@ private fun LibraryDetailCard(
                 StreakStatItem(
                     value = totalChapterCount.toString(),
                     label = stringResource(R.string.statistics_total_chapters),
+                    valueColor = otaku.accent,
+                    modifier = Modifier.weight(1f),
+                )
+                if (downloadedChapterCount != null) {
+                    StreakStatItem(
+                        value = downloadedChapterCount.toString(),
+                        label = stringResource(R.string.statistics_downloaded_chapters),
+                        valueColor = otaku.accent,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TrackersCard(
+    trackedMangaCount: Int,
+    meanTrackerScore: Float?,
+    trackerServiceCount: Int,
+    modifier: Modifier = Modifier
+) {
+    val otaku = LocalOtakuColors.current
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.statistics_trackers),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                StreakStatItem(
+                    value = trackedMangaCount.toString(),
+                    label = stringResource(R.string.statistics_tracked_titles),
+                    valueColor = otaku.accent,
+                    modifier = Modifier.weight(1f),
+                )
+                StreakStatItem(
+                    value = meanTrackerScore
+                        ?.let { String.format(Locale.getDefault(), "%.1f", it) }
+                        ?: stringResource(R.string.statistics_no_score),
+                    label = stringResource(R.string.statistics_mean_score),
+                    valueColor = otaku.accent,
+                    modifier = Modifier.weight(1f),
+                )
+                StreakStatItem(
+                    value = trackerServiceCount.toString(),
+                    label = stringResource(R.string.statistics_tracker_services),
                     valueColor = otaku.accent,
                     modifier = Modifier.weight(1f),
                 )

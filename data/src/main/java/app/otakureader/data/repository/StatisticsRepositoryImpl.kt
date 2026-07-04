@@ -4,6 +4,7 @@ package app.otakureader.data.repository
 import app.otakureader.core.database.dao.ChapterDao
 import app.otakureader.core.database.dao.MangaDao
 import app.otakureader.core.database.dao.ReadingHistoryDao
+import app.otakureader.core.database.dao.TrackEntryDao
 import app.otakureader.domain.model.ReadingStats
 import app.otakureader.domain.model.ReadingGoal
 import app.otakureader.domain.repository.StatisticsRepository
@@ -23,6 +24,7 @@ class StatisticsRepositoryImpl @Inject constructor(
     private val readingHistoryDao: ReadingHistoryDao,
     private val mangaDao: MangaDao,
     private val chapterDao: ChapterDao,
+    private val trackEntryDao: TrackEntryDao,
 ) : StatisticsRepository {
 
     override fun getReadingStats(sinceMs: Long?): Flow<ReadingStats> = combine(
@@ -63,6 +65,12 @@ class StatisticsRepositoryImpl @Inject constructor(
             readingActivityByDay = activityByDay,
             completedMangaCount = completedMangaCount,
             totalChapterCount = totalChapterCount,
+        )
+    }.combine(trackEntryDao.getTrackerStats().distinctUntilChanged()) { stats, trackerStats ->
+        stats.copy(
+            trackedMangaCount = trackerStats.trackedMangaCount,
+            meanTrackerScore = trackerStats.meanScore,
+            trackerServiceCount = trackerStats.serviceCount,
         )
     }
     

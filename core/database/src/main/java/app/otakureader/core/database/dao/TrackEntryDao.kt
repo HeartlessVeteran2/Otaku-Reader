@@ -21,4 +21,28 @@ interface TrackEntryDao {
 
     @Query("DELETE FROM track_entries WHERE manga_id = :mangaId AND tracker_id = :trackerId")
     suspend fun deleteByMangaAndTracker(mangaId: Long, trackerId: Int)
+
+    /**
+     * Aggregated tracker statistics for the Statistics screen, computed in a single query:
+     * distinct tracked manga, mean of non-zero scores (normalized 0–10 across every tracker
+     * service; 0 = unscored, excluded via the CASE so it can't drag the mean down — null when
+     * nothing is scored yet), and distinct tracker services in use.
+     */
+    @Query(
+        """
+        SELECT
+            COUNT(DISTINCT manga_id) AS trackedMangaCount,
+            AVG(CASE WHEN score > 0 THEN score END) AS meanScore,
+            COUNT(DISTINCT tracker_id) AS serviceCount
+        FROM track_entries
+        """
+    )
+    fun getTrackerStats(): Flow<TrackerStats>
 }
+
+/** Projection for [TrackEntryDao.getTrackerStats] — not a table, just the aggregate row. */
+data class TrackerStats(
+    val trackedMangaCount: Int,
+    val meanScore: Float?,
+    val serviceCount: Int,
+)

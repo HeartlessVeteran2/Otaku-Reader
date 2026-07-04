@@ -14,4 +14,10 @@ data class ReadingStats(
     val readingActivityByDay: Map<String, Int> = emptyMap(),
     val completedMangaCount: Int = 0,
     val totalChapterCount: Int = 0,
+    /** Distinct manga with at least one tracker entry. */
+    val trackedMangaCount: Int = 0,
+    /** Mean of non-zero tracker scores (normalized 0–10), or null when nothing is scored. */
+    val meanTrackerScore: Float? = null,
+    /** Distinct tracker services in use. */
+    val trackerServiceCount: Int = 0,
 )
