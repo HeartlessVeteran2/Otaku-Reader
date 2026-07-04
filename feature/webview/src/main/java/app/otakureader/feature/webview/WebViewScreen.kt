@@ -5,6 +5,7 @@ import android.net.Uri
 import android.view.ViewGroup
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
@@ -57,7 +58,7 @@ import androidx.compose.ui.viewinterop.AndroidView
  * - Navigation controls: back, forward, refresh
  * - Progress indicator while loading
  * - Open in external browser option
- * - Security restrictions: no file access, no geolocation
+ * - Security restrictions: no file/content access, no geolocation
  * - JavaScript enabled (required by sources)
  */
 @OptIn(ExperimentalMaterial3Api::class)
