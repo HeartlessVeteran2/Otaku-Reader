@@ -12,6 +12,8 @@ import app.otakureader.domain.usecase.GetReadingStatsUseCase
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkStatic
+import io.mockk.unmockkStatic
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flow
@@ -57,6 +59,10 @@ class StatisticsViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
+        // The scan-failure path logs at WARN; android.util.Log is not available in
+        // plain JVM unit tests, so stub it to avoid "not mocked" errors.
+        mockkStatic(android.util.Log::class)
+        every { android.util.Log.w(any<String>(), any<String>(), any<Throwable>()) } returns 0
         getReadingStatsUseCase = mockk()
         statisticsRepository = mockk()
         readingGoalPreferences = mockk {
@@ -74,6 +80,7 @@ class StatisticsViewModelTest {
     @After
     fun tearDown() {
         Dispatchers.resetMain()
+        unmockkStatic(android.util.Log::class)
     }
 
     private fun createViewModel(): StatisticsViewModel {

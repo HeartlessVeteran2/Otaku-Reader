@@ -3,10 +3,10 @@ package app.otakureader.core.database.dao
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import app.cash.turbine.test
 import app.otakureader.core.database.OtakuReaderDatabase
 import app.otakureader.core.database.entity.TrackEntryEntity
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -48,40 +48,52 @@ class TrackEntryDaoTest {
     }
 
     @Test
-    fun getTrackerStats_countsDistinctMangaAndServices() = runBlocking {
+    fun getTrackerStats_countsDistinctMangaAndServices() = runTest {
         // Manga 1 tracked on two services counts once as a manga, twice as services;
         // two manga on tracker 1 count as one service.
         trackEntryDao.upsert(makeEntry(mangaId = 1L, trackerId = 1))
         trackEntryDao.upsert(makeEntry(mangaId = 1L, trackerId = 2))
         trackEntryDao.upsert(makeEntry(mangaId = 2L, trackerId = 1))
 
-        val stats = trackEntryDao.getTrackerStats().first()
-        assertEquals(2, stats.trackedMangaCount)
-        assertEquals(2, stats.serviceCount)
+        trackEntryDao.getTrackerStats().test {
+            val stats = awaitItem()
+            assertEquals(2, stats.trackedMangaCount)
+            assertEquals(2, stats.serviceCount)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
-    fun getTrackerStats_emptyTableReturnsZeros() = runBlocking {
-        val stats = trackEntryDao.getTrackerStats().first()
-        assertEquals(0, stats.trackedMangaCount)
-        assertEquals(0, stats.serviceCount)
-        assertNull(stats.meanScore)
+    fun getTrackerStats_emptyTableReturnsZeros() = runTest {
+        trackEntryDao.getTrackerStats().test {
+            val stats = awaitItem()
+            assertEquals(0, stats.trackedMangaCount)
+            assertEquals(0, stats.serviceCount)
+            assertNull(stats.meanScore)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
-    fun getTrackerStats_meanScoreIgnoresUnscoredEntries() = runBlocking {
+    fun getTrackerStats_meanScoreIgnoresUnscoredEntries() = runTest {
         // score 0 = unscored — must not drag the mean down
         trackEntryDao.upsert(makeEntry(mangaId = 1L, trackerId = 1, score = 8f))
         trackEntryDao.upsert(makeEntry(mangaId = 2L, trackerId = 1, score = 6f))
         trackEntryDao.upsert(makeEntry(mangaId = 3L, trackerId = 1, score = 0f))
 
-        assertEquals(7f, trackEntryDao.getTrackerStats().first().meanScore!!, 0.001f)
+        trackEntryDao.getTrackerStats().test {
+            assertEquals(7f, awaitItem().meanScore!!, 0.001f)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
-    fun getTrackerStats_meanScoreNullWhenNothingScored() = runBlocking {
+    fun getTrackerStats_meanScoreNullWhenNothingScored() = runTest {
         trackEntryDao.upsert(makeEntry(mangaId = 1L, trackerId = 1, score = 0f))
 
-        assertNull(trackEntryDao.getTrackerStats().first().meanScore)
+        trackEntryDao.getTrackerStats().test {
+            assertNull(awaitItem().meanScore)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 }

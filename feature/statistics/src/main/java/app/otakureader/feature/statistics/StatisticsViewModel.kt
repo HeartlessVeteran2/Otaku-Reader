@@ -1,5 +1,6 @@
 package app.otakureader.feature.statistics
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.otakureader.core.preferences.ReadingGoalPreferences
@@ -61,8 +62,9 @@ class StatisticsViewModel @Inject constructor(
                 _state.update { it.copy(downloadedChapterCount = result.verifiedDownloads) }
             } catch (e: CancellationException) {
                 throw e
-            } catch (_: Exception) {
+            } catch (e: Exception) {
                 // Non-fatal: the tile just stays hidden if the scan fails.
+                Log.w(TAG, "Download reindex scan failed", e)
             }
         }
     }
@@ -79,6 +81,10 @@ class StatisticsViewModel @Inject constructor(
                 loadStats(event.period)
             }
         }
+    }
+
+    private companion object {
+        const val TAG = "StatisticsViewModel"
     }
 
     private fun loadStats(period: StatsPeriod = _state.value.selectedPeriod) {
