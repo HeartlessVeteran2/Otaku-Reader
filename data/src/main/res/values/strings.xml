@@ -3,6 +3,7 @@
     <!-- Library update worker notifications -->
     <string name="update_notifier_skipped_title">Library update — %1$d skipped</string>
     <string name="update_notifier_hidden_title">New chapters available</string>
+    <string name="update_notifier_progress_hidden">Checked %1$d / %2$d</string>
     <string name="update_notifier_skipped_text">Some manga were skipped based on your smart-update settings.</string>
     <string name="update_notifier_skipped_big_text">%1$d manga were skipped (unread, completed, or never started). Adjust this in Settings → Library.</string>
 

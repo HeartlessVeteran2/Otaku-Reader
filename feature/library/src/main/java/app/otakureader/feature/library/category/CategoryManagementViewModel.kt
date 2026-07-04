@@ -213,11 +213,8 @@ class CategoryManagementViewModel @Inject constructor(
     private fun toggleSkipUpdates(categoryId: Long) {
         viewModelScope.launch {
             try {
-                val current = libraryPreferences.skipUpdateCategoryIds.first()
-                val id = categoryId.toString()
-                libraryPreferences.setSkipUpdateCategoryIds(
-                    if (id in current) current - id else current + id,
-                )
+                // Atomic toggle: the add/remove happens inside one DataStore edit transaction.
+                libraryPreferences.toggleSkipUpdateCategoryId(categoryId.toString())
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

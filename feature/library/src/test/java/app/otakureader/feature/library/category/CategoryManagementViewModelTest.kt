@@ -67,7 +67,7 @@ class CategoryManagementViewModelTest {
         every { categoryRepository.getMangaIdsByCategoryId(any()) } returns flowOf(emptyList())
         coEvery { dynamicCategoryRepository.hasDynamicRules(any()) } returns false
         every { libraryPreferences.skipUpdateCategoryIds } returns flowOf(emptySet())
-        coEvery { libraryPreferences.setSkipUpdateCategoryIds(any()) } returns mockk()
+        coEvery { libraryPreferences.toggleSkipUpdateCategoryId(any()) } returns mockk()
     }
 
     @After
@@ -289,9 +289,8 @@ class CategoryManagementViewModelTest {
     }
 
     @Test
-    fun onEvent_ToggleSkipUpdates_addsCategoryToSkipSet() = runTest {
+    fun onEvent_ToggleSkipUpdates_delegatesToAtomicPreferenceToggle() = runTest {
         every { categoryRepository.getCategories() } returns flowOf(emptyList())
-        every { libraryPreferences.skipUpdateCategoryIds } returns flowOf(emptySet())
 
         val viewModel = createViewModel()
         testDispatcher.scheduler.advanceUntilIdle()
@@ -299,21 +298,24 @@ class CategoryManagementViewModelTest {
         viewModel.onEvent(CategoryEvent.ToggleSkipUpdates(5L))
         testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify(exactly = 1) { libraryPreferences.setSkipUpdateCategoryIds(setOf("5")) }
+        coVerify(exactly = 1) { libraryPreferences.toggleSkipUpdateCategoryId("5") }
     }
 
     @Test
-    fun onEvent_ToggleSkipUpdates_removesCategoryAlreadyInSkipSet() = runTest {
+    fun onEvent_ToggleSkipUpdates_onError_emitsErrorSnackbar() = runTest {
         every { categoryRepository.getCategories() } returns flowOf(emptyList())
-        every { libraryPreferences.skipUpdateCategoryIds } returns flowOf(setOf("5", "7"))
+        coEvery { libraryPreferences.toggleSkipUpdateCategoryId(any()) } throws RuntimeException("disk full")
 
         val viewModel = createViewModel()
         testDispatcher.scheduler.advanceUntilIdle()
 
-        viewModel.onEvent(CategoryEvent.ToggleSkipUpdates(5L))
-        testDispatcher.scheduler.advanceUntilIdle()
+        viewModel.effect.test {
+            viewModel.onEvent(CategoryEvent.ToggleSkipUpdates(5L))
+            testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify(exactly = 1) { libraryPreferences.setSkipUpdateCategoryIds(setOf("7")) }
+            val effect = awaitItem()
+            assertTrue((effect as CategoryEffect.ShowSnackbar).message.startsWith("Failed to change update setting"))
+        }
     }
 
     @Test

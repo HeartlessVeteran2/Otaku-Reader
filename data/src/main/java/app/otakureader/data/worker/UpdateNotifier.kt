@@ -258,7 +258,13 @@ class UpdateNotifier(
         val notification = NotificationCompat.Builder(context, UPDATE_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_notify_sync)
             .setContentTitle("Updating library…")
-            .setContentText(if (hideContent) "$current / $total" else "Checking: $mangaTitle")
+            .setContentText(
+                if (hideContent) {
+                    context.getString(R.string.update_notifier_progress_hidden, current, total)
+                } else {
+                    "Checking: $mangaTitle"
+                }
+            )
             .setProgress(100, progress, false)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)

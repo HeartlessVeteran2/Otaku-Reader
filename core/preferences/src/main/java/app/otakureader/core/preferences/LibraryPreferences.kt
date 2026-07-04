@@ -104,6 +104,17 @@ class LibraryPreferences(private val dataStore: DataStore<Preferences>) {
     val skipUpdateCategoryIds: Flow<Set<String>> = dataStore.data.map { it[Keys.SKIP_UPDATE_CATEGORY_IDS] ?: emptySet() }
     suspend fun setSkipUpdateCategoryIds(value: Set<String>) = dataStore.edit { it[Keys.SKIP_UPDATE_CATEGORY_IDS] = value }
 
+    /**
+     * Atomically adds or removes one category ID from the skip set. The read-modify-write
+     * happens inside a single DataStore edit transaction, so rapid toggles of different
+     * categories cannot clobber each other.
+     */
+    suspend fun toggleSkipUpdateCategoryId(categoryId: String) = dataStore.edit {
+        val current = it[Keys.SKIP_UPDATE_CATEGORY_IDS] ?: emptySet()
+        it[Keys.SKIP_UPDATE_CATEGORY_IDS] =
+            if (categoryId in current) current - categoryId else current + categoryId
+    }
+
     /** Auto-refresh library on app start */
     val autoRefreshOnStart: Flow<Boolean> = dataStore.data.map { it[Keys.AUTO_REFRESH_ON_START] ?: false }
     suspend fun setAutoRefreshOnStart(value: Boolean) = dataStore.edit { it[Keys.AUTO_REFRESH_ON_START] = value }
