@@ -4,6 +4,7 @@ import app.otakureader.core.database.dao.ChapterDao
 import app.otakureader.core.database.dao.MangaDao
 import app.otakureader.core.database.dao.ReadingHistoryDao
 import app.otakureader.core.database.dao.TrackEntryDao
+import app.otakureader.core.database.dao.TrackerStats
 import app.otakureader.core.database.entity.ReadingHistoryEntity
 import app.otakureader.domain.repository.StatisticsRepository
 import app.cash.turbine.test
@@ -48,9 +49,8 @@ class StatisticsRepositoryImplTest {
         every { mangaDao.getFavoriteMangaGenres() } returns flowOf(emptyList())
         every { mangaDao.getCompletedMangaCount() } returns flowOf(0)
         every { chapterDao.getTotalChapterCountForLibrary() } returns flowOf(0)
-        every { trackEntryDao.getTrackedMangaCount() } returns flowOf(0)
-        every { trackEntryDao.getMeanScore() } returns flowOf(null)
-        every { trackEntryDao.getTrackerServiceCount() } returns flowOf(0)
+        every { trackEntryDao.getTrackerStats() } returns
+            flowOf(TrackerStats(trackedMangaCount = 0, meanScore = null, serviceCount = 0))
     }
 
     // ── getReadingStats: totals ────────────────────────────────────────────────
@@ -246,9 +246,8 @@ class StatisticsRepositoryImplTest {
 
     @Test
     fun `getReadingStats surfaces tracker aggregates`() = runTest {
-        every { trackEntryDao.getTrackedMangaCount() } returns flowOf(12)
-        every { trackEntryDao.getMeanScore() } returns flowOf(7.5f)
-        every { trackEntryDao.getTrackerServiceCount() } returns flowOf(3)
+        every { trackEntryDao.getTrackerStats() } returns
+            flowOf(TrackerStats(trackedMangaCount = 12, meanScore = 7.5f, serviceCount = 3))
 
         repository.getReadingStats().test {
             val stats = awaitItem()

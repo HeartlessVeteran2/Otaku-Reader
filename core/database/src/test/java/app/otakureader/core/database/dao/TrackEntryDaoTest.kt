@@ -48,44 +48,40 @@ class TrackEntryDaoTest {
     }
 
     @Test
-    fun getTrackedMangaCount_countsDistinctManga() = runBlocking {
-        // Manga 1 tracked on two services still counts once
+    fun getTrackerStats_countsDistinctMangaAndServices() = runBlocking {
+        // Manga 1 tracked on two services counts once as a manga, twice as services;
+        // two manga on tracker 1 count as one service.
         trackEntryDao.upsert(makeEntry(mangaId = 1L, trackerId = 1))
         trackEntryDao.upsert(makeEntry(mangaId = 1L, trackerId = 2))
         trackEntryDao.upsert(makeEntry(mangaId = 2L, trackerId = 1))
 
-        assertEquals(2, trackEntryDao.getTrackedMangaCount().first())
+        val stats = trackEntryDao.getTrackerStats().first()
+        assertEquals(2, stats.trackedMangaCount)
+        assertEquals(2, stats.serviceCount)
     }
 
     @Test
-    fun getTrackedMangaCount_emptyTableReturnsZero() = runBlocking {
-        assertEquals(0, trackEntryDao.getTrackedMangaCount().first())
+    fun getTrackerStats_emptyTableReturnsZeros() = runBlocking {
+        val stats = trackEntryDao.getTrackerStats().first()
+        assertEquals(0, stats.trackedMangaCount)
+        assertEquals(0, stats.serviceCount)
+        assertNull(stats.meanScore)
     }
 
     @Test
-    fun getMeanScore_ignoresUnscoredEntries() = runBlocking {
+    fun getTrackerStats_meanScoreIgnoresUnscoredEntries() = runBlocking {
         // score 0 = unscored — must not drag the mean down
         trackEntryDao.upsert(makeEntry(mangaId = 1L, trackerId = 1, score = 8f))
         trackEntryDao.upsert(makeEntry(mangaId = 2L, trackerId = 1, score = 6f))
         trackEntryDao.upsert(makeEntry(mangaId = 3L, trackerId = 1, score = 0f))
 
-        assertEquals(7f, trackEntryDao.getMeanScore().first()!!, 0.001f)
+        assertEquals(7f, trackEntryDao.getTrackerStats().first().meanScore!!, 0.001f)
     }
 
     @Test
-    fun getMeanScore_nullWhenNothingScored() = runBlocking {
+    fun getTrackerStats_meanScoreNullWhenNothingScored() = runBlocking {
         trackEntryDao.upsert(makeEntry(mangaId = 1L, trackerId = 1, score = 0f))
 
-        assertNull(trackEntryDao.getMeanScore().first())
-    }
-
-    @Test
-    fun getTrackerServiceCount_countsDistinctServices() = runBlocking {
-        // Two manga on tracker 1 counts as one service
-        trackEntryDao.upsert(makeEntry(mangaId = 1L, trackerId = 1))
-        trackEntryDao.upsert(makeEntry(mangaId = 2L, trackerId = 1))
-        trackEntryDao.upsert(makeEntry(mangaId = 1L, trackerId = 3))
-
-        assertEquals(2, trackEntryDao.getTrackerServiceCount().first())
+        assertNull(trackEntryDao.getTrackerStats().first().meanScore)
     }
 }

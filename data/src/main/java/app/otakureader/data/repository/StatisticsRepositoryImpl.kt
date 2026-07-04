@@ -27,20 +27,6 @@ class StatisticsRepositoryImpl @Inject constructor(
     private val trackEntryDao: TrackEntryDao,
 ) : StatisticsRepository {
 
-    /** Tracker aggregates bundled so the outer combine stays within Kotlin's 5-flow overloads. */
-    private data class TrackerStats(
-        val trackedMangaCount: Int,
-        val meanScore: Float?,
-        val serviceCount: Int,
-    )
-
-    private fun observeTrackerStats(): Flow<TrackerStats> = combine(
-        trackEntryDao.getTrackedMangaCount().distinctUntilChanged(),
-        trackEntryDao.getMeanScore().distinctUntilChanged(),
-        trackEntryDao.getTrackerServiceCount().distinctUntilChanged(),
-        ::TrackerStats,
-    )
-
     override fun getReadingStats(sinceMs: Long?): Flow<ReadingStats> = combine(
         readingHistoryDao.observeHistory(),
         mangaDao.countFavorites(),
@@ -80,7 +66,7 @@ class StatisticsRepositoryImpl @Inject constructor(
             completedMangaCount = completedMangaCount,
             totalChapterCount = totalChapterCount,
         )
-    }.combine(observeTrackerStats()) { stats, trackerStats ->
+    }.combine(trackEntryDao.getTrackerStats().distinctUntilChanged()) { stats, trackerStats ->
         stats.copy(
             trackedMangaCount = trackerStats.trackedMangaCount,
             meanTrackerScore = trackerStats.meanScore,

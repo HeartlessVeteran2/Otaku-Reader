@@ -186,6 +186,25 @@ class StatisticsViewModelTest {
     }
 
     @Test
+    fun onEvent_Refresh_rescansDownloadedChapterCount() = runTest {
+        every { getReadingStatsUseCase() } returns flowOf(sampleStats)
+        every { statisticsRepository.getReadingGoalProgress(any(), any()) } returns flowOf(sampleGoal)
+        coEvery { downloadRepository.reindexDownloads() } returnsMany listOf(
+            ReindexResult(verifiedDownloads = 10, emptyDirs = 0),
+            ReindexResult(verifiedDownloads = 25, emptyDirs = 0),
+        )
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(10, viewModel.state.value.downloadedChapterCount)
+
+        viewModel.onEvent(StatisticsEvent.Refresh)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(25, viewModel.state.value.downloadedChapterCount)
+    }
+
+    @Test
     fun init_downloadScanFailure_keepsCountNull() = runTest {
         every { getReadingStatsUseCase() } returns flowOf(sampleStats)
         every { statisticsRepository.getReadingGoalProgress(any(), any()) } returns flowOf(sampleGoal)

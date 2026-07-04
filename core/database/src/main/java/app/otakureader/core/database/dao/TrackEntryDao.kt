@@ -22,18 +22,27 @@ interface TrackEntryDao {
     @Query("DELETE FROM track_entries WHERE manga_id = :mangaId AND tracker_id = :trackerId")
     suspend fun deleteByMangaAndTracker(mangaId: Long, trackerId: Int)
 
-    /** Number of distinct manga with at least one tracker entry, for the Statistics screen. */
-    @Query("SELECT COUNT(DISTINCT manga_id) FROM track_entries")
-    fun getTrackedMangaCount(): Flow<Int>
-
     /**
-     * Mean of all non-zero tracker scores (normalized 0–10 across every tracker service).
-     * Null when no entry has a score yet.
+     * Aggregated tracker statistics for the Statistics screen, computed in a single query:
+     * distinct tracked manga, mean of non-zero scores (normalized 0–10 across every tracker
+     * service; 0 = unscored, excluded via the CASE so it can't drag the mean down — null when
+     * nothing is scored yet), and distinct tracker services in use.
      */
-    @Query("SELECT AVG(score) FROM track_entries WHERE score > 0")
-    fun getMeanScore(): Flow<Float?>
-
-    /** Number of distinct tracker services with at least one entry, for the Statistics screen. */
-    @Query("SELECT COUNT(DISTINCT tracker_id) FROM track_entries")
-    fun getTrackerServiceCount(): Flow<Int>
+    @Query(
+        """
+        SELECT
+            COUNT(DISTINCT manga_id) AS trackedMangaCount,
+            AVG(CASE WHEN score > 0 THEN score END) AS meanScore,
+            COUNT(DISTINCT tracker_id) AS serviceCount
+        FROM track_entries
+        """
+    )
+    fun getTrackerStats(): Flow<TrackerStats>
 }
+
+/** Projection for [TrackEntryDao.getTrackerStats] — not a table, just the aggregate row. */
+data class TrackerStats(
+    val trackedMangaCount: Int,
+    val meanScore: Float?,
+    val serviceCount: Int,
+)

@@ -69,7 +69,10 @@ class StatisticsViewModel @Inject constructor(
 
     fun onEvent(event: StatisticsEvent) {
         when (event) {
-            is StatisticsEvent.Refresh -> loadStats()
+            is StatisticsEvent.Refresh -> {
+                loadStats()
+                loadDownloadedChapterCount()
+            }
             is StatisticsEvent.LoadAchievements -> { /* observer already active from init */ }
             is StatisticsEvent.SelectPeriod -> {
                 _state.update { it.copy(selectedPeriod = event.period) }
