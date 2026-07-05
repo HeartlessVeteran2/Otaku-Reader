@@ -497,6 +497,7 @@ class MigrateMangaUseCaseTest {
         coEvery { sourceRepository.getMangaDetails(any(), any()) } returns Result.success(mockk())
         coEvery { sourceRepository.getChapterList(any(), any()) } returns Result.success(emptyList())
         coEvery { chapterRepository.getChaptersByMangaIdSync(sourceMangaId) } returns emptyList()
+        coEvery { trackRepository.observeEntriesForManga(sourceMangaId) } returns flowOf(emptyList())
 
         val result = useCase(
             sourceManga, targetCandidate, MigrationMode.MOVE,
