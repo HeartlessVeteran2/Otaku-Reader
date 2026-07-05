@@ -48,6 +48,7 @@ import app.otakureader.feature.tracking.navigation.trackingScreen
 import app.otakureader.core.webview.webViewScreen
 import app.otakureader.feature.webview.navigation.webViewFallbackScreen
 import app.otakureader.feature.updates.navigation.downloadsScreen
+import app.otakureader.feature.updates.navigation.updateErrorsScreen
 import app.otakureader.feature.updates.navigation.updatesScreen
 import app.otakureader.util.DeepLinkResult
 
