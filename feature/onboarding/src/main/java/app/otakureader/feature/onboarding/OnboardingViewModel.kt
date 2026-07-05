@@ -31,14 +31,6 @@ class OnboardingViewModel @Inject constructor(
         viewModelScope.launch { generalPreferences.setThemeMode(mode) }
     }
 
-    /** Display name entered by the user on the Name onboarding page. */
-    val displayName: StateFlow<String> = generalPreferences.displayName
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
-
-    fun setDisplayName(name: String) {
-        viewModelScope.launch { generalPreferences.setDisplayName(name) }
-    }
-
     /**
      * Persisted download-location URI (as a string), or null when the user hasn't picked one —
      * in which case downloads use the app's default internal storage. Surfaced on the Storage

@@ -49,9 +49,4 @@
     <!-- Accessibility -->
     <string name="onboarding_page_icon">Onboarding illustration</string>
 
-    <!-- Name page -->
-    <string name="onboarding_title_name">What should we call you?</string>
-    <string name="onboarding_desc_name">We\'ll use your name for the greeting in your Library. You can change it later in Settings.</string>
-    <string name="onboarding_name_label">Your name</string>
-    <string name="onboarding_name_placeholder">e.g. Manny</string>
 </resources>

@@ -37,7 +37,6 @@ import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material3.Button
@@ -46,7 +45,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -71,7 +69,6 @@ import kotlinx.coroutines.launch
 /** Type of each onboarding page — drives which permission UI (if any) is shown. */
 enum class OnboardingPageType {
     WELCOME,
-    NAME,           // Display name entry
     STORAGE,        // Optional download-location picker (non-blocking, unlike Komikku)
     NOTIFICATIONS,  // Android 13+ only
     BATTERY,        // Battery optimisation exclusion
@@ -90,10 +87,11 @@ data class OnboardingPage(
  * Onboarding screen that mirrors the setup-focused flow used by Mihon and Komikku:
  *
  *  1. Welcome
- *  2. [Android 13+] Notifications permission
- *  3. Battery-optimisation exclusion
- *  4. Appearance (theme — applies live)
- *  5. Install extensions (with quick-start hints)
+ *  2. Storage location (optional — never blocks completion)
+ *  3. [Android 13+] Notifications permission
+ *  4. Battery-optimisation exclusion
+ *  5. Appearance (theme — applies live)
+ *  6. Install extensions (with quick-start hints)
  *
  * Each permission page shows a live status icon and an action button that is
  * disabled once the permission has been granted.
@@ -109,7 +107,6 @@ fun OnboardingScreen(
 ) {
     val context = LocalContext.current
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
-    val displayName by viewModel.displayName.collectAsStateWithLifecycle()
     val downloadLocation by viewModel.downloadLocation.collectAsStateWithLifecycle()
 
     // Build page list dynamically; notifications page is Android 13+ only
@@ -121,14 +118,6 @@ fun OnboardingScreen(
                     titleRes = R.string.onboarding_title_welcome,
                     descriptionRes = R.string.onboarding_desc_welcome,
                     icon = Icons.Default.MenuBook,
-                ),
-            )
-            add(
-                OnboardingPage(
-                    type = OnboardingPageType.NAME,
-                    titleRes = R.string.onboarding_title_name,
-                    descriptionRes = R.string.onboarding_desc_name,
-                    icon = Icons.Default.Person,
                 ),
             )
             add(
@@ -252,10 +241,8 @@ fun OnboardingScreen(
                 notificationsGranted = notificationsGranted,
                 batteryOptimizationIgnored = batteryOptimizationIgnored,
                 themeMode = themeMode,
-                displayName = displayName,
                 downloadLocation = downloadLocation,
                 onThemeModeSelected = viewModel::setThemeMode,
-                onDisplayNameChange = viewModel::setDisplayName,
                 onRequestNotifications = {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                         notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -284,10 +271,8 @@ private fun OnboardingPageContent(
     notificationsGranted: Boolean,
     batteryOptimizationIgnored: Boolean,
     themeMode: Int,
-    displayName: String,
     downloadLocation: String?,
     onThemeModeSelected: (Int) -> Unit,
-    onDisplayNameChange: (String) -> Unit,
     onRequestNotifications: () -> Unit,
     onRequestBatteryOptimization: () -> Unit,
     onRequestStorageLocation: () -> Unit,
@@ -352,18 +337,6 @@ private fun OnboardingPageContent(
         )
 
         // ── Per-page action buttons ───────────────────────────────────────────
-
-        if (page.type == OnboardingPageType.NAME) {
-            Spacer(modifier = Modifier.height(32.dp))
-            OutlinedTextField(
-                value = displayName,
-                onValueChange = onDisplayNameChange,
-                label = { Text(stringResource(R.string.onboarding_name_label)) },
-                placeholder = { Text(stringResource(R.string.onboarding_name_placeholder)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
 
         if (page.type == OnboardingPageType.STORAGE) {
             Spacer(modifier = Modifier.height(32.dp))

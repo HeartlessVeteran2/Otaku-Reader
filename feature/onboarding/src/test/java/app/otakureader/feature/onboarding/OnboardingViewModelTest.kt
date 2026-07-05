@@ -35,9 +35,7 @@ class OnboardingViewModelTest {
         downloadPreferences = mockk()
 
         every { generalPreferences.themeMode } returns flowOf(0)
-        every { generalPreferences.displayName } returns flowOf("")
         coEvery { generalPreferences.setThemeMode(any()) } returns Unit
-        coEvery { generalPreferences.setDisplayName(any()) } returns Unit
         every { downloadPreferences.downloadLocation } returns flowOf(null)
         coEvery { downloadPreferences.setDownloadLocation(any()) } returns Unit
     }
