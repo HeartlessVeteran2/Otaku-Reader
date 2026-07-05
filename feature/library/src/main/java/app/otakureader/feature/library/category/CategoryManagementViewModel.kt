@@ -2,6 +2,7 @@ package app.otakureader.feature.library.category
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.otakureader.core.preferences.LibraryPreferences
 import app.otakureader.domain.repository.CategoryRepository
 import app.otakureader.domain.repository.DynamicCategoryRepository
 import app.otakureader.domain.usecase.CreateCategoryUseCase
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import app.otakureader.domain.model.DynamicCategoryRule
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -34,6 +36,7 @@ class CategoryManagementViewModel @Inject constructor(
     private val toggleCategoryHiddenUseCase: ToggleCategoryHiddenUseCase,
     private val toggleCategoryNsfwUseCase: ToggleCategoryNsfwUseCase,
     private val toggleCategoryLockedUseCase: ToggleCategoryLockedUseCase,
+    private val libraryPreferences: LibraryPreferences,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(CategoryManagementState())
@@ -50,8 +53,11 @@ class CategoryManagementViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
 
-            categoryRepository.getCategories()
-                .collect { categories ->
+            combine(
+                categoryRepository.getCategories(),
+                libraryPreferences.skipUpdateCategoryIds,
+            ) { categories, skipIds -> categories to skipIds }
+                .collect { (categories, skipIds) ->
                     val items = categories.map { category ->
                         // Count manga in category
                         val mangaIds = categoryRepository.getMangaIdsByCategoryId(category.id).first()
@@ -65,6 +71,7 @@ class CategoryManagementViewModel @Inject constructor(
                             isLocked = category.isLocked,
                             isDynamic = dynamicCategoryRepository.hasDynamicRules(category.id),
                             updateFrequency = category.updateFrequency,
+                            skipUpdates = category.id.toString() in skipIds,
                         )
                     }.sortedBy { it.name }
 
@@ -84,32 +91,13 @@ class CategoryManagementViewModel @Inject constructor(
             is CategoryEvent.ToggleHidden -> toggleHidden(event.categoryId)
             is CategoryEvent.ToggleNsfw -> toggleNsfw(event.categoryId)
             is CategoryEvent.ToggleLocked -> toggleLocked(event.categoryId)
+            is CategoryEvent.ToggleSkipUpdates -> toggleSkipUpdates(event.categoryId)
             is CategoryEvent.OpenRuleEditor -> openRuleEditor(event.categoryId)
             is CategoryEvent.CloseRuleEditor ->
                 _state.update { it.copy(ruleEditor = null) }
-            is CategoryEvent.AddRule -> _state.update { st ->
-                st.ruleEditor?.let { editor ->
-                    if (editor.rules.contains(event.rule)) st else {
-                        st.copy(ruleEditor = editor.copy(rules = editor.rules + event.rule))
-                    }
-                } ?: st
-            }
-            is CategoryEvent.RemoveRule -> _state.update { st ->
-                st.ruleEditor?.let { editor ->
-                    st.copy(
-                        ruleEditor = editor.copy(
-                            rules = editor.rules.filterIndexed { i, _ -> i != event.index },
-                        ),
-                    )
-                } ?: st
-            }
-            is CategoryEvent.SaveRules -> {
-                val editor = _state.value.ruleEditor
-                if (editor != null) {
-                    _state.update { it.copy(ruleEditor = null) }
-                    saveRules(editor)
-                }
-            }
+            is CategoryEvent.AddRule -> addRuleToEditor(event.rule)
+            is CategoryEvent.RemoveRule -> removeRuleFromEditor(event.index)
+            is CategoryEvent.SaveRules -> saveRulesFromEditor()
             is CategoryEvent.SetHiddenRevealed ->
                 _state.value = _state.value.copy(hiddenRevealed = event.revealed)
         }
@@ -188,6 +176,49 @@ class CategoryManagementViewModel @Inject constructor(
                 throw e
             } catch (e: Exception) {
                 _effect.emit(CategoryEffect.ShowSnackbar("Failed to toggle lock: ${e.message}"))
+            }
+        }
+    }
+
+    private fun addRuleToEditor(rule: DynamicCategoryRule) {
+        _state.update { st ->
+            st.ruleEditor?.let { editor ->
+                if (editor.rules.contains(rule)) st else {
+                    st.copy(ruleEditor = editor.copy(rules = editor.rules + rule))
+                }
+            } ?: st
+        }
+    }
+
+    private fun removeRuleFromEditor(index: Int) {
+        _state.update { st ->
+            st.ruleEditor?.let { editor ->
+                st.copy(
+                    ruleEditor = editor.copy(
+                        rules = editor.rules.filterIndexed { i, _ -> i != index },
+                    ),
+                )
+            } ?: st
+        }
+    }
+
+    private fun saveRulesFromEditor() {
+        val editor = _state.value.ruleEditor
+        if (editor != null) {
+            _state.update { it.copy(ruleEditor = null) }
+            saveRules(editor)
+        }
+    }
+
+    private fun toggleSkipUpdates(categoryId: Long) {
+        viewModelScope.launch {
+            try {
+                // Atomic toggle: the add/remove happens inside one DataStore edit transaction.
+                libraryPreferences.toggleSkipUpdateCategoryId(categoryId.toString())
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _effect.emit(CategoryEffect.ShowSnackbar("Failed to change update setting: ${e.message}"))
             }
         }
     }

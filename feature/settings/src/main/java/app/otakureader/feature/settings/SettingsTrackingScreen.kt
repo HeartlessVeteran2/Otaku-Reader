@@ -23,6 +23,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -187,6 +188,21 @@ private fun TrackingContent(state: SettingsState, onEvent: (SettingsEvent) -> Un
                 }
             },
         )
+
+        if (tracker.isLoggedIn) {
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_tracker_sync_on_read)) },
+                supportingContent = { Text(stringResource(R.string.settings_tracker_sync_on_read_description)) },
+                trailingContent = {
+                    Switch(
+                        // No config row yet = domain default (true)
+                        checked = state.trackerSyncOnChapterRead[tracker.id] ?: true,
+                        onCheckedChange = { onEvent(SettingsEvent.SetTrackerSyncOnChapterRead(tracker.id, it)) },
+                    )
+                },
+                modifier = Modifier.padding(start = 16.dp),
+            )
+        }
 
         if (showLogin && !tracker.isLoggedIn) {
             Column(

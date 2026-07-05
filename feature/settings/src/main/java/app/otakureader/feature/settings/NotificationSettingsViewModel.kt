@@ -20,6 +20,7 @@ data class NotificationSettingsState(
     val perMangaCooldownMinutes: Int = 60,
     val maxIndividualNotifications: Int = 3,
     val respectQuietHours: Boolean = true,
+    val hideNotificationContent: Boolean = false,
     val quietHoursStart: Int = 22,
     val quietHoursEnd: Int = 8,
     val extensionAutoUpdateEnabled: Boolean = false,
@@ -43,13 +44,15 @@ class NotificationSettingsViewModel @Inject constructor(
                 prefs.perMangaCooldownMinutes,
                 prefs.maxIndividualNotifications,
                 prefs.respectQuietHours,
-            ) { batching, cooldown, max, quiet ->
+                prefs.hideNotificationContent,
+            ) { batching, cooldown, max, quiet, hideContent ->
                 _state.update {
                     it.copy(
                         smartBatchingEnabled = batching,
                         perMangaCooldownMinutes = cooldown,
                         maxIndividualNotifications = max,
                         respectQuietHours = quiet,
+                        hideNotificationContent = hideContent,
                     )
                 }
             }.collect { }
@@ -99,6 +102,7 @@ class NotificationSettingsViewModel @Inject constructor(
     fun setCooldown(minutes: Int) = viewModelScope.launch { prefs.setPerMangaCooldownMinutes(minutes) }
     fun setMaxIndividual(count: Int) = viewModelScope.launch { prefs.setMaxIndividualNotifications(count) }
     fun setRespectQuietHours(enabled: Boolean) = viewModelScope.launch { prefs.setRespectQuietHours(enabled) }
+    fun setHideNotificationContent(enabled: Boolean) = viewModelScope.launch { prefs.setHideNotificationContent(enabled) }
 
     fun setQuietHoursStart(hour: Int) = viewModelScope.launch {
         // Read the other bound from already-collected state instead of re-suspending on

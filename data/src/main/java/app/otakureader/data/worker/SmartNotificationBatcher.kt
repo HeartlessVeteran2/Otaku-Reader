@@ -23,7 +23,8 @@ import java.util.concurrent.TimeUnit
 class SmartNotificationBatcher(
     private val context: Context,
     private val notificationPreferences: NotificationPreferences,
-    private val notifier: UpdateNotifier = UpdateNotifier(context)
+    hideContent: Boolean = false,
+    private val notifier: UpdateNotifier = UpdateNotifier(context, hideContent)
 ) {
 
     /** In-memory map of mangaId -> last notification timestamp (epoch millis). */

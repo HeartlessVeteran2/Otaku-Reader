@@ -157,13 +157,14 @@ class MainActivity : FragmentActivity() {
         if (savedInstanceState == null) {
             lifecycleScope.launch {
                 try {
-                    val (updateIntervalHours, updateOnlyOnWifi) = combine(
+                    val (updateIntervalHours, updateOnlyOnWifi, updateRequireCharging) = combine(
                         generalPreferences.updateCheckInterval,
-                        libraryPreferences.updateOnlyOnWifi
-                    ) { interval, wifiOnly ->
-                        interval to wifiOnly
+                        libraryPreferences.updateOnlyOnWifi,
+                        libraryPreferences.updateRequireCharging
+                    ) { interval, wifiOnly, requireCharging ->
+                        Triple(interval, wifiOnly, requireCharging)
                     }.first()
-                    libraryUpdateScheduler.schedule(updateIntervalHours, updateOnlyOnWifi)
+                    libraryUpdateScheduler.schedule(updateIntervalHours, updateOnlyOnWifi, updateRequireCharging)
                     trackerSyncScheduler.schedule()
                     app.otakureader.data.worker.EhFavoritesSyncWorker.schedule(applicationContext)
                     app.otakureader.data.worker.LibrarySyncWorker.schedule(applicationContext)

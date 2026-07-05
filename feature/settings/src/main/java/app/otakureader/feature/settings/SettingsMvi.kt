@@ -125,6 +125,7 @@ data class SettingsState(
     val showBadges get() = library.showBadges
     val showDownloadBadge get() = library.showDownloadBadge
     val updateOnlyOnWifi get() = library.updateOnlyOnWifi
+    val updateRequireCharging get() = library.updateRequireCharging
     val autoRefreshOnStart get() = library.autoRefreshOnStart
     val showUpdateProgress get() = library.showUpdateProgress
     val skipUpdatesWithUnread get() = library.skipUpdatesWithUnread
@@ -182,6 +183,7 @@ data class SettingsState(
     val trackingLoginInProgress get() = tracking.trackingLoginInProgress
     val batchSyncInProgress get() = tracking.batchSyncInProgress
     val batchSyncSummary get() = tracking.batchSyncSummary
+    val trackerSyncOnChapterRead get() = tracking.syncOnChapterRead
 }
 
 sealed interface SettingsEvent : UiEvent {
@@ -259,6 +261,7 @@ sealed interface SettingsEvent : UiEvent {
     data class SetShowBadges(val enabled: Boolean) : SettingsEvent
     data class SetShowDownloadBadge(val enabled: Boolean) : SettingsEvent
     data class SetUpdateOnlyOnWifi(val enabled: Boolean) : SettingsEvent
+    data class SetUpdateRequireCharging(val enabled: Boolean) : SettingsEvent
     data class SetAutoRefreshOnStart(val enabled: Boolean) : SettingsEvent
     data class SetShowUpdateProgress(val enabled: Boolean) : SettingsEvent
     data class SetSkipUpdatesWithUnread(val enabled: Boolean) : SettingsEvent
@@ -334,6 +337,7 @@ sealed interface SettingsEvent : UiEvent {
     data class LogoutTracker(val trackerId: Int) : SettingsEvent
     data object SyncAllTrackers : SettingsEvent
     data object DismissTrackerSyncSummary : SettingsEvent
+    data class SetTrackerSyncOnChapterRead(val trackerId: Int, val enabled: Boolean) : SettingsEvent
 
     // Migration
     data class SetMigrationSimilarityThreshold(val threshold: Float) : SettingsEvent

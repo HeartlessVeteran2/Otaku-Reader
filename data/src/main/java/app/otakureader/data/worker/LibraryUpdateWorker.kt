@@ -103,6 +103,7 @@ class LibraryUpdateWorker @AssistedInject constructor(
             val autoDownloadCategoryInclude = downloadPreferences.autoDownloadCategoryInclude.first()
             val autoDownloadCategoryExclude = downloadPreferences.autoDownloadCategoryExclude.first()
             val showUpdateProgress = libraryPreferences.showUpdateProgress.first()
+            val hideNotificationContent = notificationPreferences.hideNotificationContent.first()
 
             // Check if Wi-Fi is available for downloads requiring Wi-Fi
             val onWifi = !downloadOnlyOnWifi || isConnectedToWifi()
@@ -116,7 +117,7 @@ class LibraryUpdateWorker @AssistedInject constructor(
 
             // Show progress notification if enabled
             val progressNotifier = if (showUpdateProgress) {
-                UpdateNotifier(applicationContext)
+                UpdateNotifier(applicationContext, hideNotificationContent)
             } else null
 
             // Update each manga
@@ -222,7 +223,8 @@ class LibraryUpdateWorker @AssistedInject constructor(
                 try {
                     SmartNotificationBatcher(
                         context = applicationContext,
-                        notificationPreferences = notificationPreferences
+                        notificationPreferences = notificationPreferences,
+                        hideContent = hideNotificationContent,
                     ).notify(mangaWithNewChapters, totalNewChapters)
                 } catch (e: CancellationException) {
                     throw e
@@ -334,11 +336,13 @@ class LibraryUpdateWorker @AssistedInject constructor(
          * @param context Application context
          * @param intervalHours Update interval in hours (app minimum is 1 hour for battery/network efficiency, stricter than WorkManager's 15-minute periodic minimum)
          * @param wifiOnly Whether to run only on unmetered (Wi-Fi) network
+         * @param requireCharging Whether to run only while the device is charging
          */
         fun schedule(
             context: Context,
             intervalHours: Int = 12,
-            wifiOnly: Boolean = false
+            wifiOnly: Boolean = false,
+            requireCharging: Boolean = false
         ) {
             val safeIntervalHours = intervalHours.coerceAtLeast(1)
             val constraints = Constraints.Builder()
@@ -346,6 +350,7 @@ class LibraryUpdateWorker @AssistedInject constructor(
                     if (wifiOnly) NetworkType.UNMETERED else NetworkType.CONNECTED
                 )
                 .setRequiresBatteryNotLow(true)
+                .setRequiresCharging(requireCharging)
                 .build()
 
             val workRequest = PeriodicWorkRequestBuilder<LibraryUpdateWorker>(

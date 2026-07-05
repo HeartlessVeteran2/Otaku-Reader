@@ -115,6 +115,17 @@ fun SettingsNotificationsScreen(
             }
 
             ListItem(
+                headlineContent = { Text(stringResource(R.string.settings_notif_hide_content)) },
+                supportingContent = { Text(stringResource(R.string.settings_notif_hide_content_description)) },
+                trailingContent = {
+                    Switch(
+                        checked = state.hideNotificationContent,
+                        onCheckedChange = viewModel::setHideNotificationContent,
+                    )
+                },
+            )
+
+            ListItem(
                 headlineContent = { Text(stringResource(R.string.settings_notif_quiet_hours)) },
                 supportingContent = { Text(stringResource(R.string.settings_notif_quiet_hours_description)) },
                 trailingContent = {

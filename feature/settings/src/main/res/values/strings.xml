@@ -144,6 +144,8 @@
     <string name="settings_notif_batching_description">Group new-chapter notifications to avoid spam</string>
     <string name="settings_notif_cooldown">Per-manga cooldown: %1$d min</string>
     <string name="settings_notif_max_individual">Summarize after %1$d notifications</string>
+    <string name="settings_notif_hide_content">Hide Notification Content</string>
+    <string name="settings_notif_hide_content_description">Show a generic title instead of manga names and covers in update notifications</string>
     <string name="settings_notif_quiet_hours">Respect quiet hours</string>
     <string name="settings_notif_quiet_hours_description">Don\'t notify during the hours below</string>
     <string name="settings_notif_quiet_start">Quiet from %1$d:00</string>
@@ -303,6 +305,8 @@
     <string name="settings_tracker_connect">Connect %1$s</string>
     <string name="settings_tracker_show_password">Show password</string>
     <string name="settings_tracker_hide_password">Hide password</string>
+    <string name="settings_tracker_sync_on_read">Sync on chapter read</string>
+    <string name="settings_tracker_sync_on_read_description">Push reading progress to this tracker when you finish a chapter</string>
     <string name="settings_tracker_sync_all">Sync all to trackers</string>
     <string name="settings_tracker_sync_all_description">Push reading status and chapter progress for every tracked manga</string>
     <string name="settings_tracker_sync_all_button">Sync all</string>
@@ -506,6 +510,8 @@
     <string name="settings_library_updates">Library Updates</string>
     <string name="settings_update_wifi_only">Update Only on Wi-Fi</string>
     <string name="settings_update_wifi_only_description">Restrict automatic updates to Wi-Fi connections</string>
+    <string name="settings_update_require_charging">Update Only While Charging</string>
+    <string name="settings_update_require_charging_description">Restrict automatic updates to when the device is charging</string>
     <string name="settings_auto_refresh">Auto-Refresh on Start</string>
     <string name="settings_auto_refresh_description">Check for updates when app opens</string>
     <string name="settings_show_update_progress">Show Update Progress</string>

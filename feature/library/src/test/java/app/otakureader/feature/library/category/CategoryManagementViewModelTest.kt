@@ -1,5 +1,6 @@
 package app.otakureader.feature.library.category
 
+import app.otakureader.core.preferences.LibraryPreferences
 import app.otakureader.domain.model.Category
 import app.otakureader.domain.model.CategoryUpdateFrequency
 import app.otakureader.domain.repository.CategoryRepository
@@ -42,6 +43,7 @@ class CategoryManagementViewModelTest {
     private lateinit var toggleCategoryHiddenUseCase: ToggleCategoryHiddenUseCase
     private lateinit var toggleCategoryNsfwUseCase: ToggleCategoryNsfwUseCase
     private lateinit var toggleCategoryLockedUseCase: ToggleCategoryLockedUseCase
+    private lateinit var libraryPreferences: LibraryPreferences
 
     private val sampleCategories = listOf(
         Category(id = 1L, name = "Romance", order = 0, isHidden = false, isNsfw = false),
@@ -60,9 +62,12 @@ class CategoryManagementViewModelTest {
         toggleCategoryHiddenUseCase = mockk()
         toggleCategoryNsfwUseCase = mockk()
         toggleCategoryLockedUseCase = mockk()
+        libraryPreferences = mockk()
 
         every { categoryRepository.getMangaIdsByCategoryId(any()) } returns flowOf(emptyList())
         coEvery { dynamicCategoryRepository.hasDynamicRules(any()) } returns false
+        every { libraryPreferences.skipUpdateCategoryIds } returns flowOf(emptySet())
+        coEvery { libraryPreferences.toggleSkipUpdateCategoryId(any()) } returns mockk()
     }
 
     @After
@@ -80,6 +85,7 @@ class CategoryManagementViewModelTest {
             toggleCategoryHiddenUseCase,
             toggleCategoryNsfwUseCase,
             toggleCategoryLockedUseCase,
+            libraryPreferences,
         )
     }
 
@@ -267,6 +273,48 @@ class CategoryManagementViewModelTest {
 
             val effect = awaitItem()
             assertTrue((effect as CategoryEffect.ShowSnackbar).message.startsWith("Failed to create category"))
+        }
+    }
+
+    @Test
+    fun init_mapsSkipUpdatesFromPreference() = runTest {
+        every { categoryRepository.getCategories() } returns flowOf(sampleCategories)
+        every { libraryPreferences.skipUpdateCategoryIds } returns flowOf(setOf("2"))
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(viewModel.state.value.categories.first { it.id == 2L }.skipUpdates)
+        assertFalse(viewModel.state.value.categories.first { it.id == 1L }.skipUpdates)
+    }
+
+    @Test
+    fun onEvent_ToggleSkipUpdates_delegatesToAtomicPreferenceToggle() = runTest {
+        every { categoryRepository.getCategories() } returns flowOf(emptyList())
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onEvent(CategoryEvent.ToggleSkipUpdates(5L))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 1) { libraryPreferences.toggleSkipUpdateCategoryId("5") }
+    }
+
+    @Test
+    fun onEvent_ToggleSkipUpdates_onError_emitsErrorSnackbar() = runTest {
+        every { categoryRepository.getCategories() } returns flowOf(emptyList())
+        coEvery { libraryPreferences.toggleSkipUpdateCategoryId(any()) } throws RuntimeException("disk full")
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onEvent(CategoryEvent.ToggleSkipUpdates(5L))
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val effect = awaitItem()
+            assertTrue((effect as CategoryEffect.ShowSnackbar).message.startsWith("Failed to change update setting"))
         }
     }
 

@@ -171,6 +171,17 @@ private fun LibraryContent(state: SettingsState, onEvent: (SettingsEvent) -> Uni
     )
 
     ListItem(
+        headlineContent = { Text(stringResource(R.string.settings_update_require_charging)) },
+        supportingContent = { Text(stringResource(R.string.settings_update_require_charging_description)) },
+        trailingContent = {
+            Switch(
+                checked = state.updateRequireCharging,
+                onCheckedChange = { onEvent(SettingsEvent.SetUpdateRequireCharging(it)) },
+            )
+        },
+    )
+
+    ListItem(
         headlineContent = { Text(stringResource(R.string.settings_auto_refresh)) },
         supportingContent = { Text(stringResource(R.string.settings_auto_refresh_description)) },
         trailingContent = {

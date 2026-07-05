@@ -25,6 +25,8 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.SyncDisabled
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Warning
@@ -187,6 +189,9 @@ fun CategoryManagementScreen(
                             onToggleLocked = {
                                 viewModel.onEvent(CategoryEvent.ToggleLocked(category.id))
                             },
+                            onToggleSkipUpdates = {
+                                viewModel.onEvent(CategoryEvent.ToggleSkipUpdates(category.id))
+                            },
                             onEditRules = {
                                 viewModel.onEvent(CategoryEvent.OpenRuleEditor(category.id))
                             },
@@ -268,6 +273,7 @@ private fun CategoryListItem(
     onToggleHidden: () -> Unit,
     onToggleNsfw: () -> Unit,
     onToggleLocked: () -> Unit,
+    onToggleSkipUpdates: () -> Unit,
     onEditRules: () -> Unit,
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -311,6 +317,13 @@ private fun CategoryListItem(
                         Icon(
                             imageVector = Icons.Default.AutoAwesome,
                             contentDescription = stringResource(R.string.category_dynamic),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                    if (category.skipUpdates) {
+                        Icon(
+                            imageVector = Icons.Default.SyncDisabled,
+                            contentDescription = stringResource(R.string.category_updates_skipped),
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -384,6 +397,26 @@ private fun CategoryListItem(
                             leadingIcon = {
                                 Icon(
                                     imageVector = if (category.isLocked) Icons.Default.LockOpen else Icons.Default.Lock,
+                                    contentDescription = null
+                                )
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    if (category.skipUpdates)
+                                        stringResource(R.string.category_include_in_updates)
+                                    else
+                                        stringResource(R.string.category_skip_updates)
+                                )
+                            },
+                            onClick = {
+                                onToggleSkipUpdates()
+                                showMenu = false
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = if (category.skipUpdates) Icons.Default.Sync else Icons.Default.SyncDisabled,
                                     contentDescription = null
                                 )
                             }

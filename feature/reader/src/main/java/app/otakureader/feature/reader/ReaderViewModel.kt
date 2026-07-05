@@ -48,7 +48,6 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -960,23 +959,30 @@ class ReaderViewModel @Inject constructor(
             val chapter = currentChapter
             val manga = currentManga
             if (chapter != null && manga != null) {
-                viewModelScope.launch {
-                    withContext(NonCancellable) {
-                        try {
-                            trackerSyncRepository.getSyncStateForManga(mangaId).first()
-                                .forEach { syncState ->
-                                    trackerSyncRepository.recordLocalChange(
-                                        mangaId = mangaId,
-                                        trackerId = syncState.trackerId,
-                                        chapterRead = chapter.chapterNumber,
-                                        status = manga.status
-                                    )
-                                }
-                        } catch (e: Exception) {
-                            // Reading still works without tracker sync, but losing the
-                            // progress push silently would be confusing — leave a trace.
-                            android.util.Log.w("ReaderViewModel", "Tracker sync on exit failed", e)
-                        }
+                // viewModelScope is already cancelled when onCleared() runs, so a plain
+                // launch{} would never execute. Passing NonCancellable as the parent job
+                // detaches this coroutine from the cancelled scope so the final progress
+                // push actually happens.
+                viewModelScope.launch(NonCancellable) {
+                    try {
+                        // Per-tracker "sync on chapter read" opt-out; trackers without a
+                        // config row keep the SyncConfiguration default (true).
+                        val syncOnReadByTracker = trackerSyncRepository.getSyncConfigurations().first()
+                            .associate { it.trackerId to it.syncOnChapterRead }
+                        trackerSyncRepository.getSyncStateForManga(mangaId).first()
+                            .filter { syncOnReadByTracker[it.trackerId] ?: true }
+                            .forEach { syncState ->
+                                trackerSyncRepository.recordLocalChange(
+                                    mangaId = mangaId,
+                                    trackerId = syncState.trackerId,
+                                    chapterRead = chapter.chapterNumber,
+                                    status = manga.status
+                                )
+                            }
+                    } catch (e: Exception) {
+                        // Reading still works without tracker sync, but losing the
+                        // progress push silently would be confusing — leave a trace.
+                        android.util.Log.w("ReaderViewModel", "Tracker sync on exit failed", e)
                     }
                 }
             }
@@ -1001,7 +1007,11 @@ class ReaderViewModel @Inject constructor(
             val manga = currentManga
             if (chapter != null && manga != null) {
                 try {
+                    // Same per-tracker gate as onCleared(); default true when no config row.
+                    val syncOnReadByTracker = trackerSyncRepository.getSyncConfigurations().first()
+                        .associate { it.trackerId to it.syncOnChapterRead }
                     trackerSyncRepository.getSyncStateForManga(mangaId).first()
+                        .filter { syncOnReadByTracker[it.trackerId] ?: true }
                         .forEach { syncState ->
                             trackerSyncRepository.recordLocalChange(
                                 mangaId = mangaId,

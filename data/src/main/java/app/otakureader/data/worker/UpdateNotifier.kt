@@ -44,8 +44,15 @@ data class NotificationManga(
 /**
  * Enhanced helper class for sending notifications when new chapters are found.
  * Supports manga covers, action buttons, and grouped notifications.
+ *
+ * @param hideContent When true, per-manga notifications use a generic title with no manga
+ *   title or cover, and the progress notification omits the current manga's title — for
+ *   privacy on visible lock screens (Komikku's "hide notification content").
  */
-class UpdateNotifier(private val context: Context) {
+class UpdateNotifier(
+    private val context: Context,
+    private val hideContent: Boolean = false,
+) {
 
     private val notificationManager = NotificationManagerCompat.from(context)
 
@@ -89,9 +96,15 @@ class UpdateNotifier(private val context: Context) {
             else -> "${manga.newChapterCount} new chapters"
         }
 
-        // Load cover image if available
-        val coverBitmap = manga.coverUrl?.let { url ->
+        // Load cover image if available (skipped when content is hidden — the cover identifies the manga)
+        val coverBitmap = if (hideContent) null else manga.coverUrl?.let { url ->
             loadCoverImage(url)
+        }
+
+        val title = if (hideContent) {
+            context.getString(R.string.update_notifier_hidden_title)
+        } else {
+            manga.title
         }
 
         // Build action intent to open manga (always non-null, falls back to CATEGORY_LAUNCHER)
@@ -99,7 +112,7 @@ class UpdateNotifier(private val context: Context) {
 
         return NotificationCompat.Builder(context, UPDATE_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_notify_more)
-            .setContentTitle(manga.title)
+            .setContentTitle(title)
             .setContentText(contentText)
             .setLargeIcon(coverBitmap)
             .setStyle(
@@ -245,7 +258,13 @@ class UpdateNotifier(private val context: Context) {
         val notification = NotificationCompat.Builder(context, UPDATE_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_notify_sync)
             .setContentTitle("Updating library…")
-            .setContentText("Checking: $mangaTitle")
+            .setContentText(
+                if (hideContent) {
+                    context.getString(R.string.update_notifier_progress_hidden, current, total)
+                } else {
+                    "Checking: $mangaTitle"
+                }
+            )
             .setProgress(100, progress, false)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
