@@ -90,12 +90,8 @@ class UpdatesViewModel @Inject constructor(
                 }
                 state.copy(displayMode = next)
             }
-            UpdatesEvent.ShowUpdateErrors,
-            UpdatesEvent.HideUpdateErrors,
-            UpdatesEvent.ClearAllUpdateErrors,
             UpdatesEvent.ShowPendingUpdates,
             UpdatesEvent.HidePendingUpdates -> handleOverlayEvent(event)
-            is UpdatesEvent.ClearUpdateError -> handleOverlayEvent(event)
             is UpdatesEvent.ToggleMangaGroupExpansion -> _state.update { state ->
                 val expanded = state.expandedMangaGroups
                 state.copy(
@@ -116,14 +112,6 @@ class UpdatesViewModel @Inject constructor(
 
     private fun handleOverlayEvent(event: UpdatesEvent) {
         when (event) {
-            UpdatesEvent.ShowUpdateErrors -> _state.update { it.copy(showUpdateErrors = true) }
-            UpdatesEvent.HideUpdateErrors -> _state.update { it.copy(showUpdateErrors = false) }
-            is UpdatesEvent.ClearUpdateError -> viewModelScope.launch {
-                updateErrorRepository.clearError(event.mangaId)
-            }
-            UpdatesEvent.ClearAllUpdateErrors -> viewModelScope.launch {
-                updateErrorRepository.clearAllErrors()
-            }
             UpdatesEvent.ShowPendingUpdates -> {
                 _state.update { it.copy(showPendingUpdates = true) }
                 loadPendingUpdates()
@@ -381,24 +369,10 @@ class UpdatesViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
-    /** Observe unresolved library-update failures for the top-bar badge and error dialog. */
+    /** Observe unresolved library-update failures for the top-bar badge (see Route.UpdateErrors). */
     private fun observeUpdateErrors() {
         updateErrorRepository.observeErrors()
-            .onEach { errors ->
-                _state.update {
-                    it.copy(
-                        updateErrors = errors.map { error ->
-                            UpdateErrorEntry(
-                                mangaId = error.mangaId,
-                                mangaTitle = error.mangaTitle,
-                                thumbnailUrl = error.thumbnailUrl,
-                                errorMessage = error.errorMessage,
-                                timestamp = error.timestamp,
-                            )
-                        }
-                    )
-                }
-            }
+            .onEach { errors -> _state.update { it.copy(updateErrorCount = errors.size) } }
             .catch { /* error-tracking failure should not affect the main updates list */ }
             .launchIn(viewModelScope)
     }

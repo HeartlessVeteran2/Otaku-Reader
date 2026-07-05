@@ -35,16 +35,15 @@ sealed interface Route {
     @Serializable
     data object History : Route
 
-    /**
-     * @param openErrors When true, the Updates screen auto-opens the update-errors dialog on
-     * launch (used by the More tab's "Update Errors" entry). Defaults to false for normal
-     * bottom-nav tab navigation.
-     */
     @Serializable
-    data class Updates(val openErrors: Boolean = false) : Route
+    data object Updates : Route
 
     @Serializable
     data object More : Route
+
+    /** Dedicated Update Errors screen — replaces the old in-dialog error list (see #1192). */
+    @Serializable
+    data object UpdateErrors : Route
 
     @Serializable
     data object Bookmarks : Route

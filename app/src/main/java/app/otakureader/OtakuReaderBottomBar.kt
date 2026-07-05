@@ -84,7 +84,7 @@ fun OtakuReaderBottomBar(
             )
             val route: Route = when (tab) {
                 NavTab.LIBRARY -> Route.Library
-                NavTab.UPDATES -> Route.Updates()
+                NavTab.UPDATES -> Route.Updates
                 NavTab.BROWSE -> Route.Browse
                 NavTab.HISTORY -> Route.History
                 NavTab.MORE -> Route.More
