@@ -1,6 +1,7 @@
 package app.otakureader.feature.updates.errors
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -15,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.stickyHeader
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -75,7 +75,7 @@ private fun formatErrorTimestamp(epochMs: Long): String = runCatching {
     Instant.ofEpochMilli(epochMs).atZone(ZoneId.systemDefault()).format(errorDateFormatter)
 }.getOrDefault("Unknown date")
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun UpdateErrorsScreen(
     onNavigateBack: () -> Unit,
