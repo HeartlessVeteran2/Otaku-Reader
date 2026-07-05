@@ -7,17 +7,13 @@
 
     <!-- SplashScreen theme for cold start -->
     <style name="Theme.OtakuReaderSplash" parent="Theme.SplashScreen">
-        <!-- Window background: dark navy matching the mascot icon set's backdrop -->
+        <!-- Window background: dark navy matching the three-chibi splash art's backdrop -->
         <item name="windowSplashScreenBackground">#2B2F3A</item>
 
-        <!-- Animated icon: the launcher foreground (mascot hugging a manga stack) -->
-        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
-
-        <!-- Circle behind the icon: same navy so the mascot floats on the splash -->
-        <item name="windowSplashScreenIconBackgroundColor">#2B2F3A</item>
-
-        <!-- Animation duration (max 1000ms per Android guidelines) -->
-        <item name="windowSplashScreenAnimationDuration">300</item>
+        <!-- No icon here by design — the app's splash art is the three-chibi overlay
+             (SplashArtOverlay in MainActivity), not a single-character icon. The system
+             splash stage briefly shows just the navy background instead. -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon_none</item>
 
         <!-- Keep splash on screen until content is ready -->
         <item name="postSplashScreenTheme">@style/Theme.OtakuReaderBase</item>

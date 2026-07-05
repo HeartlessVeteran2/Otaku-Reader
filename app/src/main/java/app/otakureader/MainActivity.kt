@@ -90,9 +90,11 @@ class MainActivity : FragmentActivity() {
         const val THEME_MODE_LIGHT = 1
         const val THEME_MODE_DARK = 2
 
-        // Minimum time (ms) the cold-start splash is held on screen. Startup got fast enough
-        // after the crash fixes that the system splash could flash for <100ms and the mascot
-        // logo was never visible. This is a short, always-released hold — see onCreate.
+        // Minimum time (ms) the cold-start system splash is held on screen before the
+        // three-chibi SplashArtOverlay takes over. Startup got fast enough after the crash
+        // fixes that the system splash could flash for <100ms, cutting straight to the app UI
+        // before the overlay had a moment to mount. This is a short, always-released hold —
+        // see onCreate.
         private const val SPLASH_MIN_DISPLAY_MS = 650L
     }
 

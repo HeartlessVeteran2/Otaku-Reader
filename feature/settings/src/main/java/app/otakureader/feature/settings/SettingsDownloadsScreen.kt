@@ -1,5 +1,6 @@
 package app.otakureader.feature.settings
 
+import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -70,10 +71,21 @@ fun SettingsDownloadsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var showCbzPasswordDialog by remember { mutableStateOf(false) }
 
+    val downloadLocationContext = androidx.compose.ui.platform.LocalContext.current
     val downloadLocationLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree(),
     ) { uri: Uri? ->
-        uri?.let { viewModel.onEvent(SettingsEvent.SetDownloadLocation(it.toString())) }
+        if (uri != null) {
+            // Without this the grant is lost on reboot, silently reverting the download
+            // location the next time WorkManager/downloads run after a restart.
+            runCatching {
+                downloadLocationContext.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+                )
+            }
+            viewModel.onEvent(SettingsEvent.SetDownloadLocation(uri.toString()))
+        }
     }
 
     LaunchedEffect(Unit) {
