@@ -250,7 +250,7 @@ class MigrationViewModelTest {
 
     @Test
     fun onEvent_ToggleMigrationFlag_removesFlagAndPersists() = runTest {
-        coEvery { appPreferences.setMigrationFlags(any()) } returns Unit
+        coEvery { appPreferences.setMigrationFlags(any()) } returns mockk()
         coEvery { mangaRepository.getMangaByIds(listOf(1L)) } returns listOf(sampleManga[0])
 
         val viewModel = createViewModel()
@@ -267,7 +267,7 @@ class MigrationViewModelTest {
 
     @Test
     fun onEvent_ToggleMigrationFlag_reAddsFlagWhenToggledTwice() = runTest {
-        coEvery { appPreferences.setMigrationFlags(any()) } returns Unit
+        coEvery { appPreferences.setMigrationFlags(any()) } returns mockk()
         coEvery { mangaRepository.getMangaByIds(listOf(1L)) } returns listOf(sampleManga[0])
 
         val viewModel = createViewModel()
