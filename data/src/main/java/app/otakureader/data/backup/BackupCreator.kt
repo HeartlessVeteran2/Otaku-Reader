@@ -72,7 +72,12 @@ class BackupCreator @Inject constructor(
 
             if (options.libraryEntries) {
                 // Load history map once — it's ID+timestamps, compact even for large libraries.
-                val historyByChapterId = readingHistoryDao.observeHistory().first().associateBy { it.chapterId }
+                // Skipped entirely when chapters are excluded, since history is per-chapter.
+                val historyByChapterId = if (options.effectiveChapters) {
+                    readingHistoryDao.observeHistory().first().associateBy { it.chapterId }
+                } else {
+                    emptyMap()
+                }
                 val favoriteManga = mangaDao.getFavoriteManga().first()
 
                 favoriteManga.forEachIndexed { index, mangaEntity ->

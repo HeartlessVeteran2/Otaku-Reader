@@ -467,7 +467,15 @@ private fun BackupOptionCheckboxRow(
             .padding(vertical = 4.dp),
     ) {
         Checkbox(checked = checked, onCheckedChange = null, enabled = enabled)
-        Text(text = label, modifier = Modifier.padding(start = 8.dp))
+        Text(
+            text = label,
+            color = if (enabled) {
+                MaterialTheme.colorScheme.onSurface
+            } else {
+                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+            },
+            modifier = Modifier.padding(start = 8.dp),
+        )
     }
 }
 
