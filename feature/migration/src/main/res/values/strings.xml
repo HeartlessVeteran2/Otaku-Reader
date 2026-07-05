@@ -12,6 +12,15 @@
     <string name="migration_migrating">Migrating…</string>
     <string name="migration_start">Start Migration</string>
 
+    <!-- Migration flags (#1192 PR 6) -->
+    <string name="migration_flags_title">What to migrate</string>
+    <string name="migration_flag_chapters">Reading progress</string>
+    <string name="migration_flag_categories">Categories</string>
+    <string name="migration_flag_tracking">Tracking</string>
+    <string name="migration_flag_notes">Notes</string>
+    <string name="migration_flag_downloads">Downloads</string>
+    <string name="migration_flag_custom_cover">Custom cover</string>
+
     <!-- Error dialog -->
     <string name="migration_error_title">Error</string>
     <string name="migration_ok">OK</string>

@@ -2,6 +2,7 @@ package app.otakureader.feature.migration
 
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MigrationCandidate
+import app.otakureader.domain.model.MigrationFlag
 import app.otakureader.domain.model.MigrationMode
 import app.otakureader.domain.model.MigrationStatus
 
@@ -27,7 +28,9 @@ data class MigrationState(
     /** Number of failed migrations (populated when showCompletionSummary = true). */
     val failedCount: Int = 0,
     /** Number of skipped migrations (populated when showCompletionSummary = true). */
-    val skippedCount: Int = 0
+    val skippedCount: Int = 0,
+    /** Which data categories to carry over during migration. Default: everything. */
+    val migrationFlags: Set<MigrationFlag> = MigrationFlag.entries.toSet()
 )
 
 /**
@@ -70,6 +73,8 @@ sealed class MigrationEvent {
     data object RetryFailed : MigrationEvent()
     /** Dismisses the completion summary dialog. */
     data object DismissCompletionSummary : MigrationEvent()
+    /** Toggles [flag] in or out of the persisted migration-flags set. */
+    data class ToggleMigrationFlag(val flag: MigrationFlag) : MigrationEvent()
 }
 
 /**

@@ -6,6 +6,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -29,6 +31,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -59,6 +62,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.model.MigrationCandidate
+import app.otakureader.domain.model.MigrationFlag
 import app.otakureader.domain.model.MigrationMode
 import app.otakureader.domain.model.MigrationStatus
 import coil3.compose.AsyncImage
@@ -68,7 +72,18 @@ import kotlinx.coroutines.flow.collectLatest
 private fun MangaStatus.toDisplayString(): String =
     name.replace("_", " ").lowercase().replaceFirstChar { it.uppercase() }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/** Human-readable label for a migration flag chip. */
+@Composable
+private fun MigrationFlag.displayLabel(): String = when (this) {
+    MigrationFlag.CHAPTERS -> stringResource(R.string.migration_flag_chapters)
+    MigrationFlag.CATEGORIES -> stringResource(R.string.migration_flag_categories)
+    MigrationFlag.TRACKING -> stringResource(R.string.migration_flag_tracking)
+    MigrationFlag.NOTES -> stringResource(R.string.migration_flag_notes)
+    MigrationFlag.DOWNLOADS -> stringResource(R.string.migration_flag_downloads)
+    MigrationFlag.CUSTOM_COVER -> stringResource(R.string.migration_flag_custom_cover)
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun MigrationScreen(
     selectedMangaIds: List<Long>,
@@ -189,6 +204,27 @@ fun MigrationScreen(
                             }
                         )
                         Text(stringResource(R.string.migration_mode_copy))
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Migration flags: which data categories to carry over
+                Text(
+                    text = stringResource(R.string.migration_flags_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    MigrationFlag.entries.forEach { flag ->
+                        FilterChip(
+                            selected = flag in state.migrationFlags,
+                            onClick = { viewModel.onEvent(MigrationEvent.ToggleMigrationFlag(flag)) },
+                            label = { Text(flag.displayLabel()) }
+                        )
                     }
                 }
 

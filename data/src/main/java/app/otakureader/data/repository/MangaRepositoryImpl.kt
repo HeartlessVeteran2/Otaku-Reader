@@ -273,6 +273,20 @@ class MangaRepositoryImpl @Inject constructor(
         deleteCustomCoverFiles(id)
     }
 
+    override suspend fun copyCustomCover(fromMangaId: Long, toMangaId: Long) = withContext(Dispatchers.IO) {
+        val sourcePath = mangaDao.getMangaById(fromMangaId)?.userThumbnailUrl?.removePrefix("file://")
+        val sourceFile = sourcePath?.let { File(it) }
+        if (sourceFile == null || !sourceFile.exists()) return@withContext
+
+        val coversDir = File(context.filesDir, CUSTOM_COVERS_DIR).apply { mkdirs() }
+        val newFile = File(coversDir, "${toMangaId}_${System.currentTimeMillis()}.img")
+        sourceFile.copyTo(newFile, overwrite = true)
+
+        // DB first for the same crash-safety reason as setCustomCover.
+        mangaDao.updateUserThumbnail(toMangaId, "file://${newFile.absolutePath}")
+        deleteCustomCoverFiles(toMangaId, except = newFile)
+    }
+
     /** Deletes stored custom cover files for [id], optionally keeping [except]. */
     private fun deleteCustomCoverFiles(id: Long, except: File? = null) {
         File(context.filesDir, CUSTOM_COVERS_DIR)

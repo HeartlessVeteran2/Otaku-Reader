@@ -83,6 +83,13 @@ interface MangaRepository {
     /** Deletes the stored custom cover file (if any) and reverts to the source cover. */
     suspend fun removeCustomCover(id: Long)
 
+    /**
+     * Copies [fromMangaId]'s custom cover file (if it has one) to a new file and points
+     * [toMangaId] at it. No-op if [fromMangaId] has no custom cover. Used by migration
+     * (#1192 PR 6) to carry a user-set cover over to the migrated manga.
+     */
+    suspend fun copyCustomCover(fromMangaId: Long, toMangaId: Long)
+
     // Duplicate detection (#997)
     /** Groups of library manga sharing the same normalised title (≥2 entries per group). */
     fun findDuplicates(): Flow<List<List<Manga>>>

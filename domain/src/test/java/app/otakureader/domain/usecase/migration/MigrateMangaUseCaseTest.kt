@@ -3,6 +3,7 @@ package app.otakureader.domain.usecase.migration
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MigrationCandidate
+import app.otakureader.domain.model.MigrationFlag
 import app.otakureader.domain.model.MigrationMode
 import app.otakureader.domain.model.MigrationStatus
 import app.otakureader.domain.model.TrackEntry
@@ -23,6 +24,7 @@ import io.mockk.slot
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -479,6 +481,186 @@ class MigrateMangaUseCaseTest {
 
         assertTrue(result.isSuccess)
         coVerify(exactly = 0) { mangaRepository.updateMangaNote(any(), any()) }
+    }
+
+    // ── MigrationFlag gating tests (#1192 PR 6) ──────────────────────────
+
+    @Test
+    fun `CATEGORIES flag off skips category migration and cleanup`() = runTest {
+        val sourceMangaId = 1L
+        val targetMangaId = 2L
+        val sourceManga = createTestManga(id = sourceMangaId, title = "Test Manga", categoryIds = listOf(10L, 20L))
+        val targetCandidate = createTestCandidate(title = "Test Manga (New Source)")
+
+        coEvery { mangaRepository.getMangaBySourceAndUrl(any(), any()) } returns null
+        coEvery { mangaRepository.insertManga(any()) } returns targetMangaId
+        coEvery { sourceRepository.getMangaDetails(any(), any()) } returns Result.success(mockk())
+        coEvery { sourceRepository.getChapterList(any(), any()) } returns Result.success(emptyList())
+        coEvery { chapterRepository.getChaptersByMangaIdSync(sourceMangaId) } returns emptyList()
+        coEvery { trackRepository.observeEntriesForManga(sourceMangaId) } returns flowOf(emptyList())
+
+        val result = useCase(
+            sourceManga, targetCandidate, MigrationMode.MOVE,
+            flags = MigrationFlag.entries.toSet() - MigrationFlag.CATEGORIES
+        )
+
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 0) { categoryRepository.addMangaToCategory(any(), any()) }
+        coVerify(exactly = 0) { categoryRepository.removeMangaFromCategory(any(), any()) }
+    }
+
+    @Test
+    fun `TRACKING flag off skips tracker migration entirely`() = runTest {
+        val sourceMangaId = 1L
+        val targetMangaId = 2L
+        val sourceManga = createTestManga(id = sourceMangaId, title = "Test Manga")
+        val targetCandidate = createTestCandidate(title = "Test Manga (New Source)")
+
+        coEvery { mangaRepository.getMangaBySourceAndUrl(any(), any()) } returns null
+        coEvery { mangaRepository.insertManga(any()) } returns targetMangaId
+        coEvery { sourceRepository.getMangaDetails(any(), any()) } returns Result.success(mockk())
+        coEvery { sourceRepository.getChapterList(any(), any()) } returns Result.success(emptyList())
+        coEvery { chapterRepository.getChaptersByMangaIdSync(sourceMangaId) } returns emptyList()
+
+        val result = useCase(
+            sourceManga, targetCandidate, MigrationMode.MOVE,
+            flags = MigrationFlag.entries.toSet() - MigrationFlag.TRACKING
+        )
+
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 0) { trackRepository.observeEntriesForManga(any()) }
+        coVerify(exactly = 0) { trackRepository.upsertEntry(any()) }
+    }
+
+    @Test
+    fun `NOTES flag off does not carry notes to a newly created target`() = runTest {
+        val sourceMangaId = 1L
+        val targetMangaId = 2L
+        val sourceManga = createTestManga(id = sourceMangaId, title = "Test Manga", notes = "Great art style")
+        val targetCandidate = createTestCandidate(title = "Test Manga (New Source)")
+
+        coEvery { mangaRepository.getMangaBySourceAndUrl(any(), any()) } returns null
+        coEvery { mangaRepository.insertManga(any()) } returns targetMangaId
+        coEvery { sourceRepository.getMangaDetails(any(), any()) } returns Result.success(mockk())
+        coEvery { sourceRepository.getChapterList(any(), any()) } returns Result.success(emptyList())
+        coEvery { chapterRepository.getChaptersByMangaIdSync(sourceMangaId) } returns emptyList()
+        coEvery { trackRepository.observeEntriesForManga(sourceMangaId) } returns flowOf(emptyList())
+
+        val result = useCase(
+            sourceManga, targetCandidate, MigrationMode.MOVE,
+            flags = MigrationFlag.entries.toSet() - MigrationFlag.NOTES
+        )
+
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 1) { mangaRepository.insertManga(match { it.notes == null }) }
+    }
+
+    @Test
+    fun `CUSTOM_COVER flag copies cover only when source has one`() = runTest {
+        val sourceMangaId = 1L
+        val targetMangaId = 2L
+        val sourceManga = createTestManga(id = sourceMangaId, title = "Test Manga").copy(hasCustomCover = true)
+        val targetCandidate = createTestCandidate(title = "Test Manga (New Source)")
+
+        coEvery { mangaRepository.getMangaBySourceAndUrl(any(), any()) } returns null
+        coEvery { mangaRepository.insertManga(any()) } returns targetMangaId
+        coEvery { sourceRepository.getMangaDetails(any(), any()) } returns Result.success(mockk())
+        coEvery { sourceRepository.getChapterList(any(), any()) } returns Result.success(emptyList())
+        coEvery { chapterRepository.getChaptersByMangaIdSync(sourceMangaId) } returns emptyList()
+        coEvery { trackRepository.observeEntriesForManga(sourceMangaId) } returns flowOf(emptyList())
+
+        val result = useCase(sourceManga, targetCandidate, MigrationMode.MOVE)
+
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 1) { mangaRepository.copyCustomCover(sourceMangaId, targetMangaId) }
+    }
+
+    @Test
+    fun `CUSTOM_COVER flag off skips cover copy even when source has one`() = runTest {
+        val sourceMangaId = 1L
+        val targetMangaId = 2L
+        val sourceManga = createTestManga(id = sourceMangaId, title = "Test Manga").copy(hasCustomCover = true)
+        val targetCandidate = createTestCandidate(title = "Test Manga (New Source)")
+
+        coEvery { mangaRepository.getMangaBySourceAndUrl(any(), any()) } returns null
+        coEvery { mangaRepository.insertManga(any()) } returns targetMangaId
+        coEvery { sourceRepository.getMangaDetails(any(), any()) } returns Result.success(mockk())
+        coEvery { sourceRepository.getChapterList(any(), any()) } returns Result.success(emptyList())
+        coEvery { chapterRepository.getChaptersByMangaIdSync(sourceMangaId) } returns emptyList()
+        coEvery { trackRepository.observeEntriesForManga(sourceMangaId) } returns flowOf(emptyList())
+
+        val result = useCase(
+            sourceManga, targetCandidate, MigrationMode.MOVE,
+            flags = MigrationFlag.entries.toSet() - MigrationFlag.CUSTOM_COVER
+        )
+
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 0) { mangaRepository.copyCustomCover(any(), any()) }
+    }
+
+    @Test
+    fun `DOWNLOADS flag off skips download migration for matched chapters`() = runTest {
+        val sourceMangaId = 1L
+        val targetMangaId = 2L
+        val sourceManga = createTestManga(id = sourceMangaId, title = "Test Manga")
+        val targetCandidate = createTestCandidate(title = "Test Manga (New Source)")
+        val sourceChapter = Chapter(
+            id = 100L, mangaId = sourceMangaId, url = "/c/1", name = "Chapter 1",
+            chapterNumber = 1f, read = true, lastPageRead = 5
+        )
+        val targetChapter = SourceChapter(url = "/new/c/1", name = "Chapter 1", chapterNumber = 1f)
+
+        coEvery { mangaRepository.getMangaBySourceAndUrl(any(), any()) } returns null
+        coEvery { mangaRepository.insertManga(any()) } returns targetMangaId
+        coEvery { sourceRepository.getMangaDetails(any(), any()) } returns Result.success(mockk())
+        coEvery { sourceRepository.getChapterList(any(), any()) } returns Result.success(listOf(targetChapter))
+        coEvery { chapterRepository.getChaptersByMangaIdSync(sourceMangaId) } returns listOf(sourceChapter)
+        coEvery { trackRepository.observeEntriesForManga(sourceMangaId) } returns flowOf(emptyList())
+
+        val result = useCase(
+            sourceManga, targetCandidate, MigrationMode.MOVE,
+            flags = MigrationFlag.entries.toSet() - MigrationFlag.DOWNLOADS
+        )
+
+        assertTrue(result.isSuccess)
+        assertEquals(1, result.getOrNull()?.chaptersMatched) // matching still happens
+        coVerify(exactly = 0) { downloadRepository.isChapterDownloaded(any(), any(), any()) }
+        coVerify(exactly = 0) { downloadRepository.migrateChapterDownload(any(), any(), any(), any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `CHAPTERS flag off matches chapters but does not carry reading progress`() = runTest {
+        val sourceMangaId = 1L
+        val targetMangaId = 2L
+        val sourceManga = createTestManga(id = sourceMangaId, title = "Test Manga")
+        val targetCandidate = createTestCandidate(title = "Test Manga (New Source)")
+        val sourceChapter = Chapter(
+            id = 100L, mangaId = sourceMangaId, url = "/c/1", name = "Chapter 1",
+            chapterNumber = 1f, read = true, lastPageRead = 5
+        )
+        val targetChapter = SourceChapter(url = "/new/c/1", name = "Chapter 1", chapterNumber = 1f)
+
+        coEvery { mangaRepository.getMangaBySourceAndUrl(any(), any()) } returns null
+        coEvery { mangaRepository.insertManga(any()) } returns targetMangaId
+        coEvery { sourceRepository.getMangaDetails(any(), any()) } returns Result.success(mockk())
+        coEvery { sourceRepository.getChapterList(any(), any()) } returns Result.success(listOf(targetChapter))
+        coEvery { chapterRepository.getChaptersByMangaIdSync(sourceMangaId) } returns listOf(sourceChapter)
+        coEvery { trackRepository.observeEntriesForManga(sourceMangaId) } returns flowOf(emptyList())
+        coEvery { downloadRepository.isChapterDownloaded(any(), any(), any()) } returns false
+
+        val insertedSlot = slot<List<Chapter>>()
+        coEvery { chapterRepository.insertChapters(capture(insertedSlot)) } returns Unit
+
+        val result = useCase(
+            sourceManga, targetCandidate, MigrationMode.MOVE,
+            flags = MigrationFlag.entries.toSet() - MigrationFlag.CHAPTERS
+        )
+
+        assertTrue(result.isSuccess)
+        assertEquals(1, result.getOrNull()?.chaptersMatched) // matching still happens
+        val insertedChapter = insertedSlot.captured.single()
+        assertFalse(insertedChapter.read)
+        assertEquals(0, insertedChapter.lastPageRead)
     }
 
     // Helper functions

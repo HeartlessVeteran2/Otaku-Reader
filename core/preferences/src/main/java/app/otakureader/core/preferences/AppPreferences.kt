@@ -6,6 +6,8 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
+import app.otakureader.domain.model.MigrationFlag
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -39,9 +41,22 @@ class AppPreferences(private val dataStore: DataStore<Preferences>) {
     suspend fun setMigrationMinChapterCount(value: Int) =
         dataStore.edit { it[Keys.MIGRATION_MIN_CHAPTER_COUNT] = value }
 
+    /** Which data categories to carry over during migration. Default: every flag (all data). */
+    val migrationFlags: Flow<Set<MigrationFlag>> = dataStore.data.map { prefs ->
+        val raw = prefs[Keys.MIGRATION_FLAGS]
+        if (raw == null) {
+            MigrationFlag.entries.toSet()
+        } else {
+            raw.mapNotNull { name -> runCatching { MigrationFlag.valueOf(name) }.getOrNull() }.toSet()
+        }
+    }
+    suspend fun setMigrationFlags(flags: Set<MigrationFlag>) =
+        dataStore.edit { it[Keys.MIGRATION_FLAGS] = flags.map { flag -> flag.name }.toSet() }
+
     private object Keys {
         val MIGRATION_SIMILARITY_THRESHOLD = floatPreferencesKey("migration_similarity_threshold")
         val MIGRATION_ALWAYS_CONFIRM = booleanPreferencesKey("migration_always_confirm")
         val MIGRATION_MIN_CHAPTER_COUNT = intPreferencesKey("migration_min_chapter_count")
+        val MIGRATION_FLAGS = stringSetPreferencesKey("migration_flags")
     }
 }

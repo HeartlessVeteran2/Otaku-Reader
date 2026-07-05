@@ -3,6 +3,7 @@ package app.otakureader.feature.migration
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.otakureader.core.preferences.AppPreferences
+import app.otakureader.domain.model.MigrationFlag
 import app.otakureader.domain.model.MigrationMode
 import app.otakureader.domain.model.MigrationStatus
 import app.otakureader.domain.repository.MangaRepository
@@ -51,6 +52,7 @@ class MigrationViewModel @Inject constructor(
             is MigrationEvent.DismissConfirmationDialog -> dismissConfirmationDialog()
             is MigrationEvent.RetryFailed -> retryFailed()
             is MigrationEvent.DismissCompletionSummary -> dismissCompletionSummary()
+            is MigrationEvent.ToggleMigrationFlag -> toggleMigrationFlag(event.flag)
         }
     }
 
@@ -80,12 +82,15 @@ class MigrationViewModel @Inject constructor(
                     )
                 }
 
+                val migrationFlags = appPreferences.migrationFlags.first()
+
                 _state.update {
                     it.copy(
                         isLoading = false,
                         selectedManga = manga,
                         migrationTasks = tasks,
-                        availableSources = sources
+                        availableSources = sources,
+                        migrationFlags = migrationFlags
                     )
                 }
             } catch (e: CancellationException) {
@@ -188,7 +193,8 @@ class MigrationViewModel @Inject constructor(
                     val migrationResult = migrateManga(
                         sourceManga = task.manga,
                         targetCandidate = bestMatch,
-                        mode = _state.value.migrationMode
+                        mode = _state.value.migrationMode,
+                        flags = _state.value.migrationFlags
                     )
 
                     if (migrationResult.isSuccess) {
@@ -312,7 +318,8 @@ class MigrationViewModel @Inject constructor(
             val migrationResult = migrateManga(
                 sourceManga = tasks[taskIndex].manga,
                 targetCandidate = candidate,
-                mode = _state.value.migrationMode
+                mode = _state.value.migrationMode,
+                flags = _state.value.migrationFlags
             )
 
             if (migrationResult.isSuccess) {
@@ -400,5 +407,13 @@ class MigrationViewModel @Inject constructor(
 
     private fun dismissCompletionSummary() {
         _state.update { it.copy(showCompletionSummary = false) }
+    }
+
+    private fun toggleMigrationFlag(flag: MigrationFlag) {
+        val updated = _state.value.migrationFlags.let { current ->
+            if (flag in current) current - flag else current + flag
+        }
+        _state.update { it.copy(migrationFlags = updated) }
+        viewModelScope.launch { appPreferences.setMigrationFlags(updated) }
     }
 }
