@@ -64,6 +64,11 @@ class OnboardingViewModelTest {
         val viewModel = createViewModel()
 
         viewModel.downloadLocation.test {
+            // stateIn(WhileSubscribed) only starts collecting the upstream once this test
+            // subscribes, so the first emission is the seeded initial value (null); the real
+            // value follows once the upstream collector coroutine gets to run.
+            assertNull(awaitItem())
+            testDispatcher.scheduler.advanceUntilIdle()
             assertEquals("content://tree/downloads", awaitItem())
         }
     }
