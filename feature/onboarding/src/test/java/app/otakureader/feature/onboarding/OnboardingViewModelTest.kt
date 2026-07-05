@@ -35,9 +35,11 @@ class OnboardingViewModelTest {
         downloadPreferences = mockk()
 
         every { generalPreferences.themeMode } returns flowOf(0)
-        coEvery { generalPreferences.setThemeMode(any()) } returns Unit
+        // setThemeMode/setDownloadLocation both return DataStore.edit {}'s Preferences result,
+        // not Unit — stub with a mock instance rather than the wrong return type.
+        coEvery { generalPreferences.setThemeMode(any()) } returns mockk()
         every { downloadPreferences.downloadLocation } returns flowOf(null)
-        coEvery { downloadPreferences.setDownloadLocation(any()) } returns Unit
+        coEvery { downloadPreferences.setDownloadLocation(any()) } returns mockk()
     }
 
     @After
