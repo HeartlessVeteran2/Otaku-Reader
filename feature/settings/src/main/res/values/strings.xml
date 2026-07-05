@@ -547,6 +547,9 @@
     <string name="settings_smart_download_min_storage">Require %1$d MB free</string>
     <string name="settings_delete_after_reading">Delete After Reading</string>
     <string name="settings_delete_after_reading_description">Remove downloaded chapters once finished</string>
+    <string name="settings_remove_after_read_immediately">Delete the chapter just read</string>
+    <string name="settings_remove_after_read_keep_last">Keep the last %1$d read chapters</string>
+    <string name="settings_remove_after_read_description">Choose how many recently read chapters stay downloaded before older ones are removed</string>
 
     <!-- Cloud Sync removed: cloud sync (Google Drive / Dropbox / WebDAV / self-hosted)
          was extracted to a sibling repository. Local backup/restore strings live in

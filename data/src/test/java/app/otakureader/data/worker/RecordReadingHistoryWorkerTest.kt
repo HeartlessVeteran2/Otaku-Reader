@@ -93,6 +93,8 @@ class RecordReadingHistoryWorkerTest {
         // No installed source for this fixture id — resolveDownloadFolderName falls back to the
         // numeric sourceId string.
         coEvery { sourceRepository.getSource(any()) } returns null
+        // Default: immediate delete-after-read (slots = 0).
+        every { downloadPreferences.removeAfterReadSlots } returns flowOf(0)
     }
 
     private fun readCompletedInputData(): androidx.work.Data = workDataOf(
@@ -138,6 +140,37 @@ class RecordReadingHistoryWorkerTest {
         coVerify(exactly = 1) {
             downloadRepository.deleteChapterDownload(chapterId, "99", "Test Manga", "Chapter 10")
         }
+    }
+
+    @Test
+    fun `with slots deletes the chapter N back in reading order instead of the just-read one`() = runTest {
+        every { downloadPreferences.deleteAfterReading } returns flowOf(true)
+        every { downloadPreferences.perMangaOverrides } returns flowOf(emptyMap())
+        every { downloadPreferences.removeAfterReadSlots } returns flowOf(2)
+        val earlier = testChapter.copy(id = 8L, name = "Chapter 8", chapterNumber = 8f)
+        val middle = testChapter.copy(id = 9L, name = "Chapter 9", chapterNumber = 9f)
+        coEvery { chapterRepository.getChaptersByMangaIdSync(mangaId) } returns
+            listOf(testChapter, earlier, middle)
+
+        buildWorker(readCompletedInputData()).doWork()
+
+        // Read ch10 with keep-last-2 → ch8 is deleted, ch9 and ch10 stay.
+        coVerify(exactly = 1) {
+            downloadRepository.deleteChapterDownload(8L, "99", "Test Manga", "Chapter 8")
+        }
+    }
+
+    @Test
+    fun `with slots does not delete anything when no chapter is far enough back`() = runTest {
+        every { downloadPreferences.deleteAfterReading } returns flowOf(true)
+        every { downloadPreferences.perMangaOverrides } returns flowOf(emptyMap())
+        every { downloadPreferences.removeAfterReadSlots } returns flowOf(2)
+        coEvery { chapterRepository.getChaptersByMangaIdSync(mangaId) } returns
+            listOf(testChapter, testChapter.copy(id = 9L, name = "Chapter 9", chapterNumber = 9f))
+
+        buildWorker(readCompletedInputData()).doWork()
+
+        coVerify(exactly = 0) { downloadRepository.deleteChapterDownload(any(), any(), any(), any()) }
     }
 
     @Test

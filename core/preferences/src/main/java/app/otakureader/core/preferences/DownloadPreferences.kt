@@ -70,6 +70,15 @@ class DownloadPreferences(private val dataStore: DataStore<Preferences>) {
     suspend fun setDeleteAfterReading(value: Boolean) = dataStore.edit { it[Keys.DELETE_AFTER_READING] = value }
 
     /**
+     * How many of the most recently read chapters to keep downloaded when delete-after-reading
+     * is on. 0 = delete the just-read chapter immediately (default); N = delete the chapter N
+     * positions earlier in reading order, keeping the last N read chapters on disk.
+     */
+    val removeAfterReadSlots: Flow<Int> = dataStore.data.map { it[Keys.REMOVE_AFTER_READ_SLOTS] ?: 0 }
+    suspend fun setRemoveAfterReadSlots(value: Int) =
+        dataStore.edit { it[Keys.REMOVE_AFTER_READ_SLOTS] = value.coerceIn(0, MAX_REMOVE_AFTER_READ_SLOTS) }
+
+    /**
      * Per-manga delete-after-reading overrides stored as "mangaId:MODE" comma-separated string.
      * Example: "123:ENABLED,456:DISABLED"
      */
@@ -191,11 +200,17 @@ class DownloadPreferences(private val dataStore: DataStore<Preferences>) {
         val DOWNLOAD_AHEAD_ONLY_ON_WIFI = booleanPreferencesKey("download_ahead_only_on_wifi")
         val SAVE_AS_CBZ = booleanPreferencesKey("save_as_cbz")
         val DELETE_AFTER_READING = booleanPreferencesKey("delete_after_reading")
+        val REMOVE_AFTER_READ_SLOTS = intPreferencesKey("remove_after_read_slots")
         val PER_MANGA_OVERRIDES = stringPreferencesKey("delete_after_reading_overrides")
         val DATA_SAVER_ENABLED = booleanPreferencesKey("data_saver_enabled")
         val MONTHLY_DATA_BUDGET_MB = intPreferencesKey("monthly_data_budget_mb")
         val AUTO_DOWNLOAD_CATEGORY_INCLUDE = stringSetPreferencesKey("auto_download_category_include")
         val AUTO_DOWNLOAD_CATEGORY_EXCLUDE = stringSetPreferencesKey("auto_download_category_exclude")
         val CBZ_ENCRYPTION_ENABLED = booleanPreferencesKey("cbz_encryption_enabled")
+    }
+
+    companion object {
+        /** Upper bound for [removeAfterReadSlots] (matches Komikku's "keep last N" range). */
+        const val MAX_REMOVE_AFTER_READ_SLOTS = 4
     }
 }

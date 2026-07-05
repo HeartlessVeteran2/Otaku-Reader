@@ -12,6 +12,7 @@ import androidx.work.workDataOf
 import app.otakureader.core.preferences.DeleteAfterReadMode
 import app.otakureader.core.preferences.DownloadPreferences
 import app.otakureader.core.preferences.resolveShouldDeleteAfterRead
+import app.otakureader.domain.download.selectChapterToDeleteAfterRead
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.MangaRepository
@@ -117,12 +118,22 @@ class RecordReadingHistoryWorker @AssistedInject constructor(
         if (!shouldDelete) return
 
         val manga = mangaRepository.getMangaById(mangaId) ?: return
-        val chapter = chapterRepository.getChapterById(chapterId) ?: return
+        // slots > 0 keeps the last N read chapters downloaded and deletes the one N back instead.
+        val slots = downloadPreferences.removeAfterReadSlots.first()
+        val chapter = if (slots <= 0) {
+            chapterRepository.getChapterById(chapterId)
+        } else {
+            selectChapterToDeleteAfterRead(
+                chapters = chapterRepository.getChaptersByMangaIdSync(mangaId),
+                justReadChapterId = chapterId,
+                slots = slots,
+            )
+        } ?: return
         val downloadFolderName = sourceRepository.resolveDownloadFolderName(manga.sourceId)
         if (!downloadRepository.isChapterDownloaded(downloadFolderName, manga.title, chapter.name)) return
 
         downloadRepository.deleteChapterDownload(
-            chapterId = chapterId,
+            chapterId = chapter.id,
             sourceName = downloadFolderName,
             mangaTitle = manga.title,
             chapterTitle = chapter.name,
