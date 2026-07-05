@@ -23,6 +23,7 @@ import app.otakureader.data.backup.mapper.toOpdsServerEntity
 import app.otakureader.data.backup.mapper.toSyncConfigurationEntity
 import app.otakureader.data.backup.mapper.toTrackerSyncStateEntity
 import app.otakureader.data.backup.model.BackupData
+import app.otakureader.domain.model.BackupOptions
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
 
@@ -58,22 +59,26 @@ class BackupRestorer @Inject constructor(
      * participate in a Room transaction.
      *
      * @param backupJson JSON string containing the backup data
+     * @param options Which data categories to restore. Defaults to everything (pre-#1192-PR-7
+     *   behavior). Sections outside [options] are skipped even if present in the backup file.
      * @throws Exception if the backup cannot be parsed or restored
      */
-    suspend fun restoreBackup(backupJson: String) {
+    suspend fun restoreBackup(backupJson: String, options: BackupOptions = BackupOptions.ALL) {
         val backupData = json.decodeFromString<BackupData>(backupJson)
 
         database.withTransaction {
-            restoreCategories(backupData)
-            restoreManga(backupData)
-            restoreOpdsServers(backupData)
-            restoreFeedSources(backupData)
-            restoreFeedSavedSearches(backupData)
-            restoreSyncConfigurations(backupData)
-            restoreTrackerSyncStates(backupData)
+            if (options.categories) restoreCategories(backupData)
+            if (options.libraryEntries) restoreManga(backupData, options)
+            if (options.opdsServers) restoreOpdsServers(backupData)
+            if (options.feed) {
+                restoreFeedSources(backupData)
+                restoreFeedSavedSearches(backupData)
+            }
+            if (options.syncConfigurations) restoreSyncConfigurations(backupData)
+            if (options.effectiveTracking) restoreTrackerSyncStates(backupData)
         }
 
-        restorePreferences(backupData)
+        if (options.preferences) restorePreferences(backupData)
     }
 
     /**
@@ -90,7 +95,7 @@ class BackupRestorer @Inject constructor(
     /**
      * Restores manga, chapters, and reading history from backup.
      */
-    private suspend fun restoreManga(backupData: BackupData) {
+    private suspend fun restoreManga(backupData: BackupData, options: BackupOptions) {
         backupData.manga.forEach { backupManga ->
             // Check if manga already exists by source and URL
             val existingManga = mangaDao.getMangaBySourceAndUrl(
@@ -109,10 +114,10 @@ class BackupRestorer @Inject constructor(
             }
 
             // Restore chapters for this manga
-            restoreChapters(mangaId, backupManga)
+            if (options.chapters) restoreChapters(mangaId, backupManga)
 
             // Restore category associations
-            restoreMangaCategories(mangaId, backupManga.categoryIds)
+            if (options.categories) restoreMangaCategories(mangaId, backupManga.categoryIds)
         }
     }
 

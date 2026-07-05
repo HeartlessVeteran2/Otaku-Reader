@@ -179,15 +179,22 @@
     <string name="settings_restore_button">Restore</string>
     <!-- Pre-backup checklist dialog -->
     <string name="backup_checklist_title">Backup contents</string>
-    <string name="backup_checklist_summary">%1$d manga · %2$d categories · %3$d tracking entries</string>
-    <string name="backup_checklist_history_included">History: included</string>
-    <string name="backup_checklist_settings_included">Settings: included</string>
     <string name="backup_checklist_create">Create backup</string>
     <!-- Pre-restore preflight dialog -->
     <string name="restore_preflight_title">Restore backup?</string>
     <string name="restore_preflight_filename">Restore from: %1$s</string>
-    <string name="restore_preflight_message">This will replace your current library with the selected backup. This cannot be undone.</string>
+    <string name="restore_preflight_message">This will replace matching data in your current library with the selected backup. This cannot be undone.</string>
     <string name="restore_preflight_proceed">Restore</string>
+    <!-- Selective backup/restore options (#1192 PR 7) -->
+    <string name="backup_option_library_entries">Library entries</string>
+    <string name="backup_option_chapters">Chapters &amp; reading history</string>
+    <string name="backup_option_categories">Categories</string>
+    <string name="backup_option_tracking">Tracker sync state</string>
+    <string name="backup_option_preferences">App preferences</string>
+    <string name="backup_option_opds_servers">OPDS servers</string>
+    <string name="backup_option_feed">Feed sources &amp; saved searches</string>
+    <string name="backup_option_sync_configurations">Tracker sync settings</string>
+    <string name="backup_option_with_count">%1$s (%2$d)</string>
     <string name="settings_import_tachiyomi">Import from Tachiyomi/Mihon</string>
     <string name="settings_import_tachiyomi_description">Bring your library from another manga reader app</string>
     <string name="settings_import_button">Import</string>

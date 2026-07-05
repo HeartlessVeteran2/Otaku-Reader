@@ -5,6 +5,7 @@ import app.otakureader.core.common.mvi.UiEffect
 import app.otakureader.core.common.mvi.UiEvent
 import app.otakureader.core.common.mvi.UiState
 import app.otakureader.core.preferences.LocalSourcePreferences
+import app.otakureader.domain.model.BackupOptions
 
 data class TrackerInfo(
     val id: Int,
@@ -174,10 +175,14 @@ data class SettingsState(
     val showBackupChecklist get() = backup.showBackupChecklist
     val backupChecklistMangaCount get() = backup.backupChecklistMangaCount
     val backupChecklistCategoryCount get() = backup.backupChecklistCategoryCount
-    val backupChecklistTrackingCount get() = backup.backupChecklistTrackingCount
+    val backupChecklistOpdsCount get() = backup.backupChecklistOpdsCount
+    val backupChecklistFeedCount get() = backup.backupChecklistFeedCount
+    val backupChecklistSyncConfigCount get() = backup.backupChecklistSyncConfigCount
+    val backupOptions get() = backup.backupOptions
     val showRestoreConfirm get() = backup.showRestoreConfirm
     val pendingRestoreUri get() = backup.pendingRestoreUri
     val pendingRestoreFileName get() = backup.pendingRestoreFileName
+    val restoreOptions get() = backup.restoreOptions
 
     // --- Tracking ---
     val trackers get() = tracking.trackers
@@ -314,6 +319,10 @@ sealed interface SettingsEvent : UiEvent {
     data class ConfirmRestore(val uri: Uri) : SettingsEvent
     /** User cancelled the restore preflight dialog. */
     data object DismissRestoreConfirm : SettingsEvent
+    /** User toggled a section checkbox in the pre-backup checklist dialog. */
+    data class SetBackupOptions(val options: BackupOptions) : SettingsEvent
+    /** User toggled a section checkbox in the pre-restore preflight dialog. */
+    data class SetRestoreOptions(val options: BackupOptions) : SettingsEvent
     data class CreateBackupWithUri(val uri: Uri) : SettingsEvent
     data class RestoreBackupFromUri(val uri: Uri) : SettingsEvent
     data class ImportTachiyomiBackupFromUri(val uri: Uri) : SettingsEvent
