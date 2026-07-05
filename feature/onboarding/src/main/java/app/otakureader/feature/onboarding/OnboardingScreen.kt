@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.BatteryFull
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Extension
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Notifications
@@ -71,6 +72,7 @@ import kotlinx.coroutines.launch
 enum class OnboardingPageType {
     WELCOME,
     NAME,           // Display name entry
+    STORAGE,        // Optional download-location picker (non-blocking, unlike Komikku)
     NOTIFICATIONS,  // Android 13+ only
     BATTERY,        // Battery optimisation exclusion
     APPEARANCE,     // Theme selection (applies live)
@@ -108,6 +110,7 @@ fun OnboardingScreen(
     val context = LocalContext.current
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val displayName by viewModel.displayName.collectAsStateWithLifecycle()
+    val downloadLocation by viewModel.downloadLocation.collectAsStateWithLifecycle()
 
     // Build page list dynamically; notifications page is Android 13+ only
     val pages = remember {
@@ -126,6 +129,14 @@ fun OnboardingScreen(
                     titleRes = R.string.onboarding_title_name,
                     descriptionRes = R.string.onboarding_desc_name,
                     icon = Icons.Default.Person,
+                ),
+            )
+            add(
+                OnboardingPage(
+                    type = OnboardingPageType.STORAGE,
+                    titleRes = R.string.onboarding_title_storage,
+                    descriptionRes = R.string.onboarding_desc_storage,
+                    icon = Icons.Default.Folder,
                 ),
             )
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -193,6 +204,22 @@ fun OnboardingScreen(
         ActivityResultContracts.StartActivityForResult(),
     ) { batteryOptimizationIgnored = isBatteryOptimizationIgnored() }
 
+    // ── Storage location (optional — see OnboardingPageType.STORAGE) ─────────
+    val storageLocationLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree(),
+    ) { uri: Uri? ->
+        if (uri != null) {
+            // Without this the grant is lost on reboot.
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+                )
+            }
+            viewModel.setDownloadLocation(uri.toString())
+        }
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         bottomBar = {
@@ -226,6 +253,7 @@ fun OnboardingScreen(
                 batteryOptimizationIgnored = batteryOptimizationIgnored,
                 themeMode = themeMode,
                 displayName = displayName,
+                downloadLocation = downloadLocation,
                 onThemeModeSelected = viewModel::setThemeMode,
                 onDisplayNameChange = viewModel::setDisplayName,
                 onRequestNotifications = {
@@ -239,6 +267,7 @@ fun OnboardingScreen(
                     }
                     batteryOptimizationLauncher.launch(intent)
                 },
+                onRequestStorageLocation = { storageLocationLauncher.launch(null) },
                 modifier = Modifier.fillMaxSize(),
             )
         }
@@ -256,15 +285,18 @@ private fun OnboardingPageContent(
     batteryOptimizationIgnored: Boolean,
     themeMode: Int,
     displayName: String,
+    downloadLocation: String?,
     onThemeModeSelected: (Int) -> Unit,
     onDisplayNameChange: (String) -> Unit,
     onRequestNotifications: () -> Unit,
     onRequestBatteryOptimization: () -> Unit,
+    onRequestStorageLocation: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val isPermissionGranted = when (page.type) {
         OnboardingPageType.NOTIFICATIONS -> notificationsGranted
         OnboardingPageType.BATTERY -> batteryOptimizationIgnored
+        OnboardingPageType.STORAGE -> downloadLocation != null
         else -> false
     }
 
@@ -331,6 +363,30 @@ private fun OnboardingPageContent(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
+        }
+
+        if (page.type == OnboardingPageType.STORAGE) {
+            Spacer(modifier = Modifier.height(32.dp))
+            Button(
+                onClick = onRequestStorageLocation,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(
+                    imageVector = if (downloadLocation != null) Icons.Default.Check else Icons.Default.Folder,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    stringResource(
+                        if (downloadLocation != null) {
+                            R.string.onboarding_storage_selected
+                        } else {
+                            R.string.onboarding_btn_select_folder
+                        },
+                    ),
+                )
+            }
         }
 
         if (page.type == OnboardingPageType.NOTIFICATIONS) {

@@ -9,6 +9,7 @@
     <string name="onboarding_title_notifications">Notifications</string>
     <string name="onboarding_title_battery">Background Updates</string>
     <string name="onboarding_title_appearance">Make It Yours</string>
+    <string name="onboarding_title_storage">Choose Download Location</string>
 
     <!-- Page descriptions -->
     <string name="onboarding_desc_welcome">Your personal manga library. Track your reading, discover new series, and enjoy your favorite manga offline.</string>
@@ -19,6 +20,7 @@
     <string name="onboarding_desc_notifications">Get notified when new chapters of your favorite manga become available.</string>
     <string name="onboarding_desc_battery">Disable battery optimization so Otaku Reader can fetch updates reliably in the background.</string>
     <string name="onboarding_desc_appearance">Pick a theme — it applies instantly. You can change this anytime in Settings.</string>
+    <string name="onboarding_desc_storage">Optionally pick a folder for downloaded chapters. Otaku Reader works fine without this — you can set or change it anytime in Settings → Downloads.</string>
 
     <!-- Appearance page theme options -->
     <string name="onboarding_theme_system">System default</string>
@@ -37,10 +39,12 @@
     <string name="onboarding_btn_install_extensions">Install Extensions</string>
     <string name="onboarding_btn_grant_permission">Grant Permission</string>
     <string name="onboarding_btn_disable_battery">Disable Battery Optimization</string>
+    <string name="onboarding_btn_select_folder">Select Folder</string>
 
     <!-- Status labels (shown when permission is already granted) -->
     <string name="onboarding_notifications_granted">Permission Granted</string>
     <string name="onboarding_battery_unrestricted">Unrestricted</string>
+    <string name="onboarding_storage_selected">Folder Selected</string>
 
     <!-- Accessibility -->
     <string name="onboarding_page_icon">Onboarding illustration</string>
