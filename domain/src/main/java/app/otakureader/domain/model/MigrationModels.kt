@@ -57,3 +57,17 @@ data class MigrationResult(
     val status: MigrationStatus,
     val error: String? = null
 )
+
+/**
+ * Which categories of data to carry over during a migration. Persisted as a string-set
+ * preference; default is every flag enabled (matches the pre-existing unconditional-copy
+ * behavior of [app.otakureader.domain.usecase.migration.MigrateMangaUseCase]).
+ */
+enum class MigrationFlag {
+    CHAPTERS,
+    CATEGORIES,
+    TRACKING,
+    NOTES,
+    DOWNLOADS,
+    CUSTOM_COVER
+}

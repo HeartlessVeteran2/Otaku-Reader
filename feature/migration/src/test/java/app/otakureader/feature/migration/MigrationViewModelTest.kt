@@ -4,6 +4,7 @@ import app.cash.turbine.test
 import app.otakureader.core.preferences.AppPreferences
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MigrationCandidate
+import app.otakureader.domain.model.MigrationFlag
 import app.otakureader.domain.model.MigrationMode
 import app.otakureader.domain.model.MigrationResult
 import app.otakureader.domain.model.MigrationStatus
@@ -13,6 +14,7 @@ import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.domain.usecase.migration.MigrateMangaUseCase
 import app.otakureader.domain.usecase.migration.SearchMigrationTargetsUseCase
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -70,6 +72,7 @@ class MigrationViewModelTest {
             every { migrationSimilarityThreshold } returns flowOf(0.8f)
             every { migrationAlwaysConfirm } returns flowOf(false)
             every { migrationMinChapterCount } returns flowOf(0)
+            every { migrationFlags } returns flowOf(MigrationFlag.entries.toSet())
         }
     }
 
@@ -231,5 +234,50 @@ class MigrationViewModelTest {
 
         assertEquals(1, viewModel.state.value.currentCandidates.size)
         assertTrue(viewModel.state.value.showConfirmationDialog)
+    }
+
+    @Test
+    fun onEvent_Initialize_loadsMigrationFlagsFromPreferences() = runTest {
+        coEvery { appPreferences.migrationFlags } returns flowOf(setOf(MigrationFlag.CHAPTERS, MigrationFlag.CATEGORIES))
+        coEvery { mangaRepository.getMangaByIds(listOf(1L)) } returns listOf(sampleManga[0])
+
+        val viewModel = createViewModel()
+        viewModel.onEvent(MigrationEvent.Initialize(listOf(1L)))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(setOf(MigrationFlag.CHAPTERS, MigrationFlag.CATEGORIES), viewModel.state.value.migrationFlags)
+    }
+
+    @Test
+    fun onEvent_ToggleMigrationFlag_removesFlagAndPersists() = runTest {
+        coEvery { appPreferences.setMigrationFlags(any()) } returns Unit
+        coEvery { mangaRepository.getMangaByIds(listOf(1L)) } returns listOf(sampleManga[0])
+
+        val viewModel = createViewModel()
+        viewModel.onEvent(MigrationEvent.Initialize(listOf(1L)))
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertTrue(MigrationFlag.TRACKING in viewModel.state.value.migrationFlags)
+
+        viewModel.onEvent(MigrationEvent.ToggleMigrationFlag(MigrationFlag.TRACKING))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertFalse(MigrationFlag.TRACKING in viewModel.state.value.migrationFlags)
+        coVerify { appPreferences.setMigrationFlags(match { MigrationFlag.TRACKING !in it }) }
+    }
+
+    @Test
+    fun onEvent_ToggleMigrationFlag_reAddsFlagWhenToggledTwice() = runTest {
+        coEvery { appPreferences.setMigrationFlags(any()) } returns Unit
+        coEvery { mangaRepository.getMangaByIds(listOf(1L)) } returns listOf(sampleManga[0])
+
+        val viewModel = createViewModel()
+        viewModel.onEvent(MigrationEvent.Initialize(listOf(1L)))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onEvent(MigrationEvent.ToggleMigrationFlag(MigrationFlag.NOTES))
+        viewModel.onEvent(MigrationEvent.ToggleMigrationFlag(MigrationFlag.NOTES))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(MigrationFlag.NOTES in viewModel.state.value.migrationFlags)
     }
 }

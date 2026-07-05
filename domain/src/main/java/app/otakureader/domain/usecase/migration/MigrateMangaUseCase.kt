@@ -3,6 +3,7 @@ package app.otakureader.domain.usecase.migration
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MigrationCandidate
+import app.otakureader.domain.model.MigrationFlag
 import app.otakureader.domain.model.MigrationMode
 import app.otakureader.domain.model.MigrationResult
 import app.otakureader.domain.model.MigrationStatus
@@ -37,13 +38,15 @@ class MigrateMangaUseCase @Inject constructor(
      * @param sourceManga The manga to migrate
      * @param targetCandidate The target manga candidate from the new source
      * @param mode Migration mode (MOVE or COPY)
+     * @param flags Which data categories to carry over. Defaults to all (pre-#1192-PR-6 behavior).
      * @return Result with MigrationResult containing status and details
      */
     @Suppress("ThrowsCount", "LongMethod", "CyclomaticComplexMethod", "CognitiveComplexMethod")
     suspend operator fun invoke(
         sourceManga: Manga,
         targetCandidate: MigrationCandidate,
-        mode: MigrationMode
+        mode: MigrationMode,
+        flags: Set<MigrationFlag> = MigrationFlag.entries.toSet()
     ): Result<MigrationResult> {
         return try {
             // Check if target manga already exists in library
@@ -62,7 +65,7 @@ class MigrateMangaUseCase @Inject constructor(
                 val newManga = targetCandidate.toManga(
                     favorite = sourceManga.favorite,
                     autoDownload = sourceManga.autoDownload,
-                    notes = sourceManga.notes
+                    notes = if (MigrationFlag.NOTES in flags) sourceManga.notes else null
                 )
                 mangaRepository.insertManga(newManga)
             }
@@ -102,7 +105,8 @@ class MigrateMangaUseCase @Inject constructor(
                 targetManga = targetCandidate,
                 targetMangaId = targetMangaId,
                 targetChapters = targetChapters,
-                mode = mode
+                mode = mode,
+                flags = flags
             )
 
             // A newly-created target already got its notes set at insert time above. An
@@ -112,7 +116,7 @@ class MigrateMangaUseCase @Inject constructor(
             // snapshot taken before this point: several suspending calls (source detail/chapter
             // fetches, chapter matching, download migration) run in between, and a note the user
             // added during that window would otherwise be silently overwritten.
-            if (existingTarget != null && !sourceManga.notes.isNullOrBlank()) {
+            if (MigrationFlag.NOTES in flags && existingTarget != null && !sourceManga.notes.isNullOrBlank()) {
                 try {
                     val currentNotes = mangaRepository.getMangaById(targetMangaId)?.notes
                     if (currentNotes.isNullOrBlank()) {
@@ -125,8 +129,19 @@ class MigrateMangaUseCase @Inject constructor(
                 }
             }
 
+            // Migrate custom cover art (Otaku-exclusive user-set cover override).
+            if (MigrationFlag.CUSTOM_COVER in flags && sourceManga.hasCustomCover) {
+                try {
+                    mangaRepository.copyCustomCover(sourceManga.id, targetMangaId)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // Custom cover is a non-critical field; a failure here shouldn't abort migration.
+                }
+            }
+
             // Migrate categories
-            if (sourceManga.categoryIds.isNotEmpty()) {
+            if (MigrationFlag.CATEGORIES in flags && sourceManga.categoryIds.isNotEmpty()) {
                 sourceManga.categoryIds.forEach { categoryId ->
                     try {
                         categoryRepository.addMangaToCategory(targetMangaId, categoryId)
@@ -141,26 +156,28 @@ class MigrateMangaUseCase @Inject constructor(
 
             // Migrate tracker links – per-entry error handling so a single
             // tracker failure does not abort an otherwise-successful migration.
-            val trackerEntries = trackRepository.observeEntriesForManga(sourceManga.id).first()
-            var failedTrackers = 0
-            trackerEntries.forEach { entry ->
-                try {
-                    val migratedEntry = entry.copy(mangaId = targetMangaId)
-                    trackRepository.upsertEntry(migratedEntry)
-                } catch (e: CancellationException) {
-                    // Propagate cancellation immediately
-                    throw e
-                } catch (e: Exception) {
-                    // Individual tracker migration failure is non-fatal; continue
-                    // with the remaining entries so partial progress is preserved.
-                    failedTrackers++
-                    // Domain layer uses System.err.println (not android.util.Log) as it's pure Kotlin
-                    // System.err.println("Failed to migrate tracker entry for tracker ${entry.trackerId}: ${e.message}")
+            if (MigrationFlag.TRACKING in flags) {
+                val trackerEntries = trackRepository.observeEntriesForManga(sourceManga.id).first()
+                var failedTrackers = 0
+                trackerEntries.forEach { entry ->
+                    try {
+                        val migratedEntry = entry.copy(mangaId = targetMangaId)
+                        trackRepository.upsertEntry(migratedEntry)
+                    } catch (e: CancellationException) {
+                        // Propagate cancellation immediately
+                        throw e
+                    } catch (e: Exception) {
+                        // Individual tracker migration failure is non-fatal; continue
+                        // with the remaining entries so partial progress is preserved.
+                        failedTrackers++
+                        // Domain layer uses System.err.println (not android.util.Log) as it's pure Kotlin
+                        // System.err.println("Failed to migrate tracker entry for tracker ${entry.trackerId}: ${e.message}")
+                    }
                 }
-            }
-            if (failedTrackers > 0) {
-                // Domain layer uses System.err.println (not android.util.Log) as it's pure Kotlin
-                // System.err.println("Migration completed with $failedTrackers tracker failure(s) out of ${trackerEntries.size} total")
+                if (failedTrackers > 0) {
+                    // Domain layer uses System.err.println (not android.util.Log) as it's pure Kotlin
+                    // System.err.println("Migration completed with $failedTrackers tracker failure(s) out of ${trackerEntries.size} total")
+                }
             }
 
             // Handle MOVE vs COPY mode.
@@ -173,7 +190,7 @@ class MigrateMangaUseCase @Inject constructor(
             when (mode) {
                 MigrationMode.MOVE -> {
                     // Remove category associations from old manga
-                    if (sourceManga.categoryIds.isNotEmpty()) {
+                    if (MigrationFlag.CATEGORIES in flags && sourceManga.categoryIds.isNotEmpty()) {
                         sourceManga.categoryIds.forEach { categoryId ->
                             try {
                                 categoryRepository.removeMangaFromCategory(sourceManga.id, categoryId)
@@ -221,7 +238,8 @@ class MigrateMangaUseCase @Inject constructor(
         targetManga: MigrationCandidate,
         targetMangaId: Long,
         targetChapters: List<SourceChapter>,
-        mode: MigrationMode
+        mode: MigrationMode,
+        flags: Set<MigrationFlag>
     ): Int {
         var matchedCount = 0
 
@@ -244,26 +262,33 @@ class MigrateMangaUseCase @Inject constructor(
             if (sourceChapter != null) {
                 matchedCount++
 
-                // Migrate downloaded chapters if they exist
-                val isDownloaded = downloadRepository.isChapterDownloaded(
-                    sourceName = fromSourceName,
-                    mangaTitle = fromMangaTitle,
-                    chapterTitle = sourceChapter.name
-                )
-
-                if (isDownloaded) {
-                    // Migrate downloads: copy for COPY mode, move for MOVE mode
-                    downloadRepository.migrateChapterDownload(
-                        fromSourceName = fromSourceName,
-                        fromMangaTitle = fromMangaTitle,
-                        fromChapterName = sourceChapter.name,
-                        toSourceName = toSourceName,
-                        toMangaTitle = toMangaTitle,
-                        toChapterName = targetChapter.name,
-                        copy = mode == MigrationMode.COPY
+                if (MigrationFlag.DOWNLOADS in flags) {
+                    // Migrate downloaded chapters if they exist
+                    val isDownloaded = downloadRepository.isChapterDownloaded(
+                        sourceName = fromSourceName,
+                        mangaTitle = fromMangaTitle,
+                        chapterTitle = sourceChapter.name
                     )
+
+                    if (isDownloaded) {
+                        // Migrate downloads: copy for COPY mode, move for MOVE mode
+                        downloadRepository.migrateChapterDownload(
+                            fromSourceName = fromSourceName,
+                            fromMangaTitle = fromMangaTitle,
+                            fromChapterName = sourceChapter.name,
+                            toSourceName = toSourceName,
+                            toMangaTitle = toMangaTitle,
+                            toChapterName = targetChapter.name,
+                            copy = mode == MigrationMode.COPY
+                        )
+                    }
                 }
             }
+
+            // Reading progress (read/lastPageRead) is only carried over under the CHAPTERS
+            // flag; chapter matching itself always happens so downloads above can still find
+            // their corresponding source chapter regardless of this flag.
+            val carryProgress = MigrationFlag.CHAPTERS in flags && sourceChapter != null
 
             Chapter(
                 id = 0L, // Auto-generate
@@ -271,8 +296,8 @@ class MigrateMangaUseCase @Inject constructor(
                 url = targetChapter.url,
                 name = targetChapter.name,
                 scanlator = targetChapter.scanlator,
-                read = sourceChapter?.read ?: false,
-                lastPageRead = sourceChapter?.lastPageRead ?: 0,
+                read = if (carryProgress) sourceChapter?.read ?: false else false,
+                lastPageRead = if (carryProgress) sourceChapter?.lastPageRead ?: 0 else 0,
                 chapterNumber = targetChapter.chapterNumber,
                 dateUpload = targetChapter.dateUpload
             )
