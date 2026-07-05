@@ -6,6 +6,8 @@ import app.otakureader.domain.model.Category
 
 data class DownloadSettingsState(
     val deleteAfterReading: Boolean = false,
+    /** Keep the last N read chapters downloaded (0 = delete the just-read chapter immediately). */
+    val removeAfterReadSlots: Int = 0,
     val saveAsCbz: Boolean = false,
     val autoDownloadEnabled: Boolean = false,
     val downloadOnlyOnWifi: Boolean = true,

@@ -330,6 +330,39 @@ private fun DownloadsContent(state: SettingsState, onEvent: (SettingsEvent) -> U
         },
     )
 
+    if (state.deleteAfterReading) {
+        var slotsSlider by remember(state.removeAfterReadSlots) {
+            mutableFloatStateOf(state.removeAfterReadSlots.toFloat())
+        }
+        val slots = slotsSlider.roundToInt()
+        ListItem(
+            headlineContent = {
+                Text(
+                    if (slots == 0) {
+                        stringResource(R.string.settings_remove_after_read_immediately)
+                    } else {
+                        stringResource(R.string.settings_remove_after_read_keep_last, slots)
+                    },
+                )
+            },
+            supportingContent = {
+                Column {
+                    Text(stringResource(R.string.settings_remove_after_read_description))
+                    Slider(
+                        value = slotsSlider,
+                        onValueChange = { slotsSlider = it },
+                        onValueChangeFinished = {
+                            onEvent(SettingsEvent.SetRemoveAfterReadSlots(slotsSlider.roundToInt()))
+                        },
+                        valueRange = 0f..4f,
+                        steps = 3,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            },
+        )
+    }
+
     ListItem(
         headlineContent = { Text(stringResource(R.string.settings_save_as_cbz)) },
         supportingContent = { Text(stringResource(R.string.settings_save_as_cbz_description)) },

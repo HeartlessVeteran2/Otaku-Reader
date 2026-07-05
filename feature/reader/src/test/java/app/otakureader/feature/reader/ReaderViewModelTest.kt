@@ -166,6 +166,7 @@ class ReaderViewModelTest {
         every { downloadPreferences.downloadAheadOnlyOnWifi } returns flowOf(false)
         every { downloadPreferences.deleteAfterReading } returns flowOf(false)
         every { downloadPreferences.perMangaOverrides } returns flowOf(emptyMap())
+        every { downloadPreferences.removeAfterReadSlots } returns flowOf(0)
         every { downloadRepository.observeDownloads() } returns flowOf(emptyList())
         coEvery { downloadRepository.enqueueChapter(any(), any(), any(), any(), any(), any(), any()) } just runs
         coEvery { downloadRepository.isChapterDownloaded(any(), any(), any()) } returns false

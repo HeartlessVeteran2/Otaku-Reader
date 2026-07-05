@@ -98,6 +98,11 @@ class DownloadSettingsDelegate @Inject constructor(
                 updateState { it.copy(downloads = it.downloads.copy(cbzEncryptionEnabled = enabled)) }
             }
         }
+        scope.launch {
+            downloadPreferences.removeAfterReadSlots.collect { slots ->
+                updateState { it.copy(downloads = it.downloads.copy(removeAfterReadSlots = slots)) }
+            }
+        }
     }
 
     @Suppress("CyclomaticComplexMethod")
@@ -106,6 +111,7 @@ class DownloadSettingsDelegate @Inject constructor(
         sendEffect: suspend (SettingsEffect) -> Unit,
     ): Boolean = when (event) {
         is SettingsEvent.SetDeleteAfterReading -> { downloadPreferences.setDeleteAfterReading(event.enabled); true }
+        is SettingsEvent.SetRemoveAfterReadSlots -> { downloadPreferences.setRemoveAfterReadSlots(event.slots); true }
         is SettingsEvent.SetSaveAsCbz -> { downloadPreferences.setSaveAsCbz(event.enabled); true }
         is SettingsEvent.SetAutoDownloadEnabled -> { downloadPreferences.setAutoDownloadEnabled(event.enabled); true }
         is SettingsEvent.SetDownloadOnlyOnWifi -> { downloadPreferences.setDownloadOnlyOnWifi(event.enabled); true }

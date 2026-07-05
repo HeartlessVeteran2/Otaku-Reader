@@ -134,6 +134,7 @@ data class SettingsState(
 
     // --- Downloads ---
     val deleteAfterReading get() = downloads.deleteAfterReading
+    val removeAfterReadSlots get() = downloads.removeAfterReadSlots
     val saveAsCbz get() = downloads.saveAsCbz
     val autoDownloadEnabled get() = downloads.autoDownloadEnabled
     val downloadOnlyOnWifi get() = downloads.downloadOnlyOnWifi
@@ -270,6 +271,7 @@ sealed interface SettingsEvent : UiEvent {
 
     // Downloads
     data class SetDeleteAfterReading(val enabled: Boolean) : SettingsEvent
+    data class SetRemoveAfterReadSlots(val slots: Int) : SettingsEvent
     data class SetSaveAsCbz(val enabled: Boolean) : SettingsEvent
     data class SetAutoDownloadEnabled(val enabled: Boolean) : SettingsEvent
     data class SetDownloadOnlyOnWifi(val enabled: Boolean) : SettingsEvent
