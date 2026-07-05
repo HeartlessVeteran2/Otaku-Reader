@@ -115,8 +115,8 @@ fun UpdatesScreen(
     onMangaClick: (Long) -> Unit,
     onNavigateBack: () -> Unit,
     onNavigateToDownloads: () -> Unit,
+    onNavigateToUpdateErrors: () -> Unit = {},
     modifier: Modifier = Modifier,
-    openErrorsOnLaunch: Boolean = false,
     viewModel: UpdatesViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -127,19 +127,6 @@ fun UpdatesScreen(
 
     BackHandler(enabled = state.selectedItems.isNotEmpty()) {
         viewModel.onEvent(UpdatesEvent.ClearSelection)
-    }
-
-    // Auto-open the update-errors dialog when navigated here from the More tab's
-    // "Update Errors" entry — otherwise there's no way to reach the error view from there.
-    // rememberSaveable guards against re-firing: the openErrors route arg is restored with the
-    // back stack entry, so without this the dialog would reopen every time the user navigated
-    // away from Updates and back.
-    var hasAutoOpenedErrors by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(openErrorsOnLaunch) {
-        if (openErrorsOnLaunch && !hasAutoOpenedErrors) {
-            hasAutoOpenedErrors = true
-            viewModel.onEvent(UpdatesEvent.ShowUpdateErrors)
-        }
     }
 
     LaunchedEffect(viewModel.effect) {
@@ -234,12 +221,12 @@ fun UpdatesScreen(
                                 contentDescription = stringResource(R.string.updates_refresh_now)
                             )
                         }
-                        // Update errors badge (Otaku-exclusive)
-                        if (state.updateErrors.isNotEmpty()) {
-                            IconButton(onClick = { viewModel.onEvent(UpdatesEvent.ShowUpdateErrors) }) {
+                        // Update errors badge (Otaku-exclusive) — opens the dedicated Update Errors screen
+                        if (state.updateErrorCount > 0) {
+                            IconButton(onClick = onNavigateToUpdateErrors) {
                                 BadgedBox(
                                     badge = {
-                                        Badge { Text("${state.updateErrors.size}") }
+                                        Badge { Text("${state.updateErrorCount}") }
                                     }
                                 ) {
                                     Icon(
@@ -436,16 +423,6 @@ fun UpdatesScreen(
                 onSetFilter = { start, end -> viewModel.onEvent(UpdatesEvent.SetDateFilter(start, end)) },
                 onClearFilter = { viewModel.onEvent(UpdatesEvent.ClearDateFilter) },
                 onDismiss = { viewModel.onEvent(UpdatesEvent.HideFilterDialog) },
-            )
-        }
-
-        // Update Error Dialog
-        if (state.showUpdateErrors) {
-            UpdateErrorDialog(
-                errors = state.updateErrors,
-                onDismiss = { viewModel.onEvent(UpdatesEvent.HideUpdateErrors) },
-                onClearError = { viewModel.onEvent(UpdatesEvent.ClearUpdateError(it)) },
-                onClearAll = { viewModel.onEvent(UpdatesEvent.ClearAllUpdateErrors) }
             )
         }
 
@@ -1112,92 +1089,6 @@ private fun formatFetchDate(epochMs: Long): String = runCatching {
         .atZone(ZoneId.systemDefault())
         .format(dateFormatter)
 }.getOrDefault("Unknown date")
-
-@Composable
-private fun UpdateErrorDialog(
-    errors: List<UpdateErrorEntry>,
-    onDismiss: () -> Unit,
-    onClearError: (Long) -> Unit,
-    onClearAll: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.updates_error_title)) },
-        text = {
-            if (errors.isEmpty()) {
-                Text(stringResource(R.string.updates_error_empty))
-            } else {
-                LazyColumn(modifier = modifier.fillMaxWidth()) {
-                    items(errors, key = { it.mangaId }) { error ->
-                        UpdateErrorItem(
-                            error = error,
-                            onClear = { onClearError(error.mangaId) }
-                        )
-                        HorizontalDivider()
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.updates_error_close))
-            }
-        },
-        dismissButton = {
-            if (errors.isNotEmpty()) {
-                TextButton(onClick = onClearAll) {
-                    Text(stringResource(R.string.updates_error_clear_all))
-                }
-            }
-        }
-    )
-}
-
-@Composable
-private fun UpdateErrorItem(
-    error: UpdateErrorEntry,
-    onClear: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = error.mangaTitle,
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = error.errorMessage,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-            if (error.timestamp > 0L) {
-                Text(
-                    text = formatFetchDate(error.timestamp),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-        IconButton(onClick = onClear) {
-            Icon(
-                imageVector = Icons.Default.ErrorOutline,
-                contentDescription = stringResource(R.string.updates_error_clear),
-                tint = MaterialTheme.colorScheme.error
-            )
-        }
-    }
-}
 
 @Composable
 private fun PendingUpdatesDialog(

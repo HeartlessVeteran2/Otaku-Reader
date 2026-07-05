@@ -40,14 +40,16 @@
     <string name="downloads_status_failed">Failed</string>
     <string name="downloads_status_canceled">Canceled</string>
     
-    <!-- Update Error Screen -->
+    <!-- Update Errors screen -->
     <string name="updates_view_errors">View update errors</string>
     <string name="updates_error_title">Update Errors</string>
     <string name="updates_error_empty">No update errors</string>
-    <string name="updates_error_close">Close</string>
     <string name="updates_error_clear">Clear error</string>
     <string name="updates_error_clear_all">Clear all</string>
-    
+    <string name="update_errors_clear_all_confirm">Clear every recorded update error? This can\'t be undone.</string>
+    <string name="update_errors_migrate_selected">Migrate selected</string>
+    <string name="update_errors_delete_selected">Delete selected</string>
+
     <string name="updates_refresh_now">Update library now</string>
 
     <!-- To-Be-Updated Screen -->

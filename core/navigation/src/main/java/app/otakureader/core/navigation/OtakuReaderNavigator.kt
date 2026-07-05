@@ -37,7 +37,7 @@ class OtakuReaderNavigator(
         Route.Library,
         Route.Browse,
         Route.History,
-        Route.Updates(),
+        Route.Updates,
         Route.More,
     )
 

@@ -266,7 +266,7 @@ class UpdatesViewModelTest {
     }
 
     @Test
-    fun init_populatesUpdateErrorsFromRepository() = runTest {
+    fun init_populatesUpdateErrorCountFromRepository() = runTest {
         every { getRecentUpdatesUseCase() } returns flowOf(emptyList())
         val sampleError = app.otakureader.domain.model.UpdateError(
             mangaId = 1L,
@@ -280,35 +280,6 @@ class UpdatesViewModelTest {
         val viewModel = createViewModel()
         testDispatcher.scheduler.advanceUntilIdle()
 
-        val errors = viewModel.state.value.updateErrors
-        assertEquals(1, errors.size)
-        assertEquals(1L, errors.first().mangaId)
-        assertEquals("HTTP 404", errors.first().errorMessage)
-    }
-
-    @Test
-    fun onEvent_ClearUpdateError_delegatesToRepository() = runTest {
-        every { getRecentUpdatesUseCase() } returns flowOf(emptyList())
-
-        val viewModel = createViewModel()
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        viewModel.onEvent(UpdatesEvent.ClearUpdateError(mangaId = 1L))
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        coVerify(exactly = 1) { updateErrorRepository.clearError(1L) }
-    }
-
-    @Test
-    fun onEvent_ClearAllUpdateErrors_delegatesToRepository() = runTest {
-        every { getRecentUpdatesUseCase() } returns flowOf(emptyList())
-
-        val viewModel = createViewModel()
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        viewModel.onEvent(UpdatesEvent.ClearAllUpdateErrors)
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        coVerify(exactly = 1) { updateErrorRepository.clearAllErrors() }
+        assertEquals(1, viewModel.state.value.updateErrorCount)
     }
 }

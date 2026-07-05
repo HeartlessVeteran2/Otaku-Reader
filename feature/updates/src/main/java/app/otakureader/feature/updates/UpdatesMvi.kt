@@ -43,17 +43,6 @@ data class MangaUpdateGroup(
 enum class UpdatesDisplayMode { GROUPED_BY_MANGA, GROUPED_BY_DATE }
 
 /**
- * Represents a failed update entry for the error screen.
- */
-data class UpdateErrorEntry(
-    val mangaId: Long,
-    val mangaTitle: String,
-    val thumbnailUrl: String?,
-    val errorMessage: String,
-    val timestamp: Long
-)
-
-/**
  * Represents a manga that will be checked during the next library update.
  */
 data class PendingUpdateManga(
@@ -73,10 +62,8 @@ data class UpdatesState(
     val selectedItems: Set<Long> = emptySet(),
     /** Manga IDs whose chapter groups are expanded in GROUPED_BY_MANGA mode. */
     val expandedMangaGroups: Set<Long> = emptySet(),
-    /** List of failed updates for the Update Error Screen. */
-    val updateErrors: List<UpdateErrorEntry> = emptyList(),
-    /** Whether the update error screen is visible. */
-    val showUpdateErrors: Boolean = false,
+    /** Count of unresolved library-update failures, for the top-bar badge (see Route.UpdateErrors). */
+    val updateErrorCount: Int = 0,
     /** List of manga that will be checked in the next update. */
     val pendingUpdates: List<PendingUpdateManga> = emptyList(),
     /** Whether the To-Be-Updated screen is visible. */
@@ -111,12 +98,6 @@ sealed interface UpdatesEvent : UiEvent {
     data object MarkSelectedAsRead : UpdatesEvent
     data object MarkSelectedAsUnread : UpdatesEvent
     data class MarkChapterAsRead(val chapterId: Long) : UpdatesEvent
-
-    // Update Error Screen events
-    data object ShowUpdateErrors : UpdatesEvent
-    data object HideUpdateErrors : UpdatesEvent
-    data class ClearUpdateError(val mangaId: Long) : UpdatesEvent
-    data object ClearAllUpdateErrors : UpdatesEvent
 
     // To-Be-Updated Screen events
     data object ShowPendingUpdates : UpdatesEvent
