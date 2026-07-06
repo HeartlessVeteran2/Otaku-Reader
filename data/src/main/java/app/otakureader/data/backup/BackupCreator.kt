@@ -22,6 +22,8 @@ import app.otakureader.data.backup.mapper.toBackupSyncConfiguration
 import app.otakureader.data.backup.mapper.toBackupTrackerSyncState
 import app.otakureader.data.backup.model.BackupData
 import app.otakureader.data.backup.model.BackupManga
+import app.otakureader.data.backup.model.BackupPreferences
+import app.otakureader.domain.model.BackupOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -56,52 +58,78 @@ class BackupCreator @Inject constructor(
      * holding the entire library + chapters + JSON string in RAM simultaneously.
      * Callers should wrap [output] in a [java.io.BufferedOutputStream] if the underlying
      * stream is not already buffered.
+     *
+     * Sections deselected via [options] are written as empty arrays (or `null` for
+     * preferences) rather than omitted — the JSON envelope/decoder is unchanged, no version
+     * bump needed. See [BackupOptions] for the dependency gating rules (chapters/tracking
+     * require libraryEntries).
      */
-    suspend fun createBackupToStream(output: OutputStream) = withContext(Dispatchers.IO) {
-        val writer = output.bufferedWriter(Charsets.UTF_8)
-        writer.write("""{"version":${BackupData.CURRENT_VERSION},"createdAt":${System.currentTimeMillis()},"manga":[""")
+    @Suppress("LongMethod", "CognitiveComplexMethod")
+    suspend fun createBackupToStream(output: OutputStream, options: BackupOptions = BackupOptions.ALL) =
+        withContext(Dispatchers.IO) {
+            val writer = output.bufferedWriter(Charsets.UTF_8)
+            writer.write("""{"version":${BackupData.CURRENT_VERSION},"createdAt":${System.currentTimeMillis()},"manga":[""")
 
-        // Load history map once — it's ID+timestamps, compact even for large libraries.
-        val historyByChapterId = readingHistoryDao.observeHistory().first().associateBy { it.chapterId }
-        val favoriteManga = mangaDao.getFavoriteManga().first()
+            if (options.libraryEntries) {
+                // Load history map once — it's ID+timestamps, compact even for large libraries.
+                // Skipped entirely when chapters are excluded, since history is per-chapter.
+                val historyByChapterId = if (options.effectiveChapters) {
+                    readingHistoryDao.observeHistory().first().associateBy { it.chapterId }
+                } else {
+                    emptyMap()
+                }
+                val favoriteManga = mangaDao.getFavoriteManga().first()
 
-        favoriteManga.forEachIndexed { index, mangaEntity ->
-            if (index > 0) writer.write(",")
-            val chapters = chapterDao.getChaptersByMangaId(mangaEntity.id).first()
-            val backupChapters = chapters.map { chapterEntity ->
-                chapterEntity.toBackupChapter(readingHistory = historyByChapterId[chapterEntity.id]?.toBackupReadingHistory())
+                favoriteManga.forEachIndexed { index, mangaEntity ->
+                    if (index > 0) writer.write(",")
+                    val backupChapters = if (options.effectiveChapters) {
+                        chapterDao.getChaptersByMangaId(mangaEntity.id).first().map { chapterEntity ->
+                            chapterEntity.toBackupChapter(
+                                readingHistory = historyByChapterId[chapterEntity.id]?.toBackupReadingHistory()
+                            )
+                        }
+                    } else {
+                        emptyList()
+                    }
+                    val categoryIds = if (options.categories) {
+                        categoryDao.getCategoryIdsForManga(mangaEntity.id).first()
+                    } else {
+                        emptyList()
+                    }
+                    writer.write(json.encodeToString(mangaEntity.toBackupManga(chapters = backupChapters, categoryIds = categoryIds)))
+                    // Flush every 50 manga so buffered bytes don't accumulate unbounded.
+                    if (index % 50 == 49) writer.flush()
+                }
             }
-            val categoryIds = categoryDao.getCategoryIdsForManga(mangaEntity.id).first()
-            writer.write(json.encodeToString(mangaEntity.toBackupManga(chapters = backupChapters, categoryIds = categoryIds)))
-            // Flush every 50 manga so buffered bytes don't accumulate unbounded.
-            if (index % 50 == 49) writer.flush()
-        }
 
-        writer.write("""],"categories":""")
-        writer.write(json.encodeToString(createCategoryBackup()))
-        writer.write(""","preferences":""")
-        writer.write(json.encodeToString(createPreferencesBackup()))
-        writer.write(""","opdsServers":""")
-        writer.write(json.encodeToString(createOpdsBackup()))
-        writer.write(""","feedSources":""")
-        writer.write(json.encodeToString(createFeedSourceBackup()))
-        writer.write(""","feedSavedSearches":""")
-        writer.write(json.encodeToString(createFeedSavedSearchBackup()))
-        writer.write(""","trackerSyncStates":""")
-        writer.write(json.encodeToString(createTrackerSyncStateBackup()))
-        writer.write(""","syncConfigurations":""")
-        writer.write(json.encodeToString(createSyncConfigBackup()))
-        writer.write("}")
-        writer.flush()
-    }
+            val preferencesBackup: BackupPreferences? =
+                if (options.preferences) createPreferencesBackup() else null
+
+            writer.write("""],"categories":""")
+            writer.write(json.encodeToString(if (options.categories) createCategoryBackup() else emptyList()))
+            writer.write(""","preferences":""")
+            writer.write(json.encodeToString(preferencesBackup))
+            writer.write(""","opdsServers":""")
+            writer.write(json.encodeToString(if (options.opdsServers) createOpdsBackup() else emptyList()))
+            writer.write(""","feedSources":""")
+            writer.write(json.encodeToString(if (options.feed) createFeedSourceBackup() else emptyList()))
+            writer.write(""","feedSavedSearches":""")
+            writer.write(json.encodeToString(if (options.feed) createFeedSavedSearchBackup() else emptyList()))
+            writer.write(""","trackerSyncStates":""")
+            writer.write(json.encodeToString(if (options.effectiveTracking) createTrackerSyncStateBackup() else emptyList()))
+            writer.write(""","syncConfigurations":""")
+            writer.write(json.encodeToString(if (options.syncConfigurations) createSyncConfigBackup() else emptyList()))
+            writer.write("}")
+            writer.flush()
+        }
 
     /**
      * Creates a full backup of all app data.
      * For large libraries, prefer [createBackupToStream] to avoid a large intermediate String.
      */
-    suspend fun createBackup(): String {
+    suspend fun createBackup(options: BackupOptions = BackupOptions.ALL): String {
         val baos = java.io.ByteArrayOutputStream()
-        createBackupToStream(baos)
+        createBackupToStream(baos, options)
         return baos.toString(Charsets.UTF_8.name())
     }
 

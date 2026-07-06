@@ -6,8 +6,11 @@ import app.otakureader.core.preferences.BackupPreferences
 import app.otakureader.domain.backup.BackupRepository
 import app.otakureader.domain.backup.BackupScheduler
 import app.otakureader.domain.backup.TachiyomiBackupImporter
+import app.otakureader.domain.model.BackupOptions
 import app.otakureader.domain.repository.CategoryRepository
+import app.otakureader.domain.repository.FeedRepository
 import app.otakureader.domain.repository.MangaRepository
+import app.otakureader.domain.repository.OpdsRepository
 import app.otakureader.domain.repository.TrackerSyncRepository
 import app.otakureader.feature.settings.SettingsEffect
 import app.otakureader.feature.settings.SettingsEvent
@@ -31,12 +34,22 @@ class BackupSettingsDelegate @Inject constructor(
     private val mangaRepository: MangaRepository,
     private val categoryRepository: CategoryRepository,
     private val trackerSyncRepository: TrackerSyncRepository,
+    private val opdsRepository: OpdsRepository,
+    private val feedRepository: FeedRepository,
 ) {
 
     private var updateState: ((SettingsState) -> SettingsState) -> Unit = {}
 
     /** URI of the backup the user is previewing, awaiting import confirmation. */
     private var pendingImportUri: String? = null
+
+    /**
+     * Mirrors of the checklist/preflight dialogs' current option selections. `updateState` only
+     * writes to the UI state, so these give `ConfirmCreateBackup`/`RestoreBackupFromUri`/etc. a
+     * way to read back what the user picked — same technique as [pendingImportUri] above.
+     */
+    private var pendingBackupOptions: BackupOptions = BackupOptions.ALL
+    private var pendingRestoreOptions: BackupOptions = BackupOptions.ALL
 
     private fun readBytes(uri: Uri): ByteArray =
         context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
@@ -89,22 +102,36 @@ class BackupSettingsDelegate @Inject constructor(
         SettingsEvent.ShowBackupChecklist -> {
             val mangaCount = mangaRepository.getLibraryManga().first().size
             val categoryCount = categoryRepository.getCategories().first().size
-            // Count distinct tracker sync configurations (one per tracked manga/tracker pair).
-            val trackingCount = trackerSyncRepository.getSyncConfigurations().first().size
+            val syncConfigCount = trackerSyncRepository.getSyncConfigurations().first().size
+            val opdsCount = opdsRepository.getServers().first().size
+            val feedCount = feedRepository.getFeedSources().first().size + feedRepository.getSavedSearches().first().size
+            pendingBackupOptions = BackupOptions.ALL
             updateState {
                 it.copy(backup = it.backup.copy(
                     showBackupChecklist = true,
                     backupChecklistMangaCount = mangaCount,
                     backupChecklistCategoryCount = categoryCount,
-                    backupChecklistTrackingCount = trackingCount,
+                    backupChecklistSyncConfigCount = syncConfigCount,
+                    backupChecklistOpdsCount = opdsCount,
+                    backupChecklistFeedCount = feedCount,
+                    backupOptions = BackupOptions.ALL,
                 ))
             }
             true
         }
+        is SettingsEvent.SetBackupOptions -> {
+            pendingBackupOptions = event.options
+            updateState { it.copy(backup = it.backup.copy(backupOptions = event.options)) }
+            true
+        }
         SettingsEvent.ConfirmCreateBackup -> {
-            // Dismiss checklist, then open the file-save picker.
-            updateState { it.copy(backup = it.backup.copy(showBackupChecklist = false)) }
-            sendEffect(SettingsEffect.ShowBackupPicker)
+            if (!pendingBackupOptions.canCreate()) {
+                sendEffect(SettingsEffect.ShowSnackbar("Select at least one item to back up"))
+            } else {
+                // Dismiss checklist, then open the file-save picker.
+                updateState { it.copy(backup = it.backup.copy(showBackupChecklist = false)) }
+                sendEffect(SettingsEffect.ShowBackupPicker)
+            }
             true
         }
         SettingsEvent.DismissBackupChecklist -> {
@@ -117,13 +144,20 @@ class BackupSettingsDelegate @Inject constructor(
         // carries the URI directly so no state-stored side-effect is needed.
         is SettingsEvent.ShowRestoreConfirm -> {
             val fileName = event.uri.lastPathSegment ?: event.uri.toString()
+            pendingRestoreOptions = BackupOptions.ALL
             updateState {
                 it.copy(backup = it.backup.copy(
                     showRestoreConfirm = true,
                     pendingRestoreUri = event.uri.toString(),
                     pendingRestoreFileName = fileName,
+                    restoreOptions = BackupOptions.ALL,
                 ))
             }
+            true
+        }
+        is SettingsEvent.SetRestoreOptions -> {
+            pendingRestoreOptions = event.options
+            updateState { it.copy(backup = it.backup.copy(restoreOptions = event.options)) }
             true
         }
         is SettingsEvent.ConfirmRestore -> {
@@ -232,7 +266,7 @@ class BackupSettingsDelegate @Inject constructor(
             } else {
                 updateState { it.copy(backup = it.backup.copy(isBackupInProgress = true)) }
                 try {
-                    backupRepository.createBackup(event.uri.toString())
+                    backupRepository.createBackup(event.uri.toString(), pendingBackupOptions)
                     sendEffect(SettingsEffect.ShowSnackbar("Backup created successfully"))
                 } catch (e: CancellationException) {
                     throw e
@@ -247,7 +281,7 @@ class BackupSettingsDelegate @Inject constructor(
         is SettingsEvent.CreateEncryptedBackupWithUri -> {
             updateState { it.copy(backup = it.backup.copy(isBackupInProgress = true)) }
             try {
-                backupRepository.createEncryptedBackup(event.uri.toString(), event.password.toCharArray())
+                backupRepository.createEncryptedBackup(event.uri.toString(), event.password.toCharArray(), pendingBackupOptions)
                 sendEffect(SettingsEffect.ShowSnackbar("Encrypted backup created successfully"))
             } catch (e: CancellationException) {
                 throw e
@@ -267,7 +301,7 @@ class BackupSettingsDelegate @Inject constructor(
                     it.copy(backup = it.backup.copy(isRestoreInProgress = true, tachiyomiImportTotal = 0, tachiyomiImportProgress = 0))
                 }
                 try {
-                    backupRepository.restoreBackup(event.uri.toString())
+                    backupRepository.restoreBackup(event.uri.toString(), pendingRestoreOptions)
                     sendEffect(SettingsEffect.ShowSnackbar("Backup restored successfully"))
                 } catch (e: CancellationException) {
                     throw e
@@ -284,7 +318,7 @@ class BackupSettingsDelegate @Inject constructor(
                 it.copy(backup = it.backup.copy(isRestoreInProgress = true, tachiyomiImportTotal = 0, tachiyomiImportProgress = 0))
             }
             try {
-                backupRepository.restoreEncryptedBackup(event.uri.toString(), event.password.toCharArray())
+                backupRepository.restoreEncryptedBackup(event.uri.toString(), event.password.toCharArray(), pendingRestoreOptions)
                 sendEffect(SettingsEffect.ShowSnackbar("Backup restored successfully"))
             } catch (e: CancellationException) {
                 throw e

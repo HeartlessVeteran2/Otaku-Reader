@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -55,6 +56,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import app.otakureader.core.navigation.Route
+import app.otakureader.domain.model.BackupOptions
 import app.otakureader.feature.settings.viewmodel.BackupSyncViewModel
 
 /**
@@ -182,7 +184,11 @@ fun SettingsBackupScreen(
         BackupChecklistDialog(
             mangaCount = state.backupChecklistMangaCount,
             categoryCount = state.backupChecklistCategoryCount,
-            trackingCount = state.backupChecklistTrackingCount,
+            opdsCount = state.backupChecklistOpdsCount,
+            feedCount = state.backupChecklistFeedCount,
+            syncConfigCount = state.backupChecklistSyncConfigCount,
+            options = state.backupOptions,
+            onOptionsChange = { viewModel.onEvent(SettingsEvent.SetBackupOptions(it)) },
             onConfirm = { viewModel.onEvent(SettingsEvent.ConfirmCreateBackup) },
             onDismiss = { viewModel.onEvent(SettingsEvent.DismissBackupChecklist) },
         )
@@ -192,6 +198,8 @@ fun SettingsBackupScreen(
     if (state.showRestoreConfirm) {
         RestorePreflightDialog(
             fileName = state.pendingRestoreFileName,
+            options = state.restoreOptions,
+            onOptionsChange = { viewModel.onEvent(SettingsEvent.SetRestoreOptions(it)) },
             onConfirm = {
                 val uri = state.pendingRestoreUri
                 if (uri != null) {
@@ -258,14 +266,19 @@ fun SettingsBackupScreen(
 
 /**
  * Pre-backup checklist dialog.
- * Shows the user what will be included in the backup (manga count, categories, tracking
- * entries, history, and settings) before the file-save picker opens.
+ * Lets the user pick which data categories to include before the file-save picker opens.
+ * Each checkbox label shows the current count for that section (see [BackupOptionCheckboxRow]);
+ * chapters/tracking are per-manga data, so they're disabled while libraryEntries is off.
  */
 @Composable
 private fun BackupChecklistDialog(
     mangaCount: Int,
     categoryCount: Int,
-    trackingCount: Int,
+    opdsCount: Int,
+    feedCount: Int,
+    syncConfigCount: Int,
+    options: BackupOptions,
+    onOptionsChange: (BackupOptions) -> Unit,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -274,14 +287,72 @@ private fun BackupChecklistDialog(
         title = { Text(stringResource(R.string.backup_checklist_title)) },
         text = {
             Column {
-                Text(stringResource(R.string.backup_checklist_summary, mangaCount, categoryCount, trackingCount))
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(stringResource(R.string.backup_checklist_history_included))
-                Text(stringResource(R.string.backup_checklist_settings_included))
+                BackupOptionCheckboxRow(
+                    checked = options.libraryEntries,
+                    onCheckedChange = { onOptionsChange(options.copy(libraryEntries = it)) },
+                    label = stringResource(
+                        R.string.backup_option_with_count,
+                        stringResource(R.string.backup_option_library_entries),
+                        mangaCount,
+                    ),
+                )
+                BackupOptionCheckboxRow(
+                    checked = options.chapters,
+                    enabled = options.libraryEntries,
+                    onCheckedChange = { onOptionsChange(options.copy(chapters = it)) },
+                    label = stringResource(R.string.backup_option_chapters),
+                )
+                BackupOptionCheckboxRow(
+                    checked = options.categories,
+                    onCheckedChange = { onOptionsChange(options.copy(categories = it)) },
+                    label = stringResource(
+                        R.string.backup_option_with_count,
+                        stringResource(R.string.backup_option_categories),
+                        categoryCount,
+                    ),
+                )
+                BackupOptionCheckboxRow(
+                    checked = options.tracking,
+                    enabled = options.libraryEntries,
+                    onCheckedChange = { onOptionsChange(options.copy(tracking = it)) },
+                    label = stringResource(R.string.backup_option_tracking),
+                )
+                BackupOptionCheckboxRow(
+                    checked = options.preferences,
+                    onCheckedChange = { onOptionsChange(options.copy(preferences = it)) },
+                    label = stringResource(R.string.backup_option_preferences),
+                )
+                BackupOptionCheckboxRow(
+                    checked = options.opdsServers,
+                    onCheckedChange = { onOptionsChange(options.copy(opdsServers = it)) },
+                    label = stringResource(
+                        R.string.backup_option_with_count,
+                        stringResource(R.string.backup_option_opds_servers),
+                        opdsCount,
+                    ),
+                )
+                BackupOptionCheckboxRow(
+                    checked = options.feed,
+                    onCheckedChange = { onOptionsChange(options.copy(feed = it)) },
+                    label = stringResource(
+                        R.string.backup_option_with_count,
+                        stringResource(R.string.backup_option_feed),
+                        feedCount,
+                    ),
+                )
+                BackupOptionCheckboxRow(
+                    checked = options.syncConfigurations,
+                    onCheckedChange = { onOptionsChange(options.copy(syncConfigurations = it)) },
+                    label = stringResource(
+                        R.string.backup_option_with_count,
+                        stringResource(R.string.backup_option_sync_configurations),
+                        syncConfigCount,
+                    ),
+                )
             }
         },
         confirmButton = {
-            TextButton(onClick = onConfirm) {
+            TextButton(onClick = onConfirm, enabled = options.canCreate()) {
                 Text(stringResource(R.string.backup_checklist_create))
             }
         },
@@ -295,12 +366,15 @@ private fun BackupChecklistDialog(
 
 /**
  * Pre-restore preflight dialog.
- * Shown after the user selects a backup file but before the restore begins, so they can
- * confirm they understand the operation will replace their current library.
+ * Shown after the user selects a backup file but before the restore begins. Lets them pick
+ * which sections to apply and confirms they understand the operation will overwrite matching
+ * data in their current library.
  */
 @Composable
 private fun RestorePreflightDialog(
     fileName: String,
+    options: BackupOptions,
+    onOptionsChange: (BackupOptions) -> Unit,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -314,10 +388,53 @@ private fun RestorePreflightDialog(
                     Spacer(modifier = Modifier.height(8.dp))
                 }
                 Text(stringResource(R.string.restore_preflight_message))
+                Spacer(modifier = Modifier.height(8.dp))
+                BackupOptionCheckboxRow(
+                    checked = options.libraryEntries,
+                    onCheckedChange = { onOptionsChange(options.copy(libraryEntries = it)) },
+                    label = stringResource(R.string.backup_option_library_entries),
+                )
+                BackupOptionCheckboxRow(
+                    checked = options.chapters,
+                    enabled = options.libraryEntries,
+                    onCheckedChange = { onOptionsChange(options.copy(chapters = it)) },
+                    label = stringResource(R.string.backup_option_chapters),
+                )
+                BackupOptionCheckboxRow(
+                    checked = options.categories,
+                    onCheckedChange = { onOptionsChange(options.copy(categories = it)) },
+                    label = stringResource(R.string.backup_option_categories),
+                )
+                BackupOptionCheckboxRow(
+                    checked = options.tracking,
+                    enabled = options.libraryEntries,
+                    onCheckedChange = { onOptionsChange(options.copy(tracking = it)) },
+                    label = stringResource(R.string.backup_option_tracking),
+                )
+                BackupOptionCheckboxRow(
+                    checked = options.preferences,
+                    onCheckedChange = { onOptionsChange(options.copy(preferences = it)) },
+                    label = stringResource(R.string.backup_option_preferences),
+                )
+                BackupOptionCheckboxRow(
+                    checked = options.opdsServers,
+                    onCheckedChange = { onOptionsChange(options.copy(opdsServers = it)) },
+                    label = stringResource(R.string.backup_option_opds_servers),
+                )
+                BackupOptionCheckboxRow(
+                    checked = options.feed,
+                    onCheckedChange = { onOptionsChange(options.copy(feed = it)) },
+                    label = stringResource(R.string.backup_option_feed),
+                )
+                BackupOptionCheckboxRow(
+                    checked = options.syncConfigurations,
+                    onCheckedChange = { onOptionsChange(options.copy(syncConfigurations = it)) },
+                    label = stringResource(R.string.backup_option_sync_configurations),
+                )
             }
         },
         confirmButton = {
-            TextButton(onClick = onConfirm) {
+            TextButton(onClick = onConfirm, enabled = options.canCreate()) {
                 Text(stringResource(R.string.restore_preflight_proceed))
             }
         },
@@ -327,6 +444,39 @@ private fun RestorePreflightDialog(
             }
         },
     )
+}
+
+/** A single checkbox row for a [BackupOptions] section, used by both backup/restore dialogs. */
+@Composable
+private fun BackupOptionCheckboxRow(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    label: String,
+    enabled: Boolean = true,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .selectable(
+                selected = checked,
+                onClick = { onCheckedChange(!checked) },
+                role = Role.Checkbox,
+                enabled = enabled,
+            )
+            .padding(vertical = 4.dp),
+    ) {
+        Checkbox(checked = checked, onCheckedChange = null, enabled = enabled)
+        Text(
+            text = label,
+            color = if (enabled) {
+                MaterialTheme.colorScheme.onSurface
+            } else {
+                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+            },
+            modifier = Modifier.padding(start = 8.dp),
+        )
+    }
 }
 
 @Composable

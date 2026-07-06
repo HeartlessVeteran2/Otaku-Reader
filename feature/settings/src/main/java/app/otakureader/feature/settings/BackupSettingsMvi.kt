@@ -2,6 +2,7 @@
 
 package app.otakureader.feature.settings
 
+import app.otakureader.domain.model.BackupOptions
 import app.otakureader.domain.model.TachiyomiBackupPreview
 
 data class BackupSettingsState(
@@ -26,9 +27,15 @@ data class BackupSettingsState(
     val showBackupChecklist: Boolean = false,
     val backupChecklistMangaCount: Int = 0,
     val backupChecklistCategoryCount: Int = 0,
-    val backupChecklistTrackingCount: Int = 0,
+    val backupChecklistOpdsCount: Int = 0,
+    val backupChecklistFeedCount: Int = 0,
+    val backupChecklistSyncConfigCount: Int = 0,
+    /** Which data categories the user has selected to include in the next backup. */
+    val backupOptions: BackupOptions = BackupOptions.ALL,
     // Pre-restore preflight dialog
     val showRestoreConfirm: Boolean = false,
     val pendingRestoreUri: String? = null,
     val pendingRestoreFileName: String = "",
+    /** Which data categories the user has selected to apply from the pending restore. */
+    val restoreOptions: BackupOptions = BackupOptions.ALL,
 )
