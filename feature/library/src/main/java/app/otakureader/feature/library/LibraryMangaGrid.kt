@@ -40,7 +40,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
-import androidx.compose.material3.SecondaryTabRow
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -247,7 +247,11 @@ internal fun MangaGrid(
         }
 
         // Content-type filter tabs (All / Manga / Manhwa)
-        SecondaryTabRow(
+        // Kept on the deprecated TabRow: the custom per-index indicator color below uses
+        // TabRow's (tabPositions: List<TabPosition>) -> Unit indicator signature, which
+        // SecondaryTabRow's TabIndicatorScope-based indicator does not support.
+        @Suppress("DEPRECATION")
+        TabRow(
             selectedTabIndex = selectedContentFilter,
             containerColor = Color.Transparent,
             contentColor = MaterialTheme.colorScheme.onSurface,
