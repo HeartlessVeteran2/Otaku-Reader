@@ -37,7 +37,7 @@ private const val ACHIEVEMENT_NOTIFICATION_ID = 4003
  */
 @Singleton
 class GoalCompletionNotifier @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val readingGoalPreferences: ReadingGoalPreferences,
     private val readingHistoryDao: ReadingHistoryDao,
 ) {

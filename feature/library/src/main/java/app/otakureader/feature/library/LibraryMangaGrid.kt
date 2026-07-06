@@ -247,6 +247,10 @@ internal fun MangaGrid(
         }
 
         // Content-type filter tabs (All / Manga / Manhwa)
+        // Kept on the deprecated TabRow: the custom per-index indicator color below uses
+        // TabRow's (tabPositions: List<TabPosition>) -> Unit indicator signature, which
+        // SecondaryTabRow's TabIndicatorScope-based indicator does not support.
+        @Suppress("DEPRECATION")
         TabRow(
             selectedTabIndex = selectedContentFilter,
             containerColor = Color.Transparent,

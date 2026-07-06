@@ -100,7 +100,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.otakureader.core.ui.theme.LocalOtakuColors
 import app.otakureader.feature.feed.FeedContent
@@ -825,7 +825,7 @@ private fun SourceListContent(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        items(state.searchHistory) { query ->
+                        items(state.searchHistory, key = { it }) { query ->
                             FilterChip(
                                 selected = false,
                                 onClick = {

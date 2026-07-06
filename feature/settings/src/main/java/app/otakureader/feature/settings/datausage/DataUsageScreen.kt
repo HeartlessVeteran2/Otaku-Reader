@@ -24,7 +24,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -34,7 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import app.otakureader.feature.settings.R
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
@@ -107,7 +107,7 @@ fun DataUsageScreen(
 
             // --- Period tabs ---
             val tabs = DataUsageTab.entries
-            TabRow(selectedTabIndex = state.selectedTab.ordinal) {
+            SecondaryTabRow(selectedTabIndex = state.selectedTab.ordinal) {
                 tabs.forEach { tab ->
                     Tab(
                         selected = state.selectedTab == tab,
@@ -132,7 +132,7 @@ fun DataUsageScreen(
 
                 // --- Per-period category breakdown ---
                 val grouped = entries.groupBy { it.category }
-                items(grouped.entries.toList()) { (category, rows) ->
+                items(grouped.entries.toList(), key = { it.key }) { (category, rows) ->
                     DataUsageRow(category = category, bytes = rows.sumOf { it.bytes })
                 }
 
@@ -168,7 +168,7 @@ fun DataUsageScreen(
                         )
                     }
                 } else {
-                    items(state.sourceBreakdown) { entry ->
+                    items(state.sourceBreakdown, key = { it.sourceName }) { entry ->
                         DataUsageRow(
                             category = entry.sourceName,
                             bytes = entry.bytesThisMonth,

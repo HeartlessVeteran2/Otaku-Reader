@@ -3,7 +3,6 @@
     <!-- Updates screen -->
     <string name="updates_title">Updates</string>
     <string name="updates_back">Back</string>
-    <string name="updates_downloads">Downloads</string>
     <string name="updates_empty">No updates yet. Library chapters will appear here after an update check.</string>
 
     <!-- Downloads screen -->
@@ -53,7 +52,6 @@
     <string name="updates_refresh_now">Update library now</string>
 
     <!-- To-Be-Updated Screen -->
-    <string name="updates_view_pending">Preview next update</string>
     <string name="updates_pending_title">To Be Updated</string>
     <string name="updates_pending_empty">No manga scheduled for update</string>
     <string name="updates_pending_hint">Manga in your library will appear here before the next update check</string>
@@ -95,12 +93,6 @@
     <string name="updates_last_run_skipped">Skipped</string>
     <string name="updates_last_run_failed">Failed</string>
     <string name="updates_last_run_meta">%1$s · took %2$s</string>
-    <!-- Date group headers -->
-    <string name="updates_date_today">Today</string>
-    <string name="updates_date_yesterday">Yesterday</string>
-    <string name="updates_date_this_week">This week</string>
-    <string name="updates_date_this_month">This month</string>
-    <string name="updates_date_older">Older</string>
     <string name="updates_unknown_error">Something went wrong while loading updates</string>
     <!-- Date filter chips (U1) -->
     <string name="updates_filter_last_7_days">Last 7 days</string>

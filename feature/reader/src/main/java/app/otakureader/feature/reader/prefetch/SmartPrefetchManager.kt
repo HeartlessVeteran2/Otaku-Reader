@@ -27,7 +27,7 @@ import kotlinx.coroutines.CancellationException
  */
 @Singleton
 class SmartPrefetchManager @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val imageLoader: ImageLoader,
     private val networkMonitor: NetworkMonitor,
 ) {

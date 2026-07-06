@@ -18,7 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.NavigateNext
 import androidx.compose.material.icons.filled.FitScreen
 import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.outlined.BurstMode
 import androidx.compose.material.icons.outlined.Crop
@@ -52,7 +52,7 @@ private val readerBarSlide = tween<IntOffset>(READER_BAR_SLIDE_MS)
 private val readerBarFade = tween<Float>(READER_BAR_FADE_MS)
 
 private val ReaderMode.icon: ImageVector get() = when (this) {
-    ReaderMode.SINGLE_PAGE -> Icons.Default.MenuBook
+    ReaderMode.SINGLE_PAGE -> Icons.AutoMirrored.Filled.MenuBook
     ReaderMode.DUAL_PAGE -> Icons.AutoMirrored.Filled.NavigateNext
     ReaderMode.WEBTOON -> Icons.Default.FitScreen
     ReaderMode.SMART_PANELS -> Icons.Default.GridView
@@ -155,7 +155,7 @@ fun ReaderBottomBar(
             if (onPageLayout != null) {
                 IconButton(onClick = onPageLayout) {
                     Icon(
-                        imageVector = Icons.Default.MenuBook,
+                        imageVector = Icons.AutoMirrored.Filled.MenuBook,
                         contentDescription = stringResource(R.string.reader_page_layout),
                         tint = iconColor,
                     )

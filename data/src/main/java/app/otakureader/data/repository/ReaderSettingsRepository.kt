@@ -34,7 +34,7 @@ import javax.inject.Singleton
 @Singleton
 class ReaderSettingsRepository @Inject constructor(
     private val dataStore: DataStore<Preferences>,
-    @ApplicationScope private val scope: CoroutineScope,
+    @param:ApplicationScope private val scope: CoroutineScope,
 ) : ReaderSettingsRepositoryInterface {
     /**
      * Emits an event whenever a DataStore write fails due to disk I/O.

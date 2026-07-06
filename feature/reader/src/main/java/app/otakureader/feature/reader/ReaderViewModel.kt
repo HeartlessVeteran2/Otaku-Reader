@@ -90,7 +90,7 @@ import javax.inject.Inject
 @HiltViewModel
 @Suppress("LargeClass")
 class ReaderViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val mangaRepository: MangaRepository,
     private val chapterRepository: ChapterRepository,
     private val pageBookmarkRepository: PageBookmarkRepository,

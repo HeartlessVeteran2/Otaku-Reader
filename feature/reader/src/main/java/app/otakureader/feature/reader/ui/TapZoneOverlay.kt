@@ -186,26 +186,3 @@ fun NavigationOverlay(
         )
     }
 }
-
-/**
- * Legacy simple tap-zone overlay kept for backward compatibility.
- * Long-pressing the center zone triggers [onCenterLongPress].
- */
-@Composable
-fun SimpleTapZoneOverlay(
-    onLeftTap: () -> Unit,
-    onCenterTap: () -> Unit,
-    onRightTap: () -> Unit,
-    onCenterLongPress: (() -> Unit)? = null,
-    isRtl: Boolean = false,
-    modifier: Modifier = Modifier,
-) {
-    NavigationOverlay(
-        onPrev = if (isRtl) onRightTap else onLeftTap,
-        onNext = if (isRtl) onLeftTap else onRightTap,
-        onToggleMenu = onCenterTap,
-        onLongPress = onCenterLongPress,
-        navigationMode = 0,
-        modifier = modifier,
-    )
-}

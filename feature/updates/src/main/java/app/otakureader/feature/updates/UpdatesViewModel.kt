@@ -33,7 +33,7 @@ import kotlinx.coroutines.delay
 
 @HiltViewModel
 class UpdatesViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val getRecentUpdatesUseCase: GetRecentUpdatesUseCase,
     private val getLibraryMangaUseCase: GetLibraryMangaUseCase,
     private val getLastUpdateRunSummaryUseCase: GetLastUpdateRunSummaryUseCase,

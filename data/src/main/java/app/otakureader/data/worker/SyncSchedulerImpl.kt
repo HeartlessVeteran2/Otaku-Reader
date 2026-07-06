@@ -15,7 +15,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class SyncSchedulerImpl @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
 ) : SyncScheduler {
 
     override fun schedulePeriodicSync() {

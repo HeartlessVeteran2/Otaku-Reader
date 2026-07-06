@@ -134,40 +134,6 @@ class BackupCreator @Inject constructor(
     }
 
     /**
-     * Creates backup data for all favorite manga with their chapters and reading history.
-     */
-    @Suppress("UnusedPrivateMember")
-    private suspend fun createMangaBackup(): List<BackupManga> {
-        // Get all favorite manga
-        val favoriteManga = mangaDao.getFavoriteManga().first()
-
-        // Load full reading history once and index by chapterId for fast lookups
-        val historyByChapterId = readingHistoryDao.observeHistory().first()
-            .associateBy { it.chapterId }
-
-        return favoriteManga.map { mangaEntity ->
-            // Get chapters for this manga
-            val chapters = chapterDao.getChaptersByMangaId(mangaEntity.id).first()
-
-            // Get reading history for each chapter
-            val backupChapters = chapters.map { chapterEntity ->
-                val history = historyByChapterId[chapterEntity.id]
-                    ?.toBackupReadingHistory()
-
-                chapterEntity.toBackupChapter(readingHistory = history)
-            }
-
-            // Get category associations for this manga
-            val categoryIds = categoryDao.getCategoryIdsForManga(mangaEntity.id).first()
-
-            mangaEntity.toBackupManga(
-                chapters = backupChapters,
-                categoryIds = categoryIds
-            )
-        }
-    }
-
-    /**
      * Creates backup data for all categories.
      */
     private suspend fun createCategoryBackup() =

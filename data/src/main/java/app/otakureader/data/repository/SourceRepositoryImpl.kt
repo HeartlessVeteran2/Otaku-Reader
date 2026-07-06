@@ -45,13 +45,13 @@ import javax.inject.Singleton
  */
 @Singleton
 class SourceRepositoryImpl @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val localSourcePreferences: LocalSourcePreferences,
     private val healthMonitor: SourceHealthMonitor,
     private val httpClient: OkHttpClient,
     private val extensionLoader: ExtensionLoader,
     private val extensionRepository: ExtensionRepository,
-    @ApplicationScope private val scope: CoroutineScope,
+    @param:ApplicationScope private val scope: CoroutineScope,
 ) : SourceRepository, ExtensionManagementRepository {
 
     private companion object {

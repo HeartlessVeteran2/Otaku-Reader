@@ -32,7 +32,7 @@ import javax.inject.Inject
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class BookmarksViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val pageBookmarkRepository: PageBookmarkRepository,
     private val bookmarkCollectionRepository: BookmarkCollectionRepository,
     private val mangaRepository: MangaRepository,

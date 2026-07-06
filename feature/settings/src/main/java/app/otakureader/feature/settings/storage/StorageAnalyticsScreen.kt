@@ -43,7 +43,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
@@ -121,7 +121,7 @@ fun StorageAnalyticsScreen(
                     )
                     HorizontalDivider()
                 }
-                items(state.sources) { source ->
+                items(state.sources, key = { it.sourceName }) { source ->
                     SourceRow(
                         entry = source,
                         totalBytes = state.totalBytes,

@@ -84,8 +84,6 @@
 
     <!-- Downloads (settings section) -->
     <string name="settings_downloads">Downloads</string>
-    <string name="settings_remove_after_reading">Remove chapter after reading</string>
-    <string name="settings_remove_after_reading_description">Automatically delete downloaded chapters once finished</string>
     <string name="settings_save_as_cbz">Save as CBZ</string>
     <string name="settings_save_as_cbz_description">Compress downloaded chapters into CBZ archives</string>
     <string name="settings_cbz_encryption">Encrypt CBZ archives</string>
@@ -98,9 +96,7 @@
     <string name="settings_download_only_wifi_description">Restrict downloads to Wi-Fi connections only</string>
     <string name="settings_auto_download_limit">Auto-Download Limit: %1$d chapter(s)</string>
     <string name="settings_auto_download_category_include">Include categories</string>
-    <string name="settings_auto_download_category_include_description">Auto-download only for these categories (empty = all)</string>
     <string name="settings_auto_download_category_exclude">Exclude categories</string>
-    <string name="settings_auto_download_category_exclude_description">Skip auto-download for these categories</string>
     <string name="settings_auto_download_category_all">All categories</string>
     <string name="settings_auto_download_category_count">%1$d selected</string>
     <string name="settings_auto_download_category_none_excluded">None excluded</string>
@@ -356,59 +352,6 @@
     <string name="day_sat">Sat</string>
     <string name="settings_discord_rich_presence">Rich Presence</string>
     <string name="settings_discord_rich_presence_description">Show current reading activity as your Discord status</string>
-
-    <!-- AI Features -->
-    <string name="settings_ai_features">AI Features</string>
-    <string name="settings_ai_not_available_title">AI Features Not Available</string>
-    <string name="settings_ai_not_available_desc">AI features require the full build of Otaku Reader. This FOSS build does not include Gemini or any proprietary AI SDK.</string>
-    <string name="settings_ai_enable">Enable AI Features</string>
-    <string name="settings_ai_enable_description">Powered by Gemini. Requires an API key.</string>
-    <string name="settings_ai_gemini_api_key">Gemini API Key</string>
-    <string name="settings_ai_api_key_set">API key is set. Enter a new key to replace it.</string>
-    <string name="settings_ai_api_key_label">API Key</string>
-    <string name="settings_ai_hide_key">Hide key</string>
-    <string name="settings_ai_show_key">Show key</string>
-    <string name="settings_ai_save_api_key">Save API Key</string>
-    <string name="settings_ai_service_tier">Service Tier</string>
-    <string name="settings_ai_tier_free">Free</string>
-    <string name="settings_ai_tier_standard">Standard</string>
-    <string name="settings_ai_tier_pro">Pro</string>
-    <string name="settings_ai_feature_toggles">Feature Toggles</string>
-    <string name="settings_ai_reading_insights">Reading Insights</string>
-    <string name="settings_ai_reading_insights_desc">AI-powered reading statistics</string>
-    <string name="settings_ai_smart_search">Smart Search</string>
-    <string name="settings_ai_smart_search_desc">Natural language search queries</string>
-    <string name="settings_ai_recommendations">Recommendations</string>
-    <string name="settings_ai_recommendations_desc">Personalised manga suggestions</string>
-    <string name="settings_ai_panel_reader">Panel-Aware Reader</string>
-    <string name="settings_ai_panel_reader_desc">Gemini Vision panel detection</string>
-    <string name="settings_ai_sfx_translation">SFX Translation</string>
-    <string name="settings_ai_sfx_translation_desc">Translate sound effects in pages</string>
-    <string name="settings_ai_summary_translation">Summary Translation</string>
-    <string name="settings_ai_summary_translation_desc">Auto-translate chapter summaries</string>
-    <string name="settings_ai_source_intelligence">Source Intelligence</string>
-    <string name="settings_ai_source_intelligence_desc">Score and rank sources automatically</string>
-    <string name="settings_ai_smart_notifications">Smart Notifications</string>
-    <string name="settings_ai_smart_notifications_desc">Context-aware update summaries</string>
-    <string name="settings_ai_auto_categorization">Auto-Categorization</string>
-    <string name="settings_ai_auto_categorization_desc">Categorise new manga automatically</string>
-    <string name="settings_ai_ocr_translation">OCR Translation</string>
-    <string name="settings_ai_ocr_translation_desc">Translate page text with Gemini Vision (free tier: ~15 pages/min)</string>
-    <string name="settings_ai_usage">Usage</string>
-    <string name="settings_ai_monthly_token_usage">Monthly Token Usage</string>
-    <string name="settings_ai_tokens_used_period">%1$d tokens used (%2$s)</string>
-    <string name="settings_ai_tokens_used_month">%1$d tokens used this month</string>
-    <string name="settings_ai_clear_cache">Clear AI Cache</string>
-    <string name="settings_ai_clear_cache_description">Remove cached AI responses to free up space</string>
-    <string name="settings_ai_clear">Clear</string>
-    <string name="settings_ai_remove_key">Remove API Key</string>
-    <string name="settings_ai_remove_key_dialog_title">Remove API Key?</string>
-    <string name="settings_ai_remove_key_dialog_text">This will clear your saved Gemini API key. AI features will be disabled until a new key is added.</string>
-    <string name="settings_ai_remove_key_confirm">Remove</string>
-    <string name="settings_ai_remove_key_cancel">Cancel</string>
-    <string name="settings_ai_api_key_invalid_format">Invalid key format. Gemini API keys should start with &quot;AIza&quot; and be at least 20 characters.</string>
-    <string name="settings_ai_load_failed">Failed to load AI settings. You may need to re-enter your API key.</string>
-
     <!-- Reader Display -->
     <string name="settings_reader_display">Reader Display</string>
     <string name="settings_fullscreen">Fullscreen</string>
@@ -470,10 +413,6 @@
 
     <!-- Reader Interaction -->
     <string name="settings_reader_interaction">Interaction</string>
-    <string name="settings_double_tap_speed">Double-Tap Animation Speed</string>
-    <string name="settings_speed_slow">Slow</string>
-    <string name="settings_speed_normal">Normal</string>
-    <string name="settings_speed_fast">Fast</string>
     <string name="settings_long_tap_actions">Long-Tap Actions</string>
     <string name="settings_long_tap_actions_description">Show menu on long press</string>
     <string name="settings_save_separate_folders">Save Pages to Separate Folders</string>
@@ -587,9 +526,6 @@
     <string name="widget_config_all_categories">All categories</string>
     <string name="widget_config_show_thumbnails">Show thumbnails</string>
     <string name="widget_config_preview_label">Preview</string>
-    <string name="widget_config_preview_item_placeholder">Manga title</string>
-    <string name="widget_config_preview_subtitle_placeholder">Chapter info</string>
-    <string name="widget_config_settings_saved">Widget settings saved</string>
     <string name="settings_local_source_supported_formats">Supported local library formats</string>
     <string name="settings_local_source_archives">Archives</string>
     <string name="settings_local_source_archives_description">CBZ, ZIP, and EPUB files can be scanned directly from the configured local-source directory.</string>
@@ -686,7 +622,6 @@
 
     <!-- Nav tab order (#Komikku) -->
     <string name="nav_order_title">Tab Order</string>
-    <string name="nav_order_subtitle">Reorder the bottom navigation tabs</string>
     <string name="nav_order_reset">Reset to default</string>
     <string name="nav_order_move_up">Move up</string>
     <string name="nav_order_move_down">Move down</string>

@@ -22,24 +22,11 @@
     <string name="library_content_tab_all">All</string>
     <string name="library_content_tab_manga">Manga</string>
     <string name="library_content_tab_manhwa">Manhwa</string>
-    <!-- Bottom navigation -->
-    <string name="library_nav_library">Library</string>
-    <string name="library_nav_updates">Updates</string>
-    <string name="library_nav_browse">Browse</string>
-    <string name="library_nav_history">History</string>
-    <string name="library_nav_stats">Stats</string>
-    <string name="library_nav_settings">Settings</string>
     <!-- Accessibility -->
     <string name="library_empty_icon_description">Empty library</string>
     <!-- Recommendations -->
     <string name="library_for_you_title">For You</string>
-    <string name="library_recommendations_refresh">Refresh recommendations</string>
-    <string name="library_recommendations_loading">Loading recommendations…</string>
-    <string name="library_recommendations_not_enough_manga">Add at least 3 manga to your library to get AI-powered recommendations</string>
-    <string name="library_recommendations_error_retry">Retry</string>
     <string name="library_recommendations_dismiss">Dismiss recommendation</string>
-    <string name="library_recommendations_thumbnail">Recommendation thumbnail for %1$s</string>
-    <string name="library_recommendations_reason_prefix">Why: %1$s</string>
     <!-- Category filter -->
     <string name="library_category_all">All</string>
     <!-- Category Management -->
@@ -68,7 +55,6 @@
     <string name="category_empty_message">Create categories to organize your library</string>
     <string name="category_mark_nsfw">Mark as NSFW</string>
     <string name="category_remove_nsfw">Remove NSFW</string>
-    <string name="category_nsfw_toggled">NSFW status updated</string>
     <string name="category_update_frequency_label">Update frequency</string>
     <string name="category_update_freq_label">Update: %1$s</string>
     <string name="category_freq_never">Never</string>
@@ -161,9 +147,6 @@
     <string name="category_updates_skipped">Excluded from library updates</string>
     <string name="category_skip_updates">Skip library updates</string>
     <string name="category_include_in_updates">Include in library updates</string>
-    <string name="category_make_dynamic">Make dynamic</string>
-    <string name="category_remove_dynamic">Remove dynamic</string>
-    <string name="category_unlock_prompt">Unlock to view hidden category</string>
     <!-- Smart rules editor -->
     <string name="category_edit_smart_rules">Smart rules…</string>
     <string name="category_smart_rules_title">Smart rules: %1$s</string>
@@ -370,12 +353,7 @@
     <!-- Bulk delete feedback (L8) -->
     <string name="library_removed_count">Removed %1$d manga from library</string>
     <!-- Long-press context menu (L2/L3) -->
-    <string name="library_context_menu_open">Open</string>
-    <string name="library_context_menu_resume">Resume reading</string>
-    <string name="library_context_menu_mark_read">Mark as read</string>
-    <string name="library_context_menu_share">Share</string>
     <string name="library_context_menu_migrate">Migrate</string>
-    <string name="library_context_menu_select">Select</string>
     <!-- Filter-active empty state (Komikku parity: error_no_match) -->
     <string name="library_filter_no_results_title">No manga match</string>
     <string name="library_filter_no_results_message">No manga in your library match the active filters</string>

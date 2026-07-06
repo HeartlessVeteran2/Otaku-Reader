@@ -10,12 +10,9 @@ import app.otakureader.domain.repository.MangaRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
@@ -39,14 +36,9 @@ sealed class RedirectState {
     data class Error(val message: String) : RedirectState()
 }
 
-sealed interface SourceMangaDetailEffect {
-    data class NavigateToMangaDetail(val mangaId: Long) : SourceMangaDetailEffect
-}
-
 /**
  * Resolves a source manga (identified by [sourceId] + [mangaUrl]) to a database
- * entry and emits [SourceMangaDetailEffect.NavigateToMangaDetail] so the UI can
- * forward to the full [Route.MangaDetails] screen.
+ * entry so the UI can forward to the full [Route.MangaDetails] screen.
  *
  * If the manga is already in the database (previously browsed or in library) its
  * existing ID is reused. Otherwise a stub entry is inserted so the details screen
@@ -63,10 +55,6 @@ class SourceMangaDetailViewModel @Inject constructor(
 
     private val _redirectState = MutableStateFlow<RedirectState>(RedirectState.Loading)
     val redirectState: StateFlow<RedirectState> = _redirectState.asStateFlow()
-
-    // Kept for backwards-compatibility with any observers still using the effect channel.
-    private val _effect = Channel<SourceMangaDetailEffect>()
-    val effect: Flow<SourceMangaDetailEffect> = _effect.receiveAsFlow()
 
     init {
         val route = savedStateHandle.toRoute<Route.SourceMangaDetail>()
@@ -101,9 +89,6 @@ class SourceMangaDetailViewModel @Inject constructor(
 
                 if (mangaId > 0L) {
                     _redirectState.value = RedirectState.Success(mangaId)
-                    // Also emit on the legacy effect channel so existing nav-host collectors
-                    // are not broken by this change.
-                    _effect.send(SourceMangaDetailEffect.NavigateToMangaDetail(mangaId))
                 } else {
                     _redirectState.value = RedirectState.NotFound
                 }
