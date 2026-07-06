@@ -15,7 +15,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class LibraryUpdateScheduler @Inject constructor(
-    @ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context
 ) : LibraryUpdateSchedulerInterface {
 
     override fun schedule(intervalHours: Int, wifiOnly: Boolean, requireCharging: Boolean) {

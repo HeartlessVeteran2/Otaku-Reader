@@ -18,7 +18,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class PageLoader @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val cbzEncryptionStore: CbzEncryptionStore,
 ) : PageLoaderInterface {
 

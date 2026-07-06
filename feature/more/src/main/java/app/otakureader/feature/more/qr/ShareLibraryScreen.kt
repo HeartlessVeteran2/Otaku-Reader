@@ -43,7 +43,7 @@ import app.otakureader.feature.more.R
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**

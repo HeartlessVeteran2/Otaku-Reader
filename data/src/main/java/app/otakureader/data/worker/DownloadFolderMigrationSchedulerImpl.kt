@@ -8,7 +8,7 @@ import javax.inject.Singleton
 
 @Singleton
 class DownloadFolderMigrationSchedulerImpl @Inject constructor(
-    @ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context
 ) : DownloadFolderMigrationScheduler {
     override fun schedule() {
         DownloadFolderMigrationWorker.enqueue(context)

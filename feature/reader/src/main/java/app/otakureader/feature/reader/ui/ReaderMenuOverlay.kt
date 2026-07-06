@@ -32,9 +32,9 @@ import androidx.compose.material.icons.filled.FitScreen
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.RotateRight
+import androidx.compose.material.icons.automirrored.filled.RotateRight
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ZoomIn
 import androidx.compose.material.icons.filled.ZoomOut
@@ -160,7 +160,10 @@ fun ReaderMenuOverlay(
                     }
                     if (onToggleChapterList != null) {
                         IconButton(onClick = onToggleChapterList) {
-                            Icon(Icons.Default.MenuBook, contentDescription = stringResource(R.string.reader_chapter_list_title))
+                            Icon(
+                                Icons.AutoMirrored.Filled.MenuBook,
+                                contentDescription = stringResource(R.string.reader_chapter_list_title),
+                            )
                         }
                     }
                     if (onToggleComments != null) {
@@ -245,7 +248,7 @@ fun ReaderMenuOverlay(
                         }
                         IconButton(onClick = onRotateCW) {
                             Icon(
-                                Icons.Default.RotateRight,
+                                Icons.AutoMirrored.Filled.RotateRight,
                                 contentDescription = stringResource(R.string.reader_rotate_cw),
                                 tint = if (pageRotation != PageRotation.NONE) {
                                     MaterialTheme.colorScheme.primary
@@ -322,7 +325,7 @@ private fun ModeButton(
     modifier: Modifier = Modifier
 ) {
     val (icon, label) = when (mode) {
-        ReaderMode.SINGLE_PAGE -> Icons.Default.MenuBook to stringResource(R.string.reader_mode_single)
+        ReaderMode.SINGLE_PAGE -> Icons.AutoMirrored.Filled.MenuBook to stringResource(R.string.reader_mode_single)
         ReaderMode.DUAL_PAGE -> Icons.AutoMirrored.Filled.NavigateNext to stringResource(R.string.reader_mode_dual)
         ReaderMode.WEBTOON -> Icons.Default.FitScreen to stringResource(R.string.reader_mode_webtoon)
         ReaderMode.SMART_PANELS -> Icons.Default.Settings to stringResource(R.string.reader_mode_smart)
@@ -452,7 +455,7 @@ fun RotationControl(
 
         IconButton(onClick = onRotateCW) {
             Icon(
-                Icons.Default.RotateRight,
+                Icons.AutoMirrored.Filled.RotateRight,
                 contentDescription = stringResource(R.string.reader_rotate_cw)
             )
         }

@@ -69,7 +69,7 @@ data class ChapterDownloadRequest(
  */
 @Singleton
 class DownloadManager @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val downloader: Downloader,
     private val downloadPreferences: DownloadPreferences,
     private val cbzEncryptionStore: CbzEncryptionStore,
@@ -77,7 +77,7 @@ class DownloadManager @Inject constructor(
     private val downloadQueueDao: DownloadQueueDao,
     private val chapterRepository: ChapterRepository,
     private val sourceRepository: SourceRepository,
-    @ApplicationScope private val scope: CoroutineScope
+    @param:ApplicationScope private val scope: CoroutineScope
 ) {
     private val mutex = Mutex()
 

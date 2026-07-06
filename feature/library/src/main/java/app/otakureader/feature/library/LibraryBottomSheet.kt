@@ -36,7 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -66,7 +66,7 @@ internal fun LibraryBottomSheet(
                 .padding(bottom = 32.dp),
         ) {
             // Tabs
-            TabRow(
+            SecondaryTabRow(
                 selectedTabIndex = state.bottomSheetTab.ordinal,
                 modifier = Modifier.fillMaxWidth(),
             ) {

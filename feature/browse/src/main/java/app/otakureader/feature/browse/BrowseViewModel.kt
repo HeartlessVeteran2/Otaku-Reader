@@ -505,16 +505,6 @@ class BrowseViewModel @Inject constructor(
     }
 
     /**
-     * Helper to get the currently selected source.
-     * Kept for future refactoring opportunities.
-     */
-    @Suppress("UnusedPrivateMember")
-    private fun getCurrentSource(): MangaSource? {
-        val sourceId = _state.value.currentSourceId ?: return null
-        return _sources.value.find { it.id == sourceId }
-    }
-
-    /**
      * Toggles selection of a manga for bulk favorite.
      * Enables bulk selection mode when first manga is selected.
      */

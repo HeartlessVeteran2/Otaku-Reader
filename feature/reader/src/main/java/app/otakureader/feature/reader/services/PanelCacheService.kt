@@ -46,7 +46,7 @@ import kotlinx.coroutines.CancellationException
  */
 @Singleton
 class PanelCacheService @Inject constructor(
-    @ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context
 ) {
     private val cacheDir = File(context.cacheDir, CACHE_DIR_NAME)
     private val resultsDir = File(cacheDir, "results")
@@ -416,7 +416,7 @@ private data class CacheMetadata(
             val count = extractInt(json, "count") ?: 0
             val size = extractLong(json, "size") ?: 0
 
-            CacheMetadata(hash, time, access, count.toInt(), size)
+            CacheMetadata(hash, time, access, count, size)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

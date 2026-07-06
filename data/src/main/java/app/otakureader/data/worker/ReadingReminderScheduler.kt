@@ -19,7 +19,7 @@ import javax.inject.Singleton
  */
 @Singleton
 class ReadingReminderScheduler @Inject constructor(
-    @ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context
 ) : ReminderScheduler {
 
     /**

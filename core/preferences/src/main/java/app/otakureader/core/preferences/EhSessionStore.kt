@@ -15,7 +15,7 @@ import javax.inject.Singleton
  * to fetch the favorites page without re-prompting for credentials.
  */
 @Singleton
-class EhSessionStore @Inject constructor(@ApplicationContext private val context: Context) {
+class EhSessionStore @Inject constructor(@param:ApplicationContext private val context: Context) {
 
 
     // Created via EncryptedPrefsFactory so Keystore corruption recovers instead of

@@ -8,7 +8,7 @@ import javax.inject.Singleton
 
 @Singleton
 class TrackerSyncSchedulerImpl @Inject constructor(
-    @ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context
 ) : TrackerSyncScheduler {
 
     override fun schedule(intervalHours: Int) {

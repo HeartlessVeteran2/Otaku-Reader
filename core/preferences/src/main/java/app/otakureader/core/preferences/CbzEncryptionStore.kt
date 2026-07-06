@@ -14,7 +14,7 @@ import javax.inject.Singleton
  * if a strict threading policy is required.
  */
 @Singleton
-class CbzEncryptionStore @Inject constructor(@ApplicationContext private val context: Context) {
+class CbzEncryptionStore @Inject constructor(@param:ApplicationContext private val context: Context) {
 
 
     // Created via EncryptedPrefsFactory so Keystore corruption recovers instead of

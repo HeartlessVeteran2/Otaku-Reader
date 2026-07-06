@@ -26,7 +26,7 @@ import kotlinx.coroutines.CancellationException
  */
 @Singleton
 class AdaptiveChapterPrefetcher @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val imageLoader: ImageLoader,
     private val chapterRepository: ChapterRepository,
     private val sourceRepository: app.otakureader.domain.repository.SourceRepository

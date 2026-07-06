@@ -19,7 +19,7 @@ import javax.inject.Singleton
 
 @Singleton
 class BackupRepository @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val backupCreator: BackupCreator,
     private val backupRestorer: BackupRestorer
 ) : BackupRepositoryInterface {

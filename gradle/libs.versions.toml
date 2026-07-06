@@ -92,9 +92,6 @@ androidx-preference = "1.2.1"
 # Desugaring
 desugar-jdk-libs = "2.1.5"
 
-# License reporting
-license-report = "2.8"
-
 # SBOM generation
 cyclonedx-bom = "1.9.0"
 
@@ -118,7 +115,6 @@ kover = "0.9.8"
 [libraries]
 # Kotlin
 kotlin-stdlib = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib", version.ref = "kotlin" }
-kotlin-test = { group = "org.jetbrains.kotlin", name = "kotlin-test", version.ref = "kotlin" }
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
@@ -300,7 +296,6 @@ otakureader-android-feature = { id = "otakureader.android.feature", version = "u
 otakureader-android-hilt = { id = "otakureader.android.hilt", version = "unspecified" }
 otakureader-android-room = { id = "otakureader.android.room", version = "unspecified" }
 otakureader-kotlin-library = { id = "otakureader.kotlin.library", version = "unspecified" }
-license-report = { id = "com.github.jk1.dependency-license-report", version.ref = "license-report" }
 cyclonedx-bom = { id = "org.cyclonedx.bom", version.ref = "cyclonedx-bom" }
 
 # Extra Android plugins for baselineprofile module

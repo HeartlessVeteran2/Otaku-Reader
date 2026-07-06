@@ -45,7 +45,7 @@ class SettingsViewModel @Inject constructor(
     private val readingReminderScheduler: ReminderScheduler,
     private val coverRefreshScheduler: CoverRefreshScheduler,
     private val chapterRepository: ChapterRepository,
-    @ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SettingsState())

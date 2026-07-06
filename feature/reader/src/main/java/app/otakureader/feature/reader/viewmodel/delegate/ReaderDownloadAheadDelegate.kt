@@ -20,7 +20,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 class ReaderDownloadAheadDelegate @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val downloadPreferences: DownloadPreferences,
     private val downloadRepository: DownloadRepository,
     private val sourceRepository: SourceRepository,

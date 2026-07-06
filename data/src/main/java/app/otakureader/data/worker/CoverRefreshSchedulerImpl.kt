@@ -8,7 +8,7 @@ import javax.inject.Singleton
 
 @Singleton
 class CoverRefreshSchedulerImpl @Inject constructor(
-    @ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context
 ) : CoverRefreshScheduler {
     override fun schedule() {
         CoverRefreshWorker.enqueue(context)

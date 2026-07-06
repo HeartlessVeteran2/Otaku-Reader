@@ -27,7 +27,7 @@ import javax.inject.Singleton
 
 @Singleton
 class MangaRepositoryImpl @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val mangaDao: MangaDao,
     private val chapterDao: ChapterDao,
     private val mangaCategoryDao: MangaCategoryDao,

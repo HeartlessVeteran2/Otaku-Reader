@@ -125,7 +125,7 @@ class AppUpdateWorker @AssistedInject constructor(
  */
 @Singleton
 class AppUpdateChecker @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val generalPreferences: GeneralPreferences,
     private val okHttpClient: OkHttpClient
 ) : AppUpdateCheckerInterface {

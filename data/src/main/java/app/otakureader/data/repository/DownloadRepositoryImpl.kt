@@ -27,12 +27,12 @@ import kotlinx.coroutines.withContext
 
 @Singleton
 class DownloadRepositoryImpl @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val downloadManager: DownloadManager,
     private val mangaDao: MangaDao,
     private val chapterDao: ChapterDao,
     private val sourceRepository: SourceRepository,
-    @ApplicationScope private val scope: CoroutineScope
+    @param:ApplicationScope private val scope: CoroutineScope
 ) : DownloadRepository {
 
     private val notifier = DownloadNotifier(context)

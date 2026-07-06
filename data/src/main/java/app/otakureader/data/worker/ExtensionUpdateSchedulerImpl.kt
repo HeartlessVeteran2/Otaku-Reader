@@ -8,7 +8,7 @@ import javax.inject.Singleton
 
 @Singleton
 class ExtensionUpdateSchedulerImpl @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
 ) : ExtensionUpdateScheduler {
 
     override fun schedule(intervalHours: Int, wifiOnly: Boolean) {

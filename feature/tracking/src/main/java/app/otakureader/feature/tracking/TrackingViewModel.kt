@@ -33,7 +33,7 @@ class TrackingViewModel @Inject constructor(
     private val trackRepository: TrackRepository,
     private val trackerSyncRepository: TrackerSyncRepository,
     private val pendingOAuthStore: PendingOAuthStore,
-    @ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val trackerMap: Map<Int, Tracker> = trackers.associateBy { it.id }

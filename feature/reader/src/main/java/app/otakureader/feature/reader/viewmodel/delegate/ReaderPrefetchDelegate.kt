@@ -19,7 +19,7 @@ import kotlin.coroutines.cancellation.CancellationException
 import javax.inject.Inject
 
 class ReaderPrefetchDelegate @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val smartPrefetchManager: SmartPrefetchManager,
     private val behaviorTracker: ReadingBehaviorTracker,
     private val chapterPrefetcher: AdaptiveChapterPrefetcher,

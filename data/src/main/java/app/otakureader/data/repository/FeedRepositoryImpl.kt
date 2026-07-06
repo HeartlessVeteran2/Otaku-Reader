@@ -22,7 +22,7 @@ private const val KV_SEP = "\u001F"    // ASCII Unit Separator (US)
 
 @Singleton
 class FeedRepositoryImpl @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val feedDao: FeedDao
 ) : FeedRepository {
 

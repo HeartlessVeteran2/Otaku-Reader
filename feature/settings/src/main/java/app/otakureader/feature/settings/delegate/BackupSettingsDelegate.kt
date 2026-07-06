@@ -26,7 +26,7 @@ import javax.inject.Singleton
 
 @Singleton
 class BackupSettingsDelegate @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val backupPreferences: BackupPreferences,
     private val backupRepository: BackupRepository,
     private val backupScheduler: BackupScheduler,

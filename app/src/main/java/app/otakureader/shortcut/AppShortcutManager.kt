@@ -27,9 +27,9 @@ import javax.inject.Singleton
  */
 @Singleton
 class AppShortcutManager @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val readingHistoryDao: ReadingHistoryDao,
-    @ApplicationScope private val scope: CoroutineScope
+    @param:ApplicationScope private val scope: CoroutineScope
 ) {
 
     /**

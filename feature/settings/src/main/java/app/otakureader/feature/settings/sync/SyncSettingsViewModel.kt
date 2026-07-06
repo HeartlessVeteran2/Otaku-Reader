@@ -35,7 +35,7 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class SyncSettingsViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val syncSettingsStore: SyncSettingsStore,
     private val syncRepository: SyncRepository,
     private val syncScheduler: SyncScheduler,

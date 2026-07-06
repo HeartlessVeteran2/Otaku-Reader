@@ -35,7 +35,7 @@ class SmartDownloadTrigger @Inject constructor(
     private val downloadRepository: DownloadRepository,
     private val sourceRepository: SourceRepository,
     private val networkMonitor: NetworkMonitor,
-    @ApplicationScope private val scope: CoroutineScope,
+    @param:ApplicationScope private val scope: CoroutineScope,
 ) {
 
     /**
