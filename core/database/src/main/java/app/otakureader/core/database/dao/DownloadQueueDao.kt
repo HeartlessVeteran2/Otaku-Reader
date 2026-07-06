@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import app.otakureader.core.database.entity.DownloadQueueEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -27,6 +28,14 @@ interface DownloadQueueDao {
 
     @Query("UPDATE download_queue SET priority = :priority WHERE chapter_id = :chapterId")
     suspend fun updatePriority(chapterId: Long, priority: Int)
+
+    /** Batched variant of [updatePriority] for reordering the whole queue in one transaction. */
+    @Transaction
+    suspend fun updatePriorities(updates: Map<Long, Int>) {
+        for ((chapterId, priority) in updates) {
+            updatePriority(chapterId, priority)
+        }
+    }
 
     @Query("UPDATE download_queue SET page_urls_json = :pageUrlsJson WHERE chapter_id = :chapterId")
     suspend fun updatePageUrls(chapterId: Long, pageUrlsJson: String)

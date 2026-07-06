@@ -19,6 +19,9 @@ interface ChapterDao {
     @Query("SELECT * FROM chapters WHERE mangaId = :mangaId ORDER BY sourceOrder DESC")
     suspend fun getChaptersByMangaIdOnce(mangaId: Long): List<ChapterEntity>
 
+    @Query("SELECT * FROM chapters WHERE mangaId IN (:mangaIds) ORDER BY sourceOrder DESC")
+    suspend fun getChaptersByMangaIdsOnce(mangaIds: Collection<Long>): List<ChapterEntity>
+
     @Query("SELECT * FROM chapters")
     suspend fun getAllChaptersOnce(): List<ChapterEntity>
 

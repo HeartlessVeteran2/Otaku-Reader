@@ -603,30 +603,25 @@ class LibraryViewModel @Inject constructor(
 
                     val sourceIconUrlDeferred = async { buildSourceIconUrlMap() }
 
-                    // Build tracking lookup in parallel
-                    val trackingDeferred = mangaList.map { manga ->
-                        async {
-                            val hasEntries = trackRepository.observeEntriesForManga(manga.id)
-                                .first().isNotEmpty()
-                            if (hasEntries) manga.id else null
-                        }
+                    // One query for the whole library instead of a per-manga tracking check
+                    val globalTrackedIdsDeferred = async {
+                        trackRepository.observeMangaIdsWithTrackEntries().first()
                     }
 
-                    // Build download lookup in parallel
-                    val downloadDeferred = mangaList.map { manga ->
-                        async {
-                            val hasDownloads = downloadRepository.hasMangaDownloads(
-                                sourceName = sourceRepository.resolveDownloadFolderName(manga.sourceId),
-                                mangaTitle = manga.title
-                            )
-                            if (hasDownloads) manga.id else null
+                    // Resolve each manga's download-folder key in parallel, then one
+                    // filesystem walk for the whole library instead of a per-manga check
+                    val mangaKeysDeferred = async {
+                        mangaList.associate { manga ->
+                            manga.id to (sourceRepository.resolveDownloadFolderName(manga.sourceId) to manga.title)
                         }
                     }
 
                     val sourceMeta = sourceMetaDeferred.await()
                     val sourceIconUrls = sourceIconUrlDeferred.await()
-                    val trackedMangaIds = trackingDeferred.awaitAll().filterNotNull().toSet()
-                    val downloadedMangaIds = downloadDeferred.awaitAll().filterNotNull().toSet()
+                    val globalTrackedIds = globalTrackedIdsDeferred.await()
+                    val mangaKeys = mangaKeysDeferred.await()
+                    val trackedMangaIds = mangaList.map { it.id }.filter { it in globalTrackedIds }.toSet()
+                    val downloadedMangaIds = downloadRepository.getMangaIdsWithDownloads(mangaKeys)
 
                     mangaList.map { manga ->
                         val meta = sourceMeta[manga.sourceId]
@@ -816,9 +811,7 @@ class LibraryViewModel @Inject constructor(
         val mangaIds = selection.snapshotAndClear()
         if (mangaIds.isEmpty()) return
         viewModelScope.launch {
-            val chapterIds = mangaIds.flatMap { mangaId ->
-                chapterRepository.getChaptersByMangaIdSync(mangaId).map { it.id }
-            }
+            val chapterIds = chapterRepository.getChaptersByMangaIdsSync(mangaIds).map { it.id }
             if (chapterIds.isNotEmpty()) {
                 chapterRepository.updateChapterProgress(chapterIds, read = read, lastPageRead = 0)
             }

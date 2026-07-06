@@ -258,6 +258,35 @@ object DownloadProvider {
         }
     }
 
+    /**
+     * Returns the set of (sanitized sourceName, sanitized mangaTitle) pairs for every manga
+     * directory under [root] containing at least one chapter with a downloaded page or CBZ
+     * archive. One filesystem walk instead of repeating [hasMangaDownloads]'s per-manga
+     * directory listing for every manga in the library.
+     */
+    fun getMangaDirsWithDownloads(root: File): Set<Pair<String, String>> {
+        val rootDir = File(root, ROOT_DIR)
+        val sourceDirs = rootDir.listFiles { file -> file.isDirectory } ?: return emptySet()
+        val result = mutableSetOf<Pair<String, String>>()
+        for (sourceDir in sourceDirs) {
+            val mangaDirs = sourceDir.listFiles { file -> file.isDirectory } ?: continue
+            for (mangaDir in mangaDirs) {
+                val chapterDirs = mangaDir.listFiles { file -> file.isDirectory } ?: continue
+                val hasDownloads = chapterDirs.any { chapterDir ->
+                    val fileList = chapterDir.list() ?: return@any false
+                    fileList.any { filename ->
+                        filename == CbzCreator.CBZ_FILE_NAME ||
+                            filename.substringAfterLast('.', "").lowercase() in PAGE_EXTENSIONS
+                    }
+                }
+                if (hasDownloads) {
+                    result.add(sourceDir.name to mangaDir.name)
+                }
+            }
+        }
+        return result
+    }
+
     fun getDownloadedPageUris(
         root: File,
         sourceName: String,

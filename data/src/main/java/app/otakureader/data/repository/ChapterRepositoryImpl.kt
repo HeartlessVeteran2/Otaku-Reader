@@ -148,6 +148,13 @@ class ChapterRepositoryImpl @Inject constructor(
         }.first()
     }
 
+    override suspend fun getChaptersByMangaIdsSync(mangaIds: Collection<Long>): List<Chapter> {
+        // Same bound-parameter-limit chunking as updateChapterProgress(Collection<Long>, ...).
+        return mangaIds.chunked(SQLITE_MAX_BIND_PARAMETERS).flatMap { chunk ->
+            chapterDao.getChaptersByMangaIdsOnce(chunk).map { it.toDomain() }
+        }
+    }
+
     private fun ChapterEntity.toDomain() = Chapter(
         id = id,
         mangaId = mangaId,

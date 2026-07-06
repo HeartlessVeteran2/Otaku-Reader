@@ -28,4 +28,7 @@ interface ChapterRepository {
 
     /** Migration-specific methods */
     suspend fun getChaptersByMangaIdSync(mangaId: Long): List<Chapter>
+
+    /** Batched variant of [getChaptersByMangaIdSync] for bulk actions across multiple manga. */
+    suspend fun getChaptersByMangaIdsSync(mangaIds: Collection<Long>): List<Chapter>
 }

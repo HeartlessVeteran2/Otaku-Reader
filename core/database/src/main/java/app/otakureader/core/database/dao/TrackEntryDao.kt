@@ -23,6 +23,14 @@ interface TrackEntryDao {
     suspend fun deleteByMangaAndTracker(mangaId: Long, trackerId: Int)
 
     /**
+     * Distinct manga IDs that have at least one tracker entry, for the Library screen's
+     * tracked-badge lookup — one query for the whole library instead of a per-manga
+     * [getByMangaId] check.
+     */
+    @Query("SELECT DISTINCT manga_id FROM track_entries")
+    fun getMangaIdsWithTrackEntries(): Flow<Set<Long>>
+
+    /**
      * Aggregated tracker statistics for the Statistics screen, computed in a single query:
      * distinct tracked manga, mean of non-zero scores (normalized 0–10 across every tracker
      * service; 0 = unscored, excluded via the CASE so it can't drag the mean down — null when
