@@ -1,7 +1,7 @@
 # ROADMAP.md — Otaku Reader
 
 **Status:** All pre-release phases complete | **Current Phase:** v1.0.0 release preparation
-**Updated:** 2026-06-20
+**Updated:** 2026-07-06
 **Website:** https://heartless-veteran.github.io/Otaku-Reader/
 
 ---
@@ -205,6 +205,25 @@ Mihon/Komikku parity improvements and reader enhancements shipped alongside the 
 - #1133 — Bookmark share via images (FileProvider + ACTION\_SEND\_MULTIPLE)
 - #1135 — Local manga source directory picker UI (backend already complete)
 - #1137 — Clean up extension compat shim (blocked: ext-lib 1.5 community migration)
+
+---
+
+## ✅ Komikku Parity Deferred-Gaps Batch (#1192, 2026-07-05 → 2026-07-06)
+
+Issue #1192 tracked gaps deliberately deferred during the Komikku parity audit (see
+`.claude/skills/komikku-parity/SKILL.md`) — worked through as a 7-PR sequence, then closed.
+
+| PR | Feature |
+|----|---------|
+| #1197 | Statistics: Trackers card (tracked-title count, mean score, tracker count) + downloaded-chapter count tile |
+| #1202 | Settings wiring batch: require-charging update restriction, hide-notification-content toggle, sync-on-chapter-read opt-out, per-category skip-updates toggle |
+| #1203 | Keep-last-N-read-chapters delete-after-read mode |
+| #1204 | Onboarding storage-location step (persisted folder permission) |
+| #1205 | Dedicated Update Errors screen (sticky headers, multi-select, migrate-selected, swipe-to-dismiss) — replaces the flat dialog |
+| #1206 | Configurable migration options (`MigrationFlag` toggles) + custom-cover migration |
+| #1207 | Selective backup/restore — per-category `BackupOptions` toggles, checkbox-list UI on both pre-backup and pre-restore dialogs |
+
+**Spun out to #1208** (not part of this batch): the Advanced settings screen (needs cookie-jar/DoH/user-agent network infrastructure Otaku doesn't have yet) and a reading-history-migration follow-up found while building #1206 (blocked on `ChapterRepository` needing a per-manga-scoped history read method).
 
 ---
 

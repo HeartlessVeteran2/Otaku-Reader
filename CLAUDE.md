@@ -8,7 +8,7 @@ This file is the AI assistant reference for the Otaku Reader codebase. Read it b
 
 Otaku Reader is a production-grade Android manga reader built entirely in Kotlin and Jetpack Compose by a solo developer. It is a clean-architecture alternative to Mihon/Tachiyomi that inherits the Tachiyomi extension ecosystem. The app is feature-complete: all 35 parity issues, the hardening batch, and the post-beta polish pass have shipped.
 
-**Status:** All phases shipped. Alpha (2026-05-25) → Beta parity (#926–#958) → Hardening (#1090–#1099) → P3 polish (#1114) → Post-P3 additions: QR library sharing (#1110/#1125), update-errors screen (#1119), stats improvements (#1122), in-chapter download button (#1127), page bookmarks + collections (PR #1130, merged 2026-06-20). **Current phase: cutting v1.0.0 release tag.** Project website: https://heartless-veteran.github.io/Otaku-Reader/ — VitePress landing page, download with live version lookup, docs, FAQ, auto-synced changelog. Deployed from `website/` via `pages.yml`.
+**Status:** All phases shipped. Alpha (2026-05-25) → Beta parity (#926–#958) → Hardening (#1090–#1099) → P3 polish (#1114) → Post-P3 additions: QR library sharing (#1110/#1125), update-errors screen (#1119), stats improvements (#1122), in-chapter download button (#1127), page bookmarks + collections (PR #1130, merged 2026-06-20) → Komikku-parity deferred-gaps batch (issue #1192, 7 PRs #1197/#1202–#1207, merged 2026-07-05 → 2026-07-06 — statistics Trackers card, settings wiring batch, keep-last-N delete-after-read, onboarding storage step, dedicated Update Errors screen, configurable migration options + custom-cover migration, selective backup/restore; remaining deferred items spun out to #1208). **Current phase: cutting v1.0.0 release tag.** Project website: https://heartless-veteran.github.io/Otaku-Reader/ — VitePress landing page, download with live version lookup, docs, FAQ, auto-synced changelog. Deployed from `website/` via `pages.yml`.
 
 **The developer is newer to Kotlin. Always explain what was wrong and why a fix works — never drop solutions without context.**
 
@@ -124,7 +124,7 @@ Otaku-Reader/
 - Auto-update schedule: interval, wifi-only
 - Tracker auth management
 - Extension management (install/uninstall/trust)
-- Backup: export and import (native format + Tachiyomi import)
+- Backup: export and import (native format + Tachiyomi import), with selective per-category backup/restore (`BackupOptions`, PR #1207)
 
 ### More tab (`feature/more/`)
 - Bookmarks screen: page-level bookmarks, collection filtering, multi-select, export (PR #1130)
@@ -133,7 +133,7 @@ Otaku-Reader/
 - Feed screen (activity from followed manga)
 - First-run Onboarding wizard
 - About screen (version, credits, links)
-- Update Errors dialog (PR #1119; auto-opens from the More tab entry, or via the badge icon on the Updates screen's top bar)
+- Update Errors screen (PR #1119/#1205; dedicated screen with sticky-header grouping by error message, long-press multi-select, migrate-selected — replaces the original dialog) — reachable from the More tab entry or the badge icon on the Updates screen's top bar
 - QR Library Share / Scan (PR #1110/#1125)
 
 ### Home-Screen Widgets (`app/src/main/java/app/otakureader/widget/`)
