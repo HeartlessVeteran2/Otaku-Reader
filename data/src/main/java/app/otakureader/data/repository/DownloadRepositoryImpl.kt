@@ -130,6 +130,16 @@ class DownloadRepositoryImpl @Inject constructor(
         DownloadProvider.hasMangaDownloads(context, sourceName, mangaTitle)
     }
 
+    override suspend fun getMangaIdsWithDownloads(
+        mangaKeys: Map<Long, Pair<String, String>>
+    ): Set<Long> = withContext(Dispatchers.IO) {
+        val root = context.getExternalFilesDir(null) ?: context.filesDir
+        val downloadedDirKeys = DownloadProvider.getMangaDirsWithDownloads(root)
+        mangaKeys.filterValues { (sourceName, mangaTitle) ->
+            (DownloadProvider.sanitize(sourceName) to DownloadProvider.sanitize(mangaTitle)) in downloadedDirKeys
+        }.keys
+    }
+
     override suspend fun exportChapterAsCbz(
         sourceName: String,
         mangaTitle: String,

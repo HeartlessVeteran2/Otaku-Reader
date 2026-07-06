@@ -39,6 +39,7 @@ import app.otakureader.domain.scheduler.LibraryUpdateScheduler
 import app.cash.turbine.test
 import io.mockk.Awaits
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
@@ -126,6 +127,7 @@ class LibraryViewModelTest {
         mangaRepository = mockk(relaxed = true)
         downloadRepository = mockk {
             coEvery { hasMangaDownloads(any(), any()) } returns false
+            coEvery { getMangaIdsWithDownloads(any()) } returns emptySet()
             every { observeDownloads() } returns flowOf(emptyList())
         }
         settingsRepository = mockk {
@@ -133,6 +135,7 @@ class LibraryViewModelTest {
         }
         trackRepository = mockk {
             every { observeEntriesForManga(any()) } returns flowOf(emptyList())
+            every { observeMangaIdsWithTrackEntries() } returns flowOf(emptySet())
         }
         getCategories = mockk(relaxed = true) {
             every { this@mockk.invoke() } returns flowOf(emptyList())
@@ -272,6 +275,24 @@ class LibraryViewModelTest {
     }
 
     @Test
+    fun loadLibrary_marksTrackedAndDownloadedMangaFromBatchedLookups() = runTest {
+        every { getLibraryManga() } returns flowOf(sampleMangas)
+        every { trackRepository.observeMangaIdsWithTrackEntries() } returns flowOf(setOf(2L))
+        coEvery { downloadRepository.getMangaIdsWithDownloads(any()) } returns setOf(1L)
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val byId = viewModel.state.value.mangaList.associateBy { it.id }
+        assertTrue(byId.getValue(1L).isDownloaded)
+        assertFalse(byId.getValue(1L).hasTracking)
+        assertFalse(byId.getValue(2L).isDownloaded)
+        assertTrue(byId.getValue(2L).hasTracking)
+        assertFalse(byId.getValue(3L).isDownloaded)
+        assertFalse(byId.getValue(3L).hasTracking)
+    }
+
+    @Test
     fun init_setsLoadingFalseAfterLoad() = runTest {
         every { getLibraryManga() } returns flowOf(sampleMangas)
 
@@ -385,6 +406,28 @@ class LibraryViewModelTest {
             sampleMangas.map { it.id }.toSet(),
             viewModel.state.value.selectedManga
         )
+    }
+
+    @Test
+    fun onEvent_MarkSelectedAsRead_batchesChapterLookupAcrossSelectedManga() = runTest {
+        every { getLibraryManga() } returns flowOf(sampleMangas)
+        val chapters = listOf(
+            Chapter(id = 100L, mangaId = 1L, url = "/c/100", name = "Ch. 1"),
+            Chapter(id = 200L, mangaId = 2L, url = "/c/200", name = "Ch. 1"),
+        )
+        coEvery { chapterRepository.getChaptersByMangaIdsSync(setOf(1L, 2L)) } returns chapters
+        coEvery { chapterRepository.updateChapterProgress(any<Collection<Long>>(), any(), any()) } just Awaits
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onEvent(LibraryEvent.OnMangaLongClick(1L))
+        viewModel.onEvent(LibraryEvent.OnMangaLongClick(2L))
+        viewModel.onEvent(LibraryEvent.MarkSelectedAsRead)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 1) { chapterRepository.getChaptersByMangaIdsSync(setOf(1L, 2L)) }
+        coVerify { chapterRepository.updateChapterProgress(listOf(100L, 200L), read = true, lastPageRead = 0) }
     }
 
     @Test

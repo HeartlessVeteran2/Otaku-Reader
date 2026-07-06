@@ -11,6 +11,9 @@ interface TrackRepository {
     /** Observe all entries for a given local manga. */
     fun observeEntriesForManga(mangaId: Long): Flow<List<TrackEntry>>
 
+    /** Observe the set of manga IDs that have at least one tracker entry across all trackers. */
+    fun observeMangaIdsWithTrackEntries(): Flow<Set<Long>>
+
     /** Retrieve a single entry by the unique (manga, tracker) key. */
     suspend fun getEntry(mangaId: Long, trackerId: Int): TrackEntry?
 

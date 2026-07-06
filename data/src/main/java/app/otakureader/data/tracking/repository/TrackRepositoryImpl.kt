@@ -16,6 +16,9 @@ class TrackRepositoryImpl @Inject constructor(
     override fun observeEntriesForManga(mangaId: Long): Flow<List<TrackEntry>> =
         dao.getByMangaId(mangaId).map { entities -> entities.map { it.toDomain() } }
 
+    override fun observeMangaIdsWithTrackEntries(): Flow<Set<Long>> =
+        dao.getMangaIdsWithTrackEntries().map { it.toSet() }
+
     override suspend fun getEntry(mangaId: Long, trackerId: Int): TrackEntry? =
         dao.getByMangaAndTracker(mangaId, trackerId)?.toDomain()
 

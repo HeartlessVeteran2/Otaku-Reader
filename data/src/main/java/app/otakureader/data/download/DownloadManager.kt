@@ -416,9 +416,7 @@ class DownloadManager @Inject constructor(
 
             refreshDownloadsList()
         }
-        for ((id, priority) in priorityUpdates) {
-            downloadQueueDao.updatePriority(id, priority)
-        }
+        downloadQueueDao.updatePriorities(priorityUpdates)
     }
 
     // -------------------------------------------------------------------------

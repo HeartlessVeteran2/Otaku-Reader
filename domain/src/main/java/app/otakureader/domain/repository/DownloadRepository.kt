@@ -98,6 +98,13 @@ interface DownloadRepository {
     suspend fun hasMangaDownloads(sourceName: String, mangaTitle: String): Boolean
 
     /**
+     * Returns the subset of [mangaKeys] (mangaId -> (sourceName, mangaTitle)) that have at
+     * least one downloaded chapter. One filesystem walk for the whole batch instead of calling
+     * [hasMangaDownloads] once per manga in the library.
+     */
+    suspend fun getMangaIdsWithDownloads(mangaKeys: Map<Long, Pair<String, String>>): Set<Long>
+
+    /**
      * Creates a CBZ archive from the downloaded pages (if any) of the given chapter.
      *
      * The archive is placed inside the chapter's download directory. This operation
