@@ -28,7 +28,7 @@ interface TrackEntryDao {
      * [getByMangaId] check.
      */
     @Query("SELECT DISTINCT manga_id FROM track_entries")
-    fun getMangaIdsWithTrackEntries(): Flow<Set<Long>>
+    fun getMangaIdsWithTrackEntries(): Flow<List<Long>>
 
     /**
      * Aggregated tracker statistics for the Statistics screen, computed in a single query:
