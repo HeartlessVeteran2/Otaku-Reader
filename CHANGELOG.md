@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Settings & Backup
+- Selective backup/restore — choose exactly which data categories (library entries, chapters, categories, tracking, preferences, OPDS servers, feed, tracker sync settings) go into a backup or get applied from one, via a checkbox list on both the pre-backup and pre-restore dialogs; deselected sections are simply empty in the backup file, so existing full backups still restore fine (#1207)
+- Require-charging library-update restriction, hide-notification-content toggle, per-tracker sync-on-chapter-read opt-out, and per-category skip-updates toggle (#1202)
+- Keep-last-N-read-chapters delete-after-read mode, alongside the existing "delete the just-read chapter" option (#1203)
+- Onboarding storage-location step — pick the download folder during first-run setup, with the permission grant persisted across reboots (#1204)
+
+### Added — Migration
+- Configurable migration options — per-category toggles (chapters, categories, tracking, notes, downloads, custom cover) control exactly what a source migration carries over, instead of migrating everything unconditionally (#1206)
+- Custom-cover migration — a manga's custom cover now carries over to the migrated entry (#1206)
+
+### Added — Updates
+- Dedicated Update Errors screen — replaces the flat dialog with a full screen: sticky-header grouping by error message, long-press multi-select (select-all/invert/delete-selected), a "migrate selected" bulk action, and per-item swipe-to-dismiss (#1205)
+
+### Added — Statistics
+- Trackers card — tracked-title count, mean score, and active tracker-service count, shown once at least one manga is tracked (#1197)
+- Downloaded-chapter count tile on the library stats card (#1197)
+
 ### Added — Reader
 - Reader comments — private, timestamped comments scoped to the current chapter or the whole series, in a bottom sheet opened from the reader menu; the existing chapter note is editable in the same place, and linked tracker pages (MAL, AniList, …) open in one tap (#1098)
 

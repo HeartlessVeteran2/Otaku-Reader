@@ -162,10 +162,11 @@ This is not a fork. Otaku Reader was written from the ground up — the core app
 <summary>💾 Backup & Migration</summary>
 
 - 💾 **Local backup/restore** — Human-readable JSON in ZIP, everything stays on-device; backup v4 covers every customization (custom titles/covers, per-manga reader settings, notes, category schedules)
+- ☑️ **Selective backup/restore** — Choose exactly which data categories (library, chapters, categories, tracking, preferences, OPDS servers, feed, tracker sync settings) go into a backup or get applied from one
 - ☁️ **WebDAV cloud backup** — Scheduled uploads to Nextcloud, ownCloud, or any WebDAV server (opt-in, your server)
 - 📦 **Tachiyomi/Mihon/Komikku import** — Restore an existing backup and keep reading in minutes
 - 🔄 **Auto-backup worker** — Periodic automatic backups run in background
-- 🔄 **Source-to-source migration** — Move manga between sources without losing progress
+- 🔄 **Source-to-source migration** — Move manga between sources without losing progress; configurable per-category options (chapters, categories, tracking, notes, downloads, custom cover) control exactly what carries over
 
 </details>
 
