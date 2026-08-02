@@ -23,3 +23,8 @@ dependencies {
     implementation(libs.retrofit.kotlinx.serialization)
     api(libs.kotlinx.serialization.json)
 }
+
+dependencies {
+    testImplementation(libs.junit)
+    testImplementation(libs.okhttp.mockwebserver)
+}
