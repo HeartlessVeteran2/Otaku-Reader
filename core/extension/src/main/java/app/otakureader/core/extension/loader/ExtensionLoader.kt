@@ -91,8 +91,29 @@ class ExtensionLoader(
          */
         const val LIB_VERSION_MIN = 1.4
 
-        /** Maximum supported extension library version. */
-        const val LIB_VERSION_MAX = 1.5
+        /**
+         * Maximum supported extension library version.
+         *
+         * This is a *compatibility gate*, not a capability check: an extension whose
+         * lib version falls outside the window is rejected before any of its code runs.
+         * Keeping it at 1.5 meant every Keiyoushi/Komikku extension built against
+         * extensions-lib 1.6 or 1.7 was refused with "Unsupported lib version" — which
+         * presented as the app simply having no sources.
+         *
+         * 1.7 is the correct ceiling because the host contract in `core:tachiyomi-compat`
+         * already implements those revisions: see the `@since komikku/extensions-lib 1.6`
+         * members on [eu.kanade.tachiyomi.source.CatalogueSource] (related-manga APIs) and
+         * the 1.7 member on [eu.kanade.tachiyomi.source.Source]. The loader was rejecting
+         * extensions that use APIs this app already ships.
+         *
+         * Widening is safe because extensions-lib revisions are additive — 1.6/1.7 added
+         * members to the host interfaces without breaking the 1.4-era ones — so a 1.4
+         * extension and a 1.7 extension both link against the same contract. Raise this
+         * again only after adding the corresponding members to `core:tachiyomi-compat`;
+         * loading an extension that calls a host method we do not ship fails at
+         * instantiation with NoClassDefFoundError, which is far harder to diagnose.
+         */
+        const val LIB_VERSION_MAX = 1.7
 
         /** File extension for private extensions stored in [getPrivateExtensionDir]. */
         private const val PRIVATE_EXTENSION_EXTENSION = "ext"

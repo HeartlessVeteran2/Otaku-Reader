@@ -7,12 +7,9 @@ import javax.inject.Singleton
  * Builds [ChildFirstPathClassLoader]s for extension APKs.
  *
  * Extracted from `ExtensionLoader` so the class-loader wiring is independently
- * testable. This factory delegates to [ExtensionLoadingUtils.createClassLoader]
- * for this loader path, while preserving the same child-first behaviour expected
- * for Tachiyomi/Komikku extension compatibility. Other loaders (notably
- * `TachiyomiExtensionLoader` in `core:tachiyomi-compat`) intentionally duplicate
- * the construction logic to avoid circular module dependencies rather than call
- * the helper directly.
+ * testable. This factory delegates to [ExtensionLoadingUtils.createClassLoader],
+ * preserving the child-first behaviour required for Tachiyomi/Komikku extension
+ * compatibility.
  */
 @Singleton
 class ExtensionClassLoaderFactory @Inject constructor() {

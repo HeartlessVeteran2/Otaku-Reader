@@ -56,6 +56,9 @@ class SourceRepositoryImpl @Inject constructor(
 
     private companion object {
         const val TAG = "SourceRepositoryImpl"
+
+        /** Caps a load-failure reason so one pathological message cannot flood logcat. */
+        const val SKIPPED_REASON_MAX_LENGTH = 200
     }
 
     /**
@@ -481,6 +484,14 @@ class SourceRepositoryImpl @Inject constructor(
                     android.util.Log.w(TAG, "Failed to read disabled extensions, treating all as enabled", e)
                     emptySet()
                 }
+                // Report why extensions were dropped before filtering them away. Discarding the
+                // non-Success results silently is what made a broken extension pipeline
+                // undiagnosable: when every extension failed to load, Browse showed only the
+                // local source and nothing anywhere — not even logcat — said why.
+                // Grouped by reason so one bad repo produces a single line rather than one per
+                // extension, and truncated because the reason string can carry a stack summary.
+                logSkippedExtensions(results)
+
                 val extensionSources = results
                     .filterIsInstance<ExtensionLoadResult.Success>()
                     .filterNot { it.extension.pkgName in disabledPkgNames }
@@ -500,6 +511,32 @@ class SourceRepositoryImpl @Inject constructor(
                 Result.failure(e)
             }
         }
+    }
+
+    /**
+     * Log every extension that failed to load, grouped by reason.
+     *
+     * [ExtensionLoadResult.Untrusted] is reported separately from [ExtensionLoadResult.Error]
+     * because the two need different user actions: untrusted extensions are recoverable from
+     * the extensions screen, while an error usually means the extension is incompatible.
+     */
+    private fun logSkippedExtensions(results: List<ExtensionLoadResult>) {
+        val untrusted = results.filterIsInstance<ExtensionLoadResult.Untrusted>()
+        if (untrusted.isNotEmpty()) {
+            android.util.Log.w(
+                TAG,
+                "${untrusted.size} extension(s) not loaded because their signature is not trusted: " +
+                    untrusted.joinToString { it.extension.pkgName },
+            )
+        }
+
+        val errors = results.filterIsInstance<ExtensionLoadResult.Error>()
+        if (errors.isEmpty()) return
+
+        errors.groupBy { it.message.take(SKIPPED_REASON_MAX_LENGTH) }
+            .forEach { (reason, group) ->
+                android.util.Log.w(TAG, "${group.size} extension(s) failed to load — $reason")
+            }
     }
 
     /**
