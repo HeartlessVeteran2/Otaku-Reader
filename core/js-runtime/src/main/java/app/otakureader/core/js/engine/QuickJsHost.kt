@@ -173,6 +173,16 @@ internal class QuickJsHost(
      * The map is per-[QuickJsHost] and seeded from this source's own stored values, so one
      * source cannot read another's — which matters because these frequently hold site
      * credentials.
+     *
+     * **`set` is call-scoped and does not persist yet.** A script can read back its own write
+     * within the same call, which is what sources actually rely on (they typically set a
+     * resolved domain and then use it), but the value is discarded when the call ends.
+     *
+     * This is stated rather than hidden because the alternative is worse: silently accepting a
+     * write that vanishes looks like working persistence right up until a user's setting fails
+     * to survive. Durable storage arrives in Stage 4 along with the repository that owns it —
+     * writing back requires returning the mutated map across the process boundary and a place
+     * to put it, neither of which exists while this module stands alone.
      */
     private fun installPreferences(engine: QuickJs) {
         engine.define("SharedPreferences") {
@@ -187,9 +197,6 @@ internal class QuickJsHost(
             }
         }
     }
-
-    /** Preference writes made by the script, for the client to persist. */
-    fun dirtyPreferences(): Map<String, String> = mutablePreferences.toMap()
 
     /**
      * Build the JS expression that invokes the extension.
