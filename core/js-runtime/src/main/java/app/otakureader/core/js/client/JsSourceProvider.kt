@@ -4,6 +4,8 @@ import app.otakureader.core.js.protocol.JsSourceConfig
 import app.otakureader.core.js.store.JsSourcePreferencesStore
 import app.otakureader.core.js.store.JsSourceStore
 import app.otakureader.sourceapi.MangaSource
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -29,19 +31,19 @@ class JsSourceProvider @Inject constructor(
      * or evaluate any JavaScript. The process starts on the first actual source call. That split
      * is what makes it safe to do this on every refresh.
      */
-    suspend fun loadSources(): List<MangaSource> {
+    suspend fun loadSources(): List<MangaSource> = mutationLock.withLock {
         val installed = store.installed()
 
         // Registrations for sources that are no longer installed have to be dropped, or an
         // uninstalled source stays callable for the life of the process — and its stored
         // credentials stay live in the engine's map.
         val installedIds = installed.map { it.config.id }.toSet()
-        connection.registeredIds().filterNot { it in installedIds }.forEach(connection::unregister)
+        connection.registeredIds().filterNot { it in installedIds }.forEach { connection.unregister(it) }
 
-        return installed.map { (config, script) ->
-            // Preferences live in DataStore, not in the manifest on disk: the manifest is
-            // replaced wholesale when a source updates, and merging the user's stored settings
-            // in here is what stops an update from wiping them.
+        installed.map { (config, script) ->
+            // Preferences live in their own encrypted store, not in the manifest on disk: the
+            // manifest is replaced wholesale when a source updates, and merging the user's
+            // stored settings in here is what stops an update from wiping them.
             val withPreferences = config.copy(preferences = preferencesStore.get(config.id))
             connection.register(withPreferences, script)
             JsSource(withPreferences, connection)
@@ -49,7 +51,7 @@ class JsSourceProvider @Inject constructor(
     }
 
     /** Install a source and make it immediately callable, without waiting for a refresh. */
-    suspend fun install(config: JsSourceConfig, script: String) {
+    suspend fun install(config: JsSourceConfig, script: String) = mutationLock.withLock {
         store.install(config, script)
         connection.register(config.copy(preferences = preferencesStore.get(config.id)), script)
     }
@@ -61,9 +63,20 @@ class JsSourceProvider @Inject constructor(
      * behind would mean uninstalling a source did not actually remove the credentials the user
      * gave it — and a later reinstall would silently inherit them.
      */
-    suspend fun uninstall(sourceId: String) {
+    suspend fun uninstall(sourceId: String) = mutationLock.withLock {
         connection.unregister(sourceId)
         store.uninstall(sourceId)
         preferencesStore.clear(sourceId)
     }
+
+    /**
+     * Serialises the three operations that move sources between disk and the engine.
+     *
+     * They read disk and then act on the engine, so running concurrently they interleave into
+     * states neither intended: a refresh that snapshots the directory before an install can
+     * unregister the source that install just added, and a refresh holding a stale snapshot can
+     * re-register — and republish — a source that was uninstalled underneath it. Both leave the
+     * engine disagreeing with disk until something forces another refresh.
+     */
+    private val mutationLock = Mutex()
 }

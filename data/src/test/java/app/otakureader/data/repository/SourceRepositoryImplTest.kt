@@ -311,6 +311,47 @@ class SourceRepositoryImplTest {
     }
 
     /**
+     * The precedence rule itself, which the ordering test above does not actually reach.
+     *
+     * That test stubs the extension loader empty, so there is no colliding id and it would pass
+     * just as happily if the JS list were appended after the APK one. Precedence only means
+     * anything when both backends offer the same source: `distinctBy` keeps the first
+     * occurrence, so this asserts the surviving instance is the JavaScript one.
+     */
+    @Test
+    fun refreshSources_prefersTheJavaScriptSourceWhenBothBackendsSupplyAnId() = runTest {
+        mockLocalSource(makeFakeSource(id = "local", name = "Local"))
+
+        // TachiyomiSourceAdapter derives its id from the underlying source's numeric id, so
+        // giving the JS source the same id as a string is what creates the real collision —
+        // driven through refreshSources rather than asserted against a hand-built list, which
+        // would only be testing distinctBy.
+        val collidingId = 12345L
+        val catalogueSource = mockk<CatalogueSource>(relaxed = true)
+        every { catalogueSource.id } returns collidingId
+        every { catalogueSource.name } returns "Shared (APK)"
+        val extension = mockk<Extension>(relaxed = true)
+        every { extension.pkgName } returns "com.example.shared"
+        every { extension.isNsfw } returns false
+        every { extensionLoader.loadAllExtensions() } returns
+            listOf(ExtensionLoadResult.Success(extension, listOf(catalogueSource)))
+
+        coEvery { jsSourceProvider.loadSources() } returns
+            listOf(makeFakeSource(id = collidingId.toString(), name = "Shared (JS)"))
+
+        repository.refreshSources()
+        advanceUntilIdle()
+
+        val matching = repository.getSources().first().filter { it.id == collidingId.toString() }
+        assertEquals("the collision must collapse to one source", 1, matching.size)
+        assertEquals(
+            "the JavaScript backend must win an id collision",
+            "Shared (JS)",
+            matching.single().name,
+        )
+    }
+
+    /**
      * The two backends share nothing, so a failure in one must not cost the other.
      *
      * Treating them as one all-or-nothing unit would reproduce the exact fault this rebuild

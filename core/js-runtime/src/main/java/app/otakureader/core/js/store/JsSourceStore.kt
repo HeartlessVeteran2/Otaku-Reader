@@ -5,6 +5,8 @@ import app.otakureader.core.js.protocol.JsProtocol
 import app.otakureader.core.js.protocol.JsSourceConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import java.io.File
@@ -57,6 +59,9 @@ class JsSourceStore @Inject constructor(
     private val directory: File
         get() = File(context.filesDir, DIRECTORY).apply { mkdirs() }
 
+    /** Serialises install against install and against uninstall — see [install]. */
+    private val mutationLock = Mutex()
+
     private fun fileFor(sourceId: String) = File(directory, "${sourceId.toFileName()}.$EXTENSION")
 
     /**
@@ -83,23 +88,34 @@ class JsSourceStore @Inject constructor(
      * Written to a temporary file and then renamed. Rename within a directory is atomic, so a
      * concurrent [installed] sees either the previous record or the new one — never a half-
      * written file, and never a new script under an old manifest.
+     *
+     * The temporary file is unique per call rather than derived from the source id. A fixed
+     * staging name is shared by every caller, so two installs of the same source race on it:
+     * one truncates the other's half-written file and whichever renames first publishes a
+     * mixture of both. [mutationLock] serialises the mutations on top of that, which also keeps
+     * an uninstall from landing between another install's write and its rename.
      */
     suspend fun install(config: JsSourceConfig, script: String) = withContext(Dispatchers.IO) {
-        val target = fileFor(config.id)
-        val temp = File(target.parentFile, "${target.name}$TEMP_SUFFIX")
-
-        temp.writeText(JsProtocol.json.encodeToString(StoredJsSource(config, script)))
-        if (!temp.renameTo(target)) {
-            // Rename can fail if the target is somehow unwritable. Leaving the temp file behind
-            // would let it accumulate, and it must not be mistaken for an installed source —
-            // which it cannot be, since listing filters on the .json extension.
-            temp.delete()
-            error("Could not install JavaScript source ${config.id}")
+        mutationLock.withLock {
+            val target = fileFor(config.id)
+            val temp = File.createTempFile(target.name, TEMP_SUFFIX, directory)
+            try {
+                temp.writeText(JsProtocol.json.encodeToString(StoredJsSource(config, script)))
+                if (!temp.renameTo(target)) {
+                    error("Could not install JavaScript source ${config.id}")
+                }
+            } finally {
+                // No-op on the success path, since the rename moved it. On any failure this is
+                // what stops abandoned staging files accumulating — they can never be mistaken
+                // for a source, because listing filters on the .json extension, but they would
+                // otherwise sit in the directory forever.
+                temp.delete()
+            }
         }
     }
 
     suspend fun uninstall(sourceId: String) = withContext(Dispatchers.IO) {
-        fileFor(sourceId).delete()
+        mutationLock.withLock { fileFor(sourceId).delete() }
         Unit
     }
 }
