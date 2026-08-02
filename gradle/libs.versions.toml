@@ -88,6 +88,7 @@ rxandroid = "1.2.1"
 jsoup = "1.22.1"
 injekt = "91edab2317"
 androidx-preference = "1.2.1"
+quickjs = "1.0.0-alpha13"
 
 # Desugaring
 desugar-jdk-libs = "2.1.5"
@@ -221,6 +222,7 @@ rxandroid = { group = "io.reactivex", name = "rxandroid", version.ref = "rxandro
 # Tachiyomi extension runtime deps (supplied by the host to loaded extension APKs)
 jsoup = { group = "org.jsoup", name = "jsoup", version.ref = "jsoup" }
 injekt = { group = "com.github.mihonapp", name = "injekt", version.ref = "injekt" }
+quickjs = { group = "io.github.dokar3", name = "quickjs-kt-android", version.ref = "quickjs" }
 androidx-preference = { group = "androidx.preference", name = "preference-ktx", version.ref = "androidx-preference" }
 
 # Desugaring (core library desugaring for API 26+ language features)

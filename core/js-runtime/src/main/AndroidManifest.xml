@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!--
+          The JavaScript engine runs in its own process.
+
+          This is not a performance choice, it is the only available containment. No Android
+          QuickJS binding exposes JS_SetInterruptHandler, so a script that never yields — a
+          plain `while (true) {}` — cannot be stopped from inside the VM. It also allocates
+          nothing, so the memory limit never trips either. Killing the process is the only
+          mechanism that actually ends it.
+
+          Because the engine is isolated here, that kill can never take app state with it:
+          the sidecar holds no user data, performs no I/O of its own, and is treated as
+          disposable between calls.
+
+          android:exported="false" — nothing outside this app may bind. The engine executes
+          untrusted third-party code, so an exported binding would hand that execution to any
+          app on the device.
+        -->
+        <service
+            android:name="app.otakureader.core.js.engine.JsEngineService"
+            android:exported="false"
+            android:process=":jsengine" />
+    </application>
+
+</manifest>
