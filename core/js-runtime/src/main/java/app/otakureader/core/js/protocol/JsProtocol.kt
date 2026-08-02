@@ -194,13 +194,25 @@ fun writeToPipe(payload: String): android.os.ParcelFileDescriptor {
     val readSide = pipe[0]
     val writeSide = pipe[1]
     kotlin.concurrent.thread(name = "js-ipc-writer", isDaemon = true) {
+        // AutoCloseOutputStream, not a bare FileOutputStream over the raw descriptor: the
+        // latter closes the stream but leaves the ParcelFileDescriptor itself open until
+        // finalization, so a burst of calls leaks descriptors and trips CloseGuard.
         runCatching {
-            java.io.FileOutputStream(writeSide.fileDescriptor).use { it.write(payload.toByteArray()) }
+            android.os.ParcelFileDescriptor.AutoCloseOutputStream(writeSide).use {
+                it.write(payload.toByteArray())
+            }
         }.onFailure { runCatching { writeSide.close() } }
     }
     return readSide
 }
 
-/** Drain a pipe produced by [writeToPipe]. */
+/**
+ * Drain a pipe produced by [writeToPipe], closing the descriptor with it.
+ *
+ * The AIDL contract transfers ownership of the descriptor to the caller, so the caller is the
+ * one that has to release it — reading through AutoCloseInputStream makes that automatic
+ * rather than something every call site has to remember.
+ */
 fun android.os.ParcelFileDescriptor.readPayload(): String =
-    java.io.FileInputStream(fileDescriptor).use { it.readBytes() }.toString(Charsets.UTF_8)
+    android.os.ParcelFileDescriptor.AutoCloseInputStream(this).use { it.readBytes() }
+        .toString(Charsets.UTF_8)

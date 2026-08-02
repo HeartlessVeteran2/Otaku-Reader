@@ -26,8 +26,20 @@ import javax.inject.Singleton
  */
 @Singleton
 class JsHttpBridge @Inject constructor(
-    private val client: OkHttpClient,
+    sharedClient: OkHttpClient,
 ) {
+
+    /**
+     * The app's shared client, with automatic redirect following disabled.
+     *
+     * Built with newBuilder() so every interceptor, the cookie jar, the certificate pinner and
+     * the connection pool are all inherited — only redirect handling changes, because hops have
+     * to be validated before they are issued (see [followManually]).
+     */
+    private val client: OkHttpClient = sharedClient.newBuilder()
+        .followRedirects(false)
+        .followSslRedirects(false)
+        .build()
 
     private companion object {
         /**
@@ -39,6 +51,9 @@ class JsHttpBridge @Inject constructor(
         const val MAX_BODY_BYTES = 8L * 1024 * 1024
 
         val ALLOWED_SCHEMES = setOf("https")
+
+        /** Bounds a redirect loop, since hops are now followed by hand. */
+        const val MAX_REDIRECTS = 5
 
         /**
          * Hostnames a source may never reach.
@@ -102,20 +117,54 @@ class JsHttpBridge @Inject constructor(
             else -> return JsHttpResponse(ok = false, error = "Unsupported method ${request.method}")
         }
 
-        return client.newCall(builder.build()).execute().use { response ->
-            // A redirect chain can land somewhere the original URL was not. OkHttp follows
-            // redirects internally, so the pre-flight check above only ever saw the first hop —
-            // re-checking the final URL is what actually closes the SSRF path.
-            if (isBlocked(response.request.url)) {
-                return@use JsHttpResponse(
-                    ok = false,
-                    code = response.code,
-                    error = "Redirected to private address ${response.request.url.host}",
-                )
-            }
+        return followManually(builder.build())
+    }
 
-            readBody(response)
+    /**
+     * Issue the request, validating every redirect hop *before* following it.
+     *
+     * Redirect following is disabled on this client rather than inspecting the final URL after
+     * the fact. Checking afterwards is not a defence: OkHttp would already have connected to
+     * the internal host and received its response, so the probe — the entire behaviour the
+     * blocklist exists to prevent — has happened. Suppressing the body at that point only hides
+     * the result from the script; a timing difference still reveals whether the host is alive.
+     *
+     * Validating each hop before issuing it is what actually closes the path.
+     */
+    private fun followManually(initial: Request): JsHttpResponse {
+        var request = initial
+
+        repeat(MAX_REDIRECTS) {
+            client.newCall(request).execute().use { response ->
+                val location = response.header("Location")
+                    ?.takeIf { response.isRedirect }
+                    ?: return readBody(response)
+
+                val next = response.request.url.resolve(location)
+                    ?: return JsHttpResponse(
+                        ok = false,
+                        code = response.code,
+                        error = "Redirect to a malformed URL",
+                    )
+                if (next.scheme !in ALLOWED_SCHEMES) {
+                    return JsHttpResponse(
+                        ok = false,
+                        code = response.code,
+                        error = "Refused redirect to non-HTTPS ${next.host}",
+                    )
+                }
+                if (isBlocked(next)) {
+                    return JsHttpResponse(
+                        ok = false,
+                        code = response.code,
+                        error = "Refused redirect to private address ${next.host}",
+                    )
+                }
+                request = request.newBuilder().url(next).build()
+            }
         }
+
+        return JsHttpResponse(ok = false, error = "Too many redirects")
     }
 
     /**

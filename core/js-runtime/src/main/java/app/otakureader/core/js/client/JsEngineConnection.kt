@@ -12,6 +12,7 @@ import app.otakureader.core.js.protocol.JsCallResult
 import app.otakureader.core.js.protocol.JsErrorKind
 import app.otakureader.core.js.protocol.JsProtocol
 import app.otakureader.core.js.protocol.JsSourceConfig
+import app.otakureader.core.js.protocol.readPayload
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -22,7 +23,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
-import java.io.FileInputStream
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
@@ -171,9 +171,8 @@ class JsEngineConnection @Inject constructor(
         val bound = ensureBound()
         bound.loadSource(sourceId, entry.second, JsProtocol.json.encodeToString(entry.first))
 
-        val pipe = bound.call(sourceId, method, JsProtocol.json.encodeToString(args))
-        val payload = FileInputStream(pipe.fileDescriptor).use { it.readBytes() }
-            .toString(Charsets.UTF_8)
+        val payload = bound.call(sourceId, method, JsProtocol.json.encodeToString(args))
+            .readPayload()
 
         JsProtocol.json.decodeFromString<JsCallResult>(payload)
     }

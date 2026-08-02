@@ -76,6 +76,9 @@ internal class QuickJsHost(
          * so this bound is far above legitimate use and only trips on a leak.
          */
         const val MAX_LIVE_DOCUMENTS = 32
+
+        /** Host function the invocation calls to hand its serialized result back. */
+        const val RESULT_BINDING = "__otakuEmitResult"
     }
 
     /** Parsed documents held by handle so JS never receives a host object reference. */
@@ -98,31 +101,32 @@ internal class QuickJsHost(
             engine.evaluationTimeoutMillis = EVALUATION_TIMEOUT_MS
 
             installGlobals(engine)
-            engine.evaluate<Any?>(script)
 
-            val invocation = buildInvocation(method, args)
-            val result = engine.evaluate<Any?>(invocation, asModule = true)
-            val text = result?.toString() ?: "null"
-
-            // Guard against the awaited value not actually being awaited.
+            // The result is pushed out through a binding rather than taken from the
+            // evaluation's return value.
             //
-            // Extension methods are async, so the invocation has to resolve a Promise before
-            // its value can be serialized. quickjs-kt drives pending jobs from its own
-            // coroutine scope and supports top-level await, which is why the invocation is
-            // evaluated as a module rather than as an async IIFE — an IIFE hands back the
-            // Promise object itself.
+            // Two evaluation forms both fail here, in opposite ways. An async IIFE returns the
+            // Promise object itself, so the caller gets "[object Promise]". A module has no
+            // completion value at all, so the caller gets null. Since extension methods are
+            // async, top-level await — which needs module mode — is the only way to resolve
+            // them, and module mode is exactly the form that discards the value.
             //
-            // If that ever regresses, the symptom is silent and awful: every call returns the
-            // string "[object Promise]", which fails JSON decoding downstream and surfaces as a
-            // generic protocol error pointing at the source rather than at the engine. Checking
-            // here turns a misleading source-blaming failure into an accurate engine-blaming
-            // one. This is asserted rather than assumed because it cannot be covered by a JVM
-            // unit test — the native engine only runs on a device.
-            check(!text.startsWith("[object Promise")) {
-                "Engine returned an unresolved Promise for $method — the invocation was not awaited"
+            // Capturing through a host function sidesteps the question: the script hands the
+            // JSON back explicitly, so nothing depends on what an evaluation form happens to
+            // return.
+            var captured: String? = null
+            engine.function(RESULT_BINDING) { callbackArgs ->
+                captured = callbackArgs.getOrNull(0) as? String
+                null
             }
 
-            text
+            engine.evaluate<Any?>(script)
+            engine.evaluate<Any?>(buildInvocation(method, args), asModule = true)
+
+            // A source that returned nothing at all is a real failure, not an empty result —
+            // reporting it here names the engine/script contract rather than letting a null
+            // surface later as a confusing decode error.
+            captured ?: error("Source method $method produced no result")
         }
     }
 
@@ -271,17 +275,16 @@ internal class QuickJsHost(
             JsProtocol.Method.FILTER_LIST -> "getFilterList()"
             else -> error("Unknown source method: $method")
         }
-        // Top-level await, not an async IIFE. An IIFE evaluates to the Promise object, so the
-        // caller would receive "[object Promise]" instead of the payload; top-level await makes
-        // the module's completion value the resolved result, which is what quickjs-kt's suspend
-        // evaluate() is built to return.
+        // Top-level await, so module mode is required — extension methods are async and this is
+        // the only form that can resolve them. The value is handed back through the host
+        // binding rather than returned, since a module evaluates to nothing.
         //
         // The extension declares `class DefaultExtension extends MProvider`; results are
         // stringified here so exactly one type crosses the boundary regardless of method.
         return """
             const provider = new DefaultExtension();
             const result = await provider.$call;
-            JSON.stringify(result === undefined ? null : result);
+            $RESULT_BINDING(JSON.stringify(result === undefined ? null : result));
         """.trimIndent()
     }
 }
