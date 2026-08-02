@@ -329,6 +329,34 @@ class SourceRepositoryImplTest {
         assertTrue(repository.getSources().first().isNotEmpty())
     }
 
+    /**
+     * The counterpart of the test above, and the one that was missing.
+     *
+     * Isolation has to run both ways. An earlier version nested the JavaScript load inside the
+     * extension load's try block, so a throw from the APK pipeline jumped to the fallback and
+     * published only the local source — silently hiding every installed JavaScript source. The
+     * suite still passed, because the existing extension-failure test only asserted the returned
+     * Result and never looked at what remained in the source list.
+     */
+    @Test
+    fun refreshSources_keepsJavaScriptSourcesWhenExtensionLoaderThrows() = runTest {
+        mockLocalSource(makeFakeSource(id = "local", name = "Local"))
+        every { extensionLoader.loadAllExtensions() } throws RuntimeException("Extension loader exploded")
+        coEvery { jsSourceProvider.loadSources() } returns
+            listOf(makeFakeSource(id = "js.example", name = "Example (JS)"))
+
+        val result = repository.refreshSources()
+        advanceUntilIdle()
+
+        // The failure is still reported to the caller...
+        assertTrue(result.isFailure)
+        // ...but it must not cost the user their JavaScript sources.
+        assertTrue(
+            "a JS source must survive an extension-backend failure",
+            repository.getSources().first().any { it.id == "js.example" },
+        )
+    }
+
     @Test
     fun refreshSources_returnsFailureWhenExtensionLoaderThrows() = runTest {
         val error = RuntimeException("Extension loader exploded")

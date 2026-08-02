@@ -466,70 +466,92 @@ class SourceRepositoryImpl @Inject constructor(
                 android.util.Log.w(TAG, "Failed to resolve local source", e)
                 return@withContext Result.failure(e)
             }
-            try {
-                val results = extensionLoader.loadAllExtensions()
-                // Sources are parsed fresh from the APK on every load, so ExtensionLoadResult's
-                // Extension.isEnabled is always the model default (true) and never reflects the
-                // user's stored preference. Cross-reference the DB-persisted flag here so a
-                // disabled extension's sources stay out of Browse. A failure to read this is
-                // non-fatal — fall back to treating nothing as disabled rather than losing every
-                // loaded source below.
-                val disabledPkgNames = try {
-                    extensionRepository.getInstalledExtensions().first()
-                        .filterNot { it.isEnabled }
-                        .map { it.pkgName }
-                        .toSet()
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    android.util.Log.w(TAG, "Failed to read disabled extensions, treating all as enabled", e)
-                    emptySet()
-                }
-                // Report why extensions were dropped before filtering them away. Discarding the
-                // non-Success results silently is what made a broken extension pipeline
-                // undiagnosable: when every extension failed to load, Browse showed only the
-                // local source and nothing anywhere — not even logcat — said why.
-                // Grouped by reason so one bad repo produces a single line rather than one per
-                // extension, and truncated because the reason string can carry a stack summary.
-                logSkippedExtensions(results)
-
-                val extensionSources = results
-                    .filterIsInstance<ExtensionLoadResult.Success>()
-                    .filterNot { it.extension.pkgName in disabledPkgNames }
-                    .flatMap { success ->
-                        success.sources
-                            .filterIsInstance<CatalogueSource>()
-                            .map { TachiyomiSourceAdapter(it, success.extension.isNsfw) }
-                    }
-                // JavaScript sources come before APK ones, and the order is load-bearing rather
-                // than cosmetic: distinctBy keeps the FIRST occurrence of each id, so when both
-                // backends supply the same source the JS one wins. That makes "JS is the primary
-                // backend" a structural property of the list instead of a convention that later
-                // code can quietly break.
-                //
-                // A failure to load JS sources must not cost us the APK ones. The two backends
-                // share nothing, so treating them as one all-or-nothing unit would reproduce the
-                // exact fault this rebuild exists to fix — one broken source taking out Browse.
-                val jsSources = try {
-                    jsSourceProvider.loadSources()
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    android.util.Log.w(TAG, "Failed to load JavaScript sources", e)
-                    emptyList()
-                }
-
-                _sources.value = (listOf(local) + jsSources + extensionSources).distinctBy { it.id }
-                clearCaches()
-                Result.success(Unit)
+            // The two backends are loaded independently, and that independence is the point.
+            //
+            // They share no state, so neither one's failure may remove the other's sources. An
+            // earlier version nested the JavaScript load inside the extension load's try block,
+            // which protected the APK sources from a JS failure but not the reverse: any throw
+            // from the extension pipeline jumped straight to the fallback and published only the
+            // local source, silently hiding every installed JavaScript source. That is the exact
+            // fault this rebuild exists to fix, so the isolation has to run both ways.
+            val jsSources = loadJsSources()
+            val extensionSources = try {
+                Result.success(loadExtensionSources())
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                android.util.Log.w(TAG, "Failed to load extensions, falling back to local source", e)
-                _sources.value = listOf(local)
+                android.util.Log.w(TAG, "Failed to load extensions", e)
                 Result.failure(e)
             }
+
+            // JavaScript sources come before APK ones, and the order is load-bearing rather than
+            // cosmetic: distinctBy keeps the FIRST occurrence of each id, so when both backends
+            // supply the same source the JS one wins. That makes "JS is the primary backend" a
+            // structural property of the list instead of a convention later code can quietly
+            // break.
+            _sources.value = (listOf(local) + jsSources + extensionSources.getOrDefault(emptyList()))
+                .distinctBy { it.id }
+            clearCaches()
+
+            // Whatever loaded is published either way; the Result only reports whether the
+            // extension backend had a problem worth surfacing to the caller.
+            extensionSources.map { }
         }
+    }
+
+    /**
+     * Load the APK-backed sources. Throws if the extension pipeline fails, so the caller can
+     * decide what that means — which is "report it, but keep the other backend's sources".
+     */
+    private suspend fun loadExtensionSources(): List<MangaSource> {
+        val results = extensionLoader.loadAllExtensions()
+        // Sources are parsed fresh from the APK on every load, so ExtensionLoadResult's
+        // Extension.isEnabled is always the model default (true) and never reflects the user's
+        // stored preference. Cross-reference the DB-persisted flag here so a disabled
+        // extension's sources stay out of Browse. A failure to read this is non-fatal — fall
+        // back to treating nothing as disabled rather than losing every loaded source below.
+        val disabledPkgNames = try {
+            extensionRepository.getInstalledExtensions().first()
+                .filterNot { it.isEnabled }
+                .map { it.pkgName }
+                .toSet()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "Failed to read disabled extensions, treating all as enabled", e)
+            emptySet()
+        }
+        // Report why extensions were dropped before filtering them away. Discarding the
+        // non-Success results silently is what made a broken extension pipeline undiagnosable:
+        // when every extension failed to load, Browse showed only the local source and nothing
+        // anywhere — not even logcat — said why. Grouped by reason so one bad repo produces a
+        // single line rather than one per extension.
+        logSkippedExtensions(results)
+
+        return results
+            .filterIsInstance<ExtensionLoadResult.Success>()
+            .filterNot { it.extension.pkgName in disabledPkgNames }
+            .flatMap { success ->
+                success.sources
+                    .filterIsInstance<CatalogueSource>()
+                    .map { TachiyomiSourceAdapter(it, success.extension.isNsfw) }
+            }
+    }
+
+    /**
+     * Load the JavaScript-backed sources, absorbing failure.
+     *
+     * Returns an empty list rather than throwing, because a JS backend problem must never cost
+     * the user their APK sources — the counterpart of the extension backend's failure being
+     * confined to itself.
+     */
+    private suspend fun loadJsSources(): List<MangaSource> = try {
+        jsSourceProvider.loadSources()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        android.util.Log.w(TAG, "Failed to load JavaScript sources", e)
+        emptyList()
     }
 
     /**
