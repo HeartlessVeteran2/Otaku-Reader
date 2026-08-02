@@ -115,7 +115,7 @@ Style checks run via Gradle, not a downloaded script:
 ./gradlew ktlintCheck
 ```
 
-The `review-on-mention.yml` workflow runs this on comment-triggered reviews. If you want auto-format:
+The `ktlint` job in `ci.yml` runs this on every PR. If you want auto-format:
 
 ```bash
 ./gradlew ktlintFormat
@@ -125,7 +125,7 @@ The `review-on-mention.yml` workflow runs this on comment-triggered reviews. If 
 
 ## Required CI Checks
 
-Four checks **must** pass before any PR merges to `main`:
+Five checks **must** pass before any PR merges to `main`:
 
 1. **Security Check** — scans `BuildConfig` for hardcoded credentials
 2. **Detekt** — zero-tolerance static analysis

@@ -5,7 +5,6 @@
 
   <p><em>A modern, manga-only Android reader — no AI, no cloud, no ads, no tracking.</em></p>
 
-  [![Build](https://github.com/Heartless-Veteran/Otaku-Reader/actions/workflows/build.yml/badge.svg)](https://github.com/Heartless-Veteran/Otaku-Reader/actions/workflows/build.yml)
   [![CI](https://github.com/Heartless-Veteran/Otaku-Reader/actions/workflows/ci.yml/badge.svg)](https://github.com/Heartless-Veteran/Otaku-Reader/actions/workflows/ci.yml)
   [![Kotlin](https://img.shields.io/badge/Kotlin-2.3.21-FF4757?style=flat&logo=kotlin&logoColor=white)](https://kotlinlang.org/)
   [![Android](https://img.shields.io/badge/Android-8.0+-3DDC84?style=flat&logo=android&logoColor=white)](https://developer.android.com/)

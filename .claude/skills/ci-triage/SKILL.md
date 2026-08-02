@@ -4,17 +4,31 @@
 
 | Workflow | File | Trigger | Jobs |
 |---------|------|---------|------|
-| Main CI | `ci.yml` | Push/PR to `main`, `develop` | Detekt, Ktlint, Unit Tests, Coverage Gate, Screenshot Tests (Roborazzi), Assemble |
-| Build | `build.yml` | Push/PR | Build Debug APK |
+| Main CI | `ci.yml` | PR to `main`, manual | Security Check, Detekt, Ktlint, Unit Tests, Coverage Gate, Screenshot Tests (Roborazzi), Assemble (+ preview APK PR comment), License Report |
 | Release | `release.yml` | Tag push (`v*`) | Signed release APK, GitHub Release |
 | Benchmark | `benchmark.yml` | Manual dispatch | Baseline profile generation |
-| Preview APK | `build_preview.yml` | PR trigger | Preview APK build |
-| Cert Pin | `cert-pin-check.yml` | Push/PR | Certificate pinning verification |
-| Extension Smoke | `extension-smoke-test.yml` | Push/PR | Extension loading smoke tests |
+| Cert Pin | `cert-pin-check.yml` | Monthly cron, manual | Certificate pinning verification |
+| Extension Smoke | `extension-smoke-test.yml` | Manual dispatch only | Live-network extension loading check — never gates a PR |
 | Website | `pages.yml` | Push to `main` | VitePress build → GitHub Pages deploy |
-| Labels | `label.yml` | PR events | Auto-label PRs by changed paths |
-| CodeQL | `.github/workflows/codeql.yml` | Push/PR/schedule | Static security analysis |
-| Review | `review-on-mention.yml` | PR comments | Copilot review on @mention |
+| CodeQL | GitHub **default setup** (no workflow file) | Push/PR/schedule | Static security analysis |
+
+**`ci.yml` is the only PR gate.** `build.yml`, `build_preview.yml`, `label.yml` and `review-on-mention.yml` were removed — the first two duplicated `ci.yml`'s assemble job (three `assembleDebug` runs per PR for one artifact), and `label.yml` used the `pull_request_target` trigger, which grants a write-scoped token to untrusted fork code. The preview-APK PR comment now lives in `ci.yml`'s `assemble` job and updates itself in place rather than posting a new comment per push.
+
+Note that CodeQL has **no workflow file** — it is configured through GitHub's default setup, so a failing `Analyze (java-kotlin)` check cannot be debugged by reading `.github/workflows/`.
+
+---
+
+## Triage Trap: a run named after its file path
+
+If a run shows up named `.github/workflows/<file>.yml` instead of the workflow's `name:`, and is attributed to an event the workflow does not even subscribe to (usually `push`), **the workflow file failed to load**. It did not run and fail — GitHub could not parse or accept it at all. Reading the job steps will tell you nothing.
+
+The usual cause is an **invalid `permissions:` scope**, which invalidates the whole file. Valid scopes are exactly:
+
+`actions`, `attestations`, `checks`, `contents`, `deployments`, `discussions`, `id-token`, `issues`, `models`, `packages`, `pages`, `pull-requests`, `repository-projects`, `security-events`, `statuses`
+
+This is how `review-on-mention.yml` was found to be dead: it declared `reactions: write`, which is not a scope (reactions fall under `issues: write` / `pull-requests: write`). It had therefore never executed once, while producing a failed check on every push.
+
+Note that plain YAML validity is **not** sufficient — that file parsed fine as YAML. Check scope names explicitly.
 
 ---
 

@@ -475,17 +475,23 @@ If a UI element exists (preference, button, tab), wire it to the real implementa
 
 | Workflow | Trigger | What It Does |
 |----------|---------|--------------|
-| `ci.yml` | Push/PR to `main`, `develop` | Detekt, ktlint, unit tests, coverage gate, screenshot tests, assembleDebug |
-| `build.yml` | Push/PR | Debug APK build |
+| `ci.yml` | PR to `main`, manual | **The only PR gate.** Security check, detekt, ktlint, unit tests, coverage gate, screenshot tests, assembleDebug + preview-APK PR comment, license report |
 | `release.yml` | Tag push (`v*`) | Signed release APK, GitHub release |
 | `benchmark.yml` | Manual | Baseline profile generation |
-| `build_preview.yml` | PR trigger | Preview APK build |
-| `cert-pin-check.yml` | Push/PR | Certificate pinning verification |
-| `extension-smoke-test.yml` | Push/PR | Extension loading smoke tests |
+| `cert-pin-check.yml` | Monthly cron, manual | Certificate pinning verification |
+| `extension-smoke-test.yml` | Manual only | Live-network extension loading check; never gates a PR |
 | `pages.yml` | Push to `main` | Deploy VitePress website to GitHub Pages |
-| `label.yml` | PR events | Auto-label PRs by changed file paths |
 
-CI uses JDK 17 for standard builds and JDK 21 for release builds. Gradle caches are managed with `actions/cache@v4`.
+CodeQL runs through GitHub's **default setup** — there is no workflow file for it, so a failing `Analyze (java-kotlin)` check cannot be debugged from `.github/workflows/`.
+
+**Removed (do not re-add):**
+- `build.yml` and `build_preview.yml` both ran `assembleDebug`, so every PR built the app three times for one artifact. That work is consolidated into `ci.yml`'s `assemble` job, which also posts the preview-APK comment (updating it in place instead of adding one per push).
+- `label.yml` — low value, and it used the `pull_request_target` trigger, which runs with a write-scoped token against untrusted fork code.
+- `review-on-mention.yml` — declared `permissions: reactions: write`, which **is not a valid GitHub Actions permission scope**. An invalid scope makes the whole workflow file fail to load, so it never ran its `issue_comment` trigger even once, and instead produced a failed run named by file path on every `push`. If you ever add a workflow that needs to react to comments, note that reactions are covered by `issues: write` / `pull-requests: write` — there is no separate `reactions` scope.
+
+**Valid `permissions:` scopes** (an invalid key silently breaks the entire workflow): `actions`, `attestations`, `checks`, `contents`, `deployments`, `discussions`, `id-token`, `issues`, `models`, `packages`, `pages`, `pull-requests`, `repository-projects`, `security-events`, `statuses`.
+
+CI uses JDK 21. Gradle setup/caching is handled by `gradle/actions/setup-gradle`. All actions are pinned to commit SHAs — keep it that way.
 
 **Known CI flake:** `Analyze (java-kotlin)` (CodeQL) occasionally fails with "CodeQL could not process any code written in Java/Kotlin" — this is an intermittent GitHub infra issue unrelated to code correctness. The Gradle build itself succeeds; only the CodeQL database finalization fails. GitHub typically retries the workflow automatically and the second run succeeds. If the concurrent successful `Analyze (java-kotlin)` check is green, the stale failure is safe to ignore. All other checks (Unit Tests, Detekt, Ktlint, Assemble, Coverage Gate, Screenshot Tests) must be green before merging.
 

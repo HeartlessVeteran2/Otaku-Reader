@@ -150,9 +150,16 @@ jobs:
           retention-days: 14
 
   # ── Assemble ─────────────────────────────────────────────────────────────────
+  # The single debug build for the whole PR. Previously this work was duplicated
+  # across build.yml and build_preview.yml, so every PR ran assembleDebug three
+  # times for one artifact. Those workflows were removed and their only unique
+  # behaviour — the preview APK comment — folded in below.
   assemble:
     name: Assemble
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -181,6 +188,15 @@ jobs:
         env:
           CI: true
 
+      - name: 🏷️ Resolve version info
+        id: version
+        run: |
+          VERSION=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts || echo "unknown")
+          {
+            echo "version=$VERSION"
+            echo "commit=$(git rev-parse --short HEAD)"
+          } >> "$GITHUB_OUTPUT"
+
       - name: 📊 Upload Build Artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4
         with:
@@ -188,6 +204,57 @@ jobs:
           path: |
             app/build/outputs/apk/debug/*.apk
           retention-days: 7
+
+      # Posts (or updates) a single preview-build comment on the PR. Unlike the
+      # old build_preview.yml this edits its previous comment instead of adding a
+      # new one on every push, so long-running PRs don't accumulate duplicates.
+      - name: 💬 Comment preview build on PR
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          APP_VERSION: ${{ steps.version.outputs.version }}
+          APP_COMMIT: ${{ steps.version.outputs.commit }}
+        with:
+          script: |
+            const MARKER = '<!-- otaku-reader-preview-build -->';
+            const runUrl =
+              `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = [
+              MARKER,
+              '## 📱 Preview build',
+              '',
+              `Version \`${process.env.APP_VERSION}\` · commit \`${process.env.APP_COMMIT}\``,
+              '',
+              `[Download the debug APK](${runUrl}) — see the \`app-debug-${context.runNumber}\` artifact.`,
+              '',
+              'Artifacts are retained for 7 days.',
+            ].join('\n');
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(
+              (c) => c.user.type === 'Bot' && c.body.includes(MARKER),
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
 
   # ── Screenshot Tests ──────────────────────────────────────────────────────────
   screenshot-tests:
