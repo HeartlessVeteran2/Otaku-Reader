@@ -346,6 +346,75 @@ class ExtensionLoaderTest {
     }
 
     /**
+     * A two-component versionName is a valid way to express extensions-lib 1.7.
+     *
+     * The old parser stripped the last dot-component, so `"1.7"` became `"1"` → 1.0, which is
+     * *below* the minimum — a current extension rejected as too old, with an error message that
+     * looked identical to a genuinely unsupported version.
+     */
+    @Test
+    fun `loadExtension accepts a two-component library version`() {
+        // Given
+        val apkPath = createTempApkFile()
+        val packageInfo = createMockPackageInfo(
+            pkgName = "eu.kanade.tachiyomi.extension.en.test",
+            versionName = "1.7"
+        )
+        every { packageManager.getPackageArchiveInfo(apkPath, any<Int>()) } returns packageInfo
+
+        // When
+        val result = extensionLoader.loadExtension(apkPath)
+
+        // Then - should fail on missing sources, not on version check
+        assertTrue(result is ExtensionLoadResult.Error)
+        val error = result as ExtensionLoadResult.Error
+        assertNotEquals(ExtensionLoadResult.Error.Reason.UNSUPPORTED_LIB_VERSION, error.reason)
+    }
+
+    /**
+     * A four-component versionName fared even worse: stripping the last component left
+     * `"1.4.19"`, which is not a number, so it parsed to null and was rejected outright.
+     */
+    @Test
+    fun `loadExtension accepts a four-component library version`() {
+        // Given
+        val apkPath = createTempApkFile()
+        val packageInfo = createMockPackageInfo(
+            pkgName = "eu.kanade.tachiyomi.extension.en.test",
+            versionName = "1.4.19.1"
+        )
+        every { packageManager.getPackageArchiveInfo(apkPath, any<Int>()) } returns packageInfo
+
+        // When
+        val result = extensionLoader.loadExtension(apkPath)
+
+        // Then - should fail on missing sources, not on version check
+        assertTrue(result is ExtensionLoadResult.Error)
+        val error = result as ExtensionLoadResult.Error
+        assertNotEquals(ExtensionLoadResult.Error.Reason.UNSUPPORTED_LIB_VERSION, error.reason)
+    }
+
+    /** A versionName with no minor component carries no lib version, so it stays rejected. */
+    @Test
+    fun `loadExtension rejects a single-component library version`() {
+        // Given
+        val apkPath = createTempApkFile()
+        val packageInfo = createMockPackageInfo(
+            pkgName = "eu.kanade.tachiyomi.extension.en.test",
+            versionName = "2"
+        )
+        every { packageManager.getPackageArchiveInfo(apkPath, any<Int>()) } returns packageInfo
+
+        // When
+        val result = extensionLoader.loadExtension(apkPath)
+
+        // Then
+        assertTrue(result is ExtensionLoadResult.Error)
+        val error = result as ExtensionLoadResult.Error
+        assertEquals(ExtensionLoadResult.Error.Reason.UNSUPPORTED_LIB_VERSION, error.reason)
+    }
+
+    /**
      * Pins the boundary itself. 1.8 is the next revision the host contract in
      * `core:tachiyomi-compat` does NOT implement, so admitting it would swap a clear
      * "Unsupported lib version" message for a NoClassDefFoundError at instantiation —

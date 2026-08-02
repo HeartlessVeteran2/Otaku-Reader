@@ -361,10 +361,30 @@ class ExtensionLoader(
 
     /** Core loading logic shared between APK-path and package-name entry points. */
     /**
+     * Extract the extensions-lib version from an extension's `versionName`.
+     *
+     * The lib version is the leading `major.minor` pair: `"1.7.42"` means extensions-lib 1.7.
+     *
+     * Takes the first two components explicitly rather than stripping the last one. Dropping
+     * the trailing component assumes exactly three parts and silently misreads anything else:
+     * `"1.7"` became `"1"` → `1.0`, which is *below* [LIB_VERSION_MIN], so a valid 1.7 extension
+     * was rejected as too old; `"1.4.19.1"` became `"1.4.19"`, which is not a number at all and
+     * parsed to `null`, so it was rejected outright. Both failures are indistinguishable from a
+     * genuinely unsupported version in the error message.
+     *
+     * Returns `null` when no `major.minor` pair can be read, which the caller treats as
+     * unsupported.
+     */
+    private fun parseLibVersion(versionName: String): Double? {
+        val parts = versionName.split('.')
+        if (parts.size < 2) return null
+        return "${parts[0]}.${parts[1]}".toDoubleOrNull()
+    }
+
+    /**
      * Check that the extension declares a lib version this host can satisfy.
      *
-     * The lib version is the version-name prefix — `"1.7.42"` means extensions-lib 1.7. Returns
-     * the rejection to propagate, or `null` when the extension may proceed.
+     * Returns the rejection to propagate, or `null` when the extension may proceed.
      */
     private fun validateLibVersion(versionName: String?, pkgName: String): ExtensionLoadResult.Error? {
         if (versionName.isNullOrEmpty()) {
@@ -374,7 +394,7 @@ class ExtensionLoader(
             )
         }
 
-        val libVersion = versionName.substringBeforeLast('.').toDoubleOrNull()
+        val libVersion = parseLibVersion(versionName)
         if (libVersion == null || libVersion < LIB_VERSION_MIN || libVersion > LIB_VERSION_MAX) {
             return ExtensionLoadResult.Error(
                 "Unsupported lib version $libVersion for $pkgName (expected $LIB_VERSION_MIN..$LIB_VERSION_MAX)",
