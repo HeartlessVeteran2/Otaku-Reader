@@ -173,3 +173,34 @@ data class JsHttpResponse(
     val body: String = "",
     val error: String? = null,
 )
+
+// ---------------------------------------------------------------------------------------
+// Pipe transport
+// ---------------------------------------------------------------------------------------
+
+/**
+ * Hand a payload across the process boundary through a pipe.
+ *
+ * Binder transactions cap near 1 MB. Page lists, page HTML and novel chapter text all exceed
+ * that routinely, and the failure mode is the worst kind: a String return works throughout
+ * development and throws TransactionTooLargeException the first time it meets real content.
+ *
+ * The write happens on its own thread because a pipe buffer is only ~64 KB. Writing inline
+ * would block until the reader drained it, and the reader cannot start until this call
+ * returns — a deadlock rather than a slow path.
+ */
+fun writeToPipe(payload: String): android.os.ParcelFileDescriptor {
+    val pipe = android.os.ParcelFileDescriptor.createPipe()
+    val readSide = pipe[0]
+    val writeSide = pipe[1]
+    kotlin.concurrent.thread(name = "js-ipc-writer", isDaemon = true) {
+        runCatching {
+            java.io.FileOutputStream(writeSide.fileDescriptor).use { it.write(payload.toByteArray()) }
+        }.onFailure { runCatching { writeSide.close() } }
+    }
+    return readSide
+}
+
+/** Drain a pipe produced by [writeToPipe]. */
+fun android.os.ParcelFileDescriptor.readPayload(): String =
+    java.io.FileInputStream(fileDescriptor).use { it.readBytes() }.toString(Charsets.UTF_8)

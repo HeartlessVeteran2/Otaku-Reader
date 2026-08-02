@@ -3,17 +3,30 @@
 
     <application>
         <!--
-          The JavaScript engine runs in its own process.
+          The JavaScript engine runs in its own isolated process.
 
-          This is not a performance choice, it is the only available containment. No Android
-          QuickJS binding exposes JS_SetInterruptHandler, so a script that never yields — a
-          plain `while (true) {}` — cannot be stopped from inside the VM. It also allocates
-          nothing, so the memory limit never trips either. Killing the process is the only
-          mechanism that actually ends it.
+          android:process=":jsengine" is the only available way to STOP a runaway script. No
+          Android QuickJS binding exposes JS_SetInterruptHandler, so a script that never yields
+          — a plain `while (true) {}` — cannot be interrupted from inside the VM, and since it
+          allocates nothing the memory limit never trips either. Destroying the process is the
+          only mechanism that actually ends it.
 
-          Because the engine is isolated here, that kill can never take app state with it:
-          the sidecar holds no user data, performs no I/O of its own, and is treated as
-          disposable between calls.
+          android:isolatedProcess="true" is what makes that process boundary a SECURITY
+          boundary rather than just a lifecycle one. A plain android:process still runs under
+          the app's own UID, so it would inherit INTERNET, the app's private files, and every
+          granted permission — meaning a compromised engine could simply open its own sockets
+          and ignore the HTTP bridge entirely. An isolated process runs under a dedicated,
+          permission-less UID with no filesystem access and no network of its own, so routing
+          HTTP through the main process becomes an enforced constraint instead of a convention.
+
+          The two attributes are load-bearing for different reasons and neither substitutes for
+          the other: drop isolatedProcess and containment is theatre; drop the separate process
+          and a hung script takes the app with it.
+
+          Consequences this imposes on the service, which it is written to satisfy: it may not
+          touch the filesystem, may not read app preferences, and may not reach any content
+          provider. Everything it needs — the script, its config, its HTTP — arrives over the
+          binder.
 
           android:exported="false" — nothing outside this app may bind. The engine executes
           untrusted third-party code, so an exported binding would hand that execution to any
@@ -22,6 +35,7 @@
         <service
             android:name="app.otakureader.core.js.engine.JsEngineService"
             android:exported="false"
+            android:isolatedProcess="true"
             android:process=":jsengine" />
     </application>
 

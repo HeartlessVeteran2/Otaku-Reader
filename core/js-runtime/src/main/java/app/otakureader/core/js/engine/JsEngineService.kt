@@ -13,6 +13,7 @@ import app.otakureader.core.js.protocol.JsHttpRequest
 import app.otakureader.core.js.protocol.JsHttpResponse
 import app.otakureader.core.js.protocol.JsProtocol
 import app.otakureader.core.js.protocol.JsSourceConfig
+import app.otakureader.core.js.protocol.readPayload
 import kotlinx.coroutines.runBlocking
 import java.io.FileOutputStream
 import java.util.concurrent.ConcurrentHashMap
@@ -67,7 +68,7 @@ class JsEngineService : Service() {
                         errorKind = JsErrorKind.SCRIPT_ERROR,
                     )
                 }
-            return writeToPipe(JsProtocol.json.encodeToString(result))
+            return app.otakureader.core.js.protocol.writeToPipe(JsProtocol.json.encodeToString(result))
         }
     }
 
@@ -113,35 +114,11 @@ class JsEngineService : Service() {
             ?: return JsHttpResponse(ok = false, error = "No HTTP bridge installed")
 
         return runCatching {
-            val responseJson = bridge.execute(JsProtocol.json.encodeToString(request))
+            val responseJson = bridge.execute(JsProtocol.json.encodeToString(request)).readPayload()
             JsProtocol.json.decodeFromString<JsHttpResponse>(responseJson)
         }.getOrElse {
             JsHttpResponse(ok = false, error = it.message ?: "HTTP bridge failed")
         }
-    }
-
-    /**
-     * Hand the result back through a pipe.
-     *
-     * Binder transactions are capped at about 1 MB, which page lists and novel chapter HTML
-     * exceed routinely — a String return would pass every test and then throw
-     * TransactionTooLargeException on real content.
-     *
-     * The write happens on its own thread because a pipe buffer is only ~64 KB: writing inline
-     * would block this binder thread until the client drained it, and the client cannot drain
-     * until this call returns. That is a deadlock, not a slow path.
-     */
-    private fun writeToPipe(payload: String): ParcelFileDescriptor {
-        val (readSide, writeSide) = ParcelFileDescriptor.createPipe()
-        thread(name = "js-engine-result-writer", isDaemon = true) {
-            runCatching {
-                FileOutputStream(writeSide.fileDescriptor).use { it.write(payload.toByteArray()) }
-            }.onFailure {
-                android.util.Log.w(TAG, "Failed writing engine result to pipe", it)
-                runCatching { writeSide.close() }
-            }
-        }
-        return readSide
     }
 
     override fun onBind(intent: Intent?): IBinder = binder

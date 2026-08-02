@@ -74,8 +74,28 @@ internal class QuickJsHost(
             engine.evaluate<Any?>(script)
 
             val invocation = buildInvocation(method, args)
-            val result = engine.evaluate<Any?>(invocation)
-            result?.toString() ?: "null"
+            val result = engine.evaluate<Any?>(invocation, asModule = true)
+            val text = result?.toString() ?: "null"
+
+            // Guard against the awaited value not actually being awaited.
+            //
+            // Extension methods are async, so the invocation has to resolve a Promise before
+            // its value can be serialized. quickjs-kt drives pending jobs from its own
+            // coroutine scope and supports top-level await, which is why the invocation is
+            // evaluated as a module rather than as an async IIFE — an IIFE hands back the
+            // Promise object itself.
+            //
+            // If that ever regresses, the symptom is silent and awful: every call returns the
+            // string "[object Promise]", which fails JSON decoding downstream and surfaces as a
+            // generic protocol error pointing at the source rather than at the engine. Checking
+            // here turns a misleading source-blaming failure into an accurate engine-blaming
+            // one. This is asserted rather than assumed because it cannot be covered by a JVM
+            // unit test — the native engine only runs on a device.
+            check(!text.startsWith("[object Promise")) {
+                "Engine returned an unresolved Promise for $method — the invocation was not awaited"
+            }
+
+            text
         }
     }
 
@@ -218,14 +238,17 @@ internal class QuickJsHost(
             JsProtocol.Method.FILTER_LIST -> "getFilterList()"
             else -> error("Unknown source method: $method")
         }
+        // Top-level await, not an async IIFE. An IIFE evaluates to the Promise object, so the
+        // caller would receive "[object Promise]" instead of the payload; top-level await makes
+        // the module's completion value the resolved result, which is what quickjs-kt's suspend
+        // evaluate() is built to return.
+        //
         // The extension declares `class DefaultExtension extends MProvider`; results are
         // stringified here so exactly one type crosses the boundary regardless of method.
         return """
-            (async () => {
-                const provider = new DefaultExtension();
-                const result = await provider.$call;
-                return JSON.stringify(result === undefined ? null : result);
-            })()
+            const provider = new DefaultExtension();
+            const result = await provider.$call;
+            JSON.stringify(result === undefined ? null : result);
         """.trimIndent()
     }
 }

@@ -15,13 +15,17 @@ import app.otakureader.core.js.protocol.JsProtocol
 import app.otakureader.core.js.protocol.JsSourceConfig
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.io.FileInputStream
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -56,6 +60,9 @@ class JsEngineConnection @Inject constructor(
 
     /** Sources registered by the app, replayed after a restart so a kill is transparent. */
     private val registered = ConcurrentHashMap<String, Pair<JsSourceConfig, String>>()
+
+    /** Set by the watchdog so the resulting binder failure is reported as a timeout. */
+    private val timedOut = AtomicBoolean(false)
 
     private val connectionLock = Mutex()
     private var engine: IJsEngine? = null
@@ -110,35 +117,66 @@ class JsEngineConnection @Inject constructor(
                 errorKind = JsErrorKind.SOURCE_MISSING,
             )
 
-        try {
-            withTimeout(timeoutMs) {
-                val bound = ensureBound()
-                bound.loadSource(sourceId, entry.second, JsProtocol.json.encodeToString(entry.first))
+        coroutineScope {
+            // The budget CANNOT be enforced with withTimeout around the call.
+            //
+            // A binder transaction is a blocking native call and readBytes() blocks on a pipe;
+            // neither observes coroutine cancellation. withTimeout would cancel the coroutine
+            // while the underlying thread stayed blocked forever, so the kill would never fire
+            // and the caller would hang — the very failure mode that moving out-of-process was
+            // meant to solve, reproduced one layer up.
+            //
+            // Instead a separate watchdog kills the engine when the budget expires. Killing the
+            // remote process is what unblocks the transaction: the pending call fails with
+            // DeadObjectException, which surfaces here as an ordinary failure. The kill is not
+            // cleanup after the timeout — it IS the timeout mechanism.
+            val work = async { invoke(sourceId, method, args, entry) }
 
-                val pipe = bound.call(sourceId, method, JsProtocol.json.encodeToString(args))
-                val payload = FileInputStream(pipe.fileDescriptor).use { it.readBytes() }
-                    .toString(Charsets.UTF_8)
-
-                JsProtocol.json.decodeFromString<JsCallResult>(payload)
+            val watchdog = launch {
+                delay(timeoutMs)
+                timedOut.set(true)
+                killEngine()
             }
-        } catch (e: TimeoutCancellationException) {
-            // The script is still running over there and will not stop on its own.
-            killEngine()
-            JsCallResult(
-                ok = false,
-                error = "Source did not respond within ${timeoutMs}ms; engine restarted",
-                errorKind = JsErrorKind.TIMEOUT,
-            )
-        } catch (e: Exception) {
-            // A dead binder means the process went away underneath us — most often the OS
-            // reclaiming it, which is expected for a background process, not an error.
-            engine = null
-            JsCallResult(
-                ok = false,
-                error = e.message ?: "JavaScript engine failed",
-                errorKind = JsErrorKind.ENGINE_DIED,
-            )
+
+            try {
+                work.await().also { watchdog.cancel() }
+            } catch (e: Exception) {
+                watchdog.cancel()
+                if (timedOut.getAndSet(false)) {
+                    JsCallResult(
+                        ok = false,
+                        error = "Source did not respond within ${timeoutMs}ms; engine was killed",
+                        errorKind = JsErrorKind.TIMEOUT,
+                    )
+                } else {
+                    // A dead binder without a timeout means the process went away underneath
+                    // us — most often the OS reclaiming a background process, not an error.
+                    engine = null
+                    JsCallResult(
+                        ok = false,
+                        error = e.message ?: "JavaScript engine failed",
+                        errorKind = JsErrorKind.ENGINE_DIED,
+                    )
+                }
+            }
         }
+    }
+
+    /** The blocking half of a call. Runs on its own coroutine so the watchdog can outlive it. */
+    private suspend fun invoke(
+        sourceId: String,
+        method: String,
+        args: JsCallArgs,
+        entry: Pair<JsSourceConfig, String>,
+    ): JsCallResult = withContext(Dispatchers.IO) {
+        val bound = ensureBound()
+        bound.loadSource(sourceId, entry.second, JsProtocol.json.encodeToString(entry.first))
+
+        val pipe = bound.call(sourceId, method, JsProtocol.json.encodeToString(args))
+        val payload = FileInputStream(pipe.fileDescriptor).use { it.readBytes() }
+            .toString(Charsets.UTF_8)
+
+        JsProtocol.json.decodeFromString<JsCallResult>(payload)
     }
 
     private suspend fun ensureBound(): IJsEngine = connectionLock.withLock {
@@ -159,9 +197,14 @@ class JsEngineConnection @Inject constructor(
     /**
      * Terminate the engine process.
      *
-     * `killBackgroundProcesses` is the only lever an app has over its own secondary process; a
-     * plain `unbindService` would let a spinning script keep the CPU. The sources map survives,
-     * so the next call transparently rebinds and replays.
+     * Unbinding is what actually ends it: an isolated process exists only to serve its bound
+     * clients, so releasing the last binding makes the system destroy it — including a thread
+     * spinning in native code. `killBackgroundProcesses` follows as a belt-and-braces measure
+     * for the ordinary-process case, but it is not the primary mechanism and would not reach an
+     * isolated process on its own.
+     *
+     * The registered-sources map deliberately survives, so the next call rebinds and replays
+     * them and the restart is invisible to the caller.
      */
     private fun killEngine() {
         runCatching { context.unbindService(serviceConnection) }

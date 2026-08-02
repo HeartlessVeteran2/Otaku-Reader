@@ -1,10 +1,13 @@
 package app.otakureader.core.js.client
 
+import android.os.ParcelFileDescriptor
 import app.otakureader.core.js.ipc.IJsHttpBridge
 import app.otakureader.core.js.protocol.JsHttpRequest
 import app.otakureader.core.js.protocol.JsHttpResponse
 import app.otakureader.core.js.protocol.JsProtocol
+import app.otakureader.core.js.protocol.writeToPipe
 import okhttp3.Headers
+import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -15,10 +18,9 @@ import javax.inject.Singleton
 /**
  * Executes HTTP on behalf of the sidecar, in the main process, on the app's shared client.
  *
- * Keeping network here rather than in the engine is a security decision, not a convenience
- * one. It means every request a JavaScript source makes inherits certificate pinning, rate
- * limiting, the cookie jar and any WebView-synced cookies/User-Agent — and, just as
- * importantly, that a compromised sidecar has no network path of its own to fall back on.
+ * The engine runs in an isolated process with no INTERNET permission, so this is the *only*
+ * network path a JavaScript source has. Every request therefore inherits certificate pinning,
+ * rate limiting and the cookie jar by construction rather than by convention.
  *
  * Runs on binder threads, so it must be thread-safe. OkHttpClient is, by design.
  */
@@ -34,20 +36,47 @@ class JsHttpBridge @Inject constructor(
          * A source asking for something enormous is either broken or hostile; either way the
          * main process must not be the thing that dies for it.
          */
-        const val MAX_BODY_BYTES = 32L * 1024 * 1024
+        const val MAX_BODY_BYTES = 8L * 1024 * 1024
 
         val ALLOWED_SCHEMES = setOf("https")
+
+        /**
+         * Hostnames a source may never reach.
+         *
+         * A JavaScript source can ask this bridge for any URL, which makes the bridge a
+         * server-side-request-forgery primitive: without this, a hostile extension could use
+         * the app as a probe for whatever the device can reach — router admin pages, other
+         * services on the LAN, cloud metadata endpoints — none of which the user intended to
+         * expose by installing a manga source.
+         *
+         * Blocking by address range rather than by allow-listing the source's own host, because
+         * legitimate sources fan out across CDNs, image hosts and API subdomains that cannot be
+         * predicted from the base URL.
+         */
+        val BLOCKED_HOST_PATTERNS = listOf(
+            Regex("""^localhost$""", RegexOption.IGNORE_CASE),
+            Regex("""^127\."""),
+            Regex("""^0\."""),
+            Regex("""^10\."""),
+            Regex("""^192\.168\."""),
+            // 172.16.0.0/12
+            Regex("""^172\.(1[6-9]|2\d|3[01])\."""),
+            // Link-local, including the 169.254.169.254 cloud metadata address.
+            Regex("""^169\.254\."""),
+            // IPv6 loopback and unique-local.
+            Regex("""^\[?::1\]?$"""),
+            Regex("""^\[?f[cd][0-9a-f]{2}:""", RegexOption.IGNORE_CASE),
+        )
     }
 
     val binder: IJsHttpBridge.Stub = object : IJsHttpBridge.Stub() {
-        override fun execute(requestJson: String): String {
+        override fun execute(requestJson: String): ParcelFileDescriptor {
             val response = runCatching {
-                val request = JsProtocol.json.decodeFromString<JsHttpRequest>(requestJson)
-                perform(request)
+                perform(JsProtocol.json.decodeFromString<JsHttpRequest>(requestJson))
             }.getOrElse {
                 JsHttpResponse(ok = false, error = it.message ?: "Request failed")
             }
-            return JsProtocol.json.encodeToString(response)
+            return writeToPipe(JsProtocol.json.encodeToString(response))
         }
     }
 
@@ -60,6 +89,9 @@ class JsHttpBridge @Inject constructor(
         if (url.scheme !in ALLOWED_SCHEMES) {
             return JsHttpResponse(ok = false, error = "Refused non-HTTPS request to ${url.host}")
         }
+        if (isBlocked(url)) {
+            return JsHttpResponse(ok = false, error = "Refused request to private address ${url.host}")
+        }
 
         val builder = Request.Builder().url(url)
         request.headers.forEach { (name, value) -> builder.addHeader(name, value) }
@@ -71,29 +103,61 @@ class JsHttpBridge @Inject constructor(
         }
 
         return client.newCall(builder.build()).execute().use { response ->
-            val declaredLength = response.body?.contentLength() ?: 0L
-            if (declaredLength > MAX_BODY_BYTES) {
+            // A redirect chain can land somewhere the original URL was not. OkHttp follows
+            // redirects internally, so the pre-flight check above only ever saw the first hop —
+            // re-checking the final URL is what actually closes the SSRF path.
+            if (isBlocked(response.request.url)) {
                 return@use JsHttpResponse(
                     ok = false,
                     code = response.code,
-                    error = "Response declares $declaredLength bytes, over the $MAX_BODY_BYTES limit",
+                    error = "Redirected to private address ${response.request.url.host}",
                 )
             }
 
-            // peekBody caps what is pulled into memory. contentLength alone is not enough —
-            // it reports -1 for a chunked response, which is exactly how an unbounded stream
-            // would arrive.
-            val body = runCatching { response.peekBody(MAX_BODY_BYTES).string() }
-                .getOrElse { return@use JsHttpResponse(ok = false, code = response.code, error = it.message) }
-
-            JsHttpResponse(
-                ok = response.isSuccessful,
-                code = response.code,
-                headers = response.headers.toSingleValueMap(),
-                body = body,
-            )
+            readBody(response)
         }
     }
+
+    /**
+     * Read the body, refusing rather than silently truncating.
+     *
+     * `peekBody` caps what is pulled into memory, but a capped read is indistinguishable from a
+     * complete one — a source would receive half a page of HTML alongside a 200 and parse the
+     * fragment as if it were the whole document, producing wrong results that look successful.
+     * Reading one byte past the limit makes the overflow detectable, so it can be reported as a
+     * failure instead.
+     */
+    private fun readBody(response: okhttp3.Response): JsHttpResponse {
+        val declared = response.body?.contentLength() ?: 0L
+        if (declared > MAX_BODY_BYTES) {
+            return JsHttpResponse(
+                ok = false,
+                code = response.code,
+                error = "Response declares $declared bytes, over the $MAX_BODY_BYTES limit",
+            )
+        }
+
+        val peeked = runCatching { response.peekBody(MAX_BODY_BYTES + 1).bytes() }
+            .getOrElse { return JsHttpResponse(ok = false, code = response.code, error = it.message) }
+
+        if (peeked.size > MAX_BODY_BYTES) {
+            return JsHttpResponse(
+                ok = false,
+                code = response.code,
+                error = "Response exceeds the $MAX_BODY_BYTES byte limit",
+            )
+        }
+
+        return JsHttpResponse(
+            ok = response.isSuccessful,
+            code = response.code,
+            headers = response.headers.toSingleValueMap(),
+            body = peeked.toString(Charsets.UTF_8),
+        )
+    }
+
+    private fun isBlocked(url: HttpUrl): Boolean =
+        BLOCKED_HOST_PATTERNS.any { it.containsMatchIn(url.host) }
 }
 
 /** Last value wins on repeated headers; the protocol carries a flat map, not a multimap. */
