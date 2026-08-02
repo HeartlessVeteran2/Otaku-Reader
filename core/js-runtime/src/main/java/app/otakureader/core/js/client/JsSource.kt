@@ -7,6 +7,7 @@ import app.otakureader.core.js.protocol.JsMangaListDto
 import app.otakureader.core.js.protocol.JsPageDto
 import app.otakureader.core.js.protocol.JsProtocol
 import app.otakureader.core.js.protocol.JsSourceConfig
+import app.otakureader.core.common.network.PageImageHeaders
 import app.otakureader.sourceapi.FilterList
 import app.otakureader.sourceapi.MangaPage
 import app.otakureader.sourceapi.MangaSource
@@ -29,6 +30,7 @@ import app.otakureader.sourceapi.SourceManga
 class JsSource(
     private val config: JsSourceConfig,
     private val connection: JsEngineConnection,
+    private val pageImageHeaders: PageImageHeaders,
 ) : MangaSource {
 
     override val id: String = config.id
@@ -92,31 +94,23 @@ class JsSource(
             JsProtocol.Method.PAGE_LIST,
             JsCallArgs(url = chapter.url),
         )
+
+        // Per-page headers cannot travel on Page — it carries only an index and two URLs — so
+        // they are handed to the image pipeline here instead. Registering during the same call
+        // that produced the pages is deliberate: the earlier design exposed a separate
+        // pageHeaders() accessor, which would have re-run getPageList in the engine a second
+        // time for data this call already had, doubling the work and the network traffic behind
+        // it for every chapter opened.
+        pages.filter { it.headers.isNotEmpty() }
+            .associate { it.url to it.headers }
+            .let(pageImageHeaders::registerPageHeaders)
+
         return pages.mapIndexed { index, page ->
             // Both fields carry the image URL. Page.url means "this page's remote URL", not
             // the chapter's; downstream code falls back to it when imageUrl is blank, so
             // putting the chapter URL there would make that fallback fetch the wrong thing.
             Page(index = index, url = page.url, imageUrl = page.url)
         }
-    }
-
-    /**
-     * Per-page request headers supplied by the source, keyed by image URL.
-     *
-     * These cannot travel on [Page] — it carries only an index and two URLs — but they matter:
-     * many hosts 403 an image request that arrives without the right `Referer`, so dropping
-     * them silently would mean protected images simply fail to load with no explanation.
-     *
-     * Stage 4 wires this into the image pipeline alongside the baseUrl-derived Referer
-     * fallback for sources that supply no headers at all. It is exposed here rather than
-     * discarded so that the data survives until there is somewhere to apply it.
-     */
-    suspend fun pageHeaders(chapter: SourceChapter): Map<String, Map<String, String>> {
-        val pages = decode<List<JsPageDto>>(
-            JsProtocol.Method.PAGE_LIST,
-            JsCallArgs(url = chapter.url),
-        )
-        return pages.filter { it.headers.isNotEmpty() }.associate { it.url to it.headers }
     }
 
     private suspend fun mangaList(method: String, args: JsCallArgs): MangaPage {

@@ -5,6 +5,7 @@ import android.content.ComponentCallbacks2
 import android.content.Context
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import app.otakureader.core.common.network.PageImageHeaders
 import app.otakureader.core.preferences.CrashReportingStore
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.crash.CrashHandler
@@ -54,6 +55,9 @@ class OtakuReaderApplication : Application(), Configuration.Provider, SingletonI
 
     @Inject
     lateinit var okHttpClient: OkHttpClient
+
+    @Inject
+    lateinit var pageImageHeaders: PageImageHeaders
 
     @Inject
     lateinit var generalPreferences: GeneralPreferences
@@ -197,11 +201,29 @@ class OtakuReaderApplication : Application(), Configuration.Provider, SingletonI
                 add(OkHttpNetworkFetcherFactory(callFactory = {
                     okHttpClient.newBuilder()
                         .addInterceptor { chain ->
-                            chain.proceed(
-                                chain.request().newBuilder()
-                                    .tag(RequestCategory::class.java, RequestCategory.IMAGE_CACHE)
-                                    .build()
-                            )
+                            val request = chain.request()
+                            val builder = request.newBuilder()
+                                .tag(RequestCategory::class.java, RequestCategory.IMAGE_CACHE)
+
+                            // Attach the headers recorded when this page list was fetched.
+                            //
+                            // Done here rather than at the call sites because page images are
+                            // requested from six of them, and a host that hotlink-protects its
+                            // images answers a missing Referer with 403 — which surfaces as a
+                            // blank page indistinguishable from a dead link. One interceptor
+                            // covers every call site including the prefetchers, so a new one
+                            // cannot forget.
+                            //
+                            // Only headers the caller has not already set are added, so an
+                            // explicit header at a call site still wins.
+                            pageImageHeaders.headersFor(request.url.toString())
+                                .forEach { (name, value) ->
+                                    if (request.header(name) == null) {
+                                        builder.header(name, value)
+                                    }
+                                }
+
+                            chain.proceed(builder.build())
                         }
                         .build()
                 }))
