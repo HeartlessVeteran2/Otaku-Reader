@@ -10,6 +10,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -85,15 +87,22 @@ class JsSourceStore @Inject constructor(
     /**
      * Install or replace a source, atomically.
      *
-     * Written to a temporary file and then renamed. Rename within a directory is atomic, so a
-     * concurrent [installed] sees either the previous record or the new one — never a half-
-     * written file, and never a new script under an old manifest.
+     * Written to a temporary file and then moved into place atomically, so a concurrent
+     * [installed] sees either the previous record or the new one — never a half-written file,
+     * and never a new script under an old manifest.
+     *
+     * `Files.move` with `ATOMIC_MOVE` + `REPLACE_EXISTING` rather than [File.renameTo]:
+     * **`renameTo` does not overwrite an existing file on Android**, so it works for a fresh
+     * install and fails for every update. That is invisible in a JVM unit test, where the same
+     * call lands on `rename(2)` and does replace — `ExtensionInstaller.replaceAtomically`
+     * records the same finding for APK installs. `minSdk` is 26, so the atomic path is always
+     * available and needs no fallback.
      *
      * The temporary file is unique per call rather than derived from the source id. A fixed
      * staging name is shared by every caller, so two installs of the same source race on it:
-     * one truncates the other's half-written file and whichever renames first publishes a
+     * one truncates the other's half-written file and whichever moves first publishes a
      * mixture of both. [mutationLock] serialises the mutations on top of that, which also keeps
-     * an uninstall from landing between another install's write and its rename.
+     * an uninstall from landing between another install's write and its move.
      */
     suspend fun install(config: JsSourceConfig, script: String) = withContext(Dispatchers.IO) {
         mutationLock.withLock {
@@ -101,9 +110,12 @@ class JsSourceStore @Inject constructor(
             val temp = File.createTempFile(target.name, TEMP_SUFFIX, directory)
             try {
                 temp.writeText(JsProtocol.json.encodeToString(StoredJsSource(config, script)))
-                if (!temp.renameTo(target)) {
-                    error("Could not install JavaScript source ${config.id}")
-                }
+                Files.move(
+                    temp.toPath(),
+                    target.toPath(),
+                    StandardCopyOption.ATOMIC_MOVE,
+                    StandardCopyOption.REPLACE_EXISTING,
+                )
             } finally {
                 // No-op on the success path, since the rename moved it. On any failure this is
                 // what stops abandoned staging files accumulating — they can never be mistaken

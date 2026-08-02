@@ -92,11 +92,18 @@ class JsSourcePreferencesStore @Inject constructor(
     /**
      * Called on uninstall so a source's stored credentials do not outlive it.
      *
-     * `commit` rather than `apply` throughout: a caller removing credentials needs to know the
-     * removal actually reached disk before it reports the source gone.
+     * `commit` rather than `apply`, and **the result is checked**: a caller removing credentials
+     * needs to know the removal actually reached disk before it reports the source gone. The
+     * previous version said exactly that and then discarded the boolean, so a failed write left
+     * the user's login for the site on disk while the uninstall reported success — and a later
+     * reinstall of the same id would silently inherit it.
+     *
+     * Throwing rather than returning false because the caller orders this first: a failure has
+     * to abort the uninstall while the source is still wholly intact, so retrying is clean.
      */
     suspend fun clear(sourceId: String) = withContext(Dispatchers.IO) {
-        prefs.edit().remove(keyFor(sourceId)).commit()
-        Unit
+        check(prefs.edit().remove(keyFor(sourceId)).commit()) {
+            "Could not clear stored preferences for $sourceId"
+        }
     }
 }

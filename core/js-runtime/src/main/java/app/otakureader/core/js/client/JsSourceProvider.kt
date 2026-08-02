@@ -62,11 +62,17 @@ class JsSourceProvider @Inject constructor(
      * Preferences go too. They routinely hold the user's login for the site, so leaving them
      * behind would mean uninstalling a source did not actually remove the credentials the user
      * gave it — and a later reinstall would silently inherit them.
+     *
+     * Credentials are cleared **first**, and their removal throws if it does not reach disk.
+     * Ordering it last would mean a failed clear leaves the script already deleted and the login
+     * still stored — a state no retry can reach, because the source is gone from the list the
+     * user would retry from. Clearing first makes a failure abort while everything is still
+     * intact, so the uninstall is simply retryable.
      */
     suspend fun uninstall(sourceId: String) = mutationLock.withLock {
+        preferencesStore.clear(sourceId)
         connection.unregister(sourceId)
         store.uninstall(sourceId)
-        preferencesStore.clear(sourceId)
     }
 
     /**
