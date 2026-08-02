@@ -56,6 +56,26 @@ class JsHttpBridge @Inject constructor(
         const val MAX_REDIRECTS = 5
 
         /**
+         * Headers that must not survive an origin change.
+         *
+         * These authenticate the caller to one specific origin. Forwarding them to another host
+         * hands over the user's credentials for the first site — and since the redirect target
+         * is chosen by the source, that host is attacker-controlled.
+         */
+        val CREDENTIAL_HEADERS = listOf("Authorization", "Proxy-Authorization", "Cookie")
+
+        /**
+         * Status codes that turn the follow-up into a bodyless GET.
+         *
+         * 301/302/303 change the method; 307/308 exist precisely to preserve it. Replaying a
+         * POST body across a 302 can repeat a side effect the caller intended to happen once.
+         */
+        val METHOD_CHANGING_REDIRECTS = setOf(301, 302, 303)
+
+        /** Entity headers that describe a body, and so are meaningless once it is dropped. */
+        val ENTITY_HEADERS = listOf("Content-Type", "Content-Length", "Transfer-Encoding")
+
+        /**
          * Hostnames a source may never reach.
          *
          * A JavaScript source can ask this bridge for any URL, which makes the bridge a
@@ -160,11 +180,41 @@ class JsHttpBridge @Inject constructor(
                         error = "Refused redirect to private address ${next.host}",
                     )
                 }
-                request = request.newBuilder().url(next).build()
+                request = buildRedirect(request, next, response.code)
             }
         }
 
         return JsHttpResponse(ok = false, error = "Too many redirects")
+    }
+
+    /**
+     * Build the follow-up request for a redirect.
+     *
+     * Taking redirect handling away from OkHttp means also taking on the two rules it applies
+     * for us, both of which are easy to lose and neither of which is cosmetic:
+     *
+     *  - **Credentials are stripped on an origin change.** Carrying the caller's `Authorization`
+     *    or `Cookie` to a different host hands the user's credentials for one site to whatever
+     *    the redirect points at — which, since the source chooses the URL, is attacker-
+     *    controlled. The cookie jar still supplies the *new* origin's own cookies; only headers
+     *    the script set explicitly are dropped.
+     *  - **Method and body follow the status code.** 301/302/303 become a bodyless GET, 307/308
+     *    preserve both. Replaying a POST body to every redirect can repeat a side effect the
+     *    caller intended once.
+     */
+    private fun buildRedirect(current: Request, next: HttpUrl, code: Int): Request {
+        val builder = current.newBuilder().url(next)
+
+        if (isOriginChange(current.url, next)) {
+            CREDENTIAL_HEADERS.forEach { builder.removeHeader(it) }
+        }
+
+        if (changesMethodToGet(code)) {
+            builder.method("GET", null)
+            ENTITY_HEADERS.forEach { builder.removeHeader(it) }
+        }
+
+        return builder.build()
     }
 
     /**
@@ -212,3 +262,23 @@ class JsHttpBridge @Inject constructor(
 /** Last value wins on repeated headers; the protocol carries a flat map, not a multimap. */
 private fun Headers.toSingleValueMap(): Map<String, String> =
     (0 until size).associate { name(it) to value(it) }
+
+
+// ---------------------------------------------------------------------------------------
+// Redirect policy
+// ---------------------------------------------------------------------------------------
+//
+// Split out from the bridge so they can be tested directly: JsHttpBridge instantiates an AIDL
+// Stub at construction, which needs a real Binder and therefore a device. These two predicates
+// carry the security-relevant decisions, so they are the part that most needs covering.
+
+/** True when the redirect target is a different origin, by scheme, host or port. */
+internal fun isOriginChange(from: HttpUrl, to: HttpUrl): Boolean =
+    from.scheme != to.scheme || from.host != to.host || from.port != to.port
+
+/**
+ * True when the status code turns the follow-up into a bodyless GET.
+ *
+ * 301/302/303 change the method; 307 and 308 exist specifically to preserve it.
+ */
+internal fun changesMethodToGet(code: Int): Boolean = code == 301 || code == 302 || code == 303
