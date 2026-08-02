@@ -6,9 +6,10 @@ import app.otakureader.core.preferences.ChallengeUserAgentStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
@@ -39,10 +40,21 @@ class WebViewChallengeManager @Inject constructor(
 
     data class ChallengeRequest(val host: String, val url: String)
 
-    private val _pendingChallenge = MutableSharedFlow<ChallengeRequest>(extraBufferCapacity = 8)
+    private val _pendingChallenges = MutableStateFlow<List<ChallengeRequest>>(emptyList())
 
-    /** Emits whenever a host needs a challenge solved. Observe in the navigation host. */
-    val pendingChallenge: SharedFlow<ChallengeRequest> = _pendingChallenge.asSharedFlow()
+    /**
+     * Hosts currently awaiting a challenge. Observe in the navigation host.
+     *
+     * **State, not an event stream.** A `SharedFlow` emission is dropped outright when nothing is
+     * subscribed, so a challenge raised while the navigation layer was being torn down or
+     * recreated — a rotation, a process-death restore — would vanish, and the blocked request
+     * would sit waiting for its full timeout with no WebView ever appearing. Holding the pending
+     * set as state means a collector that arrives late still sees the work.
+     *
+     * A list rather than a single value because two hosts can be blocked at once; the navigation
+     * layer shows them one at a time.
+     */
+    val pendingChallenges: StateFlow<List<ChallengeRequest>> = _pendingChallenges.asStateFlow()
 
     /** In-flight challenges, one per host. See [solve] for why this exists. */
     private val inFlight = ConcurrentHashMap<String, CompletableDeferred<Boolean>>()
@@ -62,7 +74,9 @@ class WebViewChallengeManager @Inject constructor(
         if (existing != null) return existing.await()
 
         return try {
-            _pendingChallenge.emit(ChallengeRequest(host, url))
+            _pendingChallenges.update { pending ->
+                if (pending.any { it.host == host }) pending else pending + ChallengeRequest(host, url)
+            }
             fresh.await()
         } catch (e: CancellationException) {
             // Completing before rethrowing is what keeps the joiners alive. They await this
@@ -74,10 +88,14 @@ class WebViewChallengeManager @Inject constructor(
         } finally {
             // remove(key, value) so a challenge started after ours is never removed by us.
             inFlight.remove(host, fresh)
+            clearPending(host)
         }
     }
 
     override fun solvedUserAgent(host: String): String? = userAgentStore.userAgentFor(host)
+
+    private fun String.containsClearanceCookie(): Boolean =
+        split(';').any { it.substringBefore('=').trim() == CLEARANCE_COOKIE }
 
     /**
      * Signal that the WebView for [host] has closed.
@@ -91,10 +109,28 @@ class WebViewChallengeManager @Inject constructor(
      * User-Agent always corresponds to clearance that was really obtained.
      */
     fun completeChallenge(host: String, cookieString: String?, userAgent: String?) {
-        val cleared = !cookieString.isNullOrEmpty()
+        val cleared = cookieString.orEmpty().containsClearanceCookie()
         if (cleared && !userAgent.isNullOrBlank()) {
             scope.launch { userAgentStore.store(host, userAgent) }
         }
         inFlight[host]?.complete(cleared)
+        clearPending(host)
+    }
+
+    private fun clearPending(host: String) {
+        _pendingChallenges.update { pending -> pending.filterNot { it.host == host } }
+    }
+
+    private companion object {
+        /**
+         * The cookie Cloudflare issues on passing a challenge.
+         *
+         * Success has to be judged on *this* cookie, not on the cookie header being non-empty.
+         * The WebView reports every cookie the site has set, so a session or consent cookie from
+         * merely loading the page would read as clearance — the request would be released, the
+         * User-Agent stored as if it had earned something, and the single retry would fail
+         * against a challenge the user never actually passed.
+         */
+        const val CLEARANCE_COOKIE = "cf_clearance"
     }
 }

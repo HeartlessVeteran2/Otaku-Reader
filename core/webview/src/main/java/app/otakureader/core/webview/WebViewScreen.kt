@@ -31,6 +31,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import app.otakureader.core.navigation.Route
+import androidx.activity.compose.BackHandler
 
 /**
  * Full-screen embedded WebView with optional ad blocking.
@@ -54,6 +55,17 @@ fun WebViewScreen(
     val adBlockEnabled by viewModel.adBlockEnabled.collectAsStateWithLifecycle(initialValue = true)
     val context = LocalContext.current
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
+
+    // Closing the challenge is what releases the blocked request, and the top bar's button was
+    // the only thing that did it. System and gesture back pop the destination directly, leaving
+    // the caller waiting out its full timeout for a screen the user has already dismissed.
+    // Routing hardware back through the same callback makes every exit complete the challenge.
+    BackHandler {
+        onClose(
+            webViewRef?.let { viewModel.cookiesForUrl(url) },
+            webViewRef?.settings?.userAgentString,
+        )
+    }
 
     DisposableEffect(Unit) {
         onDispose {

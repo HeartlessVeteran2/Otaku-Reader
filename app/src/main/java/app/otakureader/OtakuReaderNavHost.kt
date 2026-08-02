@@ -55,6 +55,11 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import app.otakureader.core.webview.WebViewPurpose
 import app.otakureader.core.webview.WebViewChallengeManager
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun OtakuReaderNavHost(
@@ -69,16 +74,27 @@ fun OtakuReaderNavHost(
     // Determine start destination based on onboarding status
     val startDestination: Route = if (onboardingCompleted) Route.Library else Route.Onboarding
 
-    // Open the WebView whenever a source hits a Cloudflare wall.
+    // Open the WebView when a source hits a Cloudflare wall.
     //
-    // This collector is the step that was missing: WebViewChallengeManager emitted on
-    // pendingChallenge and the KDoc said "the app's navigation layer observes it", but nothing
-    // did — so a blocked source simply failed with no way for the user to intervene.
-    LaunchedEffect(challengeManager) {
-        challengeManager.pendingChallenge.collect { request ->
+    // This observer is the step that was missing entirely: the manager published pending
+    // challenges and the KDoc said "the app's navigation layer observes" them, but nothing did —
+    // so a blocked source simply failed with no way for the user to intervene.
+    //
+    // Exactly one challenge is shown at a time. Two hosts can be blocked at once (a chapter's
+    // pages and its cover, say), and navigating for each would push a stack of WebViews the user
+    // has to dismiss one by one — and a challenge arriving late would yank them off whatever
+    // screen they had moved on to. `showingChallengeHost` gates that: the next pending host is
+    // only shown once the current one closes.
+    val pendingChallenges by challengeManager.pendingChallenges.collectAsStateWithLifecycle()
+    var showingChallengeHost by rememberSaveable { mutableStateOf<String?>(null) }
+    val nextChallenge = pendingChallenges.firstOrNull { it.host != showingChallengeHost }
+
+    LaunchedEffect(nextChallenge?.host, showingChallengeHost) {
+        if (nextChallenge != null && showingChallengeHost == null) {
+            showingChallengeHost = nextChallenge.host
             navController.navigate(
                 Route.WebView(
-                    url = request.url,
+                    url = nextChallenge.url,
                     purpose = WebViewPurpose.CAPTCHA.name,
                 )
             )
@@ -664,6 +680,9 @@ fun OtakuReaderNavHost(
                 url.toHttpUrlOrNull()?.host?.let { host ->
                     challengeManager.completeChallenge(host, cookieString, userAgent)
                 }
+                // Releasing the gate here, rather than in the effect, is what lets a second
+                // blocked host be shown after this one is dealt with.
+                showingChallengeHost = null
                 navController.popBackStack()
             }
         )

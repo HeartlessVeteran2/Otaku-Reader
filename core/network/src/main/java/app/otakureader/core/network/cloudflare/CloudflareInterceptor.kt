@@ -4,6 +4,8 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.Interceptor
 import okhttp3.Response
+import okhttp3.ResponseBody
+import okhttp3.ResponseBody.Companion.toResponseBody
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -33,6 +35,18 @@ class CloudflareInterceptor @Inject constructor(
          * Generous enough for a real CAPTCHA, short enough that a forgotten screen recovers.
          */
         const val SOLVE_TIMEOUT_MS = 3 * 60 * 1000L
+
+        /**
+         * Cap on the challenge page kept in memory while the user solves it.
+         *
+         * A Cloudflare interstitial is a few KB of HTML. This exists only so the response can be
+         * handed back intact if the user gives up, without holding the connection open for the
+         * length of the challenge.
+         */
+        const val MAX_CHALLENGE_BODY_BYTES = 256L * 1024
+
+        /** Stand-in when the challenge body could not be buffered; the status code still carries. */
+        val EMPTY_BODY: ResponseBody = ByteArray(0).toResponseBody(null)
     }
 
     override fun intercept(chain: Interceptor.Chain): Response {
@@ -40,13 +54,21 @@ class CloudflareInterceptor @Inject constructor(
         if (!response.isCloudflareChallenge()) return response
 
         val url = response.request.url
-        // The body is never read, so it must be closed explicitly or the connection leaks while
-        // the user is off solving the challenge — potentially for minutes.
+
+        // Buffer the challenge page, then release the connection before waiting on the user.
+        //
+        // Both halves matter. Holding the response open would tie up a connection for as long
+        // as the challenge takes, which can be minutes. Closing it without buffering would
+        // leave nothing to hand back if the user gives up — which is how an earlier version
+        // ended up re-issuing the request on failure, doubling the traffic and risking a
+        // repeated side effect for a POST. A challenge page is a few KB of HTML, so keeping a
+        // bounded copy costs nothing.
+        val buffered = runCatching { response.peekBody(MAX_CHALLENGE_BODY_BYTES) }.getOrNull()
         response.close()
 
         // Blocking is correct: this call *is* the thing waiting on the user, and the timeout
-        // above bounds it. Solving is coalesced by host in the implementation, so the twenty
-        // parallel image requests behind a blocked page produce one WebView, not twenty.
+        // bounds it. Solving is coalesced by host in the implementation, so the twenty parallel
+        // image requests behind a blocked page produce one WebView, not twenty.
         val solved = runBlocking {
             withTimeoutOrNull(SOLVE_TIMEOUT_MS) {
                 solver.solve(url.host, url.toString())
@@ -54,13 +76,16 @@ class CloudflareInterceptor @Inject constructor(
         }
 
         if (!solved) {
-            // Re-issue rather than fabricate a response, so the caller sees the site's real
-            // answer — an extension parsing an error page is easier to diagnose than one handed
-            // a synthetic failure that never came from the server.
-            return chain.proceed(chain.request())
+            // Hand back the site's own answer rather than repeating the request. The caller
+            // sees the real challenge page and the real status code, which is both honest and
+            // cheaper — and for a non-idempotent request it is the difference between one
+            // POST and two.
+            return response.newBuilder()
+                .body(buffered ?: EMPTY_BODY)
+                .build()
         }
 
-        // Retry once only. If clearance did not take, retrying again just re-opens the WebView
+        // Retry once only. If clearance did not take, retrying again would re-open the WebView
         // in a loop the user cannot escape.
         return chain.proceed(chain.request())
     }
