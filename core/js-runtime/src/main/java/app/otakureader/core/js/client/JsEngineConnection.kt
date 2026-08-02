@@ -140,8 +140,13 @@ class JsEngineConnection @Inject constructor(
      * straight back; a later reinstall of the same id then silently inherits them. Doing them
      * under two different locks is the same bug with extra steps.
      *
-     * Registration is removed *before* the clear, so a concurrent write-back either already
-     * completed (and its value is about to be erased) or finds the source gone and skips.
+     * Once both are inside this lock the *order* between them no longer affects the race, since
+     * `persistPreferences` takes the same lock and so cannot run between them either way. That
+     * frees the ordering to be chosen for failure-safety instead: the clear goes first, because
+     * it is the step that can throw. Removing the registration first would leave a failed
+     * uninstall with the source deregistered but its script still on disk — not the wholly
+     * installed, retryable state the caller documents, and not what a user retrying an uninstall
+     * would expect to be acting on.
      *
      * [clearStoredPreferences] is opt-in because the two callers want different things. An
      * uninstall must erase credentials and must know if that failed. The refresh path only
@@ -150,11 +155,13 @@ class JsEngineConnection @Inject constructor(
      */
     suspend fun unregister(sourceId: String, clearStoredPreferences: Boolean = false) {
         preferenceLock.withLock {
-            registered.remove(sourceId)
-            runCatching { engine?.unloadSource(sourceId) }
+            // First, and outside any runCatching: a failure here must abort the uninstall with
+            // the registration still intact.
             if (clearStoredPreferences) {
                 preferencesStore.clear(sourceId)
             }
+            registered.remove(sourceId)
+            runCatching { engine?.unloadSource(sourceId) }
         }
     }
 
