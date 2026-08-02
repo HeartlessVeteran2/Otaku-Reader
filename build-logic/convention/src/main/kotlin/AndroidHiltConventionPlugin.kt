@@ -20,6 +20,26 @@ class AndroidHiltConventionPlugin : Plugin<Project> {
                 add("implementation", libs.findLibrary("hilt.android").get())
                 add("ksp", libs.findLibrary("hilt.compiler").get())
             }
+
+            // Hilt's annotation processor reads the Kotlin metadata of every class it scans,
+            // using kotlin-metadata-jvm — and Hilt 2.59.2 pulls in 2.2.20, which refuses any
+            // metadata newer than 2.3.0 rather than degrading gracefully.
+            //
+            // That is a problem the moment a *dependency* is built with a newer Kotlin than we
+            // are. quickjs-kt 1.0.9 ships metadata 2.4.0, so processing dies with "Provided
+            // Metadata instance has version 2.4.0" on any module whose classpath reaches it —
+            // a failure with no connection to the code being compiled, which makes it hard to
+            // place if you have not seen it before.
+            //
+            // Pinning the reader to our own Kotlin version fixes it: a reader from Kotlin
+            // 2.3.21 accepts metadata through 2.4.0. Applied here rather than in one module so
+            // it cannot be reintroduced by the next dependency that happens to be built ahead
+            // of us; it tracks `kotlin` in the version catalog and needs no attention on upgrade.
+            configurations.configureEach {
+                resolutionStrategy {
+                    force(libs.findLibrary("kotlin.metadata.jvm").get())
+                }
+            }
         }
     }
 }

@@ -5,6 +5,7 @@ import androidx.annotation.VisibleForTesting
 import app.otakureader.core.extension.domain.repository.ExtensionRepository
 import app.otakureader.core.extension.loader.ExtensionLoader
 import app.otakureader.core.extension.loader.ExtensionLoadResult
+import app.otakureader.core.js.client.JsSourceProvider
 import app.otakureader.core.preferences.LocalSourcePreferences
 import app.otakureader.core.tachiyomi.compat.TachiyomiSourceAdapter
 import app.otakureader.core.tachiyomi.health.SourceHealthMonitor
@@ -51,6 +52,7 @@ class SourceRepositoryImpl @Inject constructor(
     private val httpClient: OkHttpClient,
     private val extensionLoader: ExtensionLoader,
     private val extensionRepository: ExtensionRepository,
+    private val jsSourceProvider: JsSourceProvider,
     @param:ApplicationScope private val scope: CoroutineScope,
 ) : SourceRepository, ExtensionManagementRepository {
 
@@ -73,6 +75,7 @@ class SourceRepositoryImpl @Inject constructor(
         httpClient: OkHttpClient,
         extensionLoader: ExtensionLoader,
         extensionRepository: ExtensionRepository,
+        jsSourceProvider: JsSourceProvider,
         scope: CoroutineScope,
     ) : this(
         context,
@@ -81,6 +84,7 @@ class SourceRepositoryImpl @Inject constructor(
         httpClient,
         extensionLoader,
         extensionRepository,
+        jsSourceProvider,
         scope,
     )
 
@@ -497,7 +501,25 @@ class SourceRepositoryImpl @Inject constructor(
                             .filterIsInstance<CatalogueSource>()
                             .map { TachiyomiSourceAdapter(it, success.extension.isNsfw) }
                     }
-                _sources.value = (listOf(local) + extensionSources).distinctBy { it.id }
+                // JavaScript sources come before APK ones, and the order is load-bearing rather
+                // than cosmetic: distinctBy keeps the FIRST occurrence of each id, so when both
+                // backends supply the same source the JS one wins. That makes "JS is the primary
+                // backend" a structural property of the list instead of a convention that later
+                // code can quietly break.
+                //
+                // A failure to load JS sources must not cost us the APK ones. The two backends
+                // share nothing, so treating them as one all-or-nothing unit would reproduce the
+                // exact fault this rebuild exists to fix — one broken source taking out Browse.
+                val jsSources = try {
+                    jsSourceProvider.loadSources()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    android.util.Log.w(TAG, "Failed to load JavaScript sources", e)
+                    emptyList()
+                }
+
+                _sources.value = (listOf(local) + jsSources + extensionSources).distinctBy { it.id }
                 clearCaches()
                 Result.success(Unit)
             } catch (e: CancellationException) {

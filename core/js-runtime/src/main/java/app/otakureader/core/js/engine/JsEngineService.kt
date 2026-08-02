@@ -102,7 +102,9 @@ class JsEngineService : Service() {
         // wall-clock budget over exactly this call. If the script never returns, the client
         // kills this process and the thread dies with it.
         val raw = runBlocking { host.call(method, args) }
-        return JsCallResult(ok = true, data = raw)
+        // changedPreferences is null unless the script wrote one, so an ordinary read-only call
+        // carries nothing extra back across the boundary.
+        return JsCallResult(ok = true, data = raw, preferences = host.changedPreferences)
     }
 
     /**

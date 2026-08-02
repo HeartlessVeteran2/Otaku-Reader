@@ -13,6 +13,8 @@ import app.otakureader.core.js.protocol.JsErrorKind
 import app.otakureader.core.js.protocol.JsProtocol
 import app.otakureader.core.js.protocol.JsSourceConfig
 import app.otakureader.core.js.protocol.readPayload
+import app.otakureader.core.js.store.JsSourcePreferencesStore
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -48,8 +50,14 @@ import javax.inject.Singleton
  */
 @Singleton
 class JsEngineConnection @Inject constructor(
-    private val context: Context,
+    // Hilt binds Context only behind a qualifier — an unqualified Context has no binding at all,
+    // which is why the missing annotation fails the build rather than injecting the wrong one.
+    // The application context is also the correct choice here on its own merits: this is a
+    // @Singleton that binds a service for the process lifetime, so holding an Activity context
+    // would leak it.
+    @param:ApplicationContext private val context: Context,
     private val httpBridge: JsHttpBridge,
+    private val preferencesStore: JsSourcePreferencesStore,
 ) {
 
     companion object {
@@ -106,6 +114,14 @@ class JsEngineConnection @Inject constructor(
     }
 
     /**
+     * Ids currently registered, snapshotted.
+     *
+     * Returned as a copy so a caller can unregister while iterating — which is exactly what the
+     * provider does when reconciling against what is still installed on disk.
+     */
+    fun registeredIds(): List<String> = registered.keys.toList()
+
+    /**
      * Invoke a source method, enforcing the budget.
      *
      * Returns a [JsCallResult] rather than throwing, so a hung or broken source is an ordinary
@@ -147,7 +163,7 @@ class JsEngineConnection @Inject constructor(
             }
 
             try {
-                work.await().also { watchdog.cancel() }
+                work.await().also { watchdog.cancel() }.also { persistPreferences(sourceId, it) }
             } catch (e: Exception) {
                 watchdog.cancel()
                 if (timedOut.getAndSet(false)) {
@@ -168,6 +184,27 @@ class JsEngineConnection @Inject constructor(
                 }
             }
         }
+    }
+
+    /**
+     * Persist preferences a script wrote during the call, and refresh the registered config.
+     *
+     * Updating [registered] is the half that is easy to miss and breaks quietly without. The
+     * sidecar is stateless between calls, so every call re-pushes the config held here; if only
+     * the DataStore were updated, the very next call would ship the *old* preferences back into
+     * the engine and silently undo the write. A source that resolves a mirror domain once per
+     * session would re-resolve it forever, looking merely slow rather than broken.
+     *
+     * Failure to write is swallowed deliberately: the call itself succeeded and its results are
+     * good, so turning a preference-write failure into a source failure would discard a page of
+     * results the user can see for a setting they cannot.
+     */
+    private suspend fun persistPreferences(sourceId: String, result: JsCallResult) {
+        val updated = result.preferences ?: return
+        registered.computeIfPresent(sourceId) { _, (config, script) ->
+            config.copy(preferences = updated) to script
+        }
+        runCatching { preferencesStore.put(sourceId, updated) }
     }
 
     /** The blocking half of a call. Runs on its own coroutine so the watchdog can outlive it. */

@@ -57,6 +57,9 @@ dependencies {
     implementation(projects.core.preferences)
     implementation(projects.core.tachiyomiCompat)
     implementation(projects.core.extension)
+    // The JavaScript source backend. Presented through the same MangaSource interface as the
+    // APK backend, so this dependency reaches no further than source construction.
+    implementation(projects.core.jsRuntime)
     implementation(projects.domain)
     implementation(projects.sourceApi)
 
