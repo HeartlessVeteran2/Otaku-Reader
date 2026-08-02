@@ -22,8 +22,11 @@ import kotlin.concurrent.thread
 /**
  * Hosts the JavaScript engine in the `:jsengine` process.
  *
- * This service is **designed to be killed**. The client enforces its wall-clock budget by
- * terminating this process, because no Android QuickJS binding can interrupt a running script.
+ * This service is **designed to be killed**. A runaway script is normally stopped by the in-VM
+ * evaluation timeout in [QuickJsHost]; the client's wall-clock budget, enforced by terminating
+ * this process, is the backstop for what that cannot reach — the engine wedging or faulting in
+ * native code, outside any JavaScript frame where an interrupt would be polled.
+ *
  * Everything here is therefore disposable: no user data is held, no writes are performed, and
  * a restart costs only the re-registration of loaded sources.
  *

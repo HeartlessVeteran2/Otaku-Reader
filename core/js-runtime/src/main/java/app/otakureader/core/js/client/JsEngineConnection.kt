@@ -31,11 +31,20 @@ import javax.inject.Singleton
 /**
  * Owns the sidecar process from the app's side: binding, the wall-clock budget, and the kill.
  *
- * The kill is the whole point. A script that never yields cannot be stopped from inside the VM
- * — no Android QuickJS binding exposes an interrupt handler — so when a call overruns its
- * budget this terminates the engine process outright. Because the sidecar holds no user data
- * and performs no writes of its own, that is safe to do at any moment; the only cost is
- * re-registering loaded sources on the next call.
+ * The kill is the **backstop**, not the first line of defence. `QuickJsHost` sets an in-VM
+ * evaluation timeout that stops a non-yielding script from inside the engine, and it is
+ * deliberately shorter than [DEFAULT_CALL_TIMEOUT_MS] so the cheap remedy gets to act first —
+ * interrupting the VM leaves the engine usable, whereas killing the process forces a rebind and
+ * a replay of every registered source.
+ *
+ * What the kill covers is the case the in-VM timeout cannot reach: the engine wedging somewhere
+ * outside script evaluation. QuickJS is C, so a pathological input can spin or fault inside the
+ * parser, the regex engine or GC, where no JavaScript-level interrupt is ever polled — and a
+ * native fault takes down whatever process it happens in. Keeping that process separate is what
+ * turns "the app died" into "one source failed".
+ *
+ * Because the sidecar holds no user data and performs no writes of its own, terminating it is
+ * safe at any moment; the only cost is re-registering loaded sources on the next call.
  */
 @Singleton
 class JsEngineConnection @Inject constructor(
