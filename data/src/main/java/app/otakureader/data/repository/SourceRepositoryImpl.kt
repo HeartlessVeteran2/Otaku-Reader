@@ -56,9 +56,6 @@ class SourceRepositoryImpl @Inject constructor(
 
     private companion object {
         const val TAG = "SourceRepositoryImpl"
-
-        /** Caps a load-failure reason so one pathological message cannot flood logcat. */
-        const val SKIPPED_REASON_MAX_LENGTH = 200
     }
 
     /**
@@ -521,22 +518,7 @@ class SourceRepositoryImpl @Inject constructor(
      * the extensions screen, while an error usually means the extension is incompatible.
      */
     private fun logSkippedExtensions(results: List<ExtensionLoadResult>) {
-        val untrusted = results.filterIsInstance<ExtensionLoadResult.Untrusted>()
-        if (untrusted.isNotEmpty()) {
-            android.util.Log.w(
-                TAG,
-                "${untrusted.size} extension(s) not loaded because their signature is not trusted: " +
-                    untrusted.joinToString { it.extension.pkgName },
-            )
-        }
-
-        val errors = results.filterIsInstance<ExtensionLoadResult.Error>()
-        if (errors.isEmpty()) return
-
-        errors.groupBy { it.message.take(SKIPPED_REASON_MAX_LENGTH) }
-            .forEach { (reason, group) ->
-                android.util.Log.w(TAG, "${group.size} extension(s) failed to load — $reason")
-            }
+        summarizeSkippedExtensions(results).forEach { android.util.Log.w(TAG, it) }
     }
 
     /**
@@ -556,4 +538,38 @@ class SourceRepositoryImpl @Inject constructor(
         latestMangaCache.remove(sourceId)
         searchCache.remove(sourceId)
     }
+}
+
+/** Cap on a sample failure message, so one pathological string cannot flood logcat. */
+private const val SKIPPED_REASON_MAX_LENGTH = 200
+
+/**
+ * Build the log lines describing extensions that were dropped during a source refresh.
+ *
+ * Separated from the logging call so the grouping can be asserted directly — `android.util.Log`
+ * is a no-op stub under unit tests, so behaviour verified only at the call site would not be
+ * verified at all.
+ *
+ * Grouping is keyed on [ExtensionLoadResult.Error.reason], never on the message. Messages
+ * interpolate the package name, so a message-keyed grouping degenerates to one line per
+ * extension — the exact flood the grouping exists to prevent — and silently re-groups whenever
+ * a message is reworded. One sample message per group is retained for detail.
+ */
+internal fun summarizeSkippedExtensions(results: List<ExtensionLoadResult>): List<String> {
+    val lines = mutableListOf<String>()
+
+    val untrusted = results.filterIsInstance<ExtensionLoadResult.Untrusted>()
+    if (untrusted.isNotEmpty()) {
+        lines += "${untrusted.size} extension(s) not loaded because their signature is not trusted: " +
+            untrusted.joinToString { it.extension.pkgName }
+    }
+
+    results.filterIsInstance<ExtensionLoadResult.Error>()
+        .groupBy { it.reason }
+        .forEach { (reason, group) ->
+            val sample = group.first().message.take(SKIPPED_REASON_MAX_LENGTH)
+            lines += "${group.size} extension(s) failed to load [$reason] — e.g. $sample"
+        }
+
+    return lines
 }

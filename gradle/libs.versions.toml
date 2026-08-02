@@ -89,6 +89,21 @@ jsoup = "1.22.1"
 injekt = "91edab2317"
 androidx-preference = "1.2.1"
 
+# JavaScript source engine (core:js-runtime).
+#
+# Pinned deliberately to an alpha. quickjs-kt is the only maintained Kotlin QuickJS
+# binding that exposes evaluationTimeoutMillis / interruptEvaluation() and coroutine-native
+# async function bindings. Both are hard requirements here, not conveniences: JS sources are
+# untrusted third-party code, so an evaluation we cannot time out or interrupt can hang the
+# app indefinitely, and Mangayomi-format extensions are promise-based throughout.
+#
+# The stable alternative (wang.harlon.quickjs:wrapper-android 3.2.0) documents neither an
+# interrupt handler nor a memory limit, which rules it out for that reason alone.
+#
+# Risk is contained by keeping every reference to this library inside :core:js-runtime,
+# behind the app's own MangaSource interface — swapping engines touches one class.
+quickjs = "1.0.0-alpha13"
+
 # Desugaring
 desugar-jdk-libs = "2.1.5"
 
@@ -221,6 +236,9 @@ rxandroid = { group = "io.reactivex", name = "rxandroid", version.ref = "rxandro
 # Tachiyomi extension runtime deps (supplied by the host to loaded extension APKs)
 jsoup = { group = "org.jsoup", name = "jsoup", version.ref = "jsoup" }
 injekt = { group = "com.github.mihonapp", name = "injekt", version.ref = "injekt" }
+
+# JavaScript source engine — see the note on the `quickjs` version above.
+quickjs = { group = "io.github.dokar3", name = "quickjs-kt-android", version.ref = "quickjs" }
 androidx-preference = { group = "androidx.preference", name = "preference-ktx", version.ref = "androidx-preference" }
 
 # Desugaring (core library desugaring for API 26+ language features)

@@ -27,7 +27,50 @@ sealed class ExtensionLoadResult {
      */
     data class Untrusted(val extension: Extension) : ExtensionLoadResult()
 
-    data class Error(val message: String, val throwable: Throwable? = null) : ExtensionLoadResult()
+    data class Error(
+        val message: String,
+        val throwable: Throwable? = null,
+        val reason: Reason = Reason.UNKNOWN,
+    ) : ExtensionLoadResult() {
+
+        /**
+         * Machine-readable classification of a load failure.
+         *
+         * [message] stays human-facing and may be reworded freely; anything that needs to
+         * *branch* on a failure — tests, log grouping, UI — must use this instead. Matching
+         * on message substrings is silently fragile: a test asserting a message does NOT
+         * contain some phrase keeps passing after the phrase is reworded, so the guard
+         * evaporates without any test turning red.
+         */
+        enum class Reason {
+            /** APK file missing at the given path. */
+            APK_NOT_FOUND,
+
+            /** PackageManager could not parse the APK. */
+            PARSE_FAILED,
+
+            /** Package does not declare the Tachiyomi extension feature flag. */
+            NOT_AN_EXTENSION,
+
+            /** Package has no ApplicationInfo, or no usable sourceDir. */
+            MISSING_APPLICATION_INFO,
+
+            /** Package has no versionName, so the lib version cannot be derived. */
+            MISSING_VERSION_NAME,
+
+            /** Lib version outside [LIB_VERSION_MIN]..[LIB_VERSION_MAX]. */
+            UNSUPPORTED_LIB_VERSION,
+
+            /** The class loader could not be constructed for the APK. */
+            CLASS_LOADER_FAILED,
+
+            /** Loaded, but no source class could be instantiated from the manifest metadata. */
+            NO_VALID_SOURCES,
+
+            /** Anything not classified above, including unexpected exceptions. */
+            UNKNOWN,
+        }
+    }
 }
 
 /**
@@ -108,10 +151,25 @@ class ExtensionLoader(
          *
          * Widening is safe because extensions-lib revisions are additive — 1.6/1.7 added
          * members to the host interfaces without breaking the 1.4-era ones — so a 1.4
-         * extension and a 1.7 extension both link against the same contract. Raise this
-         * again only after adding the corresponding members to `core:tachiyomi-compat`;
-         * loading an extension that calls a host method we do not ship fails at
-         * instantiation with NoClassDefFoundError, which is far harder to diagnose.
+         * extension and a 1.7 extension both link against the same contract.
+         *
+         * Raise this again only after adding the corresponding members to
+         * `core:tachiyomi-compat`. Admitting an extension built against a revision the host
+         * does not implement produces a [LinkageError], and which one depends on what is
+         * missing:
+         *
+         *  - a missing host **class** → `NoClassDefFoundError` while the extension's class is
+         *    being resolved, i.e. at instantiation, so the loader catches it and reports the
+         *    extension as having no valid sources;
+         *  - a missing **method** on a class the host does ship → `NoSuchMethodError` at the
+         *    call site. Since additive revisions are exactly this case, that is the failure to
+         *    expect here — and it is the more dangerous one, because it escapes the loader
+         *    entirely and surfaces later as a crash mid-browse or mid-read;
+         *  - an interface member the extension does not implement but the host invokes →
+         *    `AbstractMethodError`, likewise at call time.
+         *
+         * So the version gate is not merely a nicety: it converts a deferred, hard-to-trace
+         * runtime crash into a clear, up-front rejection.
          */
         const val LIB_VERSION_MAX = 1.7
 
@@ -134,15 +192,25 @@ class ExtensionLoader(
         return try {
             val apkFile = File(apkPath)
             if (!apkFile.exists()) {
-                return ExtensionLoadResult.Error("APK file not found: $apkPath")
+                return ExtensionLoadResult.Error(
+                    "APK file not found: $apkPath",
+                    reason = ExtensionLoadResult.Error.Reason.APK_NOT_FOUND,
+                )
             }
 
             val packageInfo = apkParser.parseApk(apkPath)
-                ?: return ExtensionLoadResult.Error("Failed to parse package info from APK")
+                ?: return ExtensionLoadResult.Error(
+                    "Failed to parse package info from APK",
+                    reason = ExtensionLoadResult.Error.Reason.PARSE_FAILED,
+                )
 
             loadFromPackageInfo(packageInfo, isShared = false)
         } catch (e: Exception) {
-            ExtensionLoadResult.Error("Failed to load extension: ${e.message}", e)
+            ExtensionLoadResult.Error(
+                "Failed to load extension: ${e.message}",
+                e,
+                reason = ExtensionLoadResult.Error.Reason.UNKNOWN,
+            )
         }
     }
 
@@ -210,10 +278,17 @@ class ExtensionLoader(
     fun loadExtensionFromPkgName(pkgName: String): ExtensionLoadResult {
         return try {
             val extensionInfo = getExtensionInfoFromPkgName(pkgName)
-                ?: return ExtensionLoadResult.Error("Package not found: $pkgName")
+                ?: return ExtensionLoadResult.Error(
+                    "Package not found: $pkgName",
+                    reason = ExtensionLoadResult.Error.Reason.APK_NOT_FOUND,
+                )
             loadFromPackageInfo(extensionInfo.packageInfo, extensionInfo.isShared)
         } catch (e: Exception) {
-            ExtensionLoadResult.Error("Failed to load extension: ${e.message}", e)
+            ExtensionLoadResult.Error(
+                "Failed to load extension: ${e.message}",
+                e,
+                reason = ExtensionLoadResult.Error.Reason.UNKNOWN,
+            )
         }
     }
 
@@ -285,34 +360,57 @@ class ExtensionLoader(
     }
 
     /** Core loading logic shared between APK-path and package-name entry points. */
-    private fun loadFromPackageInfo(packageInfo: PackageInfo, isShared: Boolean): ExtensionLoadResult {
-        // Must declare the Tachiyomi extension feature flag
-        if (!apkParser.isPackageAnExtension(packageInfo)) {
-            return ExtensionLoadResult.Error("Not a valid Tachiyomi-compatible extension (missing feature flag)")
-        }
-
-        val appInfo = packageInfo.applicationInfo
-            ?: return ExtensionLoadResult.Error("No application info in package")
-        val pkgName = packageInfo.packageName
-        val versionName = packageInfo.versionName
-
+    /**
+     * Check that the extension declares a lib version this host can satisfy.
+     *
+     * The lib version is the version-name prefix — `"1.7.42"` means extensions-lib 1.7. Returns
+     * the rejection to propagate, or `null` when the extension may proceed.
+     */
+    private fun validateLibVersion(versionName: String?, pkgName: String): ExtensionLoadResult.Error? {
         if (versionName.isNullOrEmpty()) {
-            return ExtensionLoadResult.Error("Missing versionName for extension $pkgName")
+            return ExtensionLoadResult.Error(
+                "Missing versionName for extension $pkgName",
+                reason = ExtensionLoadResult.Error.Reason.MISSING_VERSION_NAME,
+            )
         }
 
-        // Validate library version from the version name prefix (e.g., "1.4.x.y")
         val libVersion = versionName.substringBeforeLast('.').toDoubleOrNull()
         if (libVersion == null || libVersion < LIB_VERSION_MIN || libVersion > LIB_VERSION_MAX) {
             return ExtensionLoadResult.Error(
                 "Unsupported lib version $libVersion for $pkgName (expected $LIB_VERSION_MIN..$LIB_VERSION_MAX)",
+                reason = ExtensionLoadResult.Error.Reason.UNSUPPORTED_LIB_VERSION,
             )
         }
+
+        return null
+    }
+
+    private fun loadFromPackageInfo(packageInfo: PackageInfo, isShared: Boolean): ExtensionLoadResult {
+        // Must declare the Tachiyomi extension feature flag
+        if (!apkParser.isPackageAnExtension(packageInfo)) {
+            return ExtensionLoadResult.Error(
+                "Not a valid Tachiyomi-compatible extension (missing feature flag)",
+                reason = ExtensionLoadResult.Error.Reason.NOT_AN_EXTENSION,
+            )
+        }
+
+        val appInfo = packageInfo.applicationInfo
+            ?: return ExtensionLoadResult.Error(
+                "No application info in package",
+                reason = ExtensionLoadResult.Error.Reason.MISSING_APPLICATION_INFO,
+            )
+        val pkgName = packageInfo.packageName
+
+        validateLibVersion(packageInfo.versionName, pkgName)?.let { return it }
 
         val isNsfw = apkParser.isNsfw(appInfo)
 
         // Build a ChildFirstPathClassLoader for dynamic class loading (matches Komikku)
         val apkPath = appInfo.sourceDir
-            ?: return ExtensionLoadResult.Error("Application sourceDir is null for package $pkgName")
+            ?: return ExtensionLoadResult.Error(
+                "Application sourceDir is null for package $pkgName",
+                reason = ExtensionLoadResult.Error.Reason.MISSING_APPLICATION_INFO,
+            )
         val nativeLibDir = appInfo.nativeLibraryDir
 
         val classLoader = try {
@@ -322,7 +420,11 @@ class ExtensionLoader(
                 parentClassLoader = context.classLoader,
             )
         } catch (e: IllegalArgumentException) {
-            return ExtensionLoadResult.Error("Invalid parameters for class loader: ${e.message}", e)
+            return ExtensionLoadResult.Error(
+                "Invalid parameters for class loader: ${e.message}",
+                e,
+                reason = ExtensionLoadResult.Error.Reason.CLASS_LOADER_FAILED,
+            )
         }
 
         // Resolve source instances from the metadata. The resolution carries any
@@ -336,7 +438,10 @@ class ExtensionLoader(
             } else {
                 resolution.errors.joinToString(separator = "; ")
             }
-            return ExtensionLoadResult.Error("No valid sources found in extension $pkgName ($detail)")
+            return ExtensionLoadResult.Error(
+                "No valid sources found in extension $pkgName ($detail)",
+                reason = ExtensionLoadResult.Error.Reason.NO_VALID_SOURCES,
+            )
         }
         val sources = resolution.sources
 

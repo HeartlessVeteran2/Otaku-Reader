@@ -12,6 +12,7 @@ import io.mockk.mockk
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.After
 import org.junit.Before
@@ -218,7 +219,7 @@ class ExtensionLoaderTest {
         // Then
         assertTrue(result is ExtensionLoadResult.Error)
         val error = result as ExtensionLoadResult.Error
-        assertTrue(error.message.contains("Unsupported lib version"))
+        assertEquals(ExtensionLoadResult.Error.Reason.UNSUPPORTED_LIB_VERSION, error.reason)
     }
 
     @Test
@@ -237,7 +238,7 @@ class ExtensionLoaderTest {
         // Then
         assertTrue(result is ExtensionLoadResult.Error)
         val error = result as ExtensionLoadResult.Error
-        assertTrue(error.message.contains("Unsupported lib version"))
+        assertEquals(ExtensionLoadResult.Error.Reason.UNSUPPORTED_LIB_VERSION, error.reason)
     }
 
     @Test
@@ -256,7 +257,7 @@ class ExtensionLoaderTest {
         // Then
         assertTrue(result is ExtensionLoadResult.Error)
         val error = result as ExtensionLoadResult.Error
-        assertTrue(error.message.contains("Unsupported lib version"))
+        assertEquals(ExtensionLoadResult.Error.Reason.UNSUPPORTED_LIB_VERSION, error.reason)
     }
 
     @Test
@@ -275,7 +276,7 @@ class ExtensionLoaderTest {
         // Then - should fail on missing sources, not on version check
         assertTrue(result is ExtensionLoadResult.Error)
         val error = result as ExtensionLoadResult.Error
-        assertFalse(error.message.contains("Unsupported lib version"))
+        assertNotEquals(ExtensionLoadResult.Error.Reason.UNSUPPORTED_LIB_VERSION, error.reason)
     }
 
     @Test
@@ -294,7 +295,7 @@ class ExtensionLoaderTest {
         // Then - should fail on missing sources, not on version check
         assertTrue(result is ExtensionLoadResult.Error)
         val error = result as ExtensionLoadResult.Error
-        assertFalse(error.message.contains("Unsupported lib version"))
+        assertNotEquals(ExtensionLoadResult.Error.Reason.UNSUPPORTED_LIB_VERSION, error.reason)
     }
 
     /**
@@ -322,7 +323,7 @@ class ExtensionLoaderTest {
         // Then - should fail on missing sources, not on version check
         assertTrue(result is ExtensionLoadResult.Error)
         val error = result as ExtensionLoadResult.Error
-        assertFalse(error.message.contains("Unsupported lib version"))
+        assertNotEquals(ExtensionLoadResult.Error.Reason.UNSUPPORTED_LIB_VERSION, error.reason)
     }
 
     @Test
@@ -341,7 +342,7 @@ class ExtensionLoaderTest {
         // Then - should fail on missing sources, not on version check
         assertTrue(result is ExtensionLoadResult.Error)
         val error = result as ExtensionLoadResult.Error
-        assertFalse(error.message.contains("Unsupported lib version"))
+        assertNotEquals(ExtensionLoadResult.Error.Reason.UNSUPPORTED_LIB_VERSION, error.reason)
     }
 
     /**
@@ -366,7 +367,7 @@ class ExtensionLoaderTest {
         // Then
         assertTrue(result is ExtensionLoadResult.Error)
         val error = result as ExtensionLoadResult.Error
-        assertTrue(error.message.contains("Unsupported lib version"))
+        assertEquals(ExtensionLoadResult.Error.Reason.UNSUPPORTED_LIB_VERSION, error.reason)
     }
 
     // -------------------------------------------------------------------------
