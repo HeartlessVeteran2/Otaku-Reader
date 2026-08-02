@@ -14,6 +14,9 @@ android {
 
 dependencies {
     implementation(projects.core.common)
+    // ChallengeUserAgentStore lives here. Cycle-free: core:preferences depends only on
+    // core:common and domain, and domain depends only on source-api.
+    implementation(projects.core.preferences)
 
     implementation(platform(libs.okhttp.bom))
     api(libs.okhttp.core)

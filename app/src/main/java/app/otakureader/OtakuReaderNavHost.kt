@@ -51,6 +51,10 @@ import app.otakureader.feature.updates.navigation.downloadsScreen
 import app.otakureader.feature.updates.navigation.updateErrorsScreen
 import app.otakureader.feature.updates.navigation.updatesScreen
 import app.otakureader.util.DeepLinkResult
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import app.otakureader.core.webview.WebViewPurpose
+import app.otakureader.core.webview.WebViewChallengeManager
+import androidx.hilt.navigation.compose.hiltViewModel
 
 @Composable
 fun OtakuReaderNavHost(
@@ -60,9 +64,26 @@ fun OtakuReaderNavHost(
     deepLinkResult: DeepLinkResult? = null,
     onDeepLinkConsumed: () -> Unit = {},
     onOnboardingComplete: () -> Unit = {},
+    challengeManager: WebViewChallengeManager = hiltViewModel<ChallengeHostViewModel>().manager,
 ) {
     // Determine start destination based on onboarding status
     val startDestination: Route = if (onboardingCompleted) Route.Library else Route.Onboarding
+
+    // Open the WebView whenever a source hits a Cloudflare wall.
+    //
+    // This collector is the step that was missing: WebViewChallengeManager emitted on
+    // pendingChallenge and the KDoc said "the app's navigation layer observes it", but nothing
+    // did — so a blocked source simply failed with no way for the user to intervene.
+    LaunchedEffect(challengeManager) {
+        challengeManager.pendingChallenge.collect { request ->
+            navController.navigate(
+                Route.WebView(
+                    url = request.url,
+                    purpose = WebViewPurpose.CAPTCHA.name,
+                )
+            )
+        }
+    }
 
     // Handle deep link navigation - only trigger once when deepLinkResult changes
     LaunchedEffect(deepLinkResult) {
@@ -635,7 +656,14 @@ fun OtakuReaderNavHost(
 
         // WebView — embedded browser for CAPTCHA solving, OAuth, etc.
         webViewScreen(
-            onClose = { _, _, _ ->
+            onClose = { url, cookieString, userAgent ->
+                // Completing the challenge is what resumes the blocked request. The previous
+                // version discarded all three values and only popped the back stack, so the
+                // caller waiting on the challenge was never released — the WebView "worked"
+                // and nothing downstream ever knew.
+                url.toHttpUrlOrNull()?.host?.let { host ->
+                    challengeManager.completeChallenge(host, cookieString, userAgent)
+                }
                 navController.popBackStack()
             }
         )

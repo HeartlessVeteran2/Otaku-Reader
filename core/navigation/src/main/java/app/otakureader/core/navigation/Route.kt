@@ -306,15 +306,15 @@ sealed interface Route {
     /**
      * Embedded WebView screen (e.g. CAPTCHA solving, OAuth).
      *
-     * @param sourceId Extension source ID this WebView is serving.
-     * @param url      URL to open.
+     * @param url      URL to open. The Cloudflare flow is keyed by this URL's host, since
+     *                 clearance is granted per domain and the network layer — which triggers
+     *                 the challenge — only ever knows a URL, never a source.
      * @param purpose  [app.otakureader.core.webview.WebViewPurpose] as a String to avoid
      *                 a cross-module enum reference in the navigation layer.
      *                 Defaults to "GENERAL".
      */
     @Serializable
     data class WebView(
-        val sourceId: Long,
         val url: String,
         val purpose: String = "GENERAL",
     ) : Route

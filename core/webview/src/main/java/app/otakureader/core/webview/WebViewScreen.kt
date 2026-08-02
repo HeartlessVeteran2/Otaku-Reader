@@ -47,7 +47,7 @@ import app.otakureader.core.navigation.Route
 fun WebViewScreen(
     url: String,
     @Suppress("UnusedParameter") purpose: WebViewPurpose,
-    onClose: (cookieString: String?) -> Unit,
+    onClose: (cookieString: String?, userAgent: String?) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: WebViewViewModel = hiltViewModel(),
 ) {
@@ -63,7 +63,16 @@ fun WebViewScreen(
 
     Column(modifier = modifier.fillMaxSize()) {
         WebViewTopBar(
-            onBack = { onClose(webViewRef?.let { viewModel.cookiesForUrl(url) }) },
+            // The User-Agent travels with the cookies because Cloudflare binds clearance
+            // to the identity that earned it; a cookie replayed under a different one is
+            // challenged again, so returning the cookie alone would leave the user solving the
+            // same challenge forever.
+            onBack = {
+                onClose(
+                    webViewRef?.let { viewModel.cookiesForUrl(url) },
+                    webViewRef?.settings?.userAgentString,
+                )
+            },
             onNavigateBack = { webViewRef?.goBack() },
             onNavigateForward = { webViewRef?.goForward() },
             onReload = { webViewRef?.reload() },
@@ -164,11 +173,13 @@ private fun WebViewTopBar(
 /**
  * Registers the [WebViewScreen] destination in the app's [NavGraphBuilder].
  *
- * The [onClose] callback receives the source ID, the URL, and the cookie string
- * so that callers (e.g. extension WebView bridges) can act on the result.
+ * The [onClose] callback receives the URL, the cookie string, and the WebView's User-Agent.
+ * The last of these is what lets the network layer replay the clearance cookie under the same
+ * identity that earned it — without it, the bypass appears to succeed and the next request is
+ * challenged again.
  */
 fun NavGraphBuilder.webViewScreen(
-    onClose: (sourceId: Long, url: String, cookieString: String?) -> Unit,
+    onClose: (url: String, cookieString: String?, userAgent: String?) -> Unit,
 ) {
     composable<Route.WebView> { backStackEntry ->
         val route = backStackEntry.toRoute<Route.WebView>()
@@ -176,7 +187,7 @@ fun NavGraphBuilder.webViewScreen(
             url = route.url,
             purpose = runCatching { WebViewPurpose.valueOf(route.purpose) }
                 .getOrDefault(WebViewPurpose.GENERAL),
-            onClose = { cookies -> onClose(route.sourceId, route.url, cookies) },
+            onClose = { cookies, userAgent -> onClose(route.url, cookies, userAgent) },
         )
     }
 }

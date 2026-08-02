@@ -1,6 +1,8 @@
 package app.otakureader.core.network.di
 
 import app.otakureader.core.common.network.PageImageHeaders
+import app.otakureader.core.network.cloudflare.ChallengeUserAgentInterceptor
+import app.otakureader.core.network.cloudflare.CloudflareInterceptor
 import app.otakureader.core.network.BuildConfig
 import app.otakureader.core.network.BytesEventListener
 import app.otakureader.core.network.BytesRecorder
@@ -52,8 +54,23 @@ object NetworkModule {
     @Singleton
     fun provideOkHttpClient(
         bytesRecorder: BytesRecorder,
+        cloudflareInterceptor: CloudflareInterceptor,
+        challengeUserAgentInterceptor: ChallengeUserAgentInterceptor,
     ): OkHttpClient {
         val builder = OkHttpClient.Builder()
+            // On the SHARED client, unlike the page-image headers: a User-Agent is not a
+            // per-source secret, and every backend needs the bypass — APK extensions through
+            // NetworkHelper, JavaScript sources through JsHttpBridge, and the page-image client,
+            // all of which derive from this one.
+            //
+            // An APPLICATION interceptor, because it must see the finished response and re-run
+            // the whole call after the user solves the challenge. A network interceptor sees
+            // one hop and cannot retry the request.
+            .addInterceptor(cloudflareInterceptor)
+            // A NETWORK interceptor, so each hop is stamped with the identity registered for
+            // its own host. A redirect to a different host gets that host's User-Agent, or the
+            // caller's own if it was never challenged.
+            .addNetworkInterceptor(challengeUserAgentInterceptor)
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
