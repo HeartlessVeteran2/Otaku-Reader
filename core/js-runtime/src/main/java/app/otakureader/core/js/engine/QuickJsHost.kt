@@ -88,6 +88,16 @@ internal class QuickJsHost(
     private val mutablePreferences = config.preferences.toMutableMap()
 
     /**
+     * Preferences as the script left them, or null if it never wrote one.
+     *
+     * Read by the service after a call so the main process can persist the change. Null rather
+     * than always returning the map, so the common case — a source that only reads — costs
+     * nothing on the wire.
+     */
+    var changedPreferences: Map<String, String>? = null
+        private set
+
+    /**
      * Evaluate [method] against the loaded script and return its raw JSON result.
      *
      * Suspends because HTTP is asynchronous; the sidecar's binder thread blocks on it, which is
@@ -231,15 +241,11 @@ internal class QuickJsHost(
      * source cannot read another's — which matters because these frequently hold site
      * credentials.
      *
-     * **`set` is call-scoped and does not persist yet.** A script can read back its own write
-     * within the same call, which is what sources actually rely on (they typically set a
-     * resolved domain and then use it), but the value is discarded when the call ends.
-     *
-     * This is stated rather than hidden because the alternative is worse: silently accepting a
-     * write that vanishes looks like working persistence right up until a user's setting fails
-     * to survive. Durable storage arrives in Stage 4 along with the repository that owns it —
-     * writing back requires returning the mutated map across the process boundary and a place
-     * to put it, neither of which exists while this module stands alone.
+     * A script can read back its own write within the same call, which is what sources rely on
+     * (they typically resolve a mirror domain and then use it). Writes also survive the call:
+     * the mutated map is published through [changedPreferences], returned to the main process in
+     * `JsCallResult.preferences`, and persisted there. The sidecar itself stores nothing — it
+     * has no filesystem access at all — so the round-trip is the only way a write can last.
      */
     private fun installPreferences(engine: QuickJs) {
         engine.define("SharedPreferences") {
@@ -250,6 +256,10 @@ internal class QuickJsHost(
             function("set") { args ->
                 val key = args.getOrNull(0) as? String ?: return@function null
                 mutablePreferences[key] = args.getOrNull(1)?.toString().orEmpty()
+                // Snapshot rather than alias the mutable map: the service reads this after the
+                // call, and handing out the live map would let a later write mutate a value the
+                // caller believes it already captured.
+                changedPreferences = mutablePreferences.toMap()
                 null
             }
         }

@@ -75,6 +75,12 @@ class JsEngineService : Service() {
         }
     }
 
+    // A broad catch is the correct shape here rather than a lapse. The point is to salvage a
+    // preference write whatever the script did on its way out, and the throwable types reachable
+    // through QuickJS, Jsoup, serialization and the HTTP bridge are neither enumerable nor
+    // stable — a missed type would escape to the binder wrapper and silently lose the write,
+    // which is the exact bug this block exists to close.
+    @Suppress("TooGenericExceptionCaught")
     private fun execute(sourceId: String, method: String, argsJson: String): JsCallResult {
         val loaded = sources[sourceId]
             ?: return JsCallResult(
@@ -98,11 +104,32 @@ class JsEngineService : Service() {
             http = ::performHttp,
         )
 
-        // Blocking is correct here: this is a binder thread, and the client is holding a
-        // wall-clock budget over exactly this call. If the script never returns, the client
-        // kills this process and the thread dies with it.
-        val raw = runBlocking { host.call(method, args) }
-        return JsCallResult(ok = true, data = raw)
+        // A preference write is a side effect that already happened, so it has to survive a
+        // later throw. Sources commonly resolve a mirror domain, store it, and only then make
+        // the request that fails — discarding the write because the call ended badly would make
+        // them re-resolve on every attempt, which reads as "slow" rather than "broken" and so
+        // never gets diagnosed. Catching here rather than in the binder wrapper is what keeps
+        // the host in scope to be asked.
+        return try {
+            // Blocking is correct here: this is a binder thread, and the client is holding a
+            // wall-clock budget over exactly this call. If the script never returns, the client
+            // kills this process and the thread dies with it.
+            val raw = runBlocking { host.call(method, args) }
+            // changedPreferences is null unless the script wrote one, so an ordinary read-only
+            // call carries nothing extra back across the boundary.
+            JsCallResult(ok = true, data = raw, preferences = host.changedPreferences)
+        } catch (error: Exception) {
+            // Exception, not Throwable: a script that threw is the ordinary case worth
+            // preserving a write for. An Error means the process is already in trouble — the
+            // binder wrapper's runCatching still turns it into a failure result, it just does
+            // not try to salvage a preference on the way down.
+            JsCallResult(
+                ok = false,
+                error = error.message ?: error::class.java.simpleName,
+                errorKind = JsErrorKind.SCRIPT_ERROR,
+                preferences = host.changedPreferences,
+            )
+        }
     }
 
     /**

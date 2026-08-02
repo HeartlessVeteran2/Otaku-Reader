@@ -74,6 +74,18 @@ data class JsCallResult(
     val data: String? = null,
     val error: String? = null,
     val errorKind: JsErrorKind = JsErrorKind.NONE,
+    /**
+     * Source preferences as they stood when the call ended, when the script changed them.
+     *
+     * Sources routinely write a preference mid-call — resolving a mirror domain, caching a token
+     * — and then read it back on the next call. The sidecar holds no storage of its own, so the
+     * mutated map has to ride back across the process boundary for the main process to persist.
+     *
+     * Null means "unchanged", which is the overwhelmingly common case; sending the map on every
+     * call would put a source's stored credentials through a serialize/deserialize round-trip
+     * thousands of times for no reason.
+     */
+    val preferences: Map<String, String>? = null,
 )
 
 @Serializable

@@ -13,6 +13,9 @@ import app.otakureader.core.js.protocol.JsErrorKind
 import app.otakureader.core.js.protocol.JsProtocol
 import app.otakureader.core.js.protocol.JsSourceConfig
 import app.otakureader.core.js.protocol.readPayload
+import app.otakureader.core.js.store.JsSourcePreferencesStore
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -22,8 +25,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withTimeout
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.coroutines.coroutineContext
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -48,8 +53,14 @@ import javax.inject.Singleton
  */
 @Singleton
 class JsEngineConnection @Inject constructor(
-    private val context: Context,
+    // Hilt binds Context only behind a qualifier — an unqualified Context has no binding at all,
+    // which is why the missing annotation fails the build rather than injecting the wrong one.
+    // The application context is also the correct choice here on its own merits: this is a
+    // @Singleton that binds a service for the process lifetime, so holding an Activity context
+    // would leak it.
+    @param:ApplicationContext private val context: Context,
     private val httpBridge: JsHttpBridge,
+    private val preferencesStore: JsSourcePreferencesStore,
 ) {
 
     companion object {
@@ -64,7 +75,26 @@ class JsEngineConnection @Inject constructor(
 
         /** Binding is local and should be immediate; a long wait here means something is wrong. */
         private const val BIND_TIMEOUT_MS = 5_000L
+
+        /**
+         * Budget for writing preferences back to disk.
+         *
+         * Short, because this runs after the call's own watchdog has been cancelled: nothing
+         * else is left to interrupt a stalled write, and the caller is a UI-driven source
+         * operation. Losing a setting is recoverable; hanging Browse is not.
+         */
+        private const val PREFERENCE_WRITE_TIMEOUT_MS = 5_000L
+
+        private const val TAG = "JsEngineConnection"
     }
+
+    /**
+     * Serialises preference persistence against [unregister].
+     *
+     * Held across the liveness check and the write together, so an uninstall cannot land between
+     * them and have its clearing undone by a call that was already in flight.
+     */
+    private val preferenceLock = Mutex()
 
     /** Sources registered by the app, replayed after a restart so a kill is transparent. */
     private val registered = ConcurrentHashMap<String, Pair<JsSourceConfig, String>>()
@@ -100,10 +130,48 @@ class JsEngineConnection @Inject constructor(
         registered[config.id] = config to script
     }
 
-    fun unregister(sourceId: String) {
-        registered.remove(sourceId)
-        runCatching { engine?.unloadSource(sourceId) }
+    /**
+     * Drop a source, optionally erasing what it stored.
+     *
+     * Deregistration and credential-clearing happen together, under [preferenceLock], because
+     * they are only correct as one operation. Splitting them — clearing in the caller and
+     * deregistering here — leaves a window in which the source is cleared but still registered,
+     * so an in-flight call's write-back passes its liveness check and puts the credentials
+     * straight back; a later reinstall of the same id then silently inherits them. Doing them
+     * under two different locks is the same bug with extra steps.
+     *
+     * Once both are inside this lock the *order* between them no longer affects the race, since
+     * `persistPreferences` takes the same lock and so cannot run between them either way. That
+     * frees the ordering to be chosen for failure-safety instead: the clear goes first, because
+     * it is the step that can throw. Removing the registration first would leave a failed
+     * uninstall with the source deregistered but its script still on disk — not the wholly
+     * installed, retryable state the caller documents, and not what a user retrying an uninstall
+     * would expect to be acting on.
+     *
+     * [clearStoredPreferences] is opt-in because the two callers want different things. An
+     * uninstall must erase credentials and must know if that failed. The refresh path only
+     * reconciles the engine against disk and must never fail a whole source list over a
+     * preferences write.
+     */
+    suspend fun unregister(sourceId: String, clearStoredPreferences: Boolean = false) {
+        preferenceLock.withLock {
+            // First, and outside any runCatching: a failure here must abort the uninstall with
+            // the registration still intact.
+            if (clearStoredPreferences) {
+                preferencesStore.clear(sourceId)
+            }
+            registered.remove(sourceId)
+            runCatching { engine?.unloadSource(sourceId) }
+        }
     }
+
+    /**
+     * Ids currently registered, snapshotted.
+     *
+     * Returned as a copy so a caller can unregister while iterating — which is exactly what the
+     * provider does when reconciling against what is still installed on disk.
+     */
+    fun registeredIds(): List<String> = registered.keys.toList()
 
     /**
      * Invoke a source method, enforcing the budget.
@@ -147,7 +215,7 @@ class JsEngineConnection @Inject constructor(
             }
 
             try {
-                work.await().also { watchdog.cancel() }
+                work.await().also { watchdog.cancel() }.also { persistPreferences(sourceId, it) }
             } catch (e: Exception) {
                 watchdog.cancel()
                 if (timedOut.getAndSet(false)) {
@@ -165,6 +233,66 @@ class JsEngineConnection @Inject constructor(
                         error = e.message ?: "JavaScript engine failed",
                         errorKind = JsErrorKind.ENGINE_DIED,
                     )
+                }
+            }
+        }
+    }
+
+    /**
+     * Persist preferences a script wrote during the call, and refresh the registered config.
+     *
+     * Updating [registered] is the half that is easy to miss and breaks quietly without. The
+     * sidecar is stateless between calls, so every call re-pushes the config held here; if only
+     * the store were updated, the very next call would ship the *old* preferences back into the
+     * engine and silently undo the write. A source that resolves a mirror domain once per
+     * session would re-resolve it forever, looking merely slow rather than broken.
+     *
+     * Four things here are about ordering rather than storage, and each is a real failure:
+     *
+     *  - **Only persist while the source is still registered.** An uninstall clears the stored
+     *    preferences, but a call already in flight would then write them straight back — so
+     *    reinstalling the same id would silently recover credentials the user had removed. The
+     *    registration is the liveness check, and it must be read *inside* the lock that
+     *    `unregister` also takes, or the check and the write straddle the uninstall.
+     *  - **Merge, never replace.** Each call carries a full snapshot taken when it started, so
+     *    two concurrent calls that each set a different key would see the later one's snapshot
+     *    overwrite the earlier one's key. Merging over the current value keeps both. There is no
+     *    delete in the script-facing API, so merge loses nothing.
+     *  - **Bound the wait.** This runs after the watchdog has been cancelled, so without a
+     *    timeout a stalled write would hang a Browse or reader call with nothing left to
+     *    interrupt it.
+     *  - **Let cancellation through.** `runCatching` swallows `CancellationException`, which
+     *    would turn a cancelled screen into a successful source result and leave the caller's
+     *    job un-cancellable.
+     *
+     * A genuine write failure *is* swallowed: the call succeeded and its results are good, so
+     * failing it over a setting would discard a page the user can see for one they cannot.
+     */
+    private suspend fun persistPreferences(sourceId: String, result: JsCallResult) {
+        val updated = result.preferences ?: return
+
+        preferenceLock.withLock {
+            val current = registered[sourceId] ?: return@withLock
+            val merged = current.first.preferences + updated
+
+            val stored = try {
+                withTimeout(PREFERENCE_WRITE_TIMEOUT_MS) { preferencesStore.put(sourceId, merged) }
+            } catch (e: CancellationException) {
+                // Distinguishing the two matters: a timeout is ours and must not propagate, but
+                // the caller's cancellation has to keep travelling or their job never ends.
+                if (coroutineContext.isActive) false else throw e
+            } catch (e: Exception) {
+                android.util.Log.w(TAG, "Failed to persist preferences for $sourceId", e)
+                false
+            }
+
+            // Only mirror into the registered config once the store accepted it. Holding a value
+            // in memory that was refused on disk — an oversized payload, say — would keep
+            // shipping it to the engine on every call, which is exactly what the store's bound
+            // exists to prevent.
+            if (stored) {
+                registered.computeIfPresent(sourceId) { _, (config, script) ->
+                    config.copy(preferences = merged) to script
                 }
             }
         }

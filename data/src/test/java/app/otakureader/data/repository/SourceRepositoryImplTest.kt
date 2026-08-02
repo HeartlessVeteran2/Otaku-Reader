@@ -5,6 +5,7 @@ import app.otakureader.core.extension.domain.model.Extension
 import app.otakureader.core.extension.domain.model.InstallStatus
 import app.otakureader.core.extension.domain.repository.ExtensionRepository
 import app.otakureader.core.extension.loader.ExtensionLoader
+import app.otakureader.core.js.client.JsSourceProvider
 import app.otakureader.core.extension.loader.ExtensionLoadResult
 import app.otakureader.core.preferences.LocalSourcePreferences
 import app.otakureader.core.tachiyomi.health.SourceHealthMonitor
@@ -67,6 +68,7 @@ class SourceRepositoryImplTest {
     private lateinit var httpClient: OkHttpClient
     private lateinit var extensionLoader: ExtensionLoader
     private lateinit var extensionRepository: ExtensionRepository
+    private lateinit var jsSourceProvider: JsSourceProvider
 
     private lateinit var repository: SourceRepositoryImpl
 
@@ -81,6 +83,10 @@ class SourceRepositoryImplTest {
         httpClient = mockk(relaxed = true)
         extensionLoader = mockk(relaxed = true)
         extensionRepository = mockk(relaxed = true)
+        jsSourceProvider = mockk(relaxed = true)
+
+        // Default: no JavaScript sources installed
+        coEvery { jsSourceProvider.loadSources() } returns emptyList()
 
         // Default: no extensions loaded
         every { extensionLoader.loadAllExtensions() } returns emptyList()
@@ -101,6 +107,7 @@ class SourceRepositoryImplTest {
             httpClient = httpClient,
             extensionLoader = extensionLoader,
             extensionRepository = extensionRepository,
+            jsSourceProvider = jsSourceProvider,
             scope = testScope.backgroundScope,
         )
     }
@@ -259,6 +266,136 @@ class SourceRepositoryImplTest {
         val result = repository.refreshSources()
 
         assertTrue(result.isSuccess)
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // JavaScript backend — the second source backend alongside the APK one
+    // ──────────────────────────────────────────────────────────────────────
+
+    @Test
+    fun refreshSources_publishesJavaScriptSources() = runTest {
+        mockLocalSource(makeFakeSource(id = "local", name = "Local"))
+        coEvery { jsSourceProvider.loadSources() } returns
+            listOf(makeFakeSource(id = "js.example", name = "Example (JS)"))
+
+        repository.refreshSources()
+        advanceUntilIdle()
+
+        assertTrue(repository.getSources().first().any { it.id == "js.example" })
+    }
+
+    /**
+     * Ordering is load-bearing, not cosmetic.
+     *
+     * `distinctBy` keeps the FIRST occurrence of each id, so placing JavaScript sources ahead of
+     * APK ones is what makes the JS backend primary when both supply the same source. Asserting
+     * the position is therefore asserting the precedence rule itself — if someone later appends
+     * the JS list instead of prepending it, the backend silently demotes and only a collision in
+     * the field would reveal it.
+     */
+    @Test
+    fun refreshSources_ordersJavaScriptSourcesAheadOfExtensionSources() = runTest {
+        mockLocalSource(makeFakeSource(id = "local", name = "Local"))
+        every { extensionLoader.loadAllExtensions() } returns emptyList()
+        coEvery { jsSourceProvider.loadSources() } returns listOf(
+            makeFakeSource(id = "js.a", name = "A (JS)"),
+            makeFakeSource(id = "js.b", name = "B (JS)"),
+        )
+
+        repository.refreshSources()
+        advanceUntilIdle()
+
+        val ids = repository.getSources().first().map { it.id }
+        // Local stays first; JS follows; extension sources (none here) would come after.
+        assertEquals(listOf("js.a", "js.b"), ids.drop(1))
+    }
+
+    /**
+     * The precedence rule itself, which the ordering test above does not actually reach.
+     *
+     * That test stubs the extension loader empty, so there is no colliding id and it would pass
+     * just as happily if the JS list were appended after the APK one. Precedence only means
+     * anything when both backends offer the same source: `distinctBy` keeps the first
+     * occurrence, so this asserts the surviving instance is the JavaScript one.
+     */
+    @Test
+    fun refreshSources_prefersTheJavaScriptSourceWhenBothBackendsSupplyAnId() = runTest {
+        mockLocalSource(makeFakeSource(id = "local", name = "Local"))
+
+        // TachiyomiSourceAdapter derives its id from the underlying source's numeric id, so
+        // giving the JS source the same id as a string is what creates the real collision —
+        // driven through refreshSources rather than asserted against a hand-built list, which
+        // would only be testing distinctBy.
+        val collidingId = 12345L
+        val catalogueSource = mockk<CatalogueSource>(relaxed = true)
+        every { catalogueSource.id } returns collidingId
+        every { catalogueSource.name } returns "Shared (APK)"
+        val extension = mockk<Extension>(relaxed = true)
+        every { extension.pkgName } returns "com.example.shared"
+        every { extension.isNsfw } returns false
+        every { extensionLoader.loadAllExtensions() } returns
+            listOf(ExtensionLoadResult.Success(extension, listOf(catalogueSource)))
+
+        coEvery { jsSourceProvider.loadSources() } returns
+            listOf(makeFakeSource(id = collidingId.toString(), name = "Shared (JS)"))
+
+        repository.refreshSources()
+        advanceUntilIdle()
+
+        val matching = repository.getSources().first().filter { it.id == collidingId.toString() }
+        assertEquals("the collision must collapse to one source", 1, matching.size)
+        assertEquals(
+            "the JavaScript backend must win an id collision",
+            "Shared (JS)",
+            matching.single().name,
+        )
+    }
+
+    /**
+     * The two backends share nothing, so a failure in one must not cost the other.
+     *
+     * Treating them as one all-or-nothing unit would reproduce the exact fault this rebuild
+     * exists to fix: a single broken source emptying Browse.
+     */
+    @Test
+    fun refreshSources_survivesJavaScriptBackendFailure() = runTest {
+        mockLocalSource(makeFakeSource(id = "local", name = "Local"))
+        every { extensionLoader.loadAllExtensions() } returns emptyList()
+        coEvery { jsSourceProvider.loadSources() } throws RuntimeException("engine unavailable")
+
+        val result = repository.refreshSources()
+        advanceUntilIdle()
+
+        assertTrue("a JS failure must not fail the whole refresh", result.isSuccess)
+        assertTrue(repository.getSources().first().isNotEmpty())
+    }
+
+    /**
+     * The counterpart of the test above, and the one that was missing.
+     *
+     * Isolation has to run both ways. An earlier version nested the JavaScript load inside the
+     * extension load's try block, so a throw from the APK pipeline jumped to the fallback and
+     * published only the local source — silently hiding every installed JavaScript source. The
+     * suite still passed, because the existing extension-failure test only asserted the returned
+     * Result and never looked at what remained in the source list.
+     */
+    @Test
+    fun refreshSources_keepsJavaScriptSourcesWhenExtensionLoaderThrows() = runTest {
+        mockLocalSource(makeFakeSource(id = "local", name = "Local"))
+        every { extensionLoader.loadAllExtensions() } throws RuntimeException("Extension loader exploded")
+        coEvery { jsSourceProvider.loadSources() } returns
+            listOf(makeFakeSource(id = "js.example", name = "Example (JS)"))
+
+        val result = repository.refreshSources()
+        advanceUntilIdle()
+
+        // The failure is still reported to the caller...
+        assertTrue(result.isFailure)
+        // ...but it must not cost the user their JavaScript sources.
+        assertTrue(
+            "a JS source must survive an extension-backend failure",
+            repository.getSources().first().any { it.id == "js.example" },
+        )
     }
 
     @Test
