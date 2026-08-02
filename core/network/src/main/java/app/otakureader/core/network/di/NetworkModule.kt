@@ -121,7 +121,21 @@ object NetworkModule {
             // need it — installing it on the image loader alone left downloads hitting
             // hotlink-protected hosts without a Referer, so a chapter read fine and then failed
             // to save, with the 403 surfacing later as a broken offline page.
-            .addInterceptor { chain ->
+            //
+            // A NETWORK interceptor, not an application one, and that distinction is the
+            // security control. An application interceptor runs once, above OkHttp's redirect
+            // handling, so whatever it adds is carried to every subsequent hop — and OkHttp
+            // strips only `Authorization` on a host change, not a source-supplied `X-Api-Key`.
+            // An image host that redirects cross-origin, whether compromised or simply
+            // misconfigured, would then receive credentials meant for somewhere else, and the
+            // source has no say in where its own CDN points.
+            //
+            // Running per hop makes that unreachable rather than merely mitigated: each hop is
+            // looked up on its own URL, so a redirect to an unregistered host gets nothing and
+            // one to a registered host gets exactly the headers belonging to it. Headers added
+            // here do not propagate either, because OkHttp builds a redirect from the request
+            // as it stood *above* the network interceptors.
+            .addNetworkInterceptor { chain ->
                 val request = chain.request()
                 val extra = pageImageHeaders.headersFor(request.url.toString())
                 if (extra.isEmpty()) {
