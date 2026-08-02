@@ -61,7 +61,10 @@ class JsSource(
             author = detail.author ?: manga.author,
             artist = detail.artist ?: manga.artist,
             genre = detail.genre.takeIf { it.isNotEmpty() }?.joinToString(", ") ?: manga.genre,
-            status = detail.status,
+            // 0 is the DTO default and also means "unknown", so an omitted status is
+            // indistinguishable from an explicit one. Treat it as absent and keep what we
+            // already knew, rather than downgrading a known status to unknown on every refresh.
+            status = detail.status.takeIf { it != 0 } ?: manga.status,
             initialized = true,
         )
     }
@@ -90,7 +93,10 @@ class JsSource(
             JsCallArgs(url = chapter.url),
         )
         return pages.mapIndexed { index, page ->
-            Page(index = index, url = chapter.url, imageUrl = page.url)
+            // Both fields carry the image URL. Page.url means "this page's remote URL", not
+            // the chapter's; downstream code falls back to it when imageUrl is blank, so
+            // putting the chapter URL there would make that fallback fetch the wrong thing.
+            Page(index = index, url = page.url, imageUrl = page.url)
         }
     }
 

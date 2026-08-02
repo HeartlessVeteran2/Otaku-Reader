@@ -28,12 +28,16 @@ import org.jsoup.nodes.Document
  * there is no reflective host-object binding: a script cannot reach a Kotlin class that was
  * not explicitly handed to it.
  *
- * ### What still cannot be contained
+ * ### Limits, and why the process boundary still exists
  *
- * [QuickJs.memoryLimit] and [QuickJs.maxStackSize] bound allocation and recursion, but no
- * Android QuickJS binding exposes `JS_SetInterruptHandler`, so a non-allocating infinite loop
- * cannot be stopped from in here. That is why this class lives in a disposable process: the
- * client's wall-clock budget is enforced by killing it.
+ * [QuickJs.memoryLimit] and [QuickJs.maxStackSize] bound allocation and recursion, and
+ * `evaluationTimeoutMillis` stops a non-yielding script from inside the VM.
+ *
+ * The sidecar process is NOT redundant given that timeout. It does a different job: an
+ * isolated process runs under a permission-less UID, so a script that escapes the QuickJS
+ * sandbox entirely — through a bug in the engine rather than in JavaScript — still has no
+ * network, no filesystem and no access to app data. The timeout handles misbehaving scripts;
+ * the process handles a compromised engine. Neither substitutes for the other.
  */
 internal class QuickJsHost(
     private val config: JsSourceConfig,
@@ -51,6 +55,27 @@ internal class QuickJsHost(
 
         /** Bounds runaway recursion, which would otherwise crash the process natively. */
         const val MAX_STACK_SIZE_BYTES = 1L * 1024 * 1024
+
+        /**
+         * In-VM evaluation budget — the first line of defence against a non-yielding script.
+         *
+         * Deliberately shorter than the client's process-level budget so that the cheap remedy
+         * gets to act first: interrupting the VM costs nothing and leaves the engine usable,
+         * whereas killing the process forces a rebind and a reload of every registered source.
+         * The process kill remains as the backstop for the case this cannot cover — the engine
+         * wedging somewhere outside script evaluation.
+         */
+        const val EVALUATION_TIMEOUT_MS = 20_000L
+
+        /**
+         * Cap on live parsed documents.
+         *
+         * Jsoup documents live on the Android heap, not inside QuickJS, so [MEMORY_LIMIT_BYTES]
+         * does not see them at all: a script looping on `Document.parse()` would exhaust the
+         * process while the JS heap looked idle. Sources parse one or two documents per call,
+         * so this bound is far above legitimate use and only trips on a leak.
+         */
+        const val MAX_LIVE_DOCUMENTS = 32
     }
 
     /** Parsed documents held by handle so JS never receives a host object reference. */
@@ -69,6 +94,8 @@ internal class QuickJsHost(
         return QuickJs.create(Dispatchers.Default).use { engine ->
             engine.memoryLimit = MEMORY_LIMIT_BYTES
             engine.maxStackSize = MAX_STACK_SIZE_BYTES
+            // Stops a non-yielding script from inside the VM, which the alpha line could not do.
+            engine.evaluationTimeoutMillis = EVALUATION_TIMEOUT_MS
 
             installGlobals(engine)
             engine.evaluate<Any?>(script)
@@ -152,6 +179,12 @@ internal class QuickJsHost(
     private fun installDocument(engine: QuickJs) {
         engine.define("Document") {
             function("parse") { args ->
+                // Refuse rather than evict: evicting would invalidate a handle the script still
+                // holds, turning a leak into confusing "element not found" failures instead of
+                // an explicit one.
+                check(documents.size < MAX_LIVE_DOCUMENTS) {
+                    "Source holds more than $MAX_LIVE_DOCUMENTS parsed documents; release them"
+                }
                 val html = args.getOrNull(0) as? String ?: ""
                 val handle = nextDocumentHandle++
                 documents[handle] = Jsoup.parse(html, config.baseUrl)

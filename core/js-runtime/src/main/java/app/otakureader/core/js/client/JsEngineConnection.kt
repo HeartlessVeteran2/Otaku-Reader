@@ -1,6 +1,5 @@
 package app.otakureader.core.js.client
 
-import android.app.ActivityManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -189,9 +188,22 @@ class JsEngineConnection @Inject constructor(
 
         val intent = Intent(context, JsEngineService::class.java)
         val started = context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
-        check(started) { "Could not bind the JavaScript engine service" }
+        if (!started) {
+            // Clear the pending bind before failing. Leaving it set would poison every later
+            // call: each would await a deferred nothing can ever complete, burning its full
+            // budget instead of simply retrying the bind.
+            pendingBind = null
+            runCatching { context.unbindService(serviceConnection) }
+            error("Could not bind the JavaScript engine service")
+        }
 
-        withTimeout(BIND_TIMEOUT_MS) { deferred.await() }
+        try {
+            withTimeout(BIND_TIMEOUT_MS) { deferred.await() }
+        } catch (e: Exception) {
+            pendingBind = null
+            runCatching { context.unbindService(serviceConnection) }
+            throw e
+        }
     }
 
     /**
@@ -207,11 +219,16 @@ class JsEngineConnection @Inject constructor(
      * them and the restart is invisible to the caller.
      */
     private fun killEngine() {
+        // Unbind only. killBackgroundProcesses was removed for two independent reasons: it
+        // needs a permission the app does not hold, so it silently did nothing; and it kills
+        // every background process of the package, which — if a call times out while the app
+        // itself is backgrounded — could have taken down the main process and any in-flight
+        // download with it. Collateral damage from a recovery path is worse than the hang.
+        //
+        // Unbinding is also the correct mechanism here: an isolated process exists solely to
+        // serve its bound clients, so releasing the last binding makes the system destroy it,
+        // native thread and all.
         runCatching { context.unbindService(serviceConnection) }
-        runCatching {
-            val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-            am.killBackgroundProcesses(context.packageName)
-        }
         engine = null
         pendingBind = null
     }
