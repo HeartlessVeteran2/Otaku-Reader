@@ -26,6 +26,16 @@ import javax.inject.Singleton
 @Retention(AnnotationRetention.BINARY)
 annotation class TrackerOkHttp
 
+/**
+ * Qualifier for the page-image client, which attaches source-supplied request headers.
+ *
+ * Deliberately not the shared client: untrusted source code derives its own client from that
+ * one and would inherit the header injection. See [NetworkModule.providePageImageOkHttpClient].
+ */
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class PageImageOkHttp
+
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
@@ -42,39 +52,8 @@ object NetworkModule {
     @Singleton
     fun provideOkHttpClient(
         bytesRecorder: BytesRecorder,
-        pageImageHeaders: PageImageHeaders,
     ): OkHttpClient {
         val builder = OkHttpClient.Builder()
-            // Attach the headers recorded when a page list was fetched — a Referer naming the
-            // source, plus anything the source supplied for that specific page.
-            //
-            // This belongs on the SHARED client, not on the image loader. Page images are
-            // fetched by two entirely separate consumers: Coil, for display, and Downloader,
-            // for saving chapters offline. Installing it on Coil alone leaves downloads
-            // hitting hotlink-protected hosts without a Referer, so a chapter reads fine and
-            // then fails to download — with the 403 surfacing much later as a broken saved
-            // page. Here, every consumer of this client is covered, including ones not yet
-            // written.
-            //
-            // Not gated on RequestCategory: Coil sets its tag through newBuilder(), which
-            // appends its interceptor *after* these, so the tag is not yet present when this
-            // runs. Scoping instead comes from the registry itself, which only ever holds
-            // hosts that served a page list — a request to any other host finds nothing and is
-            // left untouched.
-            .addInterceptor { chain ->
-                val request = chain.request()
-                val extra = pageImageHeaders.headersFor(request.url.toString())
-                if (extra.isEmpty()) {
-                    chain.proceed(request)
-                } else {
-                    val builder = request.newBuilder()
-                    // Never overwrite a header the caller set deliberately.
-                    extra.forEach { (name, value) ->
-                        if (request.header(name) == null) builder.header(name, value)
-                    }
-                    chain.proceed(builder.build())
-                }
-            }
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
@@ -111,6 +90,52 @@ object NetworkModule {
 
         return builder.build()
     }
+
+    /**
+     * Client for fetching page images — the reader's display path and the offline downloader.
+     *
+     * A **derived** client rather than the shared one, and that is a security boundary rather
+     * than tidiness. `JsHttpBridge` builds its client from the shared one with `newBuilder()`,
+     * so anything installed there is inherited by every request a JavaScript source makes.
+     * Injecting page headers at that level would let a hostile source request another source's
+     * registered image URL and have that source's credentials attached for it — routing straight
+     * around the per-source scoping that keeps one source from reading another's stored login.
+     * Deriving here instead means untrusted code never sees the interceptor.
+     *
+     * The derivation order also keeps injected headers out of the debug log. Application
+     * interceptors run in the order added, and `HttpLoggingInterceptor` is already on the base
+     * client, so it runs *before* this one and never observes what this adds — which matters
+     * because the logger redacts a fixed list of header names and cannot know about a
+     * source-supplied `X-Api-Key`.
+     */
+    @Provides
+    @Singleton
+    @PageImageOkHttp
+    fun providePageImageOkHttpClient(
+        okHttpClient: OkHttpClient,
+        pageImageHeaders: PageImageHeaders,
+    ): OkHttpClient =
+        okHttpClient.newBuilder()
+            // Attach what was recorded when the page list was fetched: a Referer naming the
+            // source, plus anything the source supplied for that specific page. Both consumers
+            // need it — installing it on the image loader alone left downloads hitting
+            // hotlink-protected hosts without a Referer, so a chapter read fine and then failed
+            // to save, with the 403 surfacing later as a broken offline page.
+            .addInterceptor { chain ->
+                val request = chain.request()
+                val extra = pageImageHeaders.headersFor(request.url.toString())
+                if (extra.isEmpty()) {
+                    chain.proceed(request)
+                } else {
+                    val withHeaders = request.newBuilder()
+                    // Never overwrite a header the caller set deliberately.
+                    extra.forEach { (name, value) ->
+                        if (request.header(name) == null) withHeaders.header(name, value)
+                    }
+                    chain.proceed(withHeaders.build())
+                }
+            }
+            .build()
 
     @Provides
     @Singleton

@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import app.otakureader.core.network.RequestCategory
+import app.otakureader.core.network.di.PageImageOkHttp
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
@@ -19,7 +20,11 @@ import okhttp3.Request
  */
 @Singleton
 class Downloader @Inject constructor(
-    private val okHttpClient: OkHttpClient
+    // The page-image client, not the shared one: it attaches the Referer and any source-supplied
+    // headers recorded when the page list was fetched. Without them a hotlink-protected host
+    // answers 403 and the chapter saves as unopenable files — a failure that only shows up
+    // offline, long after the download reported success.
+    @param:PageImageOkHttp private val okHttpClient: OkHttpClient
 ) {
 
     /**
