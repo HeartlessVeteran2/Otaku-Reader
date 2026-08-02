@@ -46,6 +46,14 @@ sealed class ExtensionLoadResult {
             /** APK file missing at the given path. */
             APK_NOT_FOUND,
 
+            /**
+             * No installed or private package matched the requested package name.
+             *
+             * Distinct from [APK_NOT_FOUND]: this path is given a package name, never a file
+             * path, so reporting a missing *file* would describe a lookup that never happened.
+             */
+            PACKAGE_NOT_FOUND,
+
             /** PackageManager could not parse the APK. */
             PARSE_FAILED,
 
@@ -69,6 +77,44 @@ sealed class ExtensionLoadResult {
 
             /** Anything not classified above, including unexpected exceptions. */
             UNKNOWN,
+        }
+    }
+}
+
+/**
+ * An extensions-lib version, as the ordered `(major, minor)` pair it actually is.
+ *
+ * Deliberately not a `Double`. Parsing `"1.40"` or `"1.10"` as a decimal is wrong in both
+ * directions, and silently so:
+ *
+ *  - `"1.40"` → `1.4`, indistinguishable from lib 1.4, so an unsupported extension is **admitted**
+ *    and only fails later, deep in class loading;
+ *  - `"1.10"` → `1.1`, which compares *below* 1.4, so a future lib 1.10 extension would be
+ *    **rejected as too old** — the same misdiagnosis this class already had for `"1.7"`.
+ *
+ * That second case is not hypothetical: extensions-lib runs 1.7 → 1.8 → 1.9 → 1.10, so a decimal
+ * comparison acquires a latent rejection bug the moment the minor version reaches double digits.
+ */
+data class LibVersion(val major: Int, val minor: Int) : Comparable<LibVersion> {
+
+    override fun compareTo(other: LibVersion): Int =
+        compareValuesBy(this, other, LibVersion::major, LibVersion::minor)
+
+    override fun toString(): String = "$major.$minor"
+
+    companion object {
+        /**
+         * Read the leading `major.minor` pair from an extension's `versionName`.
+         *
+         * Returns `null` when no such pair is present, which callers treat as unsupported.
+         * Trailing components are ignored: `"1.4.19"`, `"1.4"` and `"1.4.19.1"` all yield 1.4.
+         */
+        fun parse(versionName: String): LibVersion? {
+            val parts = versionName.split('.')
+            if (parts.size < 2) return null
+            val major = parts[0].toIntOrNull()?.takeIf { it >= 0 } ?: return null
+            val minor = parts[1].toIntOrNull()?.takeIf { it >= 0 } ?: return null
+            return LibVersion(major, minor)
         }
     }
 }
@@ -132,7 +178,7 @@ class ExtensionLoader(
          * Minimum supported extension library version.
          * Matches Komikku: 1.4 (was previously 1.2).
          */
-        const val LIB_VERSION_MIN = 1.4
+        val LIB_VERSION_MIN = LibVersion(1, 4)
 
         /**
          * Maximum supported extension library version.
@@ -171,7 +217,7 @@ class ExtensionLoader(
          * So the version gate is not merely a nicety: it converts a deferred, hard-to-trace
          * runtime crash into a clear, up-front rejection.
          */
-        const val LIB_VERSION_MAX = 1.7
+        val LIB_VERSION_MAX = LibVersion(1, 7)
 
         /** File extension for private extensions stored in [getPrivateExtensionDir]. */
         private const val PRIVATE_EXTENSION_EXTENSION = "ext"
@@ -280,7 +326,7 @@ class ExtensionLoader(
             val extensionInfo = getExtensionInfoFromPkgName(pkgName)
                 ?: return ExtensionLoadResult.Error(
                     "Package not found: $pkgName",
-                    reason = ExtensionLoadResult.Error.Reason.APK_NOT_FOUND,
+                    reason = ExtensionLoadResult.Error.Reason.PACKAGE_NOT_FOUND,
                 )
             loadFromPackageInfo(extensionInfo.packageInfo, extensionInfo.isShared)
         } catch (e: Exception) {
@@ -375,12 +421,6 @@ class ExtensionLoader(
      * Returns `null` when no `major.minor` pair can be read, which the caller treats as
      * unsupported.
      */
-    private fun parseLibVersion(versionName: String): Double? {
-        val parts = versionName.split('.')
-        if (parts.size < 2) return null
-        return "${parts[0]}.${parts[1]}".toDoubleOrNull()
-    }
-
     /**
      * Check that the extension declares a lib version this host can satisfy.
      *
@@ -394,7 +434,7 @@ class ExtensionLoader(
             )
         }
 
-        val libVersion = parseLibVersion(versionName)
+        val libVersion = LibVersion.parse(versionName)
         if (libVersion == null || libVersion < LIB_VERSION_MIN || libVersion > LIB_VERSION_MAX) {
             return ExtensionLoadResult.Error(
                 "Unsupported lib version $libVersion for $pkgName (expected $LIB_VERSION_MIN..$LIB_VERSION_MAX)",
