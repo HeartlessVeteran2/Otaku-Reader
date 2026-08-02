@@ -39,8 +39,10 @@ data class SourceResolution(
 /**
  * Shared utilities for loading Tachiyomi-compatible extension APKs.
  *
- * These utilities are used by ExtensionLoader to avoid code duplication.
- * TachiyomiExtensionLoader has its own copy to avoid circular dependencies.
+ * These utilities are used by [ExtensionLoader], which is the single extension-loading
+ * path in the app. A second, unreferenced loader previously existed in
+ * `core:tachiyomi-compat` with its own duplicated copy of this logic; it was deleted
+ * rather than kept in sync, since only this path was ever wired up.
  */
 object ExtensionLoadingUtils {
     private const val TAG = "ExtensionLoadingUtils"

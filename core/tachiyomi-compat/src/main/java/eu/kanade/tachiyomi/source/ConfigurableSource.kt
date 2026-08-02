@@ -21,9 +21,15 @@ interface ConfigurableSource : Source {
 
 fun ConfigurableSource.preferenceKey(): String = "source_$id"
 
-// TODO: use getSourcePreferences once all extensions are on ext-lib 1.5
-fun ConfigurableSource.sourcePreferences(): SharedPreferences =
-    Injekt.get<Application>().getSharedPreferences(preferenceKey(), Context.MODE_PRIVATE)
+/**
+ * Legacy free-function form of [ConfigurableSource.getSourcePreferences], kept because
+ * extensions built against older revisions of the lib link against this symbol directly.
+ *
+ * Do not change the signature — that would break the ABI those extensions were compiled
+ * against. Delegating the body is safe and keeps both entry points on one code path, so a
+ * source cannot observe different preferences depending on which form it happens to call.
+ */
+fun ConfigurableSource.sourcePreferences(): SharedPreferences = getSourcePreferences()
 
 fun sourcePreferences(key: String): SharedPreferences =
     Injekt.get<Application>().getSharedPreferences(key, Context.MODE_PRIVATE)

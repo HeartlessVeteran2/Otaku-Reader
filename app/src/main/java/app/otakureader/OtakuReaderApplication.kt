@@ -95,10 +95,19 @@ class OtakuReaderApplication : Application(), Configuration.Provider, SingletonI
         // Post-DI initialization is wrapped so a failure in optional startup work (dynamic
         // color registration, launcher-shortcut sync) can never crash the process before
         // the first Activity opens. Each is non-essential to launching the app.
-        // Bootstrap Injekt so loaded extension APKs can resolve NetworkHelper and Json via
+        // Bootstrap Injekt so loaded extension APKs can resolve their host dependencies via
         // injectLazy() / Injekt.get(). Must run after super.onCreate() so the Hilt graph is
-        // ready (okHttpClient is injected by Hilt). Both registrations are lazy singletons —
+        // ready (okHttpClient is injected by Hilt). All registrations are lazy singletons —
         // the factory runs once on first get() and the result is cached.
+        //
+        // Injekt is a service locator, so anything an extension asks for at runtime must have
+        // been put in the map first; a missing entry throws rather than failing to compile.
+        // Application is required by ConfigurableSource.getSourcePreferences() — see
+        // core/tachiyomi-compat/.../ConfigurableSource.kt. Many real extensions read their
+        // source preferences from a constructor or a `baseUrl` getter, so without this binding
+        // they throw during instantiation and the loader reports the extension as having no
+        // valid sources. That presented as the app simply having no sources at all.
+        Injekt.addSingletonFactory<Application> { this }
         Injekt.addSingletonFactory<NetworkHelper> { NetworkHelper(applicationContext, baseClient = okHttpClient) }
         Injekt.addSingletonFactory<Json> {
             Json {

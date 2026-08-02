@@ -12,6 +12,7 @@ import io.mockk.mockk
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.After
 import org.junit.Before
@@ -218,7 +219,7 @@ class ExtensionLoaderTest {
         // Then
         assertTrue(result is ExtensionLoadResult.Error)
         val error = result as ExtensionLoadResult.Error
-        assertTrue(error.message.contains("Unsupported lib version"))
+        assertEquals(ExtensionLoadResult.Error.Reason.UNSUPPORTED_LIB_VERSION, error.reason)
     }
 
     @Test
@@ -227,7 +228,7 @@ class ExtensionLoaderTest {
         val apkPath = createTempApkFile()
         val packageInfo = createMockPackageInfo(
             pkgName = "eu.kanade.tachiyomi.extension.en.test",
-            versionName = "2.0.1"  // Above maximum 1.5
+            versionName = "2.0.1"  // Above maximum 1.7
         )
         every { packageManager.getPackageArchiveInfo(apkPath, any<Int>()) } returns packageInfo
 
@@ -237,7 +238,7 @@ class ExtensionLoaderTest {
         // Then
         assertTrue(result is ExtensionLoadResult.Error)
         val error = result as ExtensionLoadResult.Error
-        assertTrue(error.message.contains("Unsupported lib version"))
+        assertEquals(ExtensionLoadResult.Error.Reason.UNSUPPORTED_LIB_VERSION, error.reason)
     }
 
     @Test
@@ -256,7 +257,7 @@ class ExtensionLoaderTest {
         // Then
         assertTrue(result is ExtensionLoadResult.Error)
         val error = result as ExtensionLoadResult.Error
-        assertTrue(error.message.contains("Unsupported lib version"))
+        assertEquals(ExtensionLoadResult.Error.Reason.UNSUPPORTED_LIB_VERSION, error.reason)
     }
 
     @Test
@@ -275,7 +276,7 @@ class ExtensionLoaderTest {
         // Then - should fail on missing sources, not on version check
         assertTrue(result is ExtensionLoadResult.Error)
         val error = result as ExtensionLoadResult.Error
-        assertFalse(error.message.contains("Unsupported lib version"))
+        assertNotEquals(ExtensionLoadResult.Error.Reason.UNSUPPORTED_LIB_VERSION, error.reason)
     }
 
     @Test
@@ -294,7 +295,148 @@ class ExtensionLoaderTest {
         // Then - should fail on missing sources, not on version check
         assertTrue(result is ExtensionLoadResult.Error)
         val error = result as ExtensionLoadResult.Error
-        assertFalse(error.message.contains("Unsupported lib version"))
+        assertNotEquals(ExtensionLoadResult.Error.Reason.UNSUPPORTED_LIB_VERSION, error.reason)
+    }
+
+    /**
+     * Regression guard: the window used to stop at 1.5, so every Keiyoushi/Komikku
+     * extension built against extensions-lib 1.6 or 1.7 was rejected outright with
+     * "Unsupported lib version" before any of its code ran. That surfaced to the user
+     * as the app having no sources at all, with nothing in the UI naming the cause.
+     *
+     * These two cases are parameterised over the versions that were broken rather than
+     * folded into the 1.4/1.5 tests, so that narrowing the window again fails loudly here.
+     */
+    @Test
+    fun `loadExtension accepts valid library version 1_6`() {
+        // Given
+        val apkPath = createTempApkFile()
+        val packageInfo = createMockPackageInfo(
+            pkgName = "eu.kanade.tachiyomi.extension.en.test",
+            versionName = "1.6.0"
+        )
+        every { packageManager.getPackageArchiveInfo(apkPath, any<Int>()) } returns packageInfo
+
+        // When
+        val result = extensionLoader.loadExtension(apkPath)
+
+        // Then - should fail on missing sources, not on version check
+        assertTrue(result is ExtensionLoadResult.Error)
+        val error = result as ExtensionLoadResult.Error
+        assertNotEquals(ExtensionLoadResult.Error.Reason.UNSUPPORTED_LIB_VERSION, error.reason)
+    }
+
+    @Test
+    fun `loadExtension accepts valid library version 1_7`() {
+        // Given
+        val apkPath = createTempApkFile()
+        val packageInfo = createMockPackageInfo(
+            pkgName = "eu.kanade.tachiyomi.extension.en.test",
+            versionName = "1.7.42"
+        )
+        every { packageManager.getPackageArchiveInfo(apkPath, any<Int>()) } returns packageInfo
+
+        // When
+        val result = extensionLoader.loadExtension(apkPath)
+
+        // Then - should fail on missing sources, not on version check
+        assertTrue(result is ExtensionLoadResult.Error)
+        val error = result as ExtensionLoadResult.Error
+        assertNotEquals(ExtensionLoadResult.Error.Reason.UNSUPPORTED_LIB_VERSION, error.reason)
+    }
+
+    /**
+     * A two-component versionName is a valid way to express extensions-lib 1.7.
+     *
+     * The old parser stripped the last dot-component, so `"1.7"` became `"1"` → 1.0, which is
+     * *below* the minimum — a current extension rejected as too old, with an error message that
+     * looked identical to a genuinely unsupported version.
+     */
+    @Test
+    fun `loadExtension accepts a two-component library version`() {
+        // Given
+        val apkPath = createTempApkFile()
+        val packageInfo = createMockPackageInfo(
+            pkgName = "eu.kanade.tachiyomi.extension.en.test",
+            versionName = "1.7"
+        )
+        every { packageManager.getPackageArchiveInfo(apkPath, any<Int>()) } returns packageInfo
+
+        // When
+        val result = extensionLoader.loadExtension(apkPath)
+
+        // Then - should fail on missing sources, not on version check
+        assertTrue(result is ExtensionLoadResult.Error)
+        val error = result as ExtensionLoadResult.Error
+        assertNotEquals(ExtensionLoadResult.Error.Reason.UNSUPPORTED_LIB_VERSION, error.reason)
+    }
+
+    /**
+     * A four-component versionName fared even worse: stripping the last component left
+     * `"1.4.19"`, which is not a number, so it parsed to null and was rejected outright.
+     */
+    @Test
+    fun `loadExtension accepts a four-component library version`() {
+        // Given
+        val apkPath = createTempApkFile()
+        val packageInfo = createMockPackageInfo(
+            pkgName = "eu.kanade.tachiyomi.extension.en.test",
+            versionName = "1.4.19.1"
+        )
+        every { packageManager.getPackageArchiveInfo(apkPath, any<Int>()) } returns packageInfo
+
+        // When
+        val result = extensionLoader.loadExtension(apkPath)
+
+        // Then - should fail on missing sources, not on version check
+        assertTrue(result is ExtensionLoadResult.Error)
+        val error = result as ExtensionLoadResult.Error
+        assertNotEquals(ExtensionLoadResult.Error.Reason.UNSUPPORTED_LIB_VERSION, error.reason)
+    }
+
+    /** A versionName with no minor component carries no lib version, so it stays rejected. */
+    @Test
+    fun `loadExtension rejects a single-component library version`() {
+        // Given
+        val apkPath = createTempApkFile()
+        val packageInfo = createMockPackageInfo(
+            pkgName = "eu.kanade.tachiyomi.extension.en.test",
+            versionName = "2"
+        )
+        every { packageManager.getPackageArchiveInfo(apkPath, any<Int>()) } returns packageInfo
+
+        // When
+        val result = extensionLoader.loadExtension(apkPath)
+
+        // Then
+        assertTrue(result is ExtensionLoadResult.Error)
+        val error = result as ExtensionLoadResult.Error
+        assertEquals(ExtensionLoadResult.Error.Reason.UNSUPPORTED_LIB_VERSION, error.reason)
+    }
+
+    /**
+     * Pins the boundary itself. 1.8 is the next revision the host contract in
+     * `core:tachiyomi-compat` does NOT implement, so admitting it would swap a clear
+     * "Unsupported lib version" message for a NoClassDefFoundError at instantiation —
+     * a much harder failure to diagnose. Raise this only alongside the host members.
+     */
+    @Test
+    fun `loadExtension rejects library version above the supported ceiling`() {
+        // Given
+        val apkPath = createTempApkFile()
+        val packageInfo = createMockPackageInfo(
+            pkgName = "eu.kanade.tachiyomi.extension.en.test",
+            versionName = "1.8.0"
+        )
+        every { packageManager.getPackageArchiveInfo(apkPath, any<Int>()) } returns packageInfo
+
+        // When
+        val result = extensionLoader.loadExtension(apkPath)
+
+        // Then
+        assertTrue(result is ExtensionLoadResult.Error)
+        val error = result as ExtensionLoadResult.Error
+        assertEquals(ExtensionLoadResult.Error.Reason.UNSUPPORTED_LIB_VERSION, error.reason)
     }
 
     // -------------------------------------------------------------------------
