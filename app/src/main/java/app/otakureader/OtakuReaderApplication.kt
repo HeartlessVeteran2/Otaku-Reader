@@ -20,6 +20,7 @@ import coil3.SingletonImageLoader
 import coil3.disk.DiskCache
 import coil3.memory.MemoryCache
 import app.otakureader.core.network.RequestCategory
+import app.otakureader.core.network.di.PageImageOkHttp
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.allowRgb565
 import coil3.request.crossfade
@@ -54,6 +55,18 @@ class OtakuReaderApplication : Application(), Configuration.Provider, SingletonI
 
     @Inject
     lateinit var okHttpClient: OkHttpClient
+
+    /**
+     * The page-image client, used only for Coil.
+     *
+     * Kept distinct from [okHttpClient], which is what extensions get through Injekt below.
+     * This one attaches source-supplied page headers, and handing that to extension code would
+     * let one source obtain another's credentials by requesting its image URLs.
+     */
+    @Inject
+    @PageImageOkHttp
+    lateinit var pageImageOkHttpClient: OkHttpClient
+
 
     @Inject
     lateinit var generalPreferences: GeneralPreferences
@@ -195,7 +208,10 @@ class OtakuReaderApplication : Application(), Configuration.Provider, SingletonI
             }
             .components {
                 add(OkHttpNetworkFetcherFactory(callFactory = {
-                    okHttpClient.newBuilder()
+                    // Tags image traffic for the Data Usage dashboard. The page-image headers
+                    // themselves come from the injected client, which Downloader also uses, so
+                    // display and offline saving behave identically.
+                    pageImageOkHttpClient.newBuilder()
                         .addInterceptor { chain ->
                             chain.proceed(
                                 chain.request().newBuilder()

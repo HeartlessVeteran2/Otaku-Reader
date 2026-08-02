@@ -3,6 +3,7 @@ package app.otakureader.core.js.client
 import app.otakureader.core.js.protocol.JsSourceConfig
 import app.otakureader.core.js.store.JsSourcePreferencesStore
 import app.otakureader.core.js.store.JsSourceStore
+import app.otakureader.core.common.network.PageImageHeaders
 import app.otakureader.sourceapi.MangaSource
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -21,6 +22,7 @@ class JsSourceProvider @Inject constructor(
     private val store: JsSourceStore,
     private val preferencesStore: JsSourcePreferencesStore,
     private val connection: JsEngineConnection,
+    private val pageImageHeaders: PageImageHeaders,
 ) {
 
     /**
@@ -46,7 +48,7 @@ class JsSourceProvider @Inject constructor(
             // stored settings in here is what stops an update from wiping them.
             val withPreferences = config.copy(preferences = preferencesStore.get(config.id))
             connection.register(withPreferences, script)
-            JsSource(withPreferences, connection)
+            JsSource(withPreferences, connection, pageImageHeaders)
         }
     }
 

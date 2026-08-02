@@ -18,6 +18,7 @@ import app.otakureader.sourceapi.MangaSource
 import app.otakureader.sourceapi.SourceChapter
 import app.otakureader.sourceapi.SourceManga
 import app.otakureader.core.common.di.ApplicationScope
+import app.otakureader.core.common.network.PageImageHeaders
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -53,6 +54,7 @@ class SourceRepositoryImpl @Inject constructor(
     private val extensionLoader: ExtensionLoader,
     private val extensionRepository: ExtensionRepository,
     private val jsSourceProvider: JsSourceProvider,
+    private val pageImageHeaders: PageImageHeaders,
     @param:ApplicationScope private val scope: CoroutineScope,
 ) : SourceRepository, ExtensionManagementRepository {
 
@@ -76,16 +78,20 @@ class SourceRepositoryImpl @Inject constructor(
         extensionLoader: ExtensionLoader,
         extensionRepository: ExtensionRepository,
         jsSourceProvider: JsSourceProvider,
+        pageImageHeaders: PageImageHeaders,
         scope: CoroutineScope,
     ) : this(
-        context,
-        LocalSourcePreferences.ofDirectory(localDirectory),
-        healthMonitor,
-        httpClient,
-        extensionLoader,
-        extensionRepository,
-        jsSourceProvider,
-        scope,
+        // Named rather than positional: this delegation silently mis-bound when a parameter was
+        // inserted into the primary constructor, and the next insertion would do it again.
+        context = context,
+        localSourcePreferences = LocalSourcePreferences.ofDirectory(localDirectory),
+        healthMonitor = healthMonitor,
+        httpClient = httpClient,
+        extensionLoader = extensionLoader,
+        extensionRepository = extensionRepository,
+        jsSourceProvider = jsSourceProvider,
+        pageImageHeaders = pageImageHeaders,
+        scope = scope,
     )
 
     /**
@@ -363,6 +369,17 @@ class SourceRepositoryImpl @Inject constructor(
                     )
 
                 val pages = source.fetchPageList(chapter)
+
+                // Record the Referer for these images while we still know which source produced
+                // them. This is the only place that knows both, and registering here rather than
+                // at the six places that request page images means a new call site cannot forget
+                // — including the prefetchers, which would otherwise fetch without it and poison
+                // the cache with 403s the reader then displays as blank pages.
+                pageImageHeaders.registerReferer(
+                    sourceBaseUrl = source.baseUrl,
+                    pageUrls = pages.mapNotNull { it.imageUrl?.takeIf(String::isNotBlank) ?: it.url },
+                )
+
                 healthMonitor.recordSuccess(sourceId)
                 Result.success(pages)
             } catch (e: CancellationException) {

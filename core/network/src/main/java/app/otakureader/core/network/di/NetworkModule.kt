@@ -1,5 +1,6 @@
 package app.otakureader.core.network.di
 
+import app.otakureader.core.common.network.PageImageHeaders
 import app.otakureader.core.network.BuildConfig
 import app.otakureader.core.network.BytesEventListener
 import app.otakureader.core.network.BytesRecorder
@@ -24,6 +25,16 @@ import javax.inject.Singleton
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
 annotation class TrackerOkHttp
+
+/**
+ * Qualifier for the page-image client, which attaches source-supplied request headers.
+ *
+ * Deliberately not the shared client: untrusted source code derives its own client from that
+ * one and would inherit the header injection. See [NetworkModule.providePageImageOkHttpClient].
+ */
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class PageImageOkHttp
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -79,6 +90,66 @@ object NetworkModule {
 
         return builder.build()
     }
+
+    /**
+     * Client for fetching page images — the reader's display path and the offline downloader.
+     *
+     * A **derived** client rather than the shared one, and that is a security boundary rather
+     * than tidiness. `JsHttpBridge` builds its client from the shared one with `newBuilder()`,
+     * so anything installed there is inherited by every request a JavaScript source makes.
+     * Injecting page headers at that level would let a hostile source request another source's
+     * registered image URL and have that source's credentials attached for it — routing straight
+     * around the per-source scoping that keeps one source from reading another's stored login.
+     * Deriving here instead means untrusted code never sees the interceptor.
+     *
+     * The derivation order also keeps injected headers out of the debug log. Application
+     * interceptors run in the order added, and `HttpLoggingInterceptor` is already on the base
+     * client, so it runs *before* this one and never observes what this adds — which matters
+     * because the logger redacts a fixed list of header names and cannot know about a
+     * source-supplied `X-Api-Key`.
+     */
+    @Provides
+    @Singleton
+    @PageImageOkHttp
+    fun providePageImageOkHttpClient(
+        okHttpClient: OkHttpClient,
+        pageImageHeaders: PageImageHeaders,
+    ): OkHttpClient =
+        okHttpClient.newBuilder()
+            // Attach what was recorded when the page list was fetched: a Referer naming the
+            // source, plus anything the source supplied for that specific page. Both consumers
+            // need it — installing it on the image loader alone left downloads hitting
+            // hotlink-protected hosts without a Referer, so a chapter read fine and then failed
+            // to save, with the 403 surfacing later as a broken offline page.
+            //
+            // A NETWORK interceptor, not an application one, and that distinction is the
+            // security control. An application interceptor runs once, above OkHttp's redirect
+            // handling, so whatever it adds is carried to every subsequent hop — and OkHttp
+            // strips only `Authorization` on a host change, not a source-supplied `X-Api-Key`.
+            // An image host that redirects cross-origin, whether compromised or simply
+            // misconfigured, would then receive credentials meant for somewhere else, and the
+            // source has no say in where its own CDN points.
+            //
+            // Running per hop makes that unreachable rather than merely mitigated: each hop is
+            // looked up on its own URL, so a redirect to an unregistered host gets nothing and
+            // one to a registered host gets exactly the headers belonging to it. Headers added
+            // here do not propagate either, because OkHttp builds a redirect from the request
+            // as it stood *above* the network interceptors.
+            .addNetworkInterceptor { chain ->
+                val request = chain.request()
+                val extra = pageImageHeaders.headersFor(request.url.toString())
+                if (extra.isEmpty()) {
+                    chain.proceed(request)
+                } else {
+                    val withHeaders = request.newBuilder()
+                    // Never overwrite a header the caller set deliberately.
+                    extra.forEach { (name, value) ->
+                        if (request.header(name) == null) withHeaders.header(name, value)
+                    }
+                    chain.proceed(withHeaders.build())
+                }
+            }
+            .build()
 
     @Provides
     @Singleton

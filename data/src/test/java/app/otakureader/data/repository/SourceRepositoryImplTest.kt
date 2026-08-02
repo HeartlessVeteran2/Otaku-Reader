@@ -5,6 +5,7 @@ import app.otakureader.core.extension.domain.model.Extension
 import app.otakureader.core.extension.domain.model.InstallStatus
 import app.otakureader.core.extension.domain.repository.ExtensionRepository
 import app.otakureader.core.extension.loader.ExtensionLoader
+import app.otakureader.core.common.network.PageImageHeaders
 import app.otakureader.core.js.client.JsSourceProvider
 import app.otakureader.core.extension.loader.ExtensionLoadResult
 import app.otakureader.core.preferences.LocalSourcePreferences
@@ -69,6 +70,7 @@ class SourceRepositoryImplTest {
     private lateinit var extensionLoader: ExtensionLoader
     private lateinit var extensionRepository: ExtensionRepository
     private lateinit var jsSourceProvider: JsSourceProvider
+    private lateinit var pageImageHeaders: PageImageHeaders
 
     private lateinit var repository: SourceRepositoryImpl
 
@@ -84,6 +86,7 @@ class SourceRepositoryImplTest {
         extensionLoader = mockk(relaxed = true)
         extensionRepository = mockk(relaxed = true)
         jsSourceProvider = mockk(relaxed = true)
+        pageImageHeaders = mockk(relaxed = true)
 
         // Default: no JavaScript sources installed
         coEvery { jsSourceProvider.loadSources() } returns emptyList()
@@ -108,6 +111,7 @@ class SourceRepositoryImplTest {
             extensionLoader = extensionLoader,
             extensionRepository = extensionRepository,
             jsSourceProvider = jsSourceProvider,
+            pageImageHeaders = pageImageHeaders,
             scope = testScope.backgroundScope,
         )
     }
