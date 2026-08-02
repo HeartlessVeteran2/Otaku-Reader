@@ -131,17 +131,30 @@ class JsEngineConnection @Inject constructor(
     }
 
     /**
-     * Drop a source.
+     * Drop a source, optionally erasing what it stored.
      *
-     * Suspending, and holding [preferenceLock], so that removing the registration cannot
-     * interleave with an in-flight call's preference write-back. Without that ordering an
-     * uninstall's clearing of stored credentials can be undone by a call that was already
-     * running, and reinstalling the id would silently inherit them.
+     * Deregistration and credential-clearing happen together, under [preferenceLock], because
+     * they are only correct as one operation. Splitting them — clearing in the caller and
+     * deregistering here — leaves a window in which the source is cleared but still registered,
+     * so an in-flight call's write-back passes its liveness check and puts the credentials
+     * straight back; a later reinstall of the same id then silently inherits them. Doing them
+     * under two different locks is the same bug with extra steps.
+     *
+     * Registration is removed *before* the clear, so a concurrent write-back either already
+     * completed (and its value is about to be erased) or finds the source gone and skips.
+     *
+     * [clearStoredPreferences] is opt-in because the two callers want different things. An
+     * uninstall must erase credentials and must know if that failed. The refresh path only
+     * reconciles the engine against disk and must never fail a whole source list over a
+     * preferences write.
      */
-    suspend fun unregister(sourceId: String) {
+    suspend fun unregister(sourceId: String, clearStoredPreferences: Boolean = false) {
         preferenceLock.withLock {
             registered.remove(sourceId)
             runCatching { engine?.unloadSource(sourceId) }
+            if (clearStoredPreferences) {
+                preferencesStore.clear(sourceId)
+            }
         }
     }
 

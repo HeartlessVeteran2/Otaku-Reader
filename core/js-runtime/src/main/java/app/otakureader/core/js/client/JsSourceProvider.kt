@@ -63,15 +63,18 @@ class JsSourceProvider @Inject constructor(
      * behind would mean uninstalling a source did not actually remove the credentials the user
      * gave it — and a later reinstall would silently inherit them.
      *
-     * Credentials are cleared **first**, and their removal throws if it does not reach disk.
-     * Ordering it last would mean a failed clear leaves the script already deleted and the login
-     * still stored — a state no retry can reach, because the source is gone from the list the
-     * user would retry from. Clearing first makes a failure abort while everything is still
-     * intact, so the uninstall is simply retryable.
+     * Deregistration and credential-clearing are one call, not two steps here, and that matters:
+     * doing them separately leaves a window where the source is cleared but still registered, so
+     * an in-flight call writes the credentials back before the deregistration lands. They share
+     * a lock inside [JsEngineConnection.unregister] instead.
+     *
+     * It runs before the script is deleted, and throws if the credentials did not reach disk, so
+     * a failure aborts while the source is still wholly installed. Deleting the script first
+     * would mean a failed clear leaves the login stored with the source already gone from the
+     * list the user would retry from — a state no retry can reach.
      */
     suspend fun uninstall(sourceId: String) = mutationLock.withLock {
-        preferencesStore.clear(sourceId)
-        connection.unregister(sourceId)
+        connection.unregister(sourceId, clearStoredPreferences = true)
         store.uninstall(sourceId)
     }
 
