@@ -89,6 +89,12 @@ jsoup = "1.22.1"
 injekt = "91edab2317"
 androidx-preference = "1.2.1"
 
+# JavaScript source engine (core:js-runtime) — NOT supplied to extension APKs.
+# 1.0.9 is the first release exposing evaluationTimeoutMillis / interruptEvaluation(), which
+# let a runaway script be stopped inside the VM. The 1.0.0-alpha* line has no interrupt binding
+# at all, so do not downgrade past this.
+quickjs = "1.0.9"
+
 # Desugaring
 desugar-jdk-libs = "2.1.5"
 
@@ -222,6 +228,9 @@ rxandroid = { group = "io.reactivex", name = "rxandroid", version.ref = "rxandro
 jsoup = { group = "org.jsoup", name = "jsoup", version.ref = "jsoup" }
 injekt = { group = "com.github.mihonapp", name = "injekt", version.ref = "injekt" }
 androidx-preference = { group = "androidx.preference", name = "preference-ktx", version.ref = "androidx-preference" }
+
+# JavaScript source engine — see the note on the `quickjs` version above.
+quickjs = { group = "io.github.dokar3", name = "quickjs-kt-android", version.ref = "quickjs" }
 
 # Desugaring (core library desugaring for API 26+ language features)
 android-desugar-jdk-libs = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "desugar-jdk-libs" }
