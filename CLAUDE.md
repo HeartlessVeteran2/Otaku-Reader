@@ -481,11 +481,15 @@ If a UI element exists (preference, button, tab), wire it to the real implementa
 | `cert-pin-check.yml` | Monthly cron, manual | Certificate pinning verification |
 | `extension-smoke-test.yml` | Manual only | Live-network extension loading check; never gates a PR |
 | `pages.yml` | Push to `main` | Deploy VitePress website to GitHub Pages |
-| `review-on-mention.yml` | PR comments | Copilot review on @mention |
 
 CodeQL runs through GitHub's **default setup** — there is no workflow file for it, so a failing `Analyze (java-kotlin)` check cannot be debugged from `.github/workflows/`.
 
-**Removed (do not re-add):** `build.yml` and `build_preview.yml` both ran `assembleDebug`, so every PR built the app three times for one artifact — that work is consolidated into `ci.yml`'s `assemble` job, which also posts the preview-APK comment (updating it in place instead of adding one per push). `label.yml` was removed both for low value and because it used the `pull_request_target` trigger, which runs with a write-scoped token against untrusted fork code.
+**Removed (do not re-add):**
+- `build.yml` and `build_preview.yml` both ran `assembleDebug`, so every PR built the app three times for one artifact. That work is consolidated into `ci.yml`'s `assemble` job, which also posts the preview-APK comment (updating it in place instead of adding one per push).
+- `label.yml` — low value, and it used the `pull_request_target` trigger, which runs with a write-scoped token against untrusted fork code.
+- `review-on-mention.yml` — declared `permissions: reactions: write`, which **is not a valid GitHub Actions permission scope**. An invalid scope makes the whole workflow file fail to load, so it never ran its `issue_comment` trigger even once, and instead produced a failed run named by file path on every `push`. If you ever add a workflow that needs to react to comments, note that reactions are covered by `issues: write` / `pull-requests: write` — there is no separate `reactions` scope.
+
+**Valid `permissions:` scopes** (an invalid key silently breaks the entire workflow): `actions`, `attestations`, `checks`, `contents`, `deployments`, `discussions`, `id-token`, `issues`, `models`, `packages`, `pages`, `pull-requests`, `repository-projects`, `security-events`, `statuses`.
 
 CI uses JDK 21. Gradle setup/caching is handled by `gradle/actions/setup-gradle`. All actions are pinned to commit SHAs — keep it that way.
 
