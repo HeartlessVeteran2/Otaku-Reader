@@ -1,5 +1,6 @@
 package app.otakureader.core.network.di
 
+import app.otakureader.core.common.network.PageImageHeaders
 import app.otakureader.core.network.BuildConfig
 import app.otakureader.core.network.BytesEventListener
 import app.otakureader.core.network.BytesRecorder
@@ -41,8 +42,39 @@ object NetworkModule {
     @Singleton
     fun provideOkHttpClient(
         bytesRecorder: BytesRecorder,
+        pageImageHeaders: PageImageHeaders,
     ): OkHttpClient {
         val builder = OkHttpClient.Builder()
+            // Attach the headers recorded when a page list was fetched — a Referer naming the
+            // source, plus anything the source supplied for that specific page.
+            //
+            // This belongs on the SHARED client, not on the image loader. Page images are
+            // fetched by two entirely separate consumers: Coil, for display, and Downloader,
+            // for saving chapters offline. Installing it on Coil alone leaves downloads
+            // hitting hotlink-protected hosts without a Referer, so a chapter reads fine and
+            // then fails to download — with the 403 surfacing much later as a broken saved
+            // page. Here, every consumer of this client is covered, including ones not yet
+            // written.
+            //
+            // Not gated on RequestCategory: Coil sets its tag through newBuilder(), which
+            // appends its interceptor *after* these, so the tag is not yet present when this
+            // runs. Scoping instead comes from the registry itself, which only ever holds
+            // hosts that served a page list — a request to any other host finds nothing and is
+            // left untouched.
+            .addInterceptor { chain ->
+                val request = chain.request()
+                val extra = pageImageHeaders.headersFor(request.url.toString())
+                if (extra.isEmpty()) {
+                    chain.proceed(request)
+                } else {
+                    val builder = request.newBuilder()
+                    // Never overwrite a header the caller set deliberately.
+                    extra.forEach { (name, value) ->
+                        if (request.header(name) == null) builder.header(name, value)
+                    }
+                    chain.proceed(builder.build())
+                }
+            }
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
