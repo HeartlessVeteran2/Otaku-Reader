@@ -4,17 +4,18 @@
 
 | Workflow | File | Trigger | Jobs |
 |---------|------|---------|------|
-| Main CI | `ci.yml` | Push/PR to `main`, `develop` | Detekt, Ktlint, Unit Tests, Coverage Gate, Screenshot Tests (Roborazzi), Assemble |
-| Build | `build.yml` | Push/PR | Build Debug APK |
+| Main CI | `ci.yml` | PR to `main`, manual | Security Check, Detekt, Ktlint, Unit Tests, Coverage Gate, Screenshot Tests (Roborazzi), Assemble (+ preview APK PR comment), License Report |
 | Release | `release.yml` | Tag push (`v*`) | Signed release APK, GitHub Release |
 | Benchmark | `benchmark.yml` | Manual dispatch | Baseline profile generation |
-| Preview APK | `build_preview.yml` | PR trigger | Preview APK build |
-| Cert Pin | `cert-pin-check.yml` | Push/PR | Certificate pinning verification |
-| Extension Smoke | `extension-smoke-test.yml` | Push/PR | Extension loading smoke tests |
+| Cert Pin | `cert-pin-check.yml` | Monthly cron, manual | Certificate pinning verification |
+| Extension Smoke | `extension-smoke-test.yml` | Manual dispatch only | Live-network extension loading check — never gates a PR |
 | Website | `pages.yml` | Push to `main` | VitePress build → GitHub Pages deploy |
-| Labels | `label.yml` | PR events | Auto-label PRs by changed paths |
-| CodeQL | `.github/workflows/codeql.yml` | Push/PR/schedule | Static security analysis |
 | Review | `review-on-mention.yml` | PR comments | Copilot review on @mention |
+| CodeQL | GitHub **default setup** (no workflow file) | Push/PR/schedule | Static security analysis |
+
+**`ci.yml` is the only PR gate.** `build.yml`, `build_preview.yml` and `label.yml` were removed — the first two duplicated `ci.yml`'s assemble job (three `assembleDebug` runs per PR for one artifact), and `label.yml` used the `pull_request_target` trigger, which grants a write-scoped token to untrusted fork code. The preview-APK PR comment now lives in `ci.yml`'s `assemble` job and updates itself in place rather than posting a new comment per push.
+
+Note that CodeQL has **no workflow file** — it is configured through GitHub's default setup, so a failing `Analyze (java-kotlin)` check cannot be debugged by reading `.github/workflows/`.
 
 ---
 
