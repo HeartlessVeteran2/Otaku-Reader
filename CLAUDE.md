@@ -428,6 +428,43 @@ If a UI element exists (preference, button, tab), wire it to the real implementa
 
 ---
 
+## Self-Review Checklist — The Mistakes That Actually Get Made Here
+
+These are not hypotheticals. Each one shipped in this repo, passed local tests, detekt and ktlint, and was caught by a review bot afterwards. They repeat, so check for them before opening a PR.
+
+### 1. The comment describes the goal; the code achieves part of it
+
+**This is the most common defect by a wide margin.** A rationale gets written for what the code is *meant* to do, the code implements most of it, and the gap is invisible afterwards — because the comment reads convincingly, nobody re-derives it. Real examples:
+
+| What the comment claimed | What the code did |
+|---|---|
+| "The two backends share nothing" | Isolation ran one direction; an APK failure silently dropped every JS source |
+| "Writing the manifest last means a half-finished install is invisible" | True for a fresh install, false for an update — where both files already exist |
+| A test docstring: "locks the precedence rule down" | The test would have passed with the rule inverted |
+| "Per-source scoping is a security boundary" | Those credentials were written to disk in cleartext |
+
+**The check:** after writing a comment that asserts a property, re-read the code as if you had not written it and ask whether it actually has that property in *every* path — not just the one you had in mind. If the comment says "always" or "never", find the case where it doesn't.
+
+### 2. Single-threaded reasoning about concurrent code
+
+Four separate races shipped in one PR: a shared temp-file path, an uninstall undone by an in-flight call, concurrent calls overwriting each other's writes, and a refresh interleaving with an install.
+
+**The check:** for anything touching shared state, disk, or a registry, ask "what if two of these run at once?" and "what if this one is halfway done when that one starts?" Read-then-act sequences need a lock across *both* steps, not on each separately — a liveness check and the write it guards must be inside the same lock.
+
+### 3. A passing test that asserts the wrong thing
+
+Twice a test was green while the behaviour was broken, both times because it asserted a **return value** when the bug was in **state left behind**. `refreshSources` returned the expected `Result.failure` while having emptied the source list.
+
+**The check:** after asserting what a function returned, also assert what it left behind. And for any test whose name claims a rule, construct the case where the rule actually bites — a precedence test with no collision in it proves nothing.
+
+### 4. Asserting a fact about a dependency from a convenient source
+
+A claim about a library's published versions was taken from a search API that only listed pre-releases; the authoritative `maven-metadata.xml` said otherwise. An architecture decision was then made on the wrong premise.
+
+**The check:** for a load-bearing claim about a dependency, read the artifact or the authoritative metadata, not a summary. `unzip` the AAR and check the bytes.
+
+---
+
 ## Common Bug Areas — Check These First
 
 1. **Hilt binding errors** — Missing `@Provides`, wrong scope, missing `@InstallIn`. Check the DI module before assuming the ViewModel is wrong.
