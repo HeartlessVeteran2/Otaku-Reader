@@ -129,10 +129,16 @@ class WebViewChallengeManager @Inject constructor(
         if (cleared && !userAgent.isNullOrBlank()) {
             scope.launch { userAgentStore.store(host, userAgent) }
         }
+        // Completing the deferred is the whole job. Removing the pending entry is deliberately
+        // NOT done here: [solve]'s own cleanup does it, by id, the instant its await returns.
+        //
+        // A host-wide removal here would race a re-challenge — the old solve can finish and a
+        // new one add its entry in the window between completing the deferred and clearing, and
+        // the host-wide sweep would delete the newcomer, leaving its caller blocked with no
+        // WebView. Giving the pending set exactly one owner removes the race rather than
+        // narrowing it; this method had kept a second, host-wide path after solve's was made
+        // identity-matched.
         inFlight[host]?.complete(cleared)
-        // By host, not id: this is the user answering whichever challenge was on screen for
-        // that host, and solve()'s own cleanup removes the entry by id immediately afterwards.
-        _pendingChallenges.update { pending -> pending.filterNot { it.host == host } }
     }
 
     private fun clearPending(id: Long) {

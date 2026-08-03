@@ -60,7 +60,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.NavDestination.Companion.hasRoute
 
 @Composable
@@ -92,8 +91,12 @@ fun OtakuReaderNavHost(
     // other than its close button — a deep link that clears the back stack, for instance — and
     // a stale "still showing" would suppress every later challenge for the life of this nav
     // host, silently disabling the whole bypass. The NavController already knows the answer.
-    val currentEntry by navController.currentBackStackEntryAsState()
-    val challengeShowing = currentEntry?.destination?.hasRoute(Route.WebView::class) == true
+    // The WHOLE back stack, not just the current entry. If the user navigates away from an open
+    // CAPTCHA without closing it — a notification tap, a deep link — the current destination is
+    // no longer the WebView, and gating on that alone would push a second CAPTCHA while the
+    // first sat stranded beneath it.
+    val backStack by navController.currentBackStack.collectAsStateWithLifecycle()
+    val challengeShowing = backStack.any { it.destination.hasRoute(Route.WebView::class) }
 
     val pendingChallenges by challengeManager.pendingChallenges.collectAsStateWithLifecycle()
     val nextChallenge = pendingChallenges.firstOrNull()
