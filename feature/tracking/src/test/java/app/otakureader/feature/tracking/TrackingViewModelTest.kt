@@ -171,6 +171,46 @@ class TrackingViewModelTest {
         assertEquals(savedState.captured, urlState.captured)
     }
 
+    /**
+     * An unconfigured OAuth tracker must stop, not open a browser.
+     *
+     * `initiateLogin` used to fall back to `getOAuthUrl(trackerId)` — the provider's endpoint with
+     * no `client_id`, `redirect_uri` or `response_type`. No OAuth provider can act on that: with
+     * no client_id it cannot even resolve where to redirect. So the fallback only ever opened a
+     * page guaranteed to error, and it quietly undid `AniListTracker`'s own guard, which returns
+     * null precisely so an unconfigured build stays unconfigured.
+     */
+    @Test
+    fun onEvent_InitiateLogin_unconfiguredOauthTracker_reportsUnavailableInsteadOfOpeningBrowser() = runTest {
+        mockkStatic(android.util.Base64::class)
+        every { android.util.Base64.encodeToString(any(), any()) } returns "mocked_code_verifier"
+
+        val unconfigured = mockk<Tracker> {
+            every { id } returns TrackerType.ANILIST
+            every { name } returns "AniList"
+            every { isLoggedIn } returns false
+            every { authorizationUrl(any(), any()) } returns null
+        }
+
+        val viewModel = createViewModel(trackers = setOf(unconfigured))
+
+        try {
+            viewModel.effect.test {
+                viewModel.onEvent(TrackingEvent.InitiateLogin(trackerId = TrackerType.ANILIST))
+                testDispatcher.scheduler.advanceUntilIdle()
+
+                assertTrue(awaitItem() is TrackingEffect.ShowError)
+            }
+        } finally {
+            unmockkStatic(android.util.Base64::class)
+        }
+
+        // The error alone would not prove much — what matters is that nothing was left behind for
+        // a login that never opened. A persisted session would sit in encrypted storage for its
+        // full TTL and make the next real callback comparable against a state nobody sent.
+        coVerify(exactly = 0) { pendingOAuthStore.save(any(), any(), any()) }
+    }
+
     @Test
     fun onEvent_InitiateLogin_credentialTracker_setsLoginDialogTrackerId() = runTest {
         val kitsuTracker = mockk<Tracker> {

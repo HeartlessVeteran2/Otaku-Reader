@@ -31,6 +31,15 @@ import java.nio.charset.StandardCharsets
 class AniListTracker(
     private val api: AniListApi,
     private val tokenStore: TrackerTokenStore,
+    /**
+     * Defaults to the build-injected credential; a parameter so tests can supply one.
+     *
+     * Reading `TrackerCredentials.ANILIST_CLIENT_ID` inside the function made both outcomes
+     * untestable in any single build: with an id injected only the configured branch could run,
+     * without one only the unconfigured branch, and the skipped half reported as a pass either
+     * way. A parameter removes the ambient build state from the question entirely.
+     */
+    private val clientId: String = TrackerCredentials.ANILIST_CLIENT_ID,
 ) : Tracker {
 
     override val id: Int = TrackerType.ANILIST
@@ -67,8 +76,22 @@ class AniListTracker(
      * that comes back to the login this app started.
      */
     @Suppress("UnusedParameter")
-    override fun authorizationUrl(codeVerifier: String, state: String): String? =
-        buildAniListAuthorizationUrl(TrackerCredentials.ANILIST_CLIENT_ID, state)
+    override fun authorizationUrl(codeVerifier: String, state: String): String? {
+        // Blank means the build had no ANILIST_CLIENT_ID. Null is the interface's "this tracker
+        // has no authorization URL", and the caller now treats that as unconfigured rather than
+        // substituting a bare endpoint — see TrackingViewModel.initiateLogin.
+        if (clientId.isBlank()) return null
+        return "https://anilist.co/api/v2/oauth/authorize" +
+            "?client_id=$clientId" +
+            "&redirect_uri=${TrackerCredentials.ANILIST_REDIRECT_URI}" +
+            "&response_type=token" +
+            // Percent-encoded rather than interpolated raw. Today's caller generates a UUID, which
+            // needs no encoding, so this changes nothing now — but the callback compares the
+            // returned value against the stored one for equality, and a state that ever grew a `&`
+            // would split into two parameters and fail that comparison forever. DeepLinkHandler
+            // decodes with the matching URLDecoder, so the pair round-trips.
+            "&state=${URLEncoder.encode(state, StandardCharsets.UTF_8.name())}"
+    }
 
     /** @param password the OAuth bearer token obtained from the AniList implicit flow. */
     override suspend fun login(username: String, password: String): Boolean {
@@ -192,33 +215,4 @@ class AniListTracker(
         TrackStatus.PLAN_TO_READ -> "PLANNING"
         TrackStatus.RE_READING -> "REPEATING"
     }
-}
-
-/**
- * Builds the AniList authorization URL for [clientId] and [state], or null when there is no
- * client id.
- *
- * Split out from [AniListTracker.authorizationUrl] so both outcomes are testable in one build.
- * When the function read `TrackerCredentials.ANILIST_CLIENT_ID` directly, the only way to test
- * the two branches was to gate each test on whether the build happened to have an id injected —
- * which meant exactly one of them ever ran and the other was skipped. A skipped test reports as
- * a pass, so the untested branch was silently uncovered on every single run, in both directions.
- * Taking the id as a parameter makes both branches reachable from a test with no build state
- * involved.
- *
- * [state] is percent-encoded rather than interpolated raw. Today's caller generates a UUID, which
- * needs no encoding, so this changes nothing now — but the callback compares the returned value
- * against the stored one for equality, and a state that ever grew a `&` or `=` would silently
- * split into two parameters and fail that comparison forever. `DeepLinkHandler` decodes with the
- * matching `URLDecoder`, so the pair round-trips.
- */
-internal fun buildAniListAuthorizationUrl(clientId: String, state: String): String? {
-    // Blank means the build had no ANILIST_CLIENT_ID. Returning null keeps the existing
-    // "tracker not configured" path rather than opening a URL that is guaranteed to fail.
-    if (clientId.isBlank()) return null
-    return "https://anilist.co/api/v2/oauth/authorize" +
-        "?client_id=$clientId" +
-        "&redirect_uri=${TrackerCredentials.ANILIST_REDIRECT_URI}" +
-        "&response_type=token" +
-        "&state=${URLEncoder.encode(state, StandardCharsets.UTF_8.name())}"
 }
