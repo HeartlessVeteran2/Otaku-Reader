@@ -15,6 +15,7 @@ import app.otakureader.core.extension.data.remote.ExtensionRemoteDataSource
 import app.otakureader.core.extension.data.remote.ExtensionRemoteDataSourceImpl
 import app.otakureader.core.extension.data.repository.ExtensionRepoRepositoryImpl
 import app.otakureader.core.extension.data.repository.ExtensionRepositoryImpl
+import app.otakureader.core.extension.domain.backend.JsExtensionBackend
 import app.otakureader.core.extension.domain.repository.ExtensionRepoRepository
 import app.otakureader.core.extension.domain.repository.ExtensionRepository
 import app.otakureader.core.extension.installer.ExtensionInstaller
@@ -34,6 +35,20 @@ private val MIGRATION_3_4 = object : Migration(3, 4) {
     }
 }
 
+/**
+ * v4 -> v5: JavaScript-backend discriminator.
+ *
+ * `NOT NULL DEFAULT 0` rather than a nullable column: every row that exists before this
+ * migration is an APK extension, and that is a fact, not a missing value. A nullable column
+ * would push a three-state question ("APK, JavaScript, or unknown?") onto every read of a
+ * flag that only ever has two answers.
+ */
+private val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE extensions ADD COLUMN is_javascript INTEGER NOT NULL DEFAULT 0")
+    }
+}
+
 @Module
 @InstallIn(SingletonComponent::class)
 object ExtensionModule {
@@ -48,7 +63,7 @@ object ExtensionModule {
             ExtensionDatabase::class.java,
             "extension_database"
         )
-        builder.addMigrations(MIGRATION_3_4)
+        builder.addMigrations(MIGRATION_3_4, MIGRATION_4_5)
         // Only allow destructive migration in debug builds to avoid silently wiping
         // extension metadata in production if a migration is missing.
         if (BuildConfig.DEBUG) {
@@ -74,9 +89,10 @@ object ExtensionModule {
     @Provides
     @Singleton
     fun provideExtensionRemoteDataSource(
-        repoRepository: ExtensionRepoRepository
+        repoRepository: ExtensionRepoRepository,
+        jsBackend: JsExtensionBackend,
     ): ExtensionRemoteDataSource {
-        return ExtensionRemoteDataSourceImpl(repoRepository)
+        return ExtensionRemoteDataSourceImpl(repoRepository, jsBackend = jsBackend)
     }
 
     @Provides
@@ -120,7 +136,8 @@ object ExtensionModule {
         repository: ExtensionRepository,
         loader: ExtensionLoader,
         remoteDataSource: ExtensionRemoteDataSource,
+        jsBackend: JsExtensionBackend,
     ): ExtensionInstaller {
-        return ExtensionInstaller(context, repository, loader, remoteDataSource)
+        return ExtensionInstaller(context, repository, loader, remoteDataSource, jsBackend)
     }
 }

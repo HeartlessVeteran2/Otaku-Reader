@@ -82,7 +82,26 @@ data class Extension(
      * on the source level — aggregated to the extension level here as true if any source
      * has hasCloudflare == 1).
      */
-    val hasCloudflare: Boolean = false
+    val hasCloudflare: Boolean = false,
+
+    /**
+     * Whether this extension is a JavaScript source rather than an APK.
+     *
+     * Install and uninstall route on this flag, so it is stored rather than inferred. Deriving it
+     * from a `.js` suffix on [apkUrl] or a naming convention on [pkgName] would be right almost
+     * always, and the failure when it was wrong would be a script handed to the APK installer —
+     * or worse, an APK handed to the script store.
+     *
+     * When true:
+     * - [pkgName] is the JavaScript source id (`JsSourceConfig.id`), not an Android package.
+     * - [apkUrl] points at the `.js` file to download.
+     * - [apkPath] is empty. There is no APK and no `PackageManager` entry; the script lives in
+     *   the JS store under `filesDir/js-exts/`, keyed by [pkgName].
+     * - [signatureHash] is null, so [isTrusted] is false. That is accurate rather than a gap —
+     *   a JavaScript source carries no signature to verify, and HTTPS is the only transport
+     *   control on it.
+     */
+    val isJavaScript: Boolean = false
 ) : Parcelable {
     
     val isInstalled: Boolean

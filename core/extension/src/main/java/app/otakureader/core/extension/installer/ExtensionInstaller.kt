@@ -7,6 +7,7 @@ import android.content.Intent
 import android.os.Build
 import androidx.core.net.toUri
 import app.otakureader.core.extension.data.remote.ExtensionRemoteDataSource
+import app.otakureader.core.extension.domain.backend.JsExtensionBackend
 import app.otakureader.core.extension.domain.model.Extension
 import app.otakureader.core.extension.domain.model.InstallStatus
 import app.otakureader.core.extension.domain.repository.ExtensionRepository
@@ -42,7 +43,15 @@ class ExtensionInstaller(
     private val context: Context,
     private val repository: ExtensionRepository,
     private val loader: ExtensionLoader,
-    private val remoteDataSource: ExtensionRemoteDataSource
+    private val remoteDataSource: ExtensionRemoteDataSource,
+    /**
+     * The JavaScript backend, when one is wired in.
+     *
+     * Dispatch happens here rather than in the ViewModel so `feature/browse` stays unaware that
+     * there are two backends at all — it calls one install method with an [Extension] and gets
+     * the right behaviour. Null keeps the APK-only path, which is what the existing tests cover.
+     */
+    private val jsBackend: JsExtensionBackend? = null,
 ) {
     
     companion object {
@@ -75,6 +84,10 @@ class ExtensionInstaller(
      */
     suspend fun downloadAndInstall(extension: Extension): Result<Extension> = withContext(Dispatchers.IO) {
         try {
+            if (extension.isJavaScript) {
+                return@withContext installJavaScript(extension)
+            }
+
             val apkUrl = extension.apkUrl
                 ?: return@withContext Result.failure(
                     IllegalArgumentException("Extension has no APK URL")
@@ -145,6 +158,80 @@ class ExtensionInstaller(
             )
             Result.failure(e)
         }
+    }
+
+    /**
+     * Remove a JavaScript source's script, registration and stored data, then its row.
+     *
+     * The backend runs first and the row is dropped only if it succeeded. The reverse order
+     * would let a failed erase leave the credentials on disk with the source already gone from
+     * the list the user would retry from — a state no retry can reach. `JsSourceProvider`
+     * applies the same ordering internally for the same reason.
+     */
+    private suspend fun uninstallJavaScript(pkgName: String): Result<Unit> {
+        val backend = jsBackend ?: return Result.failure(
+            IllegalStateException("No JavaScript backend is available to uninstall $pkgName")
+        )
+
+        return backend.uninstall(pkgName)
+            .fold(
+                onSuccess = {
+                    repository.uninstallExtension(pkgName).also {
+                        ExtensionInstallReceiver.notifyRemoved(context, pkgName)
+                    }
+                },
+                onFailure = { error ->
+                    // Put the row back to INSTALLED. Leaving it UNINSTALLING would show a
+                    // source stuck mid-removal that the user cannot act on, while the source
+                    // itself is still perfectly functional.
+                    repository.setExtensionStatus(pkgName, InstallStatus.INSTALLED)
+                    Result.failure(error)
+                },
+            )
+    }
+
+    /**
+     * Install a JavaScript source: fetch the script, register it, then record the row.
+     *
+     * The order is the point. The database row is written *last*, only once the script is on
+     * disk and registered with the engine, so a failed download or a rejected non-HTTPS URL
+     * leaves nothing behind that claims to be installed. Writing the row first would produce a
+     * source that appears in the library and fails on every call — which is precisely the class
+     * of silent, undiagnosable failure this rebuild exists to eliminate.
+     *
+     * There is no APK, no `PackageManager`, no signature verification and no system install
+     * prompt on this path. That is the whole reason the backend exists, and it is also why the
+     * HTTPS check inside the remote data source is not optional: with no signature to verify,
+     * transport is the only control on what gets executed.
+     */
+    private suspend fun installJavaScript(extension: Extension): Result<Extension> {
+        val backend = jsBackend ?: return Result.failure(
+            IllegalStateException("No JavaScript backend is available to install ${extension.pkgName}")
+        )
+
+        _installationState.value = InstallationState.Downloading(0)
+
+        val installed = backend.install(extension)
+        if (installed.isFailure) {
+            val error = installed.exceptionOrNull() ?: Exception("JavaScript install failed")
+            _installationState.value = InstallationState.Error(
+                "Installation failed: ${error.message}",
+                error
+            )
+            return Result.failure(error)
+        }
+
+        _installationState.value = InstallationState.Installing
+
+        // apkPath is empty rather than a path: there is no APK file to point at.
+        return repository.installExtension(extension, apkPath = "")
+            .onSuccess { _installationState.value = InstallationState.Success(it) }
+            .onFailure { error ->
+                _installationState.value = InstallationState.Error(
+                    "Installation failed: ${error.message}",
+                    error
+                )
+            }
     }
 
     /**
@@ -494,6 +581,16 @@ class ExtensionInstaller(
     suspend fun uninstall(pkgName: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             repository.setExtensionStatus(pkgName, InstallStatus.UNINSTALLING)
+
+            // Look the row up rather than inferring the backend from the name. Getting this
+            // wrong is not cosmetic: without the branch below a JavaScript source would fall
+            // through to the private-APK path, which deletes the database row and nothing else
+            // — leaving the script on disk, still registered with the engine, and its stored
+            // preferences intact. Those preferences routinely hold the user's login for the
+            // site, so "uninstalled" would leave the credentials behind.
+            if (repository.getExtension(pkgName)?.isJavaScript == true) {
+                return@withContext uninstallJavaScript(pkgName)
+            }
 
             if (isSystemInstalled(pkgName)) {
                 // Trigger the system uninstaller dialog for shared/installed extensions.

@@ -34,7 +34,8 @@ class ExtensionMapper {
             installDate = entity.installDate,
             signatureHash = entity.signatureHash,
             isEnabled = entity.isEnabled,
-            repoUrl = entity.sourceRepoUrl
+            repoUrl = entity.sourceRepoUrl,
+            isJavaScript = entity.isJavaScript
         )
     }
     
@@ -56,7 +57,8 @@ class ExtensionMapper {
             signatureHash = domain.signatureHash,
             remoteVersionCode = if (domain.hasUpdate) domain.versionCode else null,
             isEnabled = domain.isEnabled,
-            sourceRepoUrl = domain.repoUrl
+            sourceRepoUrl = domain.repoUrl,
+            isJavaScript = domain.isJavaScript
         )
     }
     

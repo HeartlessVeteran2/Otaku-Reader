@@ -75,7 +75,16 @@ data class ExtensionEntity(
      * existed; backfilled on the next update check.
      */
     @ColumnInfo(name = "source_repo_url")
-    val sourceRepoUrl: String? = null
+    val sourceRepoUrl: String? = null,
+
+    /**
+     * Whether this row is a JavaScript source rather than an APK extension.
+     *
+     * Persisted rather than derived, because uninstall reads the row back to decide which
+     * backend to call. See `Extension.isJavaScript` for why a guess is not good enough.
+     */
+    @ColumnInfo(name = "is_javascript")
+    val isJavaScript: Boolean = false
 )
 
 @Dao
@@ -152,7 +161,7 @@ interface ExtensionDao {
 
 @Database(
     entities = [ExtensionEntity::class],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class ExtensionDatabase : RoomDatabase() {
