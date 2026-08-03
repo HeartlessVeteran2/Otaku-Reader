@@ -128,6 +128,10 @@ class AniListTracker(
         """.trimIndent()
         val variables = buildJsonObject { put("search", query) }
         val response = api.query(AniListGraphQlQuery(gqlQuery, variables))
+        // Same reason as in `update`: a rejected document arrives as HTTP 200, so without this a
+        // refused search is indistinguishable from a search that genuinely found nothing, and the
+        // user is told "no results" for a query that was never run.
+        response.errors.firstOrNull()?.let { throw AniListGraphQlException(it.message) }
         return response.data?.page?.media.orEmpty().map { media ->
             TrackEntry(
                 remoteId = media.id,
@@ -224,12 +228,22 @@ class AniListTracker(
             put("scoreRaw", entry.score.toAniListPoint100())
             put("progress", entry.lastChapterRead.toInt())
         }
-        val saved = api.query(AniListGraphQlQuery(gqlMutation, variables)).data?.savedEntry
+        val response = api.query(AniListGraphQlQuery(gqlMutation, variables))
+        // No confirmed entry means the mutation did not take, and this must not return normally.
+        // GraphQL reports a rejected document with **HTTP 200** and `data: null`, so Retrofit
+        // throws nothing and the exception-propagation fix above never fires for this case —
+        // an unauthenticated token, a media id AniList doesn't have, a variable it won't accept.
+        // Returning `entry` here would have been the very behaviour this change set out to
+        // remove, one branch over: the caller writes `syncStatus = SYNCED` on the next line.
+        val saved = response.data?.savedEntry
+            ?: throw AniListGraphQlException(
+                response.errors.firstOrNull()?.message
+                    ?: "AniList did not confirm the update for media ${entry.remoteId}"
+            )
         // Prefer what AniList confirmed over what was sent. The mutation already asked for these
         // fields and then discarded them, so a value the server clamped or normalised — a score
         // above the user's maximum, progress past the final chapter — was written back locally as
         // whatever this app had guessed.
-        if (saved == null) return entry
         return entry.copy(
             // A blank status means the field was absent from the response, not that the entry is
             // unset — mapping "" would run through statusFromAniList's else branch and quietly
@@ -295,3 +309,13 @@ class AniListTracker(
         const val ANILIST_MAX_SCORE = 100
     }
 }
+
+/**
+ * AniList accepted the request but refused the mutation.
+ *
+ * Distinct from the `IOException` a transport failure produces, because the two want different
+ * handling: a dropped connection is worth retrying, a rejected media id never will be. Callers in
+ * `TrackerSyncRepositoryImpl` catch `Exception` and mark `SyncStatus.ERROR` either way, so this
+ * exists to carry AniList's own message to the log rather than to be caught separately today.
+ */
+class AniListGraphQlException(message: String) : Exception(message)

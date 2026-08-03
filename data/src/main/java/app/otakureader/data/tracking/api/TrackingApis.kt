@@ -131,7 +131,22 @@ data class AniListGraphQlQuery(
 
 @Serializable
 data class AniListResponse(
-    val data: AniListData? = null
+    val data: AniListData? = null,
+    /**
+     * GraphQL-level errors.
+     *
+     * These are the reason a caller cannot treat "the HTTP call returned" as "the operation
+     * worked". GraphQL reports a rejected document with **HTTP 200** and `data: null`, so Retrofit
+     * sees a perfectly successful response and throws nothing. Without this field the reason was
+     * not merely unreported — it was unparsed, so an update that AniList refused looked identical
+     * to one it accepted.
+     */
+    val errors: List<AniListError> = emptyList()
+)
+
+@Serializable
+data class AniListError(
+    val message: String = ""
 )
 
 @Serializable
