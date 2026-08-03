@@ -189,31 +189,30 @@ class JsInstallRoutingTest {
     }
 
     /**
-     * A lookup that *fails* is not evidence that the row is absent.
+     * If ownership cannot be established, nothing is installed at all.
      *
-     * The lookup runs before the install, while the database is still healthy, so this is the
-     * rarer case — but the rule stands either way. Collapsing "absent" and "could not tell"
-     * into one null would hang a destructive branch off the ambiguous value and delete a working
-     * source along with the user's saved login for it. Destroying data needs positive evidence
-     * that it is safe; absence of evidence is not that.
+     * The alternative is to write a live script whose ownership can never be determined. Under
+     * that ambiguity the only safe move afterwards is to destroy nothing — which leaves an
+     * executing source that no uninstall can reach. Failing closed turns an unrecoverable state
+     * into an install the user can simply retry.
      */
     @Test
-    fun `a failed lookup does not trigger the rollback`() = runTest {
+    fun `an unreadable prior row prevents the install entirely`() = runTest {
         val subject = extension("cannot-tell", isJavaScript = true)
-        val jsBackend = mockk<JsExtensionBackend>(relaxed = true) {
-            coEvery { install(subject) } returns Result.success(Unit)
-        }
+        val jsBackend = mockk<JsExtensionBackend>(relaxed = true)
         val repository = mockk<ExtensionRepository>(relaxed = true) {
-            coEvery { installExtension(any<Extension>(), any()) } returns
-                Result.failure(java.io.IOException("database is locked"))
-            coEvery { getExtension("cannot-tell") } throws java.io.IOException("still locked")
+            coEvery { getExtension("cannot-tell") } throws java.io.IOException("database is locked")
         }
 
         val result = ExtensionInstaller(context, repository, loader, remoteDataSource, jsBackend)
             .downloadAndInstall(subject)
 
         assertTrue(result.isFailure)
+        // Nothing was created, so there is nothing to clean up and nothing to orphan. Asserting
+        // only the failure would pass just as happily with a script written to disk.
+        coVerify(exactly = 0) { jsBackend.install(any()) }
         coVerify(exactly = 0) { jsBackend.uninstall(any()) }
+        coVerify(exactly = 0) { repository.installExtension(any<Extension>(), any()) }
     }
 
     /**

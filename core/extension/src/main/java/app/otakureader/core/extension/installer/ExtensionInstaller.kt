@@ -236,7 +236,19 @@ class ExtensionInstaller(
         // be healthy. Asking afterwards means asking a database that has just failed a write,
         // and the answer decides whether a script gets deleted — so the question has to be put
         // at the moment it can still be answered reliably.
-        val priorRow = lookupRow(extension.pkgName)
+        //
+        // And if it cannot be answered even now, **fail closed**: do not install at all. The
+        // alternative is to write a live script whose ownership can never be established, which
+        // leaves exactly one safe move afterwards (destroy nothing) and therefore an executing
+        // source that no uninstall can reach. Refusing an install the user can simply retry is
+        // the cheaper failure by a wide margin.
+        val priorRow = lookupRow(extension.pkgName).getOrElse { lookupError ->
+            _installationState.value = InstallationState.Error(
+                "Installation failed: ${lookupError.message}",
+                lookupError,
+            )
+            return Result.failure(lookupError)
+        }
 
         _installationState.value = InstallationState.Downloading(0)
 
@@ -305,7 +317,8 @@ class ExtensionInstaller(
      *   destructive branch off an ambiguous null on the one path where the database is least
      *   trustworthy.
      *
-     * With the fact captured up front, each case has an unambiguous answer:
+     * With the fact captured up front, only two cases remain, and each has an unambiguous
+     * answer:
      *
      * - **A JavaScript row existed.** This was an update, so something is genuinely installed —
      *   the new script is on disk, registered, and valid. Restore the row to `INSTALLED`, which
@@ -313,8 +326,12 @@ class ExtensionInstaller(
      * - **No row, or a row belonging to the other backend.** Nothing here reaches this script:
      *   an APK row with the same package name routes uninstall down the APK path, which would
      *   leave the script and its stored data behind. Remove the script.
-     * - **The prior lookup itself failed.** Nothing is destroyed. Destroying data requires
-     *   positive evidence that it is safe, and absence of evidence is not that.
+     *
+     * There is deliberately no "could not tell" case. [installJavaScript] fails closed when the
+     * snapshot cannot be read, so this method is only ever reached with a known answer. That is
+     * what removed the third branch — and with it the orphan it used to leave behind, since
+     * "destroy nothing" was the only safe move under ambiguity and it left an executing script
+     * that no uninstall could reach.
      *
      * The same "make the row describe reality" principle produces the opposite answer in
      * [finalizeRemoval], which sets `ERROR` after a failed *delete*: there the extension really
@@ -328,29 +345,17 @@ class ExtensionInstaller(
     private suspend fun reconcileFailedInstall(
         extension: Extension,
         backend: JsExtensionBackend,
-        priorRow: Result<Extension?>,
+        priorRow: Extension?,
         error: Throwable,
     ) {
-        val prior = priorRow.getOrNull()
-
-        when {
-            priorRow.isFailure -> {
-                // Could not tell. Leave the artifact alone and carry the reason, so the
-                // ambiguity is visible in the reported error rather than silently absorbed.
-                priorRow.exceptionOrNull()?.let { runCatching { error.addSuppressed(it) } }
-            }
-
-            prior != null && prior.isJavaScript -> {
-                repairStatus(extension.pkgName, InstallStatus.INSTALLED)
-            }
-
-            else -> {
-                // The cleanup's own failure must not replace the error that caused all this —
-                // that would send the user looking in the wrong place. It is attached instead,
-                // so an orphan that could not be cleaned up stays diagnosable.
-                backend.uninstall(extension.pkgName).onFailure { cleanupError ->
-                    runCatching { error.addSuppressed(cleanupError) }
-                }
+        if (priorRow != null && priorRow.isJavaScript) {
+            repairStatus(extension.pkgName, InstallStatus.INSTALLED)
+        } else {
+            // The cleanup's own failure must not replace the error that caused all this —
+            // that would send the user looking in the wrong place. It is attached instead,
+            // so an orphan that could not be cleaned up stays diagnosable.
+            backend.uninstall(extension.pkgName).onFailure { cleanupError ->
+                runCatching { error.addSuppressed(cleanupError) }
             }
         }
 
