@@ -146,18 +146,46 @@ object DeepLinkHandler {
      * - `kitsu-oauth` → Kitsu
      * - `mal-oauth` → MyAnimeList
      * - `shikimori-oauth` → Shikimori
+     * - `anilist-oauth` → AniList
+     *
+     * Two shapes arrive here, because the trackers do not use the same grant.
+     *
+     * Kitsu, MAL and Shikimori use the authorization-code flow: the value comes back as a
+     * `code` **query parameter**, and the app exchanges it for a token.
+     *
+     * AniList uses the implicit grant, so the token itself comes back in the URL **fragment**
+     * (`#access_token=…`). A fragment is not a query string — `getQueryParameter` cannot see it,
+     * so reading only `code` here would have discarded every AniList login while the redirect
+     * itself arrived perfectly well. AniList's code flow is not an option: it requires a client
+     * secret, and a secret shipped inside an APK is not a secret.
      */
     private fun parseOAuthCallback(uri: Uri, host: String): DeepLinkResult {
-        val code = uri.getQueryParameter("code") ?: return DeepLinkResult.Invalid
         val tracker = when (host) {
             "kitsu-oauth" -> "kitsu"
             "mal-oauth" -> "mal"
             "shikimori-oauth" -> "shikimori"
+            "anilist-oauth" -> "anilist"
             else -> return DeepLinkResult.Invalid
         }
+        val code = uri.getQueryParameter("code")
+            ?: uri.fragmentParameter("access_token")
+            ?: return DeepLinkResult.Invalid
         val state = uri.getQueryParameter("state")
         return DeepLinkResult.TrackerOAuth(tracker = tracker, code = code, state = state)
     }
+
+    /**
+     * Read a parameter out of the URL fragment.
+     *
+     * `Uri` offers no accessor for this: the fragment is opaque to it, so the
+     * `key=value&key=value` body an implicit grant puts there has to be split by hand.
+     */
+    private fun Uri.fragmentParameter(name: String): String? =
+        fragment
+            ?.split('&')
+            ?.firstOrNull { it.substringBefore('=') == name }
+            ?.substringAfter('=', "")
+            ?.takeIf { it.isNotBlank() }
 
     /**
      * Parse MangaDex-specific URLs.

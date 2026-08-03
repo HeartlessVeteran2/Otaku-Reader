@@ -150,6 +150,12 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="app.otakureader" android:host="shikimori-oauth" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="app.otakureader" android:host="anilist-oauth" />
+            </intent-filter>
             
             <!-- Share intent filter for text/plain -->
             <intent-filter>
