@@ -70,11 +70,16 @@ class PageImageHeaders @Inject constructor() {
      *
      * Applies to every backend — an APK-backed source needs this exactly as much as a JavaScript
      * one, so it is registered from the shared repository path rather than inside either backend.
+     *
+     * One `putAll` rather than a write per host, so a chapter's registration lands as a unit.
+     * `BoundedCache` locks per operation, so a loop of `set` calls would let two sources
+     * registering at once interleave — the extraction of the cache would otherwise have quietly
+     * dropped the batching the previous inline `synchronized` block provided.
      */
     fun registerReferer(sourceBaseUrl: String, pageUrls: List<String>) {
         val referer = sourceBaseUrl.takeIf { it.isNotBlank() } ?: return
         val headers = mapOf(REFERER to referer)
-        pageUrls.mapNotNull { it.hostOrNull() }.distinct().forEach { perHost[it] = headers }
+        perHost.putAll(pageUrls.mapNotNull { it.hostOrNull() }.distinct().associateWith { headers })
     }
 
     /**
