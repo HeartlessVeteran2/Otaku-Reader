@@ -81,18 +81,10 @@ fun OtakuReaderNavHost(
     // challenges and the KDoc said "the app's navigation layer observes" them, but nothing did —
     // so a blocked source simply failed with no way for the user to intervene.
     //
-    // Exactly one challenge is shown at a time. Two hosts can be blocked at once (a chapter's
-    // pages and its cover, say), and navigating for each would push a stack of WebViews the user
-    // has to dismiss one by one — and a challenge arriving late would yank them off whatever
-    // screen they had moved on to. `showingChallengeHost` gates that: the next pending host is
-    // only shown once the current one closes.
-    // Whether a challenge screen is up is read from the back stack, not tracked in a flag of
-    // our own. A remembered flag goes stale the moment the destination is removed by anything
-    // other than its close button — a deep link that clears the back stack, for instance — and
-    // a stale "still showing" would suppress every later challenge for the life of this nav
-    // host, silently disabling the whole bypass. The NavController already knows the answer.
-    // Show a challenge that has no screen of its own yet — matched by challenge id, not by
-    // "is some WebView open".
+    // Show a challenge that has no screen of its own yet — matched by challenge **id**, not by
+    // "is some WebView open". Whether a screen exists is read from the back stack rather than
+    // tracked in a flag of our own, because the NavController already knows the answer and a
+    // flag of ours can disagree with it.
     //
     // That distinction is the whole correctness of this block, and three narrower versions were
     // each wrong in their own way: a remembered flag went stale when a deep link cleared the
@@ -102,16 +94,38 @@ fun OtakuReaderNavHost(
     // left a stranded CAPTCHA blocking the bypass permanently, since only its own close button
     // can pop it.
     //
-    // Matching on id makes all three vanish rather than being handled: a stranded screen whose
-    // challenge has completed no longer matches anything pending, and a WebView opened for any
-    // other purpose carries no id at all.
+    // The predicate has to satisfy FOUR properties at once, and every previous version got some
+    // subset. Listed so the next change can be checked against all of them rather than the one
+    // that happens to be under discussion:
+    //
+    //  1. One at a time. Two hosts can be blocked together; stacking their screens means the
+    //     user dismisses a pile of CAPTCHAs to get back to reading.
+    //  2. No duplicate for a live challenge, even after navigating away from its screen.
+    //  3. A stranded screen must not wedge the bypass. Only its own close button pops it, so a
+    //     CAPTCHA left behind by a deep link would otherwise block every later challenge for the
+    //     lifetime of the nav host.
+    //  4. An unrelated WebView — OAuth, the fallback viewer — must not mask a challenge.
+    //
+    // Matching on challenge id gives 2, 3 and 4: a stranded screen whose challenge completed
+    // matches nothing pending, and a WebView opened for another purpose carries no id. Property
+    // 1 needs the extra check below, because once a screen exists for A its id counts as shown
+    // and B would immediately become eligible — which is how an id-only filter reintroduced the
+    // stacking it was not trying to fix.
     val backStack by navController.currentBackStack.collectAsStateWithLifecycle()
     val shownChallengeIds = backStack.mapNotNull { entry ->
         runCatching { entry.toRoute<Route.WebView>() }.getOrNull()?.challengeId
     }.toSet()
 
     val pendingChallenges by challengeManager.pendingChallenges.collectAsStateWithLifecycle()
-    val nextChallenge = pendingChallenges.firstOrNull { it.id !in shownChallengeIds }
+
+    // A screen already exists for a challenge that is STILL pending — so the user is looking at
+    // (or has left open) live work, and nothing new should be pushed on top of it.
+    val liveChallengeOnStack = pendingChallenges.any { it.id in shownChallengeIds }
+
+    val nextChallenge = when {
+        liveChallengeOnStack -> null
+        else -> pendingChallenges.firstOrNull { it.id !in shownChallengeIds }
+    }
 
     LaunchedEffect(nextChallenge?.id) {
         if (nextChallenge != null) {
