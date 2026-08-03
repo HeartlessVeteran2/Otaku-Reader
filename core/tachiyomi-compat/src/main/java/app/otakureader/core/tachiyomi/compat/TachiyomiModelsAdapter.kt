@@ -68,10 +68,19 @@ object TachiyomiModelsAdapter {
     }
 
     /**
-     * Convert Tachiyomi SPage to Otaku Reader Page
+     * Convert Tachiyomi SPage to Otaku Reader Page.
+     *
+     * This used to take a `chapterId`, derived by the caller from `chapter.hashCode()`, and then
+     * ignore it — [app.otakureader.sourceapi.Page] has no id field at all. The suppression that
+     * silenced the unused parameter is gone with it: both remaining parameters are used, so the
+     * warning is doing its job again rather than being pre-emptively muted.
+     *
+     * Worth recording because the dead parameter read as a live bug. `hashCode()` is unstable
+     * across processes, so a page id derived from it would have been genuinely broken — but no
+     * page id was ever derived from it. Deleting the parameter is the fix; making the hash stable
+     * would have preserved a value nobody reads.
      */
-    @Suppress("UnusedParameter")
-    fun toPage(sPage: eu.kanade.tachiyomi.source.model.Page, chapterId: Long, index: Int): app.otakureader.sourceapi.Page {
+    fun toPage(sPage: eu.kanade.tachiyomi.source.model.Page, index: Int): app.otakureader.sourceapi.Page {
         return app.otakureader.sourceapi.Page(
             index = index,
             url = sPage.imageUrl ?: sPage.url,
@@ -82,9 +91,9 @@ object TachiyomiModelsAdapter {
     /**
      * Convert list of SPage to list of Page
      */
-    fun toPageList(sPages: List<eu.kanade.tachiyomi.source.model.Page>, chapterId: Long): List<app.otakureader.sourceapi.Page> {
+    fun toPageList(sPages: List<eu.kanade.tachiyomi.source.model.Page>): List<app.otakureader.sourceapi.Page> {
         return sPages.mapIndexed { index, sPage ->
-            toPage(sPage, chapterId, index)
+            toPage(sPage, index)
         }
     }
 
