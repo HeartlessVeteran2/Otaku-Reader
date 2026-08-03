@@ -38,8 +38,23 @@ import app.otakureader.core.extension.domain.model.Extension
  */
 data class JsExtensionFetch(
     val extensions: List<Extension>,
-    /** True when at least one repository actually served a JavaScript index. */
+    /**
+     * True when at least one repository served an index that could actually be **read**.
+     *
+     * A body that arrives but cannot be parsed counts as false, and that is the honest reading:
+     * an unparseable index yields no sources, exactly like an absent one, so it cannot be
+     * treated as evidence that anything worked. [firstFailure] is what keeps that from being
+     * lossy — the reason is carried rather than flattened into a boolean.
+     */
     val servedAnyIndex: Boolean,
+    /**
+     * The first per-repository failure, kept for diagnosis.
+     *
+     * Without it a JavaScript-only repository with a malformed index reports whatever its
+     * *APK* endpoint said — a 404 on `index.min.json`, for a user who has no APK sources and
+     * cannot act on that. The real problem never reaches them.
+     */
+    val firstFailure: Throwable? = null,
 )
 
 interface JsExtensionBackend {

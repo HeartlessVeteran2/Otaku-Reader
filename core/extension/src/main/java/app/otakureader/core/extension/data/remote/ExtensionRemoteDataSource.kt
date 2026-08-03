@@ -292,6 +292,11 @@ class ExtensionRemoteDataSourceImpl(
                     )
                     // Preserve the other repos' errors for debugging.
                     failures.drop(1).forEach { (_, error) -> exception.addSuppressed(error) }
+                    // And the JavaScript side's, which is the one that matters for a
+                    // JavaScript-only repository: without it the user is shown a 404 on an APK
+                    // index they never had, while the real fault — a malformed js/index.json —
+                    // goes unmentioned.
+                    jsFetch?.firstFailure?.let { exception.addSuppressed(it) }
                     return@withContext Result.failure(exception)
                 }
 

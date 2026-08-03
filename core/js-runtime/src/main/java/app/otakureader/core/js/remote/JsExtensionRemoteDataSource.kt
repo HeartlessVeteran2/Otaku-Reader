@@ -37,7 +37,12 @@ internal data class JsExtensionDto(
     val iconUrl: String? = null,
     val isNsfw: Boolean = false,
     val hasCloudflare: Boolean = false,
-    /** `manga` or `novel`. Novels become readable in Stage 7; they list correctly from now. */
+    /**
+     * `manga`, `novel`, or `anime` in the wild.
+     *
+     * Only `manga` entries are surfaced today — see the filter in `fetchIndex`. Absent means
+     * manga, which is what the overwhelming majority of index entries omit it for.
+     */
     val itemType: String = ITEM_TYPE_MANGA,
 ) {
     internal companion object {
@@ -132,6 +137,7 @@ class JsExtensionRemoteDataSource @Inject constructor(
      */
     suspend fun fetchAvailable(repoUrls: List<String>): JsExtensionFetch = withContext(Dispatchers.IO) {
         var servedAnyIndex = false
+        var firstFailure: Throwable? = null
 
         val extensions = repoUrls.flatMap { rawUrl ->
             val baseUrl = rawUrl.trimEnd('/')
@@ -140,6 +146,10 @@ class JsExtensionRemoteDataSource @Inject constructor(
                 .onFailure { error ->
                     if (error is CancellationException) throw error
                     android.util.Log.w("JsExtensionRemoteDS", "No JS index at $baseUrl: ${error.message}")
+                    // Kept, not just logged. A malformed index on a JavaScript-only repository
+                    // would otherwise surface as its APK endpoint's 404 — an error about a
+                    // backend the user is not using and cannot act on.
+                    if (firstFailure == null) firstFailure = error
                 }
                 .getOrDefault(emptyList())
         }
@@ -152,6 +162,7 @@ class JsExtensionRemoteDataSource @Inject constructor(
                 .values
                 .map { candidates -> candidates.maxByOrNull { it.versionCode } ?: candidates.first() },
             servedAnyIndex = servedAnyIndex,
+            firstFailure = firstFailure,
         )
     }
 
@@ -171,7 +182,18 @@ class JsExtensionRemoteDataSource @Inject constructor(
             responseBody.readBounded(MAX_INDEX_BYTES, "Index at $indexUrl")
         }
 
-        return json.decodeFromString<List<JsExtensionDto>>(body).map { it.toDomain(baseUrl) }
+        return json.decodeFromString<List<JsExtensionDto>>(body)
+            // Only manga sources are surfaced. `JsSource` implements the manga contract, so a
+            // novel or anime entry would install cleanly and then fail on every read — an entry
+            // the user can add but cannot use, which is worse than one that never appeared.
+            //
+            // Filtering here rather than carrying the type through and blocking installation
+            // later is the smaller, more honest change: there is no half-working state to
+            // explain, and nothing is lost, because these sources could not work anyway. Stage 7
+            // adds the novel runtime and relaxes this filter in the same change that makes the
+            // entries usable.
+            .filter { it.itemType.equals(JsExtensionDto.ITEM_TYPE_MANGA, ignoreCase = true) }
+            .map { it.toDomain(baseUrl) }
     }
 
     /**

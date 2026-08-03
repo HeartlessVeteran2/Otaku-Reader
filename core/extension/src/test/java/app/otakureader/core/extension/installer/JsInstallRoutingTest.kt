@@ -151,6 +151,14 @@ class JsInstallRoutingTest {
 
         assertTrue(result.isFailure)
         coVerify(exactly = 0) { jsBackend.uninstall(any()) }
+        // The row must not be left at ERROR. ERROR is transient — the next refresh does not
+        // count those rows as installed and replaces them with AVAILABLE ones, which would put
+        // the script live in Browse while the extension screen said it was not installed, with
+        // no uninstall button anywhere. Restoring INSTALLED makes the row describe reality:
+        // something really is installed, because the new script is on disk and registered.
+        coVerify(exactly = 1) {
+            repository.setExtensionStatus("already-installed", InstallStatus.INSTALLED)
+        }
     }
 
     /**

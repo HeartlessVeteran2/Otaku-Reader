@@ -266,30 +266,47 @@ class ExtensionInstaller(
      * preferences that routinely hold their login for that site. The cure would be worse than
      * the failure it followed.
      *
-     * So the question asked is the one that actually matters: after the failure, is there still
-     * a row that can reach this script? Not "was this an update?", which is a proxy for it. A
-     * surviving row means uninstall works and the script must be left alone; no row means it is
-     * unreachable and must go.
+     * The rule both branches follow is simply **make the row describe reality**:
      *
-     * Residual, stated rather than papered over: when a row survives an update failure it still
-     * describes the *previous* version while the new script is on disk. The source works — the
-     * new script is a valid one — and the next update check reconciles the version. Restoring
-     * the old script instead would mean snapshotting every script before every update, which is
-     * a lot of machinery for a stale version number.
+     * - **No row existed.** Nothing installed this before, and the failed write left nothing
+     *   behind (`updateStatus` on an absent row is a no-op). The script is unreachable, so it
+     *   goes.
+     * - **A row existed.** Something *is* installed — the new script is on disk and registered,
+     *   and it is a valid script. So the row is restored to `INSTALLED`, which is the honest
+     *   status, rather than left at the `ERROR` the repository set on its way out.
+     *
+     * Restoring the status is not cosmetic. `ERROR` is deliberately transient: the next
+     * `refreshAvailableExtensions` does not count `ERROR` rows as installed and replaces them
+     * with fresh `AVAILABLE` ones. The script would then be live in Browse and registered with
+     * the engine while the extension screen listed it as not installed — no uninstall button
+     * anywhere, which is the orphan this method exists to prevent, just reached a slower way.
+     *
+     * The same principle produced the opposite answer in [finalizeRemoval], which sets `ERROR`
+     * after a failed *delete*: there the extension really is gone, so letting the row lapse to
+     * available is right. Here it really is present.
+     *
+     * Residual, stated rather than papered over: a restored row still names the *previous*
+     * version while the new script is on disk. The source works, and the next update check
+     * reconciles the version. Snapshotting every script before every update to restore the old
+     * one would be a lot of machinery for a stale version number.
      */
     private suspend fun rollBackOrphanedScript(
         extension: Extension,
         backend: JsExtensionBackend,
         error: Throwable,
     ) {
-        val reachable = runCatching { repository.getExtension(extension.pkgName) }.getOrNull() != null
+        val existingRow = runCatching { repository.getExtension(extension.pkgName) }.getOrNull()
 
-        if (!reachable) {
+        if (existingRow == null) {
             // The cleanup's own failure must not replace the error that caused all this — that
             // would send the user looking in the wrong place. It is attached instead, so an
             // orphan that could not be cleaned up is still diagnosable from the reported error.
             backend.uninstall(extension.pkgName).onFailure { cleanupError ->
                 runCatching { error.addSuppressed(cleanupError) }
+            }
+        } else {
+            runCatching {
+                repository.setExtensionStatus(extension.pkgName, InstallStatus.INSTALLED)
             }
         }
 

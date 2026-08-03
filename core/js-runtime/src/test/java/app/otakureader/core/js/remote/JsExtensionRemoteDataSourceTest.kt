@@ -114,6 +114,37 @@ class JsExtensionRemoteDataSourceTest {
         assertEquals("/js/index.json", server.takeRequest().path)
     }
 
+    /**
+     * Novel and anime entries are not offered.
+     *
+     * `JsSource` implements the manga contract, so one of these would install cleanly and then
+     * fail on every read — an entry the user can add but cannot use, which is worse than one
+     * that never appeared. Stage 7 adds the novel runtime and relaxes the filter in the same
+     * change that makes the entries usable.
+     */
+    @Test
+    fun `only manga entries are offered`() = runTest {
+        server.enqueue(
+            MockResponse().setBody(
+                """
+                [
+                  {"id":"m","name":"Manga","baseUrl":"https://a.test","lang":"en",
+                   "sourceCodeUrl":"js/m.js"},
+                  {"id":"n","name":"Novel","baseUrl":"https://b.test","lang":"en",
+                   "sourceCodeUrl":"js/n.js","itemType":"novel"},
+                  {"id":"a","name":"Anime","baseUrl":"https://c.test","lang":"en",
+                   "sourceCodeUrl":"js/a.js","itemType":"anime"}
+                ]
+                """.trimIndent()
+            )
+        )
+
+        val extensions = dataSource.fetchAvailable(listOf(baseUrl())).extensions
+
+        // The entry with no itemType at all must survive — most real indexes omit it.
+        assertEquals(listOf("m"), extensions.map { it.pkgName })
+    }
+
     @Test
     fun `a repository with no javascript index contributes nothing without failing`() = runTest {
         server.enqueue(MockResponse().setResponseCode(404))
