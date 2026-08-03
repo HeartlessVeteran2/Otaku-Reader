@@ -131,21 +131,32 @@ class SourceRepositoryImpl @Inject constructor(
     }
 
     /**
-     * Cached browse results, per source.
+     * One generation of cached browse results.
      *
-     * The outer map is bounded in practice — its keys are installed source ids, and entries are
-     * dropped on refresh and on uninstall. The inner maps were the unbounded ones, and
-     * [searchCache] worst of all: keyed by (query, page), it retained a full page of results for
-     * every distinct search string the user had ever typed, for the lifetime of the process.
-     * Nothing evicted them, so browsing was a slow memory leak that grew with use.
+     * Invalidation swaps this whole object rather than clearing the maps in place, and that is
+     * what makes it correct rather than merely tidy. A fetch captures the instance it started
+     * against and writes its result back into *that* instance. If an invalidation lands while the
+     * network call is in flight, the write goes into an object nothing reads any more, instead of
+     * resurrecting pre-refresh data under a source id that has just been rebuilt.
      *
-     * [BoundedCache] evicts least-recently-*used*, which matters more than the bound itself: a
-     * reader paging through one source keeps their pages warm while a source they glanced at
-     * earlier falls out.
+     * Clearing in place cannot express that: `remove` then `computeIfAbsent` is a read-then-act
+     * pair across a suspension point, so the late write recreates the map it was supposed to
+     * have been erased from. Comparing object identity removes the window entirely rather than
+     * narrowing it — no lock spanning the network call, and nothing to get the ordering wrong.
+     *
+     * The inner maps are bounded because they were the unbounded ones. [search] worst of all:
+     * keyed by (query, page), it retained a full page of results for every distinct string the
+     * user had ever typed, for the lifetime of the process.
      */
-    private val popularMangaCache = ConcurrentHashMap<String, BoundedCache<Int, MangaPage>>()
-    private val latestMangaCache = ConcurrentHashMap<String, BoundedCache<Int, MangaPage>>()
-    private val searchCache = ConcurrentHashMap<String, BoundedCache<Pair<String, Int>, MangaPage>>()
+    private class BrowseCaches {
+        val popular = ConcurrentHashMap<String, BoundedCache<Int, MangaPage>>()
+        val latest = ConcurrentHashMap<String, BoundedCache<Int, MangaPage>>()
+        val search = ConcurrentHashMap<String, BoundedCache<Pair<String, Int>, MangaPage>>()
+    }
+
+    /** Volatile so a swap by [clearCaches] is visible to threads already reading it. */
+    @Volatile
+    private var browseCaches = BrowseCaches()
 
     init {
         // Load all installed extensions on initialization
@@ -183,7 +194,7 @@ class SourceRepositoryImpl @Inject constructor(
         return withContext(Dispatchers.IO) {
             // Check source health before attempting request; still allow cached data
             if (!healthMonitor.isSourceHealthy(sourceId)) {
-                popularMangaCache[sourceId]?.get(page)?.let {
+                browseCaches.popular[sourceId]?.get(page)?.let {
                     return@withContext Result.success(it)
                 }
                 val message = healthMonitor.getHealthMessage(sourceId) ?: "Source is temporarily unavailable"
@@ -195,14 +206,16 @@ class SourceRepositoryImpl @Inject constructor(
                     ?: return@withContext Result.failure(IllegalArgumentException("Source not found: $sourceId"))
 
                 // Check cache first
-                popularMangaCache[sourceId]?.get(page)?.let {
+                browseCaches.popular[sourceId]?.get(page)?.let {
                     return@withContext Result.success(it)
                 }
 
+                // Captured before the call: the result belongs to the generation that was
+                // current when the request started, not to whatever replaced it meanwhile.
+                val caches = browseCaches
                 val mangaPage = source.fetchPopularManga(page)
 
-                // Cache the result
-                popularMangaCache.computeIfAbsent(sourceId) { BoundedCache(MAX_CACHED_PAGES_PER_SOURCE) }[page] = mangaPage
+                caches.popular.computeIfAbsent(sourceId) { BoundedCache(MAX_CACHED_PAGES_PER_SOURCE) }[page] = mangaPage
 
                 // Record success
                 healthMonitor.recordSuccess(sourceId)
@@ -224,7 +237,7 @@ class SourceRepositoryImpl @Inject constructor(
         return withContext(Dispatchers.IO) {
             // Check source health before attempting request; still allow cached data
             if (!healthMonitor.isSourceHealthy(sourceId)) {
-                latestMangaCache[sourceId]?.get(page)?.let {
+                browseCaches.latest[sourceId]?.get(page)?.let {
                     return@withContext Result.success(it)
                 }
                 val message = healthMonitor.getHealthMessage(sourceId) ?: "Source is temporarily unavailable"
@@ -236,14 +249,14 @@ class SourceRepositoryImpl @Inject constructor(
                     ?: return@withContext Result.failure(IllegalArgumentException("Source not found: $sourceId"))
 
                 // Check cache first
-                latestMangaCache[sourceId]?.get(page)?.let {
+                browseCaches.latest[sourceId]?.get(page)?.let {
                     return@withContext Result.success(it)
                 }
 
+                val caches = browseCaches
                 val mangaPage = source.fetchLatestUpdates(page)
 
-                // Cache the result
-                latestMangaCache.computeIfAbsent(sourceId) { BoundedCache(MAX_CACHED_PAGES_PER_SOURCE) }[page] = mangaPage
+                caches.latest.computeIfAbsent(sourceId) { BoundedCache(MAX_CACHED_PAGES_PER_SOURCE) }[page] = mangaPage
 
                 // Record success
                 healthMonitor.recordSuccess(sourceId)
@@ -287,11 +300,12 @@ class SourceRepositoryImpl @Inject constructor(
                 // Use cache when no filters are active (all at defaults)
                 if (!filtersAreActive) {
                     val cacheKey = query to page
-                    searchCache[sourceId]?.get(cacheKey)?.let {
+                    browseCaches.search[sourceId]?.get(cacheKey)?.let {
                         return@withContext Result.success(it)
                     }
                 }
 
+                val caches = browseCaches
                 val mangaPage = source.fetchSearchManga(
                     page = page,
                     query = query,
@@ -301,7 +315,7 @@ class SourceRepositoryImpl @Inject constructor(
                 // Cache only when no filters are active
                 if (!filtersAreActive) {
                     val cacheKey = query to page
-                    searchCache.computeIfAbsent(sourceId) { BoundedCache(MAX_CACHED_SEARCHES_PER_SOURCE) }[cacheKey] = mangaPage
+                    caches.search.computeIfAbsent(sourceId) { BoundedCache(MAX_CACHED_SEARCHES_PER_SOURCE) }[cacheKey] = mangaPage
                 }
 
                 // Record success
@@ -616,18 +630,19 @@ class SourceRepositoryImpl @Inject constructor(
      * Clear all caches
      */
     fun clearCaches() {
-        popularMangaCache.clear()
-        latestMangaCache.clear()
-        searchCache.clear()
+        // Swap, don't clear. A fetch already in flight holds the old instance and will write its
+        // now-stale result there, where nothing will read it.
+        browseCaches = BrowseCaches()
     }
 
     /**
      * Clear cache for a specific source
      */
     fun clearSourceCache(sourceId: String) {
-        popularMangaCache.remove(sourceId)
-        latestMangaCache.remove(sourceId)
-        searchCache.remove(sourceId)
+        val caches = browseCaches
+        caches.popular.remove(sourceId)
+        caches.latest.remove(sourceId)
+        caches.search.remove(sourceId)
     }
 }
 
