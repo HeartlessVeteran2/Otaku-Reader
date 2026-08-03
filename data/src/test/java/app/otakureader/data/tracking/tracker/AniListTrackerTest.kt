@@ -325,8 +325,8 @@ class AniListTrackerTest {
 
         assertNotNull(capturedQuery)
         // Unquoted: the old assertion expected the string "999", which is exactly the
-// mis-typing AniList rejected. `content` is "999" either way, so it is the
-// primitive's isString flag that actually distinguishes them.
+        // mis-typing AniList rejected. `content` is "999" either way, so it is the
+        // primitive's isString flag that actually distinguishes them.
         val mediaId = capturedQuery!!.variables["mediaId"]!!.jsonPrimitive
         assertEquals("999", mediaId.content)
         assertEquals(false, mediaId.isString)
