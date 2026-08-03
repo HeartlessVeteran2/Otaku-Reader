@@ -367,6 +367,31 @@ class AniListTrackerTest {
         assertEquals("Invalid token", thrown!!.message)
     }
 
+    /**
+     * GraphQL is not all-or-nothing.
+     *
+     * A response can carry `data` *and* `errors` when one resolver fails and its siblings
+     * succeed. Checking `errors` only on the `savedEntry == null` path — as the first version of
+     * this fix did — accepts that response and writes its half-filled values locally, which is
+     * the same "reported as synced when it wasn't" failure in a subtler shape.
+     */
+    @Test
+    fun `update throws on a partial response that carries both data and errors`() = runTest {
+        coEvery { api.query(any()) } returns AniListResponse(
+            data = AniListData(savedEntry = AniListMediaList(id = 7L, status = "CURRENT", score = 0f, progress = 0)),
+            errors = listOf(AniListError(message = "Failed to update progress"))
+        )
+
+        val thrown = try {
+            tracker.update(sampleEntry())
+            null
+        } catch (e: AniListGraphQlException) {
+            e
+        }
+
+        assertEquals("Failed to update progress", thrown!!.message)
+    }
+
     @Test
     fun `search throws rather than reporting a rejected query as no results`() = runTest {
         coEvery { api.query(any()) } returns AniListResponse(

@@ -229,17 +229,20 @@ class AniListTracker(
             put("progress", entry.lastChapterRead.toInt())
         }
         val response = api.query(AniListGraphQlQuery(gqlMutation, variables))
+        // Errors first, exactly as in `search`. GraphQL is not all-or-nothing: a response may
+        // carry `data` *and* `errors` when one resolver fails and its siblings succeed, so
+        // checking errors only where `savedEntry` is null would accept a partial write and
+        // persist its half-filled values. Any error at all means this push is not something to
+        // report as done.
+        response.errors.firstOrNull()?.let { throw AniListGraphQlException(it.message) }
         // No confirmed entry means the mutation did not take, and this must not return normally.
-        // GraphQL reports a rejected document with **HTTP 200** and `data: null`, so Retrofit
-        // throws nothing and the exception-propagation fix above never fires for this case —
-        // an unauthenticated token, a media id AniList doesn't have, a variable it won't accept.
-        // Returning `entry` here would have been the very behaviour this change set out to
-        // remove, one branch over: the caller writes `syncStatus = SYNCED` on the next line.
+        // GraphQL reports a rejected document with **HTTP 200**, so Retrofit throws nothing and
+        // the exception-propagation fix above never fires for this case — an unauthenticated
+        // token, a media id AniList doesn't have, a variable it won't accept. Returning `entry`
+        // here would have been the very behaviour this change set out to remove, one branch over:
+        // the caller writes `syncStatus = SYNCED` on the next line.
         val saved = response.data?.savedEntry
-            ?: throw AniListGraphQlException(
-                response.errors.firstOrNull()?.message
-                    ?: "AniList did not confirm the update for media ${entry.remoteId}"
-            )
+            ?: throw AniListGraphQlException("AniList did not confirm the update for media ${entry.remoteId}")
         // Prefer what AniList confirmed over what was sent. The mutation already asked for these
         // fields and then discarded them, so a value the server clamped or normalised — a score
         // above the user's maximum, progress past the final chapter — was written back locally as
