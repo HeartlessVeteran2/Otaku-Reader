@@ -161,11 +161,56 @@ class AniListRateLimitInterceptorTest {
     }
 
     /**
-     * An interrupt during the wait must fail the call, not be swallowed.
+     * The test this file was missing, and the reason the wait is polled rather than slept.
      *
-     * Interrupting the thread is how a cancelled call unblocks, so continuing to sleep — or
-     * retrying afterwards — would leave a sync nobody is waiting on holding a dispatcher thread
-     * for the rest of the rate-limit window.
+     * `Call.cancel()` — which is also what a cancelled coroutine triggers through Retrofit's
+     * suspend adapter — cancels the underlying exchange and sets a flag. It does **not** interrupt
+     * the thread running the interceptor chain, and there is no I/O inside a sleep for OkHttp to
+     * notice the cancellation at. So a single `Thread.sleep(waitMs)` would hold a dispatcher
+     * thread for the full window after the caller had already walked away.
+     *
+     * The first version of this interceptor did exactly that, and the interrupt test below passed
+     * anyway — because it interrupted the thread itself, which is not what cancelling does. The
+     * assertion here is the elapsed time: it must be nowhere near the 30 seconds requested.
+     */
+    @Test
+    fun `cancelling the call ends the wait promptly rather than at the deadline`() {
+        server.enqueue(MockResponse().setResponseCode(429).setHeader("Retry-After", "30"))
+
+        val call = client.newCall(Request.Builder().url(server.url("/graphql")).build())
+        val started = CountDownLatch(1)
+        var thrown: Throwable? = null
+        var elapsed = 0L
+
+        val worker = Thread {
+            started.countDown()
+            elapsed = measureElapsed {
+                try {
+                    call.execute()
+                } catch (e: Throwable) {
+                    thrown = e
+                }
+            }
+        }
+        worker.start()
+        started.await(5, TimeUnit.SECONDS)
+        // Let the call reach the wait, then cancel it the way OkHttp's own machinery does.
+        Thread.sleep(500)
+        call.cancel()
+        worker.join(TimeUnit.SECONDS.toMillis(10))
+
+        assertNotNull("expected the cancelled call to fail", thrown)
+        assertTrue("expected an IOException, got $thrown", thrown is IOException)
+        // Generous bound: the point is that it is not ~30_000.
+        assertTrue("waited ${elapsed}ms after cancel", elapsed < 5_000L)
+    }
+
+    /**
+     * A direct interrupt is a different thing from an OkHttp cancel, and is still honoured.
+     *
+     * Kept because callers can interrupt a thread themselves, but note what it does *not* prove:
+     * this test drives the interrupt itself, so it says nothing about cancellation. That gap is
+     * what the test above covers.
      */
     @Test
     fun `an interrupt while waiting fails the call and preserves the interrupt flag`() {

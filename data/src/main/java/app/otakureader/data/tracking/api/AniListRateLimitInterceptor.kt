@@ -36,13 +36,21 @@ import java.io.IOException
  * Retrofit instance only — `@TrackerOkHttp` is shared by MAL, Kitsu, Shikimori and MangaUpdates,
  * whose rate limits and headers differ.
  *
- * ### Blocking is correct here
+ * ### Blocking is correct here, but a plain sleep is not
  *
- * `Thread.sleep` inside an interceptor blocks an OkHttp dispatcher thread, which is the intended
- * shape: the call is already suspended from the coroutine's point of view, and OkHttp's thread
- * pool exists to be occupied by in-flight calls. Interrupting the thread — which is how OkHttp
- * cancels a call — surfaces as an [IOException] rather than being swallowed, so a cancelled sync
- * does not sit here waiting out a limit nobody is waiting on any more.
+ * Blocking an OkHttp dispatcher thread is the intended shape: the call is already suspended from
+ * the coroutine's point of view, and the thread pool exists to be occupied by in-flight calls.
+ *
+ * The wait still cannot be a single `Thread.sleep(waitMs)`, because **`Call.cancel()` does not
+ * interrupt the thread running the interceptor chain** — it cancels the underlying exchange, and
+ * OkHttp notices at the next I/O operation. There is no I/O inside a sleep. So a cancelled call
+ * (which is also what a cancelled coroutine triggers, via Retrofit's suspend adapter) would sit
+ * here for the rest of the wait — up to [MAX_WAIT_MS] — holding a dispatcher thread for work
+ * nobody is waiting on any more.
+ *
+ * The wait is therefore split into [POLL_INTERVAL_MS] slices with a cancellation check between
+ * them, so cancelling is noticed within that interval instead of at the end. Thread interruption
+ * is honoured too, since a caller may still interrupt directly.
  */
 class AniListRateLimitInterceptor : Interceptor {
 
@@ -58,20 +66,44 @@ class AniListRateLimitInterceptor : Interceptor {
             // request and shows up much later as connection starvation.
             response.close()
 
-            try {
-                Thread.sleep(waitMs)
-            } catch (e: InterruptedException) {
-                // Restore the flag the catch cleared, so anything above this still sees the
-                // cancellation, then fail the call rather than retrying something nobody awaits.
-                Thread.currentThread().interrupt()
-                throw IOException("Interrupted while waiting out AniList's rate limit", e)
-            }
+            chain.awaitCancellably(waitMs)
 
             attempt++
             response = chain.proceed(chain.request())
         }
 
         return response
+    }
+
+    /**
+     * Sleep for [waitMs], giving up early if the call is cancelled.
+     *
+     * Cancellation is checked between short slices rather than waited on, because there is nothing
+     * to wait *on*: `Call.cancel()` sets a flag and cancels the exchange, and a thread inside
+     * `Thread.sleep` never observes either. Polling is the mechanism OkHttp's own contract leaves
+     * available — the alternative, a plain sleep, means a cancelled request keeps a dispatcher
+     * thread for up to [MAX_WAIT_MS].
+     *
+     * The deadline is computed once from a monotonic clock, so the total wait is [waitMs] no
+     * matter how the slices land — accumulating `sleep` calls would drift longer with each one.
+     */
+    private fun Interceptor.Chain.awaitCancellably(waitMs: Long) {
+        val deadlineNanos = System.nanoTime() + waitMs * NANOS_PER_MILLI
+        while (true) {
+            if (call().isCanceled()) {
+                throw IOException("Canceled while waiting out AniList's rate limit")
+            }
+            val remainingMs = (deadlineNanos - System.nanoTime()) / NANOS_PER_MILLI
+            if (remainingMs <= 0) return
+            try {
+                Thread.sleep(minOf(POLL_INTERVAL_MS, remainingMs))
+            } catch (e: InterruptedException) {
+                // A direct interrupt, which is a different thing from an OkHttp cancel. Restore
+                // the flag `catch` cleared so frames above still see it, then fail the call.
+                Thread.currentThread().interrupt()
+                throw IOException("Interrupted while waiting out AniList's rate limit", e)
+            }
+        }
     }
 
     /**
@@ -103,6 +135,15 @@ class AniListRateLimitInterceptor : Interceptor {
         const val HEADER_RATELIMIT_RESET = "X-RateLimit-Reset"
 
         const val MILLIS_PER_SECOND = 1_000L
+        const val NANOS_PER_MILLI = 1_000_000L
+
+        /**
+         * How often the wait checks for cancellation.
+         *
+         * Short enough that a cancelled sync releases its thread promptly, long enough that a
+         * 90-second wait costs at most a few hundred flag reads rather than a spin.
+         */
+        const val POLL_INTERVAL_MS = 250L
 
         /**
          * AniList's window is a minute, so one retry normally suffices and a second covers a
