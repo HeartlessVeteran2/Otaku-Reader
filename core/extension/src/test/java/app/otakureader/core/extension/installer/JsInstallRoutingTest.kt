@@ -106,6 +106,8 @@ class JsInstallRoutingTest {
         val repository = mockk<ExtensionRepository>(relaxed = true) {
             coEvery { installExtension(any<Extension>(), any()) } returns
                 Result.failure(java.io.IOException("database is locked"))
+            // No row survives the failure, so nothing can reach the script.
+            coEvery { getExtension("orphan-risk") } returns null
         }
 
         val result = ExtensionInstaller(context, repository, loader, remoteDataSource, jsBackend)
@@ -117,6 +119,38 @@ class JsInstallRoutingTest {
         coVerify(exactly = 1) { jsBackend.uninstall("orphan-risk") }
         // The caller is owed the error that actually caused the failure, not one from cleanup.
         assertTrue(result.exceptionOrNull() is java.io.IOException)
+    }
+
+    /**
+     * A failed *update* must not destroy the source it was updating.
+     *
+     * `backend.install` has already replaced the script of something the user had working. An
+     * unconditional rollback would uninstall it outright — deleting the source and the stored
+     * preferences that routinely hold their login for that site. The row survives the failure
+     * here, so the script is still reachable by uninstall and must be left alone.
+     *
+     * This is the case the first version of the rollback got wrong: it fixed the orphan and
+     * introduced a worse failure one branch over.
+     */
+    @Test
+    fun `a failed update does not uninstall the source it was updating`() = runTest {
+        val subject = extension("already-installed", isJavaScript = true)
+        val jsBackend = mockk<JsExtensionBackend>(relaxed = true) {
+            coEvery { install(subject) } returns Result.success(Unit)
+        }
+        val repository = mockk<ExtensionRepository>(relaxed = true) {
+            coEvery { installExtension(any<Extension>(), any()) } returns
+                Result.failure(java.io.IOException("database is locked"))
+            // The pre-existing row survives, so uninstall can still find the script.
+            coEvery { getExtension("already-installed") } returns
+                subject.copy(status = InstallStatus.INSTALLED)
+        }
+
+        val result = ExtensionInstaller(context, repository, loader, remoteDataSource, jsBackend)
+            .downloadAndInstall(subject)
+
+        assertTrue(result.isFailure)
+        coVerify(exactly = 0) { jsBackend.uninstall(any()) }
     }
 
     /**

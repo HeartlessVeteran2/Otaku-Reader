@@ -1,5 +1,6 @@
 package app.otakureader.core.js.remote
 
+import app.otakureader.core.extension.domain.backend.JsExtensionFetch
 import app.otakureader.core.extension.domain.model.Extension
 import app.otakureader.core.extension.domain.model.ExtensionSource
 import app.otakureader.core.extension.domain.model.InstallStatus
@@ -10,6 +11,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.ResponseBody
 import java.security.MessageDigest
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -61,8 +63,34 @@ internal data class JsExtensionDto(
  */
 @Singleton
 class JsExtensionRemoteDataSource @Inject constructor(
-    private val httpClient: OkHttpClient,
+    httpClient: OkHttpClient,
 ) {
+
+    /**
+     * The shared client, with cross-scheme redirects switched off.
+     *
+     * Checking the scheme of the URL we *ask* for is not enough on its own. OkHttp follows
+     * redirects by default, and `followSslRedirects` defaults to true — so an `https://` script
+     * URL that 302s to `http://` would be fetched in plaintext, and anyone on the network path
+     * could replace the JavaScript that is about to be executed. The scheme check would have
+     * passed while the guarantee it stands for was gone.
+     *
+     * `followSslRedirects(false)` makes OkHttp refuse to follow a redirect that changes scheme in
+     * either direction; the 3xx comes back as-is and the `isSuccessful` check below rejects it.
+     * Same-scheme redirects still work, which matters because repositories routinely serve
+     * artifacts from a CDN on another host.
+     *
+     * Doing it this way rather than disabling redirects and walking them by hand is deliberate.
+     * `JsHttpBridge` took the manual route and silently lost the rules OkHttp applies for free —
+     * stripping `Authorization` across an origin change, turning 301/302/303 POSTs into bodyless
+     * GETs. One builder flag keeps `RetryAndFollowUpInterceptor`'s semantics intact.
+     *
+     * Derived from the injected client rather than built fresh, so certificate pinning, the
+     * cookie jar, rate limiting and the connection pool all still apply.
+     */
+    private val httpClient: OkHttpClient = httpClient.newBuilder()
+        .followSslRedirects(false)
+        .build()
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -81,6 +109,15 @@ class JsExtensionRemoteDataSource @Inject constructor(
          */
         const val MAX_SCRIPT_BYTES = 2L * 1024 * 1024
 
+        /**
+         * Ceiling on a repository index.
+         *
+         * Larger than the script cap because one index describes every source a repository
+         * offers — Keiyoushi's APK equivalent is around a megabyte. Still bounded, for the same
+         * reason: the host is arbitrary and `string()` would buffer whatever it returned.
+         */
+        const val MAX_INDEX_BYTES = 8L * 1024 * 1024
+
         /** Only https:// is accepted, matching the guard `ExtensionInstaller` applies to APKs. */
         const val HTTPS_PREFIX = "https://"
     }
@@ -93,21 +130,29 @@ class JsExtensionRemoteDataSource @Inject constructor(
      * JavaScript index is the common case, not a failure, so it contributes nothing and is not
      * reported.
      */
-    suspend fun fetchAvailable(repoUrls: List<String>): List<Extension> = withContext(Dispatchers.IO) {
-        repoUrls.flatMap { rawUrl ->
+    suspend fun fetchAvailable(repoUrls: List<String>): JsExtensionFetch = withContext(Dispatchers.IO) {
+        var servedAnyIndex = false
+
+        val extensions = repoUrls.flatMap { rawUrl ->
             val baseUrl = rawUrl.trimEnd('/')
             runCatching { fetchIndex(baseUrl) }
+                .onSuccess { servedAnyIndex = true }
                 .onFailure { error ->
                     if (error is CancellationException) throw error
                     android.util.Log.w("JsExtensionRemoteDS", "No JS index at $baseUrl: ${error.message}")
                 }
                 .getOrDefault(emptyList())
         }
-            // Two repositories can offer the same source; keep the newer build rather than
-            // whichever happened to be fetched last.
-            .groupBy { it.pkgName }
-            .values
-            .map { candidates -> candidates.maxByOrNull { it.versionCode } ?: candidates.first() }
+
+        JsExtensionFetch(
+            extensions = extensions
+                // Two repositories can offer the same source; keep the newer build rather than
+                // whichever happened to be fetched last.
+                .groupBy { it.pkgName }
+                .values
+                .map { candidates -> candidates.maxByOrNull { it.versionCode } ?: candidates.first() },
+            servedAnyIndex = servedAnyIndex,
+        )
     }
 
     private fun fetchIndex(baseUrl: String): List<Extension> {
@@ -118,7 +163,12 @@ class JsExtensionRemoteDataSource @Inject constructor(
             if (!response.isSuccessful) {
                 throw JsExtensionFetchException("HTTP ${response.code} fetching $indexUrl")
             }
-            response.body?.string() ?: throw JsExtensionFetchException("Empty index body from $indexUrl")
+            val responseBody = response.body
+                ?: throw JsExtensionFetchException("Empty index body from $indexUrl")
+            // Bounded like the script read. A repository is an arbitrary remote host, and
+            // `string()` buffers whatever it sends — so an index alone could exhaust memory
+            // during source discovery, before a single script had been downloaded.
+            responseBody.readBounded(MAX_INDEX_BYTES, "Index at $indexUrl")
         }
 
         return json.decodeFromString<List<JsExtensionDto>>(body).map { it.toDomain(baseUrl) }
@@ -140,13 +190,7 @@ class JsExtensionRemoteDataSource @Inject constructor(
                 throw JsExtensionFetchException("HTTP ${response.code} downloading $scriptUrl")
             }
             val body = response.body ?: throw JsExtensionFetchException("Empty script body from $scriptUrl")
-            val bytes = body.source().apply { request(MAX_SCRIPT_BYTES + 1) }.buffer.snapshot()
-            if (bytes.size > MAX_SCRIPT_BYTES) {
-                throw JsExtensionFetchException(
-                    "Script at $scriptUrl exceeds ${MAX_SCRIPT_BYTES / 1024} KiB"
-                )
-            }
-            bytes.utf8()
+            body.readBounded(MAX_SCRIPT_BYTES, "Script at $scriptUrl")
         }
     }
 
@@ -167,6 +211,22 @@ class JsExtensionRemoteDataSource @Inject constructor(
 
 /** Thrown when a repository index or script cannot be fetched or parsed. */
 class JsExtensionFetchException(message: String) : RuntimeException(message)
+
+/**
+ * Read a body, refusing it if it exceeds [limit].
+ *
+ * Reads one byte past the cap so an oversized body is *detected* rather than silently truncated.
+ * Truncation is the failure worth preventing in both places this is used: a half-downloaded
+ * script installs as if whole and fails somewhere inside the engine, and a half-read index
+ * either fails to parse or — worse — parses as a shorter list, quietly hiding sources.
+ */
+private fun ResponseBody.readBounded(limit: Long, what: String): String {
+    val bytes = source().apply { request(limit + 1) }.buffer.snapshot()
+    if (bytes.size > limit) {
+        throw JsExtensionFetchException("$what exceeds ${limit / 1024} KiB")
+    }
+    return bytes.utf8()
+}
 
 /**
  * Map an index entry onto the domain model.

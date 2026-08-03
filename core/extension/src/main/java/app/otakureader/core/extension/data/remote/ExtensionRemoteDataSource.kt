@@ -260,25 +260,30 @@ class ExtensionRemoteDataSourceImpl(
                 // is the exact defect that shipped in Stage 4a, where one thrown exception on
                 // the APK path silently dropped every JavaScript source. Isolation has to run
                 // in both directions or it is not isolation.
-                val jsExtensions = jsBackend
-                    ?.let { backend ->
-                        val normalized = repositories.map { normalizeRepoUrl(it) }
-                        try {
-                            backend.fetchAvailable(normalized)
-                        } catch (e: CancellationException) {
-                            throw e
-                        } catch (e: Exception) {
-                            android.util.Log.w("ExtensionRemoteDS", "JS index fetch failed: ${e.message}")
-                            emptyList()
-                        }
+                val jsFetch = jsBackend?.let { backend ->
+                    val normalized = repositories.map { normalizeRepoUrl(it) }
+                    try {
+                        backend.fetchAvailable(normalized)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        android.util.Log.w("ExtensionRemoteDS", "JS index fetch failed: ${e.message}")
+                        null
                     }
-                    .orEmpty()
+                }
+                val jsExtensions = jsFetch?.extensions.orEmpty()
 
                 // Only report failure when every repository failed and the JavaScript backend
-                // produced nothing either — a repo that responds with a legitimately empty list
-                // still counts as a success, and partial results are far more useful to the user
-                // than an empty error state.
-                if (successCount == 0 && failures.isNotEmpty() && jsExtensions.isEmpty()) {
+                // did not serve anything either — a repo that responds with a legitimately empty
+                // list still counts as a success, and partial results are far more useful to the
+                // user than an empty error state.
+                //
+                // The condition asks whether an index was *served*, not whether it produced
+                // extensions. Those differ for a JavaScript-only repository whose index is valid
+                // but empty: its APK endpoints legitimately 404, the JS list is legitimately
+                // empty, and reading emptiness as failure would show "all repositories failed"
+                // to a user whose setup is working exactly as intended.
+                if (successCount == 0 && failures.isNotEmpty() && jsFetch?.servedAnyIndex != true) {
                     val (firstUrl, firstError) = failures.first()
                     val exception = ExtensionFetchException(
                         "All ${failures.size} extension repositories failed " +

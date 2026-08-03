@@ -249,22 +249,54 @@ class ExtensionInstaller(
         // apkPath is empty rather than a path: there is no APK file to point at.
         return repository.installExtension(extension, apkPath = "")
             .onSuccess { _installationState.value = InstallationState.Success(it) }
-            .onFailure { error ->
-                // Undo the backend install. Without this the script stays on disk and
-                // registered with the engine while no row describes it — and since uninstall
-                // finds its target through the database, nothing can ever reach it again. An
-                // orphaned source that still executes is worse than a failed install.
-                //
-                // The rollback's own failure is deliberately swallowed: the caller is owed the
-                // error that actually caused the install to fail, not a second one from the
-                // cleanup. Losing the original would send them looking in the wrong place.
-                backend.uninstall(extension.pkgName)
+            .onFailure { error -> rollBackOrphanedScript(extension, backend, error) }
+    }
 
-                _installationState.value = InstallationState.Error(
-                    "Installation failed: ${error.message}",
-                    error
-                )
+    /**
+     * Clean up after a JavaScript install whose database write failed.
+     *
+     * The hazard is an orphan: the script is on disk and registered with the engine, and since
+     * uninstall finds its target *through the database*, a missing row means nothing can ever
+     * reach it again — a source that still executes and cannot be removed.
+     *
+     * **The rollback is conditional, and that condition is the whole correctness of this.** An
+     * unconditional `backend.uninstall` fixes the fresh-install orphan and breaks something
+     * worse in the update case: `backend.install` has already replaced the script of a source
+     * the user had working, so uninstalling would delete it outright — along with the stored
+     * preferences that routinely hold their login for that site. The cure would be worse than
+     * the failure it followed.
+     *
+     * So the question asked is the one that actually matters: after the failure, is there still
+     * a row that can reach this script? Not "was this an update?", which is a proxy for it. A
+     * surviving row means uninstall works and the script must be left alone; no row means it is
+     * unreachable and must go.
+     *
+     * Residual, stated rather than papered over: when a row survives an update failure it still
+     * describes the *previous* version while the new script is on disk. The source works — the
+     * new script is a valid one — and the next update check reconciles the version. Restoring
+     * the old script instead would mean snapshotting every script before every update, which is
+     * a lot of machinery for a stale version number.
+     */
+    private suspend fun rollBackOrphanedScript(
+        extension: Extension,
+        backend: JsExtensionBackend,
+        error: Throwable,
+    ) {
+        val reachable = runCatching { repository.getExtension(extension.pkgName) }.getOrNull() != null
+
+        if (!reachable) {
+            // The cleanup's own failure must not replace the error that caused all this — that
+            // would send the user looking in the wrong place. It is attached instead, so an
+            // orphan that could not be cleaned up is still diagnosable from the reported error.
+            backend.uninstall(extension.pkgName).onFailure { cleanupError ->
+                runCatching { error.addSuppressed(cleanupError) }
             }
+        }
+
+        _installationState.value = InstallationState.Error(
+            "Installation failed: ${error.message}",
+            error
+        )
     }
 
     /**

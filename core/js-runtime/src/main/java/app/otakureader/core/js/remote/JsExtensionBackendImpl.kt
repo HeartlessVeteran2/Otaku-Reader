@@ -1,6 +1,7 @@
 package app.otakureader.core.js.remote
 
 import app.otakureader.core.extension.domain.backend.JsExtensionBackend
+import app.otakureader.core.extension.domain.backend.JsExtensionFetch
 import app.otakureader.core.extension.domain.model.Extension
 import app.otakureader.core.js.client.JsSourceProvider
 import app.otakureader.core.js.protocol.JsSourceConfig
@@ -22,7 +23,7 @@ class JsExtensionBackendImpl @Inject constructor(
     private val provider: JsSourceProvider,
 ) : JsExtensionBackend {
 
-    override suspend fun fetchAvailable(repoUrls: List<String>): List<Extension> =
+    override suspend fun fetchAvailable(repoUrls: List<String>): JsExtensionFetch =
         remoteDataSource.fetchAvailable(repoUrls)
 
     override suspend fun install(extension: Extension): Result<Unit> = runCatchingCancellable {

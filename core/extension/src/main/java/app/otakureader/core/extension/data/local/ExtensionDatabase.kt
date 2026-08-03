@@ -83,7 +83,11 @@ data class ExtensionEntity(
      * Persisted rather than derived, because uninstall reads the row back to decide which
      * backend to call. See `Extension.isJavaScript` for why a guess is not good enough.
      */
-    @ColumnInfo(name = "is_javascript")
+    // defaultValue must match the migration's `DEFAULT 0` exactly. Room compares the entity's
+    // declared schema against the live database after a migration, and a column default present
+    // in one and absent from the other is a mismatch — which surfaces as a crash on upgrade for
+    // existing users only, never in a fresh install or a test that starts at the current version.
+    @ColumnInfo(name = "is_javascript", defaultValue = "0")
     val isJavaScript: Boolean = false
 )
 

@@ -75,7 +75,7 @@ class JsExtensionRemoteDataSourceTest {
     fun `an index entry becomes a JavaScript-flagged extension`() = runTest {
         server.enqueue(MockResponse().setBody(indexBody("mangadex-en", "MangaDex")))
 
-        val extensions = dataSource.fetchAvailable(listOf(baseUrl()))
+        val extensions = dataSource.fetchAvailable(listOf(baseUrl())).extensions
 
         assertEquals(1, extensions.size)
         val extension = extensions.single()
@@ -118,7 +118,7 @@ class JsExtensionRemoteDataSourceTest {
     fun `a repository with no javascript index contributes nothing without failing`() = runTest {
         server.enqueue(MockResponse().setResponseCode(404))
 
-        val extensions = dataSource.fetchAvailable(listOf(baseUrl()))
+        val extensions = dataSource.fetchAvailable(listOf(baseUrl())).extensions
 
         // Most repositories serve only APKs. That is a normal answer, not an error — throwing
         // here would turn the common case into a user-visible failure.
@@ -131,7 +131,7 @@ class JsExtensionRemoteDataSourceTest {
         server.enqueue(MockResponse().setResponseCode(500))
         server.enqueue(MockResponse().setBody(indexBody("survivor", "Survivor")))
 
-        val extensions = dataSource.fetchAvailable(listOf(baseUrl(), baseUrl()))
+        val extensions = dataSource.fetchAvailable(listOf(baseUrl(), baseUrl())).extensions
 
         assertEquals(listOf("survivor"), extensions.map { it.pkgName })
     }
@@ -143,7 +143,7 @@ class JsExtensionRemoteDataSourceTest {
         server.enqueue(MockResponse().setBody(indexBody("dupe", "Old build", versionCode = 3)))
         server.enqueue(MockResponse().setBody(indexBody("dupe", "New build", versionCode = 9)))
 
-        val extensions = dataSource.fetchAvailable(listOf(baseUrl(), baseUrl()))
+        val extensions = dataSource.fetchAvailable(listOf(baseUrl(), baseUrl())).extensions
 
         assertEquals(1, extensions.size)
         assertEquals("New build", extensions.single().name)
@@ -166,6 +166,42 @@ class JsExtensionRemoteDataSourceTest {
         val script = dataSource.downloadScript("${baseUrl()}/js/source.js")
 
         assertEquals("const source = {};", script)
+    }
+
+    /**
+     * A scheme downgrade mid-redirect must not be followed.
+     *
+     * Checking the scheme of the URL we *ask* for proves nothing on its own: OkHttp follows
+     * redirects, and `followSslRedirects` defaults to true, so an `https://` script URL that
+     * 302s to `http://` would be fetched in plaintext and anyone on the network path could
+     * substitute the JavaScript about to be executed. The initial check would have passed while
+     * the guarantee behind it was gone.
+     *
+     * Asserted against a real redirect rather than trusting the flag's documentation — the same
+     * reason `RedirectHeaderPropagationTest` exists.
+     */
+    @Test
+    fun `an https to http redirect is not followed`() = runTest {
+        val plaintext = MockWebServer()
+        plaintext.start()
+        try {
+            plaintext.enqueue(MockResponse().setBody("malicious()"))
+            server.enqueue(
+                MockResponse()
+                    .setResponseCode(302)
+                    .setHeader("Location", plaintext.url("/js/source.js").toString())
+            )
+
+            val error = runCatching { dataSource.downloadScript("${baseUrl()}/js/source.js") }
+                .exceptionOrNull()
+
+            assertTrue("expected a fetch failure, got $error", error is JsExtensionFetchException)
+            // The state that matters is what did NOT happen: the plaintext host was never asked.
+            // Asserting only on the exception would pass even if the body had been fetched.
+            assertEquals(0, plaintext.requestCount)
+        } finally {
+            plaintext.shutdown()
+        }
     }
 
     @Test

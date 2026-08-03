@@ -2,6 +2,7 @@ package app.otakureader.core.extension.data
 
 import app.otakureader.core.extension.data.remote.ExtensionRemoteDataSourceImpl
 import app.otakureader.core.extension.domain.backend.JsExtensionBackend
+import app.otakureader.core.extension.domain.backend.JsExtensionFetch
 import app.otakureader.core.extension.domain.model.Extension
 import app.otakureader.core.extension.domain.model.InstallStatus
 import app.otakureader.core.extension.domain.repository.ExtensionRepoRepository
@@ -9,9 +10,11 @@ import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
+import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.IOException
 
 /**
  * Covers failure isolation between the two source backends.
@@ -28,6 +31,18 @@ class JsBackendIsolationTest {
     private fun repoRepository(): ExtensionRepoRepository = mockk(relaxed = true) {
         coEvery { getRepositories() } returns flowOf(listOf(unreachableRepo))
     }
+
+    /**
+     * A client that fails every call without touching the network.
+     *
+     * The APK fetch has to fail for these tests to mean anything, but it must fail *locally*.
+     * Relying on `unreachable.invalid` not resolving would make the result depend on the
+     * sandbox's DNS — a test that passes for a reason unrelated to what it claims to check, and
+     * that turns into a slow or flaky one the moment a resolver answers wildcard queries.
+     */
+    private fun failingClient(): OkHttpClient = OkHttpClient.Builder()
+        .addInterceptor { throw IOException("offline in tests") }
+        .build()
 
     private fun jsExtension(pkgName: String) = Extension(
         id = 1L,
@@ -58,11 +73,13 @@ class JsBackendIsolationTest {
     @Test
     fun `a total APK failure still surfaces JavaScript sources`() = runTest {
         val jsBackend = mockk<JsExtensionBackend> {
-            coEvery { fetchAvailable(any()) } returns listOf(jsExtension("js-source"))
+            coEvery { fetchAvailable(any()) } returns
+                JsExtensionFetch(listOf(jsExtension("js-source")), servedAnyIndex = true)
         }
 
         val result = ExtensionRemoteDataSourceImpl(
             repoRepository = repoRepository(),
+            httpClient = failingClient(),
             jsBackend = jsBackend,
         ).fetchAvailableExtensions()
 
@@ -87,6 +104,7 @@ class JsBackendIsolationTest {
 
         val result = ExtensionRemoteDataSourceImpl(
             repoRepository = repoRepository(),
+            httpClient = failingClient(),
             jsBackend = jsBackend,
         ).fetchAvailableExtensions()
 
@@ -99,13 +117,60 @@ class JsBackendIsolationTest {
     }
 
     /**
+     * A JavaScript-only repository whose index is valid but empty is not a failure.
+     *
+     * Its APK endpoints legitimately 404 and its JavaScript list is legitimately empty, so a
+     * check that read emptiness as failure would tell a user whose setup works perfectly that
+     * every repository failed. The condition asks whether an index was *served*, which is a
+     * different fact from whether it produced anything.
+     */
+    @Test
+    fun `an empty but valid JavaScript index is not a total failure`() = runTest {
+        val jsBackend = mockk<JsExtensionBackend> {
+            coEvery { fetchAvailable(any()) } returns
+                JsExtensionFetch(emptyList(), servedAnyIndex = true)
+        }
+
+        val result = ExtensionRemoteDataSourceImpl(
+            repoRepository = repoRepository(),
+            httpClient = failingClient(),
+            jsBackend = jsBackend,
+        ).fetchAvailableExtensions()
+
+        assertTrue("expected success, got ${result.exceptionOrNull()}", result.isSuccess)
+        assertTrue(result.getOrThrow().isEmpty())
+    }
+
+    /**
+     * The counterpart: nothing served an index at all, so the failure is real and reported.
+     * Without this case the test above would pass just as happily if the check were removed.
+     */
+    @Test
+    fun `no index served anywhere is still a total failure`() = runTest {
+        val jsBackend = mockk<JsExtensionBackend> {
+            coEvery { fetchAvailable(any()) } returns
+                JsExtensionFetch(emptyList(), servedAnyIndex = false)
+        }
+
+        val result = ExtensionRemoteDataSourceImpl(
+            repoRepository = repoRepository(),
+            httpClient = failingClient(),
+            jsBackend = jsBackend,
+        ).fetchAvailableExtensions()
+
+        assertTrue(result.isFailure)
+    }
+
+    /**
      * With no JavaScript backend wired in, behaviour is exactly what it was before this change.
      * That is what lets the existing APK tests keep standing as the regression net for that path.
      */
     @Test
     fun `without a JavaScript backend a total failure is still a failure`() = runTest {
-        val result = ExtensionRemoteDataSourceImpl(repoRepository = repoRepository())
-            .fetchAvailableExtensions()
+        val result = ExtensionRemoteDataSourceImpl(
+            repoRepository = repoRepository(),
+            httpClient = failingClient(),
+        ).fetchAvailableExtensions()
 
         assertTrue(result.isFailure)
     }

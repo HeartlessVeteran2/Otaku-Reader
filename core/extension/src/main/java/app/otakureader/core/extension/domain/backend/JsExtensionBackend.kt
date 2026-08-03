@@ -26,6 +26,22 @@ import app.otakureader.core.extension.domain.model.Extension
  * inferred from a name prefix or a URL suffix, because install and uninstall route on it and a
  * guess that is right most of the time would send an occasional `.js` file to the APK installer.
  */
+/**
+ * The outcome of a JavaScript index fetch.
+ *
+ * [servedAnyIndex] is carried rather than inferred from `extensions.isEmpty()`, because those two
+ * facts are not the same and the gap between them is user-visible. A repository that serves a
+ * valid but *empty* `js/index.json` produced no extensions and yet worked perfectly. Treating an
+ * empty list as failure would report "all repositories failed" at a user whose setup is fine —
+ * and using emptiness as a proxy for success is exactly the kind of almost-right comparison that
+ * has needed correcting repeatedly in this rebuild.
+ */
+data class JsExtensionFetch(
+    val extensions: List<Extension>,
+    /** True when at least one repository actually served a JavaScript index. */
+    val servedAnyIndex: Boolean,
+)
+
 interface JsExtensionBackend {
 
     /**
@@ -36,10 +52,11 @@ interface JsExtensionBackend {
      * repo that resolved one way for APKs and another way for scripts would be a confusing
      * partial failure rather than a clean one.
      *
-     * Returns an empty list rather than throwing when a repo has no JavaScript index — most
-     * repositories serve only APKs, and that is a normal answer, not an error.
+     * Reports no extensions rather than throwing when a repo has no JavaScript index — most
+     * repositories serve only APKs, and that is a normal answer, not an error. Whether any
+     * index was actually served is reported separately; see [JsExtensionFetch].
      */
-    suspend fun fetchAvailable(repoUrls: List<String>): List<Extension>
+    suspend fun fetchAvailable(repoUrls: List<String>): JsExtensionFetch
 
     /**
      * Download [extension]'s script and register it, making the source immediately usable.
