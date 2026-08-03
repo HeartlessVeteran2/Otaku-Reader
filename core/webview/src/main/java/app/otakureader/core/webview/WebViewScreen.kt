@@ -1,6 +1,7 @@
 package app.otakureader.core.webview
 
 import android.webkit.WebView
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,7 +32,6 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import app.otakureader.core.navigation.Route
-import androidx.activity.compose.BackHandler
 
 /**
  * Full-screen embedded WebView with optional ad blocking.
@@ -59,13 +59,18 @@ fun WebViewScreen(
     // Closing the challenge is what releases the blocked request, and the top bar's button was
     // the only thing that did it. System and gesture back pop the destination directly, leaving
     // the caller waiting out its full timeout for a screen the user has already dismissed.
-    // Routing hardware back through the same callback makes every exit complete the challenge.
-    BackHandler {
+    //
+    // One lambda for both exits rather than two copies: what counts as "the result" is the
+    // cookie/User-Agent pair, and the two paths drifting apart would mean one exit reporting
+    // clearance and the other reporting none for the very same screen.
+    val reportClose = {
         onClose(
             webViewRef?.let { viewModel.cookiesForUrl(url) },
             webViewRef?.settings?.userAgentString,
         )
     }
+
+    BackHandler { reportClose() }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -79,12 +84,7 @@ fun WebViewScreen(
             // to the identity that earned it; a cookie replayed under a different one is
             // challenged again, so returning the cookie alone would leave the user solving the
             // same challenge forever.
-            onBack = {
-                onClose(
-                    webViewRef?.let { viewModel.cookiesForUrl(url) },
-                    webViewRef?.settings?.userAgentString,
-                )
-            },
+            onBack = reportClose,
             onNavigateBack = { webViewRef?.goBack() },
             onNavigateForward = { webViewRef?.goForward() },
             onReload = { webViewRef?.reload() },

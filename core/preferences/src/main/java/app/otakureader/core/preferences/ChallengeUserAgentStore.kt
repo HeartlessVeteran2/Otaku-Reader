@@ -34,10 +34,15 @@ class ChallengeUserAgentStore @Inject constructor(
     private val cache = ConcurrentHashMap<String, String>()
 
     init {
-        // Hydrated by a live collection, so the cache follows the stored values without any
-        // explicit invalidation. A request arriving in the moment before the first emission
-        // sees no User-Agent and may be challenged once; that self-corrects, and it is the
-        // cheaper failure than blocking startup on a disk read.
+        // Read ONCE at construction, not collected continuously — and that is sufficient
+        // rather than a shortcut. Every write goes through [store], which updates this cache
+        // before it touches disk, so the only thing a live collector would catch is a change
+        // made by something else. Nothing else writes these keys: they are namespaced by
+        // KEY_PREFIX and this is the only class that reads or writes them.
+        //
+        // A request arriving before this read completes sees no User-Agent and may be
+        // challenged once; that self-corrects on the next launch, and it is the cheaper failure
+        // than blocking startup on disk I/O.
         scope.launch {
             dataStore.data.first().asMap().forEach { (key, value) ->
                 val name = key.name

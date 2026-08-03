@@ -60,6 +60,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.NavDestination.Companion.hasRoute
 
 @Composable
 fun OtakuReaderNavHost(
@@ -85,13 +87,19 @@ fun OtakuReaderNavHost(
     // has to dismiss one by one — and a challenge arriving late would yank them off whatever
     // screen they had moved on to. `showingChallengeHost` gates that: the next pending host is
     // only shown once the current one closes.
-    val pendingChallenges by challengeManager.pendingChallenges.collectAsStateWithLifecycle()
-    var showingChallengeHost by rememberSaveable { mutableStateOf<String?>(null) }
-    val nextChallenge = pendingChallenges.firstOrNull { it.host != showingChallengeHost }
+    // Whether a challenge screen is up is read from the back stack, not tracked in a flag of
+    // our own. A remembered flag goes stale the moment the destination is removed by anything
+    // other than its close button — a deep link that clears the back stack, for instance — and
+    // a stale "still showing" would suppress every later challenge for the life of this nav
+    // host, silently disabling the whole bypass. The NavController already knows the answer.
+    val currentEntry by navController.currentBackStackEntryAsState()
+    val challengeShowing = currentEntry?.destination?.hasRoute(Route.WebView::class) == true
 
-    LaunchedEffect(nextChallenge?.host, showingChallengeHost) {
-        if (nextChallenge != null && showingChallengeHost == null) {
-            showingChallengeHost = nextChallenge.host
+    val pendingChallenges by challengeManager.pendingChallenges.collectAsStateWithLifecycle()
+    val nextChallenge = pendingChallenges.firstOrNull()
+
+    LaunchedEffect(nextChallenge?.id, challengeShowing) {
+        if (nextChallenge != null && !challengeShowing) {
             navController.navigate(
                 Route.WebView(
                     url = nextChallenge.url,
@@ -680,9 +688,6 @@ fun OtakuReaderNavHost(
                 url.toHttpUrlOrNull()?.host?.let { host ->
                     challengeManager.completeChallenge(host, cookieString, userAgent)
                 }
-                // Releasing the gate here, rather than in the effect, is what lets a second
-                // blocked host be shown after this one is dealt with.
-                showingChallengeHost = null
                 navController.popBackStack()
             }
         )

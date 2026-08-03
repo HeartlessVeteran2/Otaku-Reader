@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -21,7 +22,7 @@ import javax.inject.Singleton
  * Flow:
  * 1. [app.otakureader.core.network.cloudflare.CloudflareInterceptor] sees a challenge response
  *    and calls [solve], which suspends.
- * 2. A [ChallengeRequest] is emitted on [pendingChallenge].
+ * 2. A [ChallengeRequest] is added to [pendingChallenges].
  * 3. The navigation host observes it and opens the WebView.
  * 4. On close, the nav layer calls [completeChallenge] with the cookies and the WebView's
  *    User-Agent.
@@ -38,7 +39,18 @@ class WebViewChallengeManager @Inject constructor(
     @param:ApplicationScope private val scope: CoroutineScope,
 ) : CloudflareChallengeSolver {
 
-    data class ChallengeRequest(val host: String, val url: String)
+    /**
+     * [id] exists so cleanup can remove exactly its own entry.
+     *
+     * Without it, the two orderings of "drop the in-flight deferred" and "drop the pending
+     * entry" are each wrong in a different way: clearing last lets a re-challenge slot in
+     * between and have its brand-new pending entry deleted by the old challenge's cleanup, so
+     * no WebView ever opens for it; clearing first leaves the stale deferred momentarily
+     * reachable, so the re-challenge joins an already-completed one and gets a stale answer.
+     * Matching on identity removes the choice — the same reason [inFlight] uses
+     * `remove(key, value)`.
+     */
+    data class ChallengeRequest(val id: Long, val host: String, val url: String)
 
     private val _pendingChallenges = MutableStateFlow<List<ChallengeRequest>>(emptyList())
 
@@ -59,6 +71,8 @@ class WebViewChallengeManager @Inject constructor(
     /** In-flight challenges, one per host. See [solve] for why this exists. */
     private val inFlight = ConcurrentHashMap<String, CompletableDeferred<Boolean>>()
 
+    private val nextChallengeId = AtomicLong(0)
+
     /**
      * Suspend until [host]'s challenge is solved or abandoned.
      *
@@ -73,9 +87,10 @@ class WebViewChallengeManager @Inject constructor(
         val existing = inFlight.putIfAbsent(host, fresh)
         if (existing != null) return existing.await()
 
+        val request = ChallengeRequest(nextChallengeId.incrementAndGet(), host, url)
         return try {
             _pendingChallenges.update { pending ->
-                if (pending.any { it.host == host }) pending else pending + ChallengeRequest(host, url)
+                if (pending.any { it.host == host }) pending else pending + request
             }
             fresh.await()
         } catch (e: CancellationException) {
@@ -86,9 +101,10 @@ class WebViewChallengeManager @Inject constructor(
             fresh.complete(false)
             throw e
         } finally {
-            // remove(key, value) so a challenge started after ours is never removed by us.
+            // Both removals match on identity, so neither can touch a challenge that replaced
+            // ours — which makes the order between them irrelevant rather than merely chosen.
             inFlight.remove(host, fresh)
-            clearPending(host)
+            clearPending(request.id)
         }
     }
 
@@ -114,11 +130,13 @@ class WebViewChallengeManager @Inject constructor(
             scope.launch { userAgentStore.store(host, userAgent) }
         }
         inFlight[host]?.complete(cleared)
-        clearPending(host)
+        // By host, not id: this is the user answering whichever challenge was on screen for
+        // that host, and solve()'s own cleanup removes the entry by id immediately afterwards.
+        _pendingChallenges.update { pending -> pending.filterNot { it.host == host } }
     }
 
-    private fun clearPending(host: String) {
-        _pendingChallenges.update { pending -> pending.filterNot { it.host == host } }
+    private fun clearPending(id: Long) {
+        _pendingChallenges.update { pending -> pending.filterNot { it.id == id } }
     }
 
     private companion object {

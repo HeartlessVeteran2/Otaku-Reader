@@ -32,9 +32,19 @@ class CloudflareInterceptor @Inject constructor(
          *
          * This blocks an OkHttp dispatcher thread, so it cannot wait indefinitely: a handful of
          * abandoned challenges would otherwise consume the pool and stall unrelated requests.
-         * Generous enough for a real CAPTCHA, short enough that a forgotten screen recovers.
+         *
+         * **Must stay below the client's `callTimeout`, currently 2 minutes** (see
+         * `NetworkModule.provideOkHttpClient`). This is an application interceptor, so it runs
+         * *inside* the call, and `callTimeout` spans the original request, this wait, and the
+         * retry together. A budget above it is not merely unreachable — the call would be
+         * cancelled mid-challenge and the user's work thrown away just as they finished.
+         *
+         * 100 seconds leaves room for the retry to complete afterwards. Raising the client's
+         * `callTimeout` instead was the alternative and is worse: it applies to every request
+         * the app makes, so a stalled page download would hang proportionally longer for the
+         * sake of a path most requests never take.
          */
-        const val SOLVE_TIMEOUT_MS = 3 * 60 * 1000L
+        const val SOLVE_TIMEOUT_MS = 100 * 1000L
 
         /**
          * Cap on the challenge page kept in memory while the user solves it.
@@ -63,7 +73,14 @@ class CloudflareInterceptor @Inject constructor(
         // ended up re-issuing the request on failure, doubling the traffic and risking a
         // repeated side effect for a POST. A challenge page is a few KB of HTML, so keeping a
         // bounded copy costs nothing.
-        val buffered = runCatching { response.peekBody(MAX_CHALLENGE_BODY_BYTES) }.getOrNull()
+        // Peek one byte past the cap so an oversized page is *detectable* rather than silently
+        // truncated. A caller handed half a challenge page would parse the fragment as if it
+        // were the whole document — a wrong result that looks successful, which is worse than an
+        // empty body it can recognise as a failure.
+        val buffered = runCatching {
+            response.peekBody(MAX_CHALLENGE_BODY_BYTES + 1)
+                .takeIf { it.contentLength() <= MAX_CHALLENGE_BODY_BYTES }
+        }.getOrNull()
         response.close()
 
         // Blocking is correct: this call *is* the thing waiting on the user, and the timeout
