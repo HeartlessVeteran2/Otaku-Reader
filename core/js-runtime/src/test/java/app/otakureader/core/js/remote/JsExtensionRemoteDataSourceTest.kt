@@ -88,8 +88,16 @@ class JsExtensionRemoteDataSourceTest {
         assertEquals(InstallStatus.AVAILABLE, extension.status)
         assertEquals("1.2.3", extension.versionName)
         assertTrue(extension.hasCloudflare)
-        // A relative sourceCodeUrl resolves against the repository base.
+        // A relative sourceCodeUrl resolves against the repository base — the script really does
+        // live on the repository host.
         assertEquals("${baseUrl()}/js/mangadex-en.js", extension.apkUrl)
+        // ...but the SOURCE's base URL is the site it scrapes, which is a different host. The
+        // fixture deliberately uses a value distinct from the server so the two cannot be
+        // confused: an earlier version shadowed the DTO's field with the repository URL
+        // parameter and handed every source the index host. Nothing crashed — sources just
+        // returned nothing, which is why only an assertion catches it.
+        assertEquals("https://example.test", extension.sources.single().baseUrl)
+        assertEquals(baseUrl(), extension.repoUrl)
         // There is no APK and no signature to verify; both must be absent rather than faked.
         assertNull(extension.apkPath)
         assertNull(extension.signatureHash)

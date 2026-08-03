@@ -168,7 +168,17 @@ class JsExtensionRemoteDataSource @Inject constructor(
 /** Thrown when a repository index or script cannot be fetched or parsed. */
 class JsExtensionFetchException(message: String) : RuntimeException(message)
 
-private fun JsExtensionDto.toDomain(baseUrl: String): Extension = Extension(
+/**
+ * Map an index entry onto the domain model.
+ *
+ * **Two different URLs are in play and they must not be confused.** [repoUrl] is where the index
+ * was fetched from; `this.baseUrl` is the manga site the source actually scrapes. The parameter
+ * is named `repoUrl` rather than `baseUrl` precisely so it cannot shadow the DTO's field — an
+ * earlier version took `baseUrl` and silently handed the *repository* URL to every source, which
+ * would have pointed every relative request and every synthesised Referer at the index host
+ * instead of the site. Nothing would have crashed; sources would simply have returned nothing.
+ */
+private fun JsExtensionDto.toDomain(repoUrl: String): Extension = Extension(
     id = id.toStableId(),
     pkgName = id,
     name = name,
@@ -179,13 +189,15 @@ private fun JsExtensionDto.toDomain(baseUrl: String): Extension = Extension(
             id = id.toStableId(),
             name = name,
             lang = lang,
+            // The site the source scrapes — NOT the repository it was listed in.
             baseUrl = baseUrl,
         )
     ),
     status = InstallStatus.AVAILABLE,
     apkPath = null,
-    apkUrl = resolve(baseUrl, sourceCodeUrl),
-    iconUrl = iconUrl?.let { resolve(baseUrl, it) },
+    // The script, on the other hand, really does live on the repository host.
+    apkUrl = resolve(repoUrl, sourceCodeUrl),
+    iconUrl = iconUrl?.let { resolve(repoUrl, it) },
     lang = lang,
     isNsfw = isNsfw,
     installDate = null,
@@ -193,7 +205,7 @@ private fun JsExtensionDto.toDomain(baseUrl: String): Extension = Extension(
     // `isTrusted` report a verification that never happened.
     signatureHash = null,
     isShared = false,
-    repoUrl = baseUrl,
+    repoUrl = repoUrl,
     hasCloudflare = hasCloudflare,
     isJavaScript = true,
 )

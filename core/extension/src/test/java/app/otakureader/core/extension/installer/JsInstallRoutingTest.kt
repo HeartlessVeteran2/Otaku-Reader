@@ -90,6 +90,36 @@ class JsInstallRoutingTest {
     }
 
     /**
+     * A row that could not be written must not leave the script behind.
+     *
+     * Uninstall finds its target through the database, so a script that is on disk and
+     * registered with the engine while no row describes it can never be reached again — an
+     * orphan that still executes. The backend install is rolled back to prevent that.
+     */
+    @Test
+    fun `a failed row write rolls the script back out`() = runTest {
+        val subject = extension("orphan-risk", isJavaScript = true)
+        val jsBackend = mockk<JsExtensionBackend> {
+            coEvery { install(subject) } returns Result.success(Unit)
+            coEvery { uninstall("orphan-risk") } returns Result.success(Unit)
+        }
+        val repository = mockk<ExtensionRepository>(relaxed = true) {
+            coEvery { installExtension(any<Extension>(), any()) } returns
+                Result.failure(java.io.IOException("database is locked"))
+        }
+
+        val result = ExtensionInstaller(context, repository, loader, remoteDataSource, jsBackend)
+            .downloadAndInstall(subject)
+
+        assertTrue(result.isFailure)
+        // The state left behind is the whole point — asserting only the return value would pass
+        // just as happily with the script still installed.
+        coVerify(exactly = 1) { jsBackend.uninstall("orphan-risk") }
+        // The caller is owed the error that actually caused the failure, not one from cleanup.
+        assertTrue(result.exceptionOrNull() is java.io.IOException)
+    }
+
+    /**
      * The bug this guard exists for.
      *
      * Without the routing branch a JavaScript source falls through to the private-APK uninstall
@@ -139,6 +169,37 @@ class JsInstallRoutingTest {
         coVerify(exactly = 0) { repository.uninstallExtension(any()) }
         // Left as UNINSTALLING the source would look stuck mid-removal while still working fine.
         coVerify { repository.setExtensionStatus("stubborn", InstallStatus.INSTALLED) }
+    }
+
+    /**
+     * A failed row delete must not be announced as a removal, and must not strand the row.
+     *
+     * By this point the script and its stored preferences are already gone, so the row is the
+     * last thing describing something that no longer exists. Leaving it at UNINSTALLING freezes
+     * a dead source the user cannot act on; broadcasting a removal that did not happen makes
+     * listeners drop state for an extension the database still lists.
+     */
+    @Test
+    fun `a failed row delete is not announced and lands in ERROR`() = runTest {
+        val subject = extension("half-removed", isJavaScript = true)
+        val jsBackend = mockk<JsExtensionBackend> {
+            coEvery { uninstall("half-removed") } returns Result.success(Unit)
+        }
+        val repository = mockk<ExtensionRepository>(relaxed = true) {
+            coEvery { getExtension("half-removed") } returns subject
+            coEvery { uninstallExtension("half-removed") } returns
+                Result.failure(java.io.IOException("database is locked"))
+        }
+
+        val result = ExtensionInstaller(context, repository, loader, remoteDataSource, jsBackend)
+            .uninstall("half-removed")
+
+        assertTrue(result.isFailure)
+        // ERROR rather than INSTALLED: the extension really is gone, so a row claiming it is
+        // installed would show a source that cannot function. ERROR also lets the next refresh
+        // re-offer it as available.
+        coVerify { repository.setExtensionStatus("half-removed", InstallStatus.ERROR) }
+        coVerify(exactly = 0) { repository.setExtensionStatus("half-removed", InstallStatus.INSTALLED) }
     }
 
     /**

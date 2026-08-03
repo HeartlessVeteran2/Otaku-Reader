@@ -161,6 +161,33 @@ class ExtensionInstaller(
     }
 
     /**
+     * Drop the extension's row and announce the removal — but only announce it if the row went.
+     *
+     * Both uninstall paths reach here having already destroyed the artifact: the APK path has
+     * deleted its private copy, the JavaScript path has deregistered the script and erased the
+     * source's stored preferences. So by this point the extension really is gone, and the row is
+     * the last thing describing something that no longer exists.
+     *
+     * Two things were wrong when each path did this inline, and they were wrong identically —
+     * which is why this is now one function instead of two copies:
+     *
+     * - `.also { notifyRemoved(...) }` runs on the `Result` regardless of whether it succeeded,
+     *   so a failed delete still broadcast a removal. Listeners then dropped their state for an
+     *   extension the database still lists. `onSuccess` fires only on success.
+     * - A failed delete left the row stuck at `UNINSTALLING` forever: a source frozen
+     *   mid-removal that the user cannot act on and that no longer works.
+     *
+     * `ERROR` is the honest terminal state for that failure. Not `INSTALLED` — the extension is
+     * genuinely gone, and a row claiming otherwise would show a source that cannot function.
+     * `ERROR` also self-corrects: `refreshAvailableExtensions` deliberately does not treat ERROR
+     * rows as installed, so the next refresh re-offers the extension as available to install.
+     */
+    private suspend fun finalizeRemoval(pkgName: String): Result<Unit> =
+        repository.uninstallExtension(pkgName)
+            .onSuccess { ExtensionInstallReceiver.notifyRemoved(context, pkgName) }
+            .onFailure { repository.setExtensionStatus(pkgName, InstallStatus.ERROR) }
+
+    /**
      * Remove a JavaScript source's script, registration and stored data, then its row.
      *
      * The backend runs first and the row is dropped only if it succeeded. The reverse order
@@ -175,11 +202,7 @@ class ExtensionInstaller(
 
         return backend.uninstall(pkgName)
             .fold(
-                onSuccess = {
-                    repository.uninstallExtension(pkgName).also {
-                        ExtensionInstallReceiver.notifyRemoved(context, pkgName)
-                    }
-                },
+                onSuccess = { finalizeRemoval(pkgName) },
                 onFailure = { error ->
                     // Put the row back to INSTALLED. Leaving it UNINSTALLING would show a
                     // source stuck mid-removal that the user cannot act on, while the source
@@ -227,6 +250,16 @@ class ExtensionInstaller(
         return repository.installExtension(extension, apkPath = "")
             .onSuccess { _installationState.value = InstallationState.Success(it) }
             .onFailure { error ->
+                // Undo the backend install. Without this the script stays on disk and
+                // registered with the engine while no row describes it — and since uninstall
+                // finds its target through the database, nothing can ever reach it again. An
+                // orphaned source that still executes is worse than a failed install.
+                //
+                // The rollback's own failure is deliberately swallowed: the caller is owed the
+                // error that actually caused the install to fail, not a second one from the
+                // cleanup. Losing the original would send them looking in the wrong place.
+                backend.uninstall(extension.pkgName)
+
                 _installationState.value = InstallationState.Error(
                     "Installation failed: ${error.message}",
                     error
@@ -613,9 +646,7 @@ class ExtensionInstaller(
                 File(extensionsDir, "$pkgName.ext").takeIf { it.exists() }?.delete()
 
                 // Remove from repository and notify the receiver.
-                repository.uninstallExtension(pkgName).also {
-                    ExtensionInstallReceiver.notifyRemoved(context, pkgName)
-                }
+                finalizeRemoval(pkgName)
             }
         } catch (e: CancellationException) {
             throw e
