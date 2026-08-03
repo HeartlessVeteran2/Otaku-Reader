@@ -17,7 +17,7 @@ import app.otakureader.data.BuildConfig
  * Add the following repository secrets in *Settings → Secrets → Actions*:
  * `KITSU_CLIENT_ID`, `KITSU_CLIENT_SECRET`,
  * `MAL_CLIENT_ID`, `MAL_CLIENT_SECRET`,
- * `SHIKIMORI_CLIENT_ID`, `SHIKIMORI_CLIENT_SECRET`.
+ * `SHIKIMORI_CLIENT_ID`, `SHIKIMORI_CLIENT_SECRET`, `ANILIST_CLIENT_ID`.
  * The build script reads them via `System.getenv(...)`.
  *
  * **Local development:**
@@ -37,6 +37,12 @@ object TrackerCredentials {
     // No client secret required: MAL PKCE flow for public mobile clients.
     val MAL_CLIENT_ID: String get() = runCatching { BuildConfig.MAL_CLIENT_ID }.getOrDefault("")
     const val MAL_REDIRECT_URI = "app.otakureader://mal-oauth"
+
+    // AniList — register at https://anilist.co/settings/developer
+    // No client secret: AniList's implicit grant returns the token in the redirect fragment,
+    // so nothing that would have to be shipped inside the APK is involved.
+    val ANILIST_CLIENT_ID: String get() = runCatching { BuildConfig.ANILIST_CLIENT_ID }.getOrDefault("")
+    const val ANILIST_REDIRECT_URI = "app.otakureader://anilist-oauth"
 
     // Shikimori — register at https://shikimori.one/oauth/applications
     val SHIKIMORI_CLIENT_ID: String     get() = runCatching { BuildConfig.SHIKIMORI_CLIENT_ID }.getOrDefault("")

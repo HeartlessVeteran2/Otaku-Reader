@@ -37,6 +37,9 @@ android {
         //   PKCE flow does not require a client secret.
         buildConfigField("String", "MAL_CLIENT_ID", "\"${System.getenv("MAL_CLIENT_ID") ?: ""}\"")
 
+        // AniList — implicit grant, so there is no client secret to configure.
+        buildConfigField("String", "ANILIST_CLIENT_ID", "\"${System.getenv("ANILIST_CLIENT_ID") ?: ""}\"")
+
         // ── Shikimori  (shikimori.one/oauth — authorization-code flow) ─────────
         //   Register at: https://shikimori.one/oauth/applications
         //   Redirect URI must match what is registered in the Shikimori dashboard.

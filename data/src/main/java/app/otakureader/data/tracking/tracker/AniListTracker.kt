@@ -3,6 +3,7 @@ package app.otakureader.data.tracking.tracker
 import app.otakureader.core.preferences.TrackerTokenStore
 import app.otakureader.data.tracking.api.AniListApi
 import app.otakureader.data.tracking.api.AniListGraphQlQuery
+import app.otakureader.data.tracking.di.TrackerCredentials
 import app.otakureader.domain.model.TrackEntry
 import app.otakureader.domain.model.TrackStatus
 import app.otakureader.domain.model.TrackerType
@@ -38,6 +39,36 @@ class AniListTracker(
 
     override val isLoggedIn: Boolean
         get() = accessToken != null
+
+    /**
+     * The URL to open for login.
+     *
+     * Without this override the base [Tracker] default returns null and `TrackingViewModel`
+     * falls back to a bare `https://anilist.co/api/v2/oauth/authorize` — no `client_id`, no
+     * `redirect_uri`, no `response_type` — which AniList rejects outright. Login could not
+     * complete at all.
+     *
+     * `response_type=token` is the **implicit** grant, matching what [login] already expects:
+     * it takes a bearer token directly and performs no code-for-token exchange. The
+     * authorization-code flow would need a client secret, and a secret shipped inside an APK
+     * is not a secret.
+     *
+     * [codeVerifier] is unused. It exists on the interface for the PKCE trackers (Kitsu, MAL);
+     * the implicit grant has no code to protect, so there is nothing to bind it to. Accepting
+     * and ignoring it is honest here — inventing a use would imply a protection that is not
+     * present.
+     */
+    @Suppress("UnusedParameter")
+    override fun authorizationUrl(codeVerifier: String): String? {
+        val clientId = TrackerCredentials.ANILIST_CLIENT_ID
+        // Empty means the build had no ANILIST_CLIENT_ID. Returning null keeps the existing
+        // "tracker not configured" path rather than opening a URL that is guaranteed to fail.
+        if (clientId.isBlank()) return null
+        return "https://anilist.co/api/v2/oauth/authorize" +
+            "?client_id=$clientId" +
+            "&redirect_uri=${TrackerCredentials.ANILIST_REDIRECT_URI}" +
+            "&response_type=token"
+    }
 
     /** @param password the OAuth bearer token obtained from the AniList implicit flow. */
     override suspend fun login(username: String, password: String): Boolean {
