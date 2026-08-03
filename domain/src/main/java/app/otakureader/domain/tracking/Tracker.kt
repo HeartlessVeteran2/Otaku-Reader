@@ -71,8 +71,16 @@ interface Tracker {
      * - state (CSRF protection)
      * - code_challenge / code_challenge_method (PKCE, if supported)
      *
+     * [state] became a parameter because the list above already required it and no implementation
+     * could supply it: the caller generated the value, persisted it, and then had no way to hand
+     * it over. Every authorization URL therefore went out without a `state`, the provider had
+     * nothing to echo back, and the callback's CSRF check — which only ran when a state came
+     * back — was skipped on every single login. An implementation must put [state] in the URL
+     * verbatim; the callback compares it byte-for-byte against the persisted value.
+     *
      * @param codeVerifier The PKCE code verifier to derive code_challenge from
+     * @param state The CSRF state token the caller has already persisted for this login attempt
      * @return Fully-parameterized authorization URL, or `null` if not applicable
      */
-    fun authorizationUrl(codeVerifier: String): String? = null
+    fun authorizationUrl(codeVerifier: String, state: String): String? = null
 }

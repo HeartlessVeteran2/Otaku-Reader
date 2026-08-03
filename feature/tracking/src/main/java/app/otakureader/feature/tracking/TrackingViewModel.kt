@@ -139,12 +139,33 @@ class TrackingViewModel @Inject constructor(
      */
     private fun initiateLogin(trackerId: Int) {
         if (isOAuthTracker(trackerId)) {
-            val tracker = trackerMap[trackerId]
+            // No entry means the tracker isn't in the injected set — there is nothing to log in to.
+            // Previously this still fell through to a hardcoded endpoint and opened a browser for
+            // a tracker the app does not have.
+            val tracker = trackerMap[trackerId] ?: return
             val codeVerifier = generateCodeVerifier()
             val state = UUID.randomUUID().toString()
-            val oauthUrl = tracker?.authorizationUrl(codeVerifier)
-                ?: getOAuthUrl(trackerId) // Fallback to base URL for trackers that haven't
-                                          // implemented authorizationUrl() yet
+            // `state` goes to the tracker, not just to the store: an authorization URL without it
+            // means the provider has nothing to echo back, and a callback with no state cannot be
+            // tied to the login this app started.
+            //
+            // A null URL now ends the attempt instead of falling back to a bare authorization
+            // endpoint. That fallback was `getOAuthUrl(trackerId)`, which returned the provider's
+            // endpoint with no client_id, redirect_uri or response_type — a URL no OAuth provider
+            // can act on, since without a client_id it cannot even resolve where to redirect. So
+            // the "safety net" only ever opened a browser on a page guaranteed to error, and it
+            // silently defeated AniList's own unconfigured-build guard: returning null there was
+            // meant to keep the tracker unconfigured, and this turned it straight back into the
+            // doomed URL it was avoiding.
+            val oauthUrl = tracker.authorizationUrl(codeVerifier, state)
+            if (oauthUrl == null) {
+                _effect.trySend(
+                    TrackingEffect.ShowError(
+                        context.getString(R.string.tracking_oauth_not_configured, tracker.name)
+                    )
+                )
+                return
+            }
 
             // Persist {trackerId, codeVerifier, state} before opening the browser so they
             // survive the process boundary crossing during the OAuth redirect.
@@ -443,21 +464,6 @@ class TrackingViewModel @Inject constructor(
         TrackerType.ANILIST,
         TrackerType.SHIKIMORI
     )
-
-    /**
-     * Returns the base authorization endpoint for OAuth-based trackers.
-     *
-     * This is used as a fallback when a [Tracker] implementation has not yet
-     * overridden [Tracker.authorizationUrl] to build a fully-parameterized URL.
-     * Individual tracker implementations should override [Tracker.authorizationUrl]
-     * to include client_id, redirect_uri, response_type, state, and PKCE parameters.
-     */
-    private fun getOAuthUrl(trackerId: Int): String = when (trackerId) {
-        TrackerType.MY_ANIME_LIST -> "https://myanimelist.net/v1/oauth2/authorize"
-        TrackerType.ANILIST -> "https://anilist.co/api/v2/oauth/authorize"
-        TrackerType.SHIKIMORI -> "https://shikimori.one/oauth/authorize"
-        else -> ""
-    }
 
     private fun getTrackerBrandColor(trackerId: Int): Long = when (trackerId) {
         TrackerType.MY_ANIME_LIST -> 0xFF2E51A2L

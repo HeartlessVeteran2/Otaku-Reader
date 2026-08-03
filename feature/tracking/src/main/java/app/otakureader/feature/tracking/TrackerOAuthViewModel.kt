@@ -41,8 +41,21 @@ class TrackerOAuthViewModel @Inject constructor(
 
             val session = pendingOAuthStore.get()
 
-            // Validate CSRF state if the provider returned one and we stored one.
-            if (callbackState != null && session != null && callbackState != session.state) {
+            // A stored session always carries a state (PendingOAuthSession.state is non-null), and
+            // every authorization URL now sends it, so a callback that comes back *without* one is
+            // not "a provider that omits state" — it is a callback this app did not start. The old
+            // condition began with `callbackState != null`, which turned exactly that case into a
+            // pass: an attacker-supplied redirect with no state skipped the comparison entirely,
+            // which is the one shape the check exists to catch.
+            //
+            // **Requirement for any new OAuth tracker:** `authorizationUrl` must put its `state`
+            // argument in the URL. Skip it and the provider echoes nothing back, and every login
+            // for that tracker fails here rather than at the provider — a confusing place to
+            // discover the omission. This is not a live regression today: AniList is the only
+            // tracker that overrides `authorizationUrl`, and `TrackingViewModel` now reports the
+            // others as unavailable rather than opening a bare endpoint they could never complete
+            // through, so no callback can reach this code for a tracker that sent no state.
+            if (session != null && callbackState != session.state) {
                 pendingOAuthStore.clear()
                 _state.update {
                     it.copy(
