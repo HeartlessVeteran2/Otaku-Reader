@@ -142,7 +142,10 @@ class TrackingViewModel @Inject constructor(
             val tracker = trackerMap[trackerId]
             val codeVerifier = generateCodeVerifier()
             val state = UUID.randomUUID().toString()
-            val oauthUrl = tracker?.authorizationUrl(codeVerifier)
+            // `state` goes to the tracker, not just to the store: an authorization URL without it
+            // means the provider has nothing to echo back, and a callback with no state cannot be
+            // tied to the login this app started.
+            val oauthUrl = tracker?.authorizationUrl(codeVerifier, state)
                 ?: getOAuthUrl(trackerId) // Fallback to base URL for trackers that haven't
                                           // implemented authorizationUrl() yet
 

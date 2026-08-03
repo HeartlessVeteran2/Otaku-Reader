@@ -18,6 +18,7 @@ import io.mockk.just
 import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.runs
+import io.mockk.slot
 import io.mockk.unmockkStatic
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -134,11 +135,15 @@ class TrackingViewModelTest {
         mockkStatic(android.util.Base64::class)
         every { android.util.Base64.encodeToString(any(), any()) } returns "mocked_code_verifier"
 
+        val urlState = slot<String>()
+        val savedState = slot<String>()
+        coEvery { pendingOAuthStore.save(any(), any(), capture(savedState)) } just runs
+
         val oauthTracker = mockk<Tracker> {
             every { id } returns TrackerType.MY_ANIME_LIST
             every { name } returns "MyAnimeList"
             every { isLoggedIn } returns false
-            every { authorizationUrl(any()) } returns "https://myanimelist.net/oauth"
+            every { authorizationUrl(any(), capture(urlState)) } returns "https://myanimelist.net/oauth"
         }
 
         val viewModel = createViewModel(trackers = setOf(oauthTracker))
@@ -155,6 +160,15 @@ class TrackingViewModelTest {
         } finally {
             unmockkStatic(android.util.Base64::class)
         }
+
+        // The state handed to the tracker must be the same one persisted for the callback to
+        // compare against. Asserting only that *a* state was saved is what let the previous code
+        // look correct: it generated a state and stored it, never sent it to the provider, and the
+        // callback then had nothing to compare — so the CSRF guard was inert while this test and
+        // every other one stayed green.
+        assertTrue(savedState.isCaptured)
+        assertTrue(urlState.isCaptured)
+        assertEquals(savedState.captured, urlState.captured)
     }
 
     @Test

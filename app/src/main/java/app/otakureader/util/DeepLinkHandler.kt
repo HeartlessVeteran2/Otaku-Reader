@@ -3,6 +3,8 @@ package app.otakureader.util
 import android.content.Intent
 import android.net.Uri
 import app.otakureader.shortcut.AppShortcutManager
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
 
 /**
  * Sealed class representing a parsed deep link or share intent result.
@@ -170,7 +172,12 @@ object DeepLinkHandler {
         val code = uri.getQueryParameter("code")
             ?: uri.fragmentParameter("access_token")
             ?: return DeepLinkResult.Invalid
-        val state = uri.getQueryParameter("state")
+        // The state comes back wherever the grant put it. Reading only the query would have found
+        // nothing for AniList — the implicit grant returns `state` in the *fragment*, next to the
+        // token — and a null state is what the callback treats as "provider omitted it", which
+        // skips the CSRF comparison entirely. So the one flow that most needs the check is exactly
+        // the one that would have silently gone without it.
+        val state = uri.getQueryParameter("state") ?: uri.fragmentParameter("state")
         return DeepLinkResult.TrackerOAuth(tracker = tracker, code = code, state = state)
     }
 
@@ -178,7 +185,10 @@ object DeepLinkHandler {
      * Read a parameter out of the URL fragment.
      *
      * `Uri` offers no accessor for this: the fragment is opaque to it, so the
-     * `key=value&key=value` body an implicit grant puts there has to be split by hand.
+     * `key=value&key=value` body an implicit grant puts there has to be split by hand — including
+     * the percent-decoding `getQueryParameter` would have done. `URLDecoder` matches the
+     * `URLEncoder` the authorization URL is built with, so a state round-trips to the exact bytes
+     * that were stored before the browser opened.
      */
     private fun Uri.fragmentParameter(name: String): String? =
         fragment
@@ -186,6 +196,7 @@ object DeepLinkHandler {
             ?.firstOrNull { it.substringBefore('=') == name }
             ?.substringAfter('=', "")
             ?.takeIf { it.isNotBlank() }
+            ?.let { runCatching { URLDecoder.decode(it, StandardCharsets.UTF_8.name()) }.getOrNull() }
 
     /**
      * Parse MangaDex-specific URLs.

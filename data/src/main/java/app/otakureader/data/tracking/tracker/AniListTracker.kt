@@ -11,6 +11,8 @@ import app.otakureader.domain.tracking.Tracker
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
 /**
  * Tracker implementation for [AniList](https://anilist.co/).
@@ -57,18 +59,16 @@ class AniListTracker(
      * the implicit grant has no code to protect, so there is nothing to bind it to. Accepting
      * and ignoring it is honest here — inventing a use would imply a protection that is not
      * present.
+     *
+     * [state] is emphatically *not* unused. The implicit grant hands the access token straight
+     * to the redirect URI, so without a state the app would accept any `app.otakureader://
+     * anilist-oauth#access_token=…` link anyone can get the device to open — an attacker-chosen
+     * account silently substituted for the user's. The state is the only thing tying the token
+     * that comes back to the login this app started.
      */
     @Suppress("UnusedParameter")
-    override fun authorizationUrl(codeVerifier: String): String? {
-        val clientId = TrackerCredentials.ANILIST_CLIENT_ID
-        // Empty means the build had no ANILIST_CLIENT_ID. Returning null keeps the existing
-        // "tracker not configured" path rather than opening a URL that is guaranteed to fail.
-        if (clientId.isBlank()) return null
-        return "https://anilist.co/api/v2/oauth/authorize" +
-            "?client_id=$clientId" +
-            "&redirect_uri=${TrackerCredentials.ANILIST_REDIRECT_URI}" +
-            "&response_type=token"
-    }
+    override fun authorizationUrl(codeVerifier: String, state: String): String? =
+        buildAniListAuthorizationUrl(TrackerCredentials.ANILIST_CLIENT_ID, state)
 
     /** @param password the OAuth bearer token obtained from the AniList implicit flow. */
     override suspend fun login(username: String, password: String): Boolean {
@@ -192,4 +192,33 @@ class AniListTracker(
         TrackStatus.PLAN_TO_READ -> "PLANNING"
         TrackStatus.RE_READING -> "REPEATING"
     }
+}
+
+/**
+ * Builds the AniList authorization URL for [clientId] and [state], or null when there is no
+ * client id.
+ *
+ * Split out from [AniListTracker.authorizationUrl] so both outcomes are testable in one build.
+ * When the function read `TrackerCredentials.ANILIST_CLIENT_ID` directly, the only way to test
+ * the two branches was to gate each test on whether the build happened to have an id injected —
+ * which meant exactly one of them ever ran and the other was skipped. A skipped test reports as
+ * a pass, so the untested branch was silently uncovered on every single run, in both directions.
+ * Taking the id as a parameter makes both branches reachable from a test with no build state
+ * involved.
+ *
+ * [state] is percent-encoded rather than interpolated raw. Today's caller generates a UUID, which
+ * needs no encoding, so this changes nothing now — but the callback compares the returned value
+ * against the stored one for equality, and a state that ever grew a `&` or `=` would silently
+ * split into two parameters and fail that comparison forever. `DeepLinkHandler` decodes with the
+ * matching `URLDecoder`, so the pair round-trips.
+ */
+internal fun buildAniListAuthorizationUrl(clientId: String, state: String): String? {
+    // Blank means the build had no ANILIST_CLIENT_ID. Returning null keeps the existing
+    // "tracker not configured" path rather than opening a URL that is guaranteed to fail.
+    if (clientId.isBlank()) return null
+    return "https://anilist.co/api/v2/oauth/authorize" +
+        "?client_id=$clientId" +
+        "&redirect_uri=${TrackerCredentials.ANILIST_REDIRECT_URI}" +
+        "&response_type=token" +
+        "&state=${URLEncoder.encode(state, StandardCharsets.UTF_8.name())}"
 }

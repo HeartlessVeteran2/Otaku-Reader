@@ -41,8 +41,13 @@ class TrackerOAuthViewModel @Inject constructor(
 
             val session = pendingOAuthStore.get()
 
-            // Validate CSRF state if the provider returned one and we stored one.
-            if (callbackState != null && session != null && callbackState != session.state) {
+            // A stored session always carries a state (PendingOAuthSession.state is non-null), and
+            // every authorization URL now sends it, so a callback that comes back *without* one is
+            // not "a provider that omits state" — it is a callback this app did not start. The old
+            // condition began with `callbackState != null`, which turned exactly that case into a
+            // pass: an attacker-supplied redirect with no state skipped the comparison entirely,
+            // which is the one shape the check exists to catch.
+            if (session != null && callbackState != session.state) {
                 pendingOAuthStore.clear()
                 _state.update {
                     it.copy(
