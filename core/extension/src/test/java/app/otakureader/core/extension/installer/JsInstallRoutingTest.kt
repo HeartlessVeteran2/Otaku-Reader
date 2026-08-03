@@ -162,6 +162,34 @@ class JsInstallRoutingTest {
     }
 
     /**
+     * A lookup that *fails* is not evidence that the row is absent.
+     *
+     * This path runs because a database write just failed, so a follow-up read failing is a
+     * likely outcome rather than a theoretical one. Collapsing "absent" and "could not tell"
+     * into one null would hang a destructive branch off the ambiguous value and delete a working
+     * source along with the user's saved login for it. Destroying data needs positive evidence
+     * that it is safe; absence of evidence is not that.
+     */
+    @Test
+    fun `a failed lookup does not trigger the rollback`() = runTest {
+        val subject = extension("cannot-tell", isJavaScript = true)
+        val jsBackend = mockk<JsExtensionBackend>(relaxed = true) {
+            coEvery { install(subject) } returns Result.success(Unit)
+        }
+        val repository = mockk<ExtensionRepository>(relaxed = true) {
+            coEvery { installExtension(any<Extension>(), any()) } returns
+                Result.failure(java.io.IOException("database is locked"))
+            coEvery { getExtension("cannot-tell") } throws java.io.IOException("still locked")
+        }
+
+        val result = ExtensionInstaller(context, repository, loader, remoteDataSource, jsBackend)
+            .downloadAndInstall(subject)
+
+        assertTrue(result.isFailure)
+        coVerify(exactly = 0) { jsBackend.uninstall(any()) }
+    }
+
+    /**
      * The bug this guard exists for.
      *
      * Without the routing branch a JavaScript source falls through to the private-APK uninstall

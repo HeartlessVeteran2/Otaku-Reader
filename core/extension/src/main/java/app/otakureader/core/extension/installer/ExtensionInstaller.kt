@@ -295,9 +295,26 @@ class ExtensionInstaller(
         backend: JsExtensionBackend,
         error: Throwable,
     ) {
-        val existingRow = runCatching { repository.getExtension(extension.pkgName) }.getOrNull()
+        // Three outcomes, not two. `runCatching { ... }.getOrNull()` collapsed "the row is
+        // absent" and "the lookup itself failed" into the same null — and the destructive branch
+        // hangs off that value. This code runs *because* a database write just failed, so a
+        // follow-up read failing is a likely path rather than a theoretical one, and treating it
+        // as proof of absence would delete a working source and the user's saved login for it.
+        //
+        // Destroying data requires positive evidence that it is safe. Absence of evidence is not
+        // that, so a failed lookup takes the non-destructive branch.
+        val lookup = try {
+            Result.success(repository.getExtension(extension.pkgName))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            runCatching { error.addSuppressed(e) }
+            Result.failure(e)
+        }
 
-        if (existingRow == null) {
+        val existingRow = lookup.getOrNull()
+
+        if (lookup.isSuccess && existingRow == null) {
             // The cleanup's own failure must not replace the error that caused all this — that
             // would send the user looking in the wrong place. It is attached instead, so an
             // orphan that could not be cleaned up is still diagnosable from the reported error.

@@ -3,30 +3,6 @@ package app.otakureader.core.extension.domain.backend
 import app.otakureader.core.extension.domain.model.Extension
 
 /**
- * The JavaScript backend, as the APK-oriented extension layer needs to see it.
- *
- * Declared here and implemented in `:core:js-runtime` so the dependency runs one way: the JS
- * module knows about [Extension] and the extension-management layer knows only this interface.
- * Without the seam the two modules would have to depend on each other, since install has to be
- * dispatched from the APK installer while the actual work lives in the JS module.
- *
- * The same pattern as `CloudflareChallengeSolver` — interface in the module that calls it,
- * implementation in the module that can do the work, bound in `:app`, which is the only place
- * that knows about both.
- *
- * ### Why the JS sources ride the existing `Extension` model
- *
- * Everything in `feature/browse` — the list, the install button, the language filter, the search
- * — reads `Extension` rows out of the `extensions` table. Modelling a JavaScript source as one of
- * those rows means the entire extension-management UI works for the new backend without a single
- * edit. The alternative, a parallel model with a parallel screen, would have duplicated all of it
- * and then drifted.
- *
- * The one thing the model needed was an honest discriminator: [Extension.isJavaScript]. It is not
- * inferred from a name prefix or a URL suffix, because install and uninstall route on it and a
- * guess that is right most of the time would send an occasional `.js` file to the APK installer.
- */
-/**
  * The outcome of a JavaScript index fetch.
  *
  * [servedAnyIndex] is carried rather than inferred from `extensions.isEmpty()`, because those two
@@ -57,6 +33,30 @@ data class JsExtensionFetch(
     val firstFailure: Throwable? = null,
 )
 
+/**
+ * The JavaScript backend, as the APK-oriented extension layer needs to see it.
+ *
+ * Declared here and implemented in `:core:js-runtime` so the dependency runs one way: the JS
+ * module knows about [Extension] and the extension-management layer knows only this interface.
+ * Without the seam the two modules would have to depend on each other, since install has to be
+ * dispatched from the APK installer while the actual work lives in the JS module.
+ *
+ * The same pattern as `CloudflareChallengeSolver` — interface in the module that calls it,
+ * implementation in the module that can do the work, bound in `:app`, which is the only place
+ * that knows about both.
+ *
+ * ### Why the JS sources ride the existing `Extension` model
+ *
+ * Everything in `feature/browse` — the list, the install button, the language filter, the search
+ * — reads `Extension` rows out of the `extensions` table. Modelling a JavaScript source as one of
+ * those rows means the entire extension-management UI works for the new backend without a single
+ * edit. The alternative, a parallel model with a parallel screen, would have duplicated all of it
+ * and then drifted.
+ *
+ * The one thing the model needed was an honest discriminator: [Extension.isJavaScript]. It is not
+ * inferred from a name prefix or a URL suffix, because install and uninstall route on it and a
+ * guess that is right most of the time would send an occasional `.js` file to the APK installer.
+ */
 interface JsExtensionBackend {
 
     /**
