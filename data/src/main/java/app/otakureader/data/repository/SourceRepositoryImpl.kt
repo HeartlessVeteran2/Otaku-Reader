@@ -627,22 +627,19 @@ class SourceRepositoryImpl @Inject constructor(
     }
 
     /**
-     * Clear all caches
+     * Drop every cached browse result.
+     *
+     * Swaps the generation rather than clearing the maps: a fetch already in flight holds the old
+     * instance and writes its now-stale result there, where nothing will read it.
+     *
+     * There is deliberately no per-source variant. One existed, was never called by anything, and
+     * carried this same race in a form the swap cannot fix — removing one source's entries from
+     * the live generation is an in-place edit, so an in-flight fetch for that source repopulates
+     * it. Anyone adding per-source invalidation later has to solve that, and inheriting a helper
+     * that looks usable and quietly is not would make it likelier they miss it.
      */
     fun clearCaches() {
-        // Swap, don't clear. A fetch already in flight holds the old instance and will write its
-        // now-stale result there, where nothing will read it.
         browseCaches = BrowseCaches()
-    }
-
-    /**
-     * Clear cache for a specific source
-     */
-    fun clearSourceCache(sourceId: String) {
-        val caches = browseCaches
-        caches.popular.remove(sourceId)
-        caches.latest.remove(sourceId)
-        caches.search.remove(sourceId)
     }
 }
 
