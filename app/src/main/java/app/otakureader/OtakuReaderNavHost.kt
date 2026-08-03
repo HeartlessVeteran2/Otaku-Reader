@@ -60,7 +60,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavDestination.Companion.hasRoute
+import androidx.navigation.toRoute
 
 @Composable
 fun OtakuReaderNavHost(
@@ -91,22 +91,35 @@ fun OtakuReaderNavHost(
     // other than its close button — a deep link that clears the back stack, for instance — and
     // a stale "still showing" would suppress every later challenge for the life of this nav
     // host, silently disabling the whole bypass. The NavController already knows the answer.
-    // The WHOLE back stack, not just the current entry. If the user navigates away from an open
-    // CAPTCHA without closing it — a notification tap, a deep link — the current destination is
-    // no longer the WebView, and gating on that alone would push a second CAPTCHA while the
-    // first sat stranded beneath it.
+    // Show a challenge that has no screen of its own yet — matched by challenge id, not by
+    // "is some WebView open".
+    //
+    // That distinction is the whole correctness of this block, and three narrower versions were
+    // each wrong in their own way: a remembered flag went stale when a deep link cleared the
+    // back stack and suppressed every later challenge; gating on the current destination missed
+    // a CAPTCHA the user had navigated away from and pushed a duplicate on top of it; gating on
+    // the bare route would let an unrelated general-purpose WebView mask pending challenges, and
+    // left a stranded CAPTCHA blocking the bypass permanently, since only its own close button
+    // can pop it.
+    //
+    // Matching on id makes all three vanish rather than being handled: a stranded screen whose
+    // challenge has completed no longer matches anything pending, and a WebView opened for any
+    // other purpose carries no id at all.
     val backStack by navController.currentBackStack.collectAsStateWithLifecycle()
-    val challengeShowing = backStack.any { it.destination.hasRoute(Route.WebView::class) }
+    val shownChallengeIds = backStack.mapNotNull { entry ->
+        runCatching { entry.toRoute<Route.WebView>() }.getOrNull()?.challengeId
+    }.toSet()
 
     val pendingChallenges by challengeManager.pendingChallenges.collectAsStateWithLifecycle()
-    val nextChallenge = pendingChallenges.firstOrNull()
+    val nextChallenge = pendingChallenges.firstOrNull { it.id !in shownChallengeIds }
 
-    LaunchedEffect(nextChallenge?.id, challengeShowing) {
-        if (nextChallenge != null && !challengeShowing) {
+    LaunchedEffect(nextChallenge?.id) {
+        if (nextChallenge != null) {
             navController.navigate(
                 Route.WebView(
                     url = nextChallenge.url,
                     purpose = WebViewPurpose.CAPTCHA.name,
+                    challengeId = nextChallenge.id,
                 )
             )
         }

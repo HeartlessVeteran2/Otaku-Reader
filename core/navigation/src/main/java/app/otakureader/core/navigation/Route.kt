@@ -317,5 +317,18 @@ sealed interface Route {
     data class WebView(
         val url: String,
         val purpose: String = "GENERAL",
+        /**
+         * Identifies the Cloudflare challenge this screen was opened for, if any.
+         *
+         * Carried on the route so the navigation layer can ask the precise question — "is a
+         * WebView open for a challenge that is STILL pending?" — rather than the approximations
+         * that kept being subtly wrong: a remembered flag went stale, the current destination
+         * missed a screen the user had navigated away from, and the bare route matched a
+         * general-purpose WebView that has nothing to do with a challenge.
+         *
+         * Null for every non-challenge use, which is what keeps an OAuth or fallback WebView
+         * from masking a pending challenge.
+         */
+        val challengeId: Long? = null,
     ) : Route
 }
