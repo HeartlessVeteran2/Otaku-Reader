@@ -34,6 +34,7 @@ import okhttp3.Request
 import eu.kanade.tachiyomi.source.CatalogueSource
 import java.io.File
 import java.io.InterruptedIOException
+import app.otakureader.core.common.collection.BoundedCache
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -60,6 +61,23 @@ class SourceRepositoryImpl @Inject constructor(
 
     private companion object {
         const val TAG = "SourceRepositoryImpl"
+
+        /**
+         * Browse pages kept per source.
+         *
+         * Sized for how a source is actually read — a user scrolls a handful of pages deep and
+         * then either opens something or moves on — with enough slack that paging back up is
+         * still a cache hit rather than a refetch.
+         */
+        const val MAX_CACHED_PAGES_PER_SOURCE = 32
+
+        /**
+         * Search results kept per source, keyed by (query, page).
+         *
+         * Lower than the page cap because the key space is unbounded: every distinct string a
+         * user types is a new entry, so this is the one that grew without limit before.
+         */
+        const val MAX_CACHED_SEARCHES_PER_SOURCE = 16
     }
 
     /**
@@ -112,10 +130,22 @@ class SourceRepositoryImpl @Inject constructor(
         _sources.value = sources
     }
 
-    // Cache for manga pages to avoid repeated network calls
-    private val popularMangaCache = ConcurrentHashMap<String, ConcurrentHashMap<Int, MangaPage>>()
-    private val latestMangaCache = ConcurrentHashMap<String, ConcurrentHashMap<Int, MangaPage>>()
-    private val searchCache = ConcurrentHashMap<String, ConcurrentHashMap<Pair<String, Int>, MangaPage>>()
+    /**
+     * Cached browse results, per source.
+     *
+     * The outer map is bounded in practice — its keys are installed source ids, and entries are
+     * dropped on refresh and on uninstall. The inner maps were the unbounded ones, and
+     * [searchCache] worst of all: keyed by (query, page), it retained a full page of results for
+     * every distinct search string the user had ever typed, for the lifetime of the process.
+     * Nothing evicted them, so browsing was a slow memory leak that grew with use.
+     *
+     * [BoundedCache] evicts least-recently-*used*, which matters more than the bound itself: a
+     * reader paging through one source keeps their pages warm while a source they glanced at
+     * earlier falls out.
+     */
+    private val popularMangaCache = ConcurrentHashMap<String, BoundedCache<Int, MangaPage>>()
+    private val latestMangaCache = ConcurrentHashMap<String, BoundedCache<Int, MangaPage>>()
+    private val searchCache = ConcurrentHashMap<String, BoundedCache<Pair<String, Int>, MangaPage>>()
 
     init {
         // Load all installed extensions on initialization
@@ -172,7 +202,7 @@ class SourceRepositoryImpl @Inject constructor(
                 val mangaPage = source.fetchPopularManga(page)
 
                 // Cache the result
-                popularMangaCache.computeIfAbsent(sourceId) { ConcurrentHashMap() }[page] = mangaPage
+                popularMangaCache.computeIfAbsent(sourceId) { BoundedCache(MAX_CACHED_PAGES_PER_SOURCE) }[page] = mangaPage
 
                 // Record success
                 healthMonitor.recordSuccess(sourceId)
@@ -213,7 +243,7 @@ class SourceRepositoryImpl @Inject constructor(
                 val mangaPage = source.fetchLatestUpdates(page)
 
                 // Cache the result
-                latestMangaCache.computeIfAbsent(sourceId) { ConcurrentHashMap() }[page] = mangaPage
+                latestMangaCache.computeIfAbsent(sourceId) { BoundedCache(MAX_CACHED_PAGES_PER_SOURCE) }[page] = mangaPage
 
                 // Record success
                 healthMonitor.recordSuccess(sourceId)
@@ -271,7 +301,7 @@ class SourceRepositoryImpl @Inject constructor(
                 // Cache only when no filters are active
                 if (!filtersAreActive) {
                     val cacheKey = query to page
-                    searchCache.computeIfAbsent(sourceId) { ConcurrentHashMap() }[cacheKey] = mangaPage
+                    searchCache.computeIfAbsent(sourceId) { BoundedCache(MAX_CACHED_SEARCHES_PER_SOURCE) }[cacheKey] = mangaPage
                 }
 
                 // Record success

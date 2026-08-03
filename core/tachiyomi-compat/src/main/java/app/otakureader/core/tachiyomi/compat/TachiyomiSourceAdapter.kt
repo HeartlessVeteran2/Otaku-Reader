@@ -105,7 +105,7 @@ class TachiyomiSourceAdapter(
         return withContext(Dispatchers.IO) {
             val sChapter = TachiyomiModelsAdapter.toTachiyomiSChapter(chapter)
             val sPages = tachiyomiSource.getPageList(sChapter)
-            TachiyomiModelsAdapter.toPageList(sPages, chapter.hashCode().toLong())
+            TachiyomiModelsAdapter.toPageList(sPages)
         }
     }
 

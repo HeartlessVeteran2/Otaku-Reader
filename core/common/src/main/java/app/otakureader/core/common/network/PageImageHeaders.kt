@@ -1,5 +1,6 @@
 package app.otakureader.core.common.network
 
+import app.otakureader.core.common.collection.BoundedCache
 import java.net.URI
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -61,8 +62,8 @@ class PageImageHeaders @Inject constructor() {
         const val REFERER = "Referer"
     }
 
-    private val perPage = lruMap<String, Map<String, String>>(MAX_PAGE_ENTRIES)
-    private val perHost = lruMap<String, Map<String, String>>(MAX_HOST_ENTRIES)
+    private val perPage = BoundedCache<String, Map<String, String>>(MAX_PAGE_ENTRIES)
+    private val perHost = BoundedCache<String, Map<String, String>>(MAX_HOST_ENTRIES)
 
     /**
      * Register the fallback `Referer` for every host in [pageUrls], derived from [sourceBaseUrl].
@@ -73,9 +74,7 @@ class PageImageHeaders @Inject constructor() {
     fun registerReferer(sourceBaseUrl: String, pageUrls: List<String>) {
         val referer = sourceBaseUrl.takeIf { it.isNotBlank() } ?: return
         val headers = mapOf(REFERER to referer)
-        synchronized(perHost) {
-            pageUrls.mapNotNull { it.hostOrNull() }.distinct().forEach { perHost[it] = headers }
-        }
+        pageUrls.mapNotNull { it.hostOrNull() }.distinct().forEach { perHost[it] = headers }
     }
 
     /**
@@ -87,29 +86,17 @@ class PageImageHeaders @Inject constructor() {
      */
     fun registerPageHeaders(headersByUrl: Map<String, Map<String, String>>) {
         if (headersByUrl.isEmpty()) return
-        synchronized(perPage) { perPage.putAll(headersByUrl) }
+        perPage.putAll(headersByUrl)
     }
 
     /** Headers for [url], or empty when nothing was registered for it. */
     fun headersFor(url: String): Map<String, String> {
         val host = url.hostOrNull()
-        val hostHeaders = host?.let { synchronized(perHost) { perHost[it] } }.orEmpty()
-        val pageHeaders = synchronized(perPage) { perPage[url] }.orEmpty()
+        val hostHeaders = host?.let { perHost[it] }.orEmpty()
+        val pageHeaders = perPage[url].orEmpty()
         return hostHeaders + pageHeaders
     }
 
     private fun String.hostOrNull(): String? =
         runCatching { URI(this).host }.getOrNull()?.takeIf { it.isNotBlank() }
 }
-
-/**
- * Access-ordered map that evicts the least recently used entry past [maxEntries].
- *
- * `accessOrder = true` is the point: with insertion order, the pages a reader is actually
- * looking at would be evicted on the same schedule as ones they left behind an hour ago.
- */
-private fun <K, V> lruMap(maxEntries: Int): LinkedHashMap<K, V> =
-    object : LinkedHashMap<K, V>(16, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<K, V>?): Boolean =
-            size > maxEntries
-    }
