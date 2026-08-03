@@ -1,6 +1,7 @@
 package app.otakureader.data.tracking.di
 
 import app.otakureader.data.tracking.api.AniListApi
+import app.otakureader.data.tracking.api.AniListRateLimitInterceptor
 import app.otakureader.data.tracking.api.KitsuApi
 import app.otakureader.data.tracking.api.KitsuOAuthApi
 import app.otakureader.data.tracking.api.MangaUpdatesApi
@@ -132,12 +133,28 @@ object TrackingNetworkModule {
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
 
+    /**
+     * AniList gets its own client, derived from the shared tracker one.
+     *
+     * `newBuilder()` keeps everything `@TrackerOkHttp` configures — certificate pinning above all
+     * — and adds one interceptor on top. Registering the rate-limit interceptor on
+     * `@TrackerOkHttp` itself would apply AniList's 429 semantics to MAL, Kitsu, Shikimori and
+     * MangaUpdates, whose limits and headers differ; a retry policy read from the wrong service's
+     * headers is worse than none.
+     *
+     * An application interceptor, not a network one: it retries the whole call, and a network
+     * interceptor runs per hop, so it would not see the retry as the same logical request.
+     */
     @Provides
     @Singleton
     @AniListApiQ
     fun provideAniListRetrofit(@TrackerOkHttp okHttpClient: OkHttpClient, json: Json): Retrofit =
         Retrofit.Builder()
-            .client(okHttpClient)
+            .client(
+                okHttpClient.newBuilder()
+                    .addInterceptor(AniListRateLimitInterceptor())
+                    .build()
+            )
             .baseUrl("https://graphql.anilist.co/")
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
