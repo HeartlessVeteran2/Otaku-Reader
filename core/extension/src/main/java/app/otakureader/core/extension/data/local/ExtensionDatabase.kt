@@ -75,7 +75,20 @@ data class ExtensionEntity(
      * existed; backfilled on the next update check.
      */
     @ColumnInfo(name = "source_repo_url")
-    val sourceRepoUrl: String? = null
+    val sourceRepoUrl: String? = null,
+
+    /**
+     * Whether this row is a JavaScript source rather than an APK extension.
+     *
+     * Persisted rather than derived, because uninstall reads the row back to decide which
+     * backend to call. See `Extension.isJavaScript` for why a guess is not good enough.
+     */
+    // defaultValue must match the migration's `DEFAULT 0` exactly. Room compares the entity's
+    // declared schema against the live database after a migration, and a column default present
+    // in one and absent from the other is a mismatch — which surfaces as a crash on upgrade for
+    // existing users only, never in a fresh install or a test that starts at the current version.
+    @ColumnInfo(name = "is_javascript", defaultValue = "0")
+    val isJavaScript: Boolean = false
 )
 
 @Dao
@@ -152,7 +165,7 @@ interface ExtensionDao {
 
 @Database(
     entities = [ExtensionEntity::class],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class ExtensionDatabase : RoomDatabase() {

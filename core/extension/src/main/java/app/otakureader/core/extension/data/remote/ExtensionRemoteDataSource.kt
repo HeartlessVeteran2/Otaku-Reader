@@ -1,5 +1,6 @@
 package app.otakureader.core.extension.data.remote
 
+import app.otakureader.core.extension.domain.backend.JsExtensionBackend
 import app.otakureader.core.extension.domain.model.Extension
 import app.otakureader.core.extension.domain.model.ExtensionSource
 import app.otakureader.core.extension.domain.model.InstallStatus
@@ -181,6 +182,18 @@ interface ExtensionRemoteDataSource {
 class ExtensionRemoteDataSourceImpl(
     private val repoRepository: ExtensionRepoRepository,
     private val httpClient: OkHttpClient = createDefaultClient(),
+    /**
+     * The JavaScript backend, when one is wired in.
+     *
+     * The merge happens here rather than a layer up because this class already resolves and
+     * normalises the configured repository list. Doing it elsewhere would mean two readers of
+     * that list and two chances to normalise a URL differently — so a repository could resolve
+     * one way for APKs and another for scripts, which fails as "this repository has no sources"
+     * rather than as anything a user could act on.
+     *
+     * Null leaves the APK behaviour exactly as it was, which is what the existing tests exercise.
+     */
+    private val jsBackend: JsExtensionBackend? = null,
 ) : ExtensionRemoteDataSource {
 
     private val json = Json {
@@ -238,10 +251,39 @@ class ExtensionRemoteDataSourceImpl(
                     }
                 }
 
-                // Only report failure when every repository failed — a repo that responds
-                // with a legitimately empty list still counts as a success, and partial
-                // results are far more useful to the user than an empty error state.
-                if (successCount == 0 && failures.isNotEmpty()) {
+                // The JavaScript backend reads the same repository list. Its failures are
+                // absorbed the same way a single repository's are: a repository that serves no
+                // JavaScript index is the common case, not an error.
+                //
+                // Crucially this runs even when every APK fetch failed, and its results count
+                // towards success below. The inverse — letting an APK failure return early —
+                // is the exact defect that shipped in Stage 4a, where one thrown exception on
+                // the APK path silently dropped every JavaScript source. Isolation has to run
+                // in both directions or it is not isolation.
+                val jsFetch = jsBackend?.let { backend ->
+                    val normalized = repositories.map { normalizeRepoUrl(it) }
+                    try {
+                        backend.fetchAvailable(normalized)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        android.util.Log.w("ExtensionRemoteDS", "JS index fetch failed: ${e.message}")
+                        null
+                    }
+                }
+                val jsExtensions = jsFetch?.extensions.orEmpty()
+
+                // Only report failure when every repository failed and the JavaScript backend
+                // did not serve anything either — a repo that responds with a legitimately empty
+                // list still counts as a success, and partial results are far more useful to the
+                // user than an empty error state.
+                //
+                // The condition asks whether an index was *served*, not whether it produced
+                // extensions. Those differ for a JavaScript-only repository whose index is valid
+                // but empty: its APK endpoints legitimately 404, the JS list is legitimately
+                // empty, and reading emptiness as failure would show "all repositories failed"
+                // to a user whose setup is working exactly as intended.
+                if (successCount == 0 && failures.isNotEmpty() && jsFetch?.servedAnyIndex != true) {
                     val (firstUrl, firstError) = failures.first()
                     val exception = ExtensionFetchException(
                         "All ${failures.size} extension repositories failed " +
@@ -250,11 +292,23 @@ class ExtensionRemoteDataSourceImpl(
                     )
                     // Preserve the other repos' errors for debugging.
                     failures.drop(1).forEach { (_, error) -> exception.addSuppressed(error) }
+                    // And the JavaScript side's, which is the one that matters for a
+                    // JavaScript-only repository: without it the user is shown a 404 on an APK
+                    // index they never had, while the real fault — a malformed js/index.json —
+                    // goes unmentioned.
+                    jsFetch?.firstFailure?.let { exception.addSuppressed(it) }
                     return@withContext Result.failure(exception)
                 }
 
-                // Deduplicate by package name preferring highest versionCode
-                val merged = extensions
+                // Deduplicate by package name preferring highest versionCode.
+                //
+                // Both backends share this one namespace, and that is a requirement rather than
+                // an oversight: the DAO keys on pkgName (`getExtensionByPkgName`,
+                // `deleteByPkgName`, `updateStatus`), so two rows sharing one would make an
+                // uninstall delete both. A JavaScript source id colliding with an Android
+                // package name takes a deliberately package-shaped id, and one row surviving is
+                // far better than a pair the uninstall path cannot tell apart.
+                val merged = (extensions + jsExtensions)
                     .groupBy { it.pkgName }
                     .values
                     .map { candidates ->

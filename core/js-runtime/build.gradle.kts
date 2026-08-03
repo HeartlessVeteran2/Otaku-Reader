@@ -27,6 +27,12 @@ dependencies {
     implementation(projects.core.common)
     implementation(projects.core.preferences)
 
+    // JavaScript sources are surfaced through the same Extension model the APK backend uses, so
+    // all of feature/browse's extension-management UI works for them with no edits. The
+    // dependency runs one way only: this module knows about Extension, and :core:extension knows
+    // only the JsExtensionBackend interface it declares.
+    implementation(projects.core.extension)
+
     // The QuickJS engine. Confined to this module, and within it to the sidecar process.
     implementation(libs.quickjs)
 
@@ -45,4 +51,6 @@ dependencies {
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.okhttp.mockwebserver)
+    // The JS index and script fetches refuse plain HTTP, so their tests need a TLS MockWebServer.
+    testImplementation(libs.okhttp.tls)
 }

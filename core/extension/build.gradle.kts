@@ -12,6 +12,14 @@ android {
     buildFeatures {
         buildConfig = true
     }
+
+    testOptions {
+        // Without this, any android.jar method a test reaches throws "not mocked" instead of
+        // returning a default — so the failure-logging inside the remote data source, and the
+        // broadcast the uninstall path sends, made their code paths untestable rather than
+        // failing. Matches what :core:js-runtime already sets.
+        unitTests.isReturnDefaultValues = true
+    }
 }
 
 dependencies {

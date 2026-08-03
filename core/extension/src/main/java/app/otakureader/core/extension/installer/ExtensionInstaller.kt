@@ -7,6 +7,7 @@ import android.content.Intent
 import android.os.Build
 import androidx.core.net.toUri
 import app.otakureader.core.extension.data.remote.ExtensionRemoteDataSource
+import app.otakureader.core.extension.domain.backend.JsExtensionBackend
 import app.otakureader.core.extension.domain.model.Extension
 import app.otakureader.core.extension.domain.model.InstallStatus
 import app.otakureader.core.extension.domain.repository.ExtensionRepository
@@ -42,7 +43,15 @@ class ExtensionInstaller(
     private val context: Context,
     private val repository: ExtensionRepository,
     private val loader: ExtensionLoader,
-    private val remoteDataSource: ExtensionRemoteDataSource
+    private val remoteDataSource: ExtensionRemoteDataSource,
+    /**
+     * The JavaScript backend, when one is wired in.
+     *
+     * Dispatch happens here rather than in the ViewModel so `feature/browse` stays unaware that
+     * there are two backends at all — it calls one install method with an [Extension] and gets
+     * the right behaviour. Null keeps the APK-only path, which is what the existing tests cover.
+     */
+    private val jsBackend: JsExtensionBackend? = null,
 ) {
     
     companion object {
@@ -75,6 +84,10 @@ class ExtensionInstaller(
      */
     suspend fun downloadAndInstall(extension: Extension): Result<Extension> = withContext(Dispatchers.IO) {
         try {
+            if (extension.isJavaScript) {
+                return@withContext installJavaScript(extension)
+            }
+
             val apkUrl = extension.apkUrl
                 ?: return@withContext Result.failure(
                     IllegalArgumentException("Extension has no APK URL")
@@ -145,6 +158,211 @@ class ExtensionInstaller(
             )
             Result.failure(e)
         }
+    }
+
+    /**
+     * Drop the extension's row and announce the removal — but only announce it if the row went.
+     *
+     * Both uninstall paths reach here having already destroyed the artifact: the APK path has
+     * deleted its private copy, the JavaScript path has deregistered the script and erased the
+     * source's stored preferences. So by this point the extension really is gone, and the row is
+     * the last thing describing something that no longer exists.
+     *
+     * Two things were wrong when each path did this inline, and they were wrong identically —
+     * which is why this is now one function instead of two copies:
+     *
+     * - `.also { notifyRemoved(...) }` runs on the `Result` regardless of whether it succeeded,
+     *   so a failed delete still broadcast a removal. Listeners then dropped their state for an
+     *   extension the database still lists. `onSuccess` fires only on success.
+     * - A failed delete left the row stuck at `UNINSTALLING` forever: a source frozen
+     *   mid-removal that the user cannot act on and that no longer works.
+     *
+     * `ERROR` is the honest terminal state for that failure. Not `INSTALLED` — the extension is
+     * genuinely gone, and a row claiming otherwise would show a source that cannot function.
+     * `ERROR` also self-corrects: `refreshAvailableExtensions` deliberately does not treat ERROR
+     * rows as installed, so the next refresh re-offers the extension as available to install.
+     */
+    private suspend fun finalizeRemoval(pkgName: String): Result<Unit> =
+        repository.uninstallExtension(pkgName)
+            .onSuccess { ExtensionInstallReceiver.notifyRemoved(context, pkgName) }
+            .onFailure { repository.setExtensionStatus(pkgName, InstallStatus.ERROR) }
+
+    /**
+     * Remove a JavaScript source's script, registration and stored data, then its row.
+     *
+     * The backend runs first and the row is dropped only if it succeeded. The reverse order
+     * would let a failed erase leave the credentials on disk with the source already gone from
+     * the list the user would retry from — a state no retry can reach. `JsSourceProvider`
+     * applies the same ordering internally for the same reason.
+     */
+    private suspend fun uninstallJavaScript(pkgName: String): Result<Unit> {
+        val backend = jsBackend ?: return Result.failure(
+            IllegalStateException("No JavaScript backend is available to uninstall $pkgName")
+        )
+
+        return backend.uninstall(pkgName)
+            .fold(
+                onSuccess = { finalizeRemoval(pkgName) },
+                onFailure = { error ->
+                    // Put the row back to INSTALLED. Leaving it UNINSTALLING would show a
+                    // source stuck mid-removal that the user cannot act on, while the source
+                    // itself is still perfectly functional.
+                    repository.setExtensionStatus(pkgName, InstallStatus.INSTALLED)
+                    Result.failure(error)
+                },
+            )
+    }
+
+    /**
+     * Install a JavaScript source: fetch the script, register it, then record the row.
+     *
+     * The order is the point. The database row is written *last*, only once the script is on
+     * disk and registered with the engine, so a failed download or a rejected non-HTTPS URL
+     * leaves nothing behind that claims to be installed. Writing the row first would produce a
+     * source that appears in the library and fails on every call — which is precisely the class
+     * of silent, undiagnosable failure this rebuild exists to eliminate.
+     *
+     * There is no APK, no `PackageManager`, no signature verification and no system install
+     * prompt on this path. That is the whole reason the backend exists, and it is also why the
+     * HTTPS check inside the remote data source is not optional: with no signature to verify,
+     * transport is the only control on what gets executed.
+     */
+    private suspend fun installJavaScript(extension: Extension): Result<Extension> {
+        val backend = jsBackend ?: return Result.failure(
+            IllegalStateException("No JavaScript backend is available to install ${extension.pkgName}")
+        )
+
+        // Read the prior row BEFORE installing anything, while the database is still known to
+        // be healthy. Asking afterwards means asking a database that has just failed a write,
+        // and the answer decides whether a script gets deleted — so the question has to be put
+        // at the moment it can still be answered reliably.
+        //
+        // And if it cannot be answered even now, **fail closed**: do not install at all. The
+        // alternative is to write a live script whose ownership can never be established, which
+        // leaves exactly one safe move afterwards (destroy nothing) and therefore an executing
+        // source that no uninstall can reach. Refusing an install the user can simply retry is
+        // the cheaper failure by a wide margin.
+        val priorRow = lookupRow(extension.pkgName).getOrElse { lookupError ->
+            _installationState.value = InstallationState.Error(
+                "Installation failed: ${lookupError.message}",
+                lookupError,
+            )
+            return Result.failure(lookupError)
+        }
+
+        _installationState.value = InstallationState.Downloading(0)
+
+        val installed = backend.install(extension)
+        if (installed.isFailure) {
+            val error = installed.exceptionOrNull() ?: Exception("JavaScript install failed")
+            _installationState.value = InstallationState.Error(
+                "Installation failed: ${error.message}",
+                error
+            )
+            return Result.failure(error)
+        }
+
+        _installationState.value = InstallationState.Installing
+
+        // apkPath is empty rather than a path: there is no APK file to point at.
+        return repository.installExtension(extension, apkPath = "")
+            .onSuccess { _installationState.value = InstallationState.Success(it) }
+            .onFailure { error -> reconcileFailedInstall(extension, backend, priorRow, error) }
+    }
+
+    /**
+     * Look a row up, distinguishing "absent" from "could not tell".
+     *
+     * `runCatching { ... }.getOrNull()` maps both to null, and destructive decisions hang off
+     * that value. It also swallows cancellation, which would let a cancelled install carry on.
+     */
+    private suspend fun lookupRow(pkgName: String): Result<Extension?> =
+        try {
+            Result.success(repository.getExtension(pkgName))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            Result.failure(e)
+        }
+
+    /** Best-effort status write. Cancellation still propagates; ordinary failures do not. */
+    private suspend fun repairStatus(pkgName: String, status: InstallStatus) {
+        try {
+            repository.setExtensionStatus(pkgName, status)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            // Nothing more to do: this is already the failure path.
+        }
+    }
+
+    /**
+     * Put the two stores back into agreement after a JavaScript install whose row write failed.
+     *
+     * The hazard is an orphan: the script is on disk and registered with the engine, and since
+     * uninstall finds its target *through the database*, no row means nothing can ever reach it
+     * again — a source that still executes and cannot be removed.
+     *
+     * The decision rests on [priorRow], captured **before** the install ran. That ordering is
+     * the correctness of this method, not an implementation detail. Asking afterwards means
+     * asking a database that has just failed a write, and four earlier versions of this logic
+     * were wrong precisely because they tried to infer the answer from a post-failure read:
+     *
+     * - Rolling back unconditionally deleted a working source on a failed *update*, along with
+     *   the stored preferences that hold the user's login for that site.
+     * - Rolling back only when no row existed missed that a failed write leaves the row at
+     *   `ERROR`, which is transient — the next refresh replaces it with an `AVAILABLE` row, and
+     *   the script is orphaned one refresh later.
+     * - Reading the row afterwards conflated "absent" with "the read failed", hanging the
+     *   destructive branch off an ambiguous null on the one path where the database is least
+     *   trustworthy.
+     *
+     * With the fact captured up front, only two cases remain, and each has an unambiguous
+     * answer:
+     *
+     * - **A JavaScript row existed.** This was an update, so something is genuinely installed —
+     *   the new script is on disk, registered, and valid. Restore the row to `INSTALLED`, which
+     *   is the honest status, rather than leaving the transient `ERROR`.
+     * - **No row, or a row belonging to the other backend.** Nothing here reaches this script:
+     *   an APK row with the same package name routes uninstall down the APK path, which would
+     *   leave the script and its stored data behind. Remove the script.
+     *
+     * There is deliberately no "could not tell" case. [installJavaScript] fails closed when the
+     * snapshot cannot be read, so this method is only ever reached with a known answer. That is
+     * what removed the third branch — and with it the orphan it used to leave behind, since
+     * "destroy nothing" was the only safe move under ambiguity and it left an executing script
+     * that no uninstall could reach.
+     *
+     * The same "make the row describe reality" principle produces the opposite answer in
+     * [finalizeRemoval], which sets `ERROR` after a failed *delete*: there the extension really
+     * is gone, so letting the row lapse to available is right. Here it really is present.
+     *
+     * Residual, stated rather than papered over: a restored row still names the *previous*
+     * version while the new script is on disk. The source works, and the next update check
+     * reconciles the version. Snapshotting every script before every update to restore the old
+     * one would be a lot of machinery for a stale version number.
+     */
+    private suspend fun reconcileFailedInstall(
+        extension: Extension,
+        backend: JsExtensionBackend,
+        priorRow: Extension?,
+        error: Throwable,
+    ) {
+        if (priorRow != null && priorRow.isJavaScript) {
+            repairStatus(extension.pkgName, InstallStatus.INSTALLED)
+        } else {
+            // The cleanup's own failure must not replace the error that caused all this —
+            // that would send the user looking in the wrong place. It is attached instead,
+            // so an orphan that could not be cleaned up stays diagnosable.
+            backend.uninstall(extension.pkgName).onFailure { cleanupError ->
+                runCatching { error.addSuppressed(cleanupError) }
+            }
+        }
+
+        _installationState.value = InstallationState.Error(
+            "Installation failed: ${error.message}",
+            error
+        )
     }
 
     /**
@@ -495,6 +713,16 @@ class ExtensionInstaller(
         try {
             repository.setExtensionStatus(pkgName, InstallStatus.UNINSTALLING)
 
+            // Look the row up rather than inferring the backend from the name. Getting this
+            // wrong is not cosmetic: without the branch below a JavaScript source would fall
+            // through to the private-APK path, which deletes the database row and nothing else
+            // — leaving the script on disk, still registered with the engine, and its stored
+            // preferences intact. Those preferences routinely hold the user's login for the
+            // site, so "uninstalled" would leave the credentials behind.
+            if (repository.getExtension(pkgName)?.isJavaScript == true) {
+                return@withContext uninstallJavaScript(pkgName)
+            }
+
             if (isSystemInstalled(pkgName)) {
                 // Trigger the system uninstaller dialog for shared/installed extensions.
                 // The system will broadcast ACTION_PACKAGE_REMOVED on confirmation,
@@ -516,9 +744,7 @@ class ExtensionInstaller(
                 File(extensionsDir, "$pkgName.ext").takeIf { it.exists() }?.delete()
 
                 // Remove from repository and notify the receiver.
-                repository.uninstallExtension(pkgName).also {
-                    ExtensionInstallReceiver.notifyRemoved(context, pkgName)
-                }
+                finalizeRemoval(pkgName)
             }
         } catch (e: CancellationException) {
             throw e
