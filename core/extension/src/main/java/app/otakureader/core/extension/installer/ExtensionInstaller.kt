@@ -232,6 +232,12 @@ class ExtensionInstaller(
             IllegalStateException("No JavaScript backend is available to install ${extension.pkgName}")
         )
 
+        // Read the prior row BEFORE installing anything, while the database is still known to
+        // be healthy. Asking afterwards means asking a database that has just failed a write,
+        // and the answer decides whether a script gets deleted — so the question has to be put
+        // at the moment it can still be answered reliably.
+        val priorRow = lookupRow(extension.pkgName)
+
         _installationState.value = InstallationState.Downloading(0)
 
         val installed = backend.install(extension)
@@ -249,81 +255,102 @@ class ExtensionInstaller(
         // apkPath is empty rather than a path: there is no APK file to point at.
         return repository.installExtension(extension, apkPath = "")
             .onSuccess { _installationState.value = InstallationState.Success(it) }
-            .onFailure { error -> rollBackOrphanedScript(extension, backend, error) }
+            .onFailure { error -> reconcileFailedInstall(extension, backend, priorRow, error) }
     }
 
     /**
-     * Clean up after a JavaScript install whose database write failed.
+     * Look a row up, distinguishing "absent" from "could not tell".
+     *
+     * `runCatching { ... }.getOrNull()` maps both to null, and destructive decisions hang off
+     * that value. It also swallows cancellation, which would let a cancelled install carry on.
+     */
+    private suspend fun lookupRow(pkgName: String): Result<Extension?> =
+        try {
+            Result.success(repository.getExtension(pkgName))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            Result.failure(e)
+        }
+
+    /** Best-effort status write. Cancellation still propagates; ordinary failures do not. */
+    private suspend fun repairStatus(pkgName: String, status: InstallStatus) {
+        try {
+            repository.setExtensionStatus(pkgName, status)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            // Nothing more to do: this is already the failure path.
+        }
+    }
+
+    /**
+     * Put the two stores back into agreement after a JavaScript install whose row write failed.
      *
      * The hazard is an orphan: the script is on disk and registered with the engine, and since
-     * uninstall finds its target *through the database*, a missing row means nothing can ever
-     * reach it again — a source that still executes and cannot be removed.
+     * uninstall finds its target *through the database*, no row means nothing can ever reach it
+     * again — a source that still executes and cannot be removed.
      *
-     * **The rollback is conditional, and that condition is the whole correctness of this.** An
-     * unconditional `backend.uninstall` fixes the fresh-install orphan and breaks something
-     * worse in the update case: `backend.install` has already replaced the script of a source
-     * the user had working, so uninstalling would delete it outright — along with the stored
-     * preferences that routinely hold their login for that site. The cure would be worse than
-     * the failure it followed.
+     * The decision rests on [priorRow], captured **before** the install ran. That ordering is
+     * the correctness of this method, not an implementation detail. Asking afterwards means
+     * asking a database that has just failed a write, and four earlier versions of this logic
+     * were wrong precisely because they tried to infer the answer from a post-failure read:
      *
-     * The rule both branches follow is simply **make the row describe reality**:
+     * - Rolling back unconditionally deleted a working source on a failed *update*, along with
+     *   the stored preferences that hold the user's login for that site.
+     * - Rolling back only when no row existed missed that a failed write leaves the row at
+     *   `ERROR`, which is transient — the next refresh replaces it with an `AVAILABLE` row, and
+     *   the script is orphaned one refresh later.
+     * - Reading the row afterwards conflated "absent" with "the read failed", hanging the
+     *   destructive branch off an ambiguous null on the one path where the database is least
+     *   trustworthy.
      *
-     * - **No row existed.** Nothing installed this before, and the failed write left nothing
-     *   behind (`updateStatus` on an absent row is a no-op). The script is unreachable, so it
-     *   goes.
-     * - **A row existed.** Something *is* installed — the new script is on disk and registered,
-     *   and it is a valid script. So the row is restored to `INSTALLED`, which is the honest
-     *   status, rather than left at the `ERROR` the repository set on its way out.
+     * With the fact captured up front, each case has an unambiguous answer:
      *
-     * Restoring the status is not cosmetic. `ERROR` is deliberately transient: the next
-     * `refreshAvailableExtensions` does not count `ERROR` rows as installed and replaces them
-     * with fresh `AVAILABLE` ones. The script would then be live in Browse and registered with
-     * the engine while the extension screen listed it as not installed — no uninstall button
-     * anywhere, which is the orphan this method exists to prevent, just reached a slower way.
+     * - **A JavaScript row existed.** This was an update, so something is genuinely installed —
+     *   the new script is on disk, registered, and valid. Restore the row to `INSTALLED`, which
+     *   is the honest status, rather than leaving the transient `ERROR`.
+     * - **No row, or a row belonging to the other backend.** Nothing here reaches this script:
+     *   an APK row with the same package name routes uninstall down the APK path, which would
+     *   leave the script and its stored data behind. Remove the script.
+     * - **The prior lookup itself failed.** Nothing is destroyed. Destroying data requires
+     *   positive evidence that it is safe, and absence of evidence is not that.
      *
-     * The same principle produced the opposite answer in [finalizeRemoval], which sets `ERROR`
-     * after a failed *delete*: there the extension really is gone, so letting the row lapse to
-     * available is right. Here it really is present.
+     * The same "make the row describe reality" principle produces the opposite answer in
+     * [finalizeRemoval], which sets `ERROR` after a failed *delete*: there the extension really
+     * is gone, so letting the row lapse to available is right. Here it really is present.
      *
      * Residual, stated rather than papered over: a restored row still names the *previous*
      * version while the new script is on disk. The source works, and the next update check
      * reconciles the version. Snapshotting every script before every update to restore the old
      * one would be a lot of machinery for a stale version number.
      */
-    private suspend fun rollBackOrphanedScript(
+    private suspend fun reconcileFailedInstall(
         extension: Extension,
         backend: JsExtensionBackend,
+        priorRow: Result<Extension?>,
         error: Throwable,
     ) {
-        // Three outcomes, not two. `runCatching { ... }.getOrNull()` collapsed "the row is
-        // absent" and "the lookup itself failed" into the same null — and the destructive branch
-        // hangs off that value. This code runs *because* a database write just failed, so a
-        // follow-up read failing is a likely path rather than a theoretical one, and treating it
-        // as proof of absence would delete a working source and the user's saved login for it.
-        //
-        // Destroying data requires positive evidence that it is safe. Absence of evidence is not
-        // that, so a failed lookup takes the non-destructive branch.
-        val lookup = try {
-            Result.success(repository.getExtension(extension.pkgName))
-        } catch (e: CancellationException) {
-            throw e
-        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            runCatching { error.addSuppressed(e) }
-            Result.failure(e)
-        }
+        val prior = priorRow.getOrNull()
 
-        val existingRow = lookup.getOrNull()
-
-        if (lookup.isSuccess && existingRow == null) {
-            // The cleanup's own failure must not replace the error that caused all this — that
-            // would send the user looking in the wrong place. It is attached instead, so an
-            // orphan that could not be cleaned up is still diagnosable from the reported error.
-            backend.uninstall(extension.pkgName).onFailure { cleanupError ->
-                runCatching { error.addSuppressed(cleanupError) }
+        when {
+            priorRow.isFailure -> {
+                // Could not tell. Leave the artifact alone and carry the reason, so the
+                // ambiguity is visible in the reported error rather than silently absorbed.
+                priorRow.exceptionOrNull()?.let { runCatching { error.addSuppressed(it) } }
             }
-        } else {
-            runCatching {
-                repository.setExtensionStatus(extension.pkgName, InstallStatus.INSTALLED)
+
+            prior != null && prior.isJavaScript -> {
+                repairStatus(extension.pkgName, InstallStatus.INSTALLED)
+            }
+
+            else -> {
+                // The cleanup's own failure must not replace the error that caused all this —
+                // that would send the user looking in the wrong place. It is attached instead,
+                // so an orphan that could not be cleaned up stays diagnosable.
+                backend.uninstall(extension.pkgName).onFailure { cleanupError ->
+                    runCatching { error.addSuppressed(cleanupError) }
+                }
             }
         }
 

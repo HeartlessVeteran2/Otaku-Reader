@@ -162,10 +162,37 @@ class JsInstallRoutingTest {
     }
 
     /**
+     * A row belonging to the *other* backend does not protect the script.
+     *
+     * An APK row with the same package name routes uninstall down the APK path, which deletes
+     * an APK copy and the row — never the script or its stored data. So the script is just as
+     * unreachable as it would be with no row at all, and restoring that row to INSTALLED would
+     * assert something false about an extension of a different kind.
+     */
+    @Test
+    fun `an APK row with the same name does not protect the script`() = runTest {
+        val subject = extension("collides", isJavaScript = true)
+        val jsBackend = mockk<JsExtensionBackend>(relaxed = true) {
+            coEvery { install(subject) } returns Result.success(Unit)
+        }
+        val repository = mockk<ExtensionRepository>(relaxed = true) {
+            coEvery { installExtension(any<Extension>(), any()) } returns
+                Result.failure(java.io.IOException("database is locked"))
+            coEvery { getExtension("collides") } returns extension("collides", isJavaScript = false)
+        }
+
+        ExtensionInstaller(context, repository, loader, remoteDataSource, jsBackend)
+            .downloadAndInstall(subject)
+
+        coVerify(exactly = 1) { jsBackend.uninstall("collides") }
+        coVerify(exactly = 0) { repository.setExtensionStatus(any(), InstallStatus.INSTALLED) }
+    }
+
+    /**
      * A lookup that *fails* is not evidence that the row is absent.
      *
-     * This path runs because a database write just failed, so a follow-up read failing is a
-     * likely outcome rather than a theoretical one. Collapsing "absent" and "could not tell"
+     * The lookup runs before the install, while the database is still healthy, so this is the
+     * rarer case — but the rule stands either way. Collapsing "absent" and "could not tell"
      * into one null would hang a destructive branch off the ambiguous value and delete a working
      * source along with the user's saved login for it. Destroying data needs positive evidence
      * that it is safe; absence of evidence is not that.
