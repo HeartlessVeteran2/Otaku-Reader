@@ -1,6 +1,7 @@
 package app.otakureader.core.webview
 
 import android.webkit.WebView
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -47,13 +48,29 @@ import app.otakureader.core.navigation.Route
 fun WebViewScreen(
     url: String,
     @Suppress("UnusedParameter") purpose: WebViewPurpose,
-    onClose: (cookieString: String?) -> Unit,
+    onClose: (cookieString: String?, userAgent: String?) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: WebViewViewModel = hiltViewModel(),
 ) {
     val adBlockEnabled by viewModel.adBlockEnabled.collectAsStateWithLifecycle(initialValue = true)
     val context = LocalContext.current
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
+
+    // Closing the challenge is what releases the blocked request, and the top bar's button was
+    // the only thing that did it. System and gesture back pop the destination directly, leaving
+    // the caller waiting out its full timeout for a screen the user has already dismissed.
+    //
+    // One lambda for both exits rather than two copies: what counts as "the result" is the
+    // cookie/User-Agent pair, and the two paths drifting apart would mean one exit reporting
+    // clearance and the other reporting none for the very same screen.
+    val reportClose = {
+        onClose(
+            webViewRef?.let { viewModel.cookiesForUrl(url) },
+            webViewRef?.settings?.userAgentString,
+        )
+    }
+
+    BackHandler { reportClose() }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -63,7 +80,11 @@ fun WebViewScreen(
 
     Column(modifier = modifier.fillMaxSize()) {
         WebViewTopBar(
-            onBack = { onClose(webViewRef?.let { viewModel.cookiesForUrl(url) }) },
+            // The User-Agent travels with the cookies because Cloudflare binds clearance
+            // to the identity that earned it; a cookie replayed under a different one is
+            // challenged again, so returning the cookie alone would leave the user solving the
+            // same challenge forever.
+            onBack = reportClose,
             onNavigateBack = { webViewRef?.goBack() },
             onNavigateForward = { webViewRef?.goForward() },
             onReload = { webViewRef?.reload() },
@@ -164,11 +185,13 @@ private fun WebViewTopBar(
 /**
  * Registers the [WebViewScreen] destination in the app's [NavGraphBuilder].
  *
- * The [onClose] callback receives the source ID, the URL, and the cookie string
- * so that callers (e.g. extension WebView bridges) can act on the result.
+ * The [onClose] callback receives the URL, the cookie string, and the WebView's User-Agent.
+ * The last of these is what lets the network layer replay the clearance cookie under the same
+ * identity that earned it — without it, the bypass appears to succeed and the next request is
+ * challenged again.
  */
 fun NavGraphBuilder.webViewScreen(
-    onClose: (sourceId: Long, url: String, cookieString: String?) -> Unit,
+    onClose: (url: String, cookieString: String?, userAgent: String?) -> Unit,
 ) {
     composable<Route.WebView> { backStackEntry ->
         val route = backStackEntry.toRoute<Route.WebView>()
@@ -176,7 +199,7 @@ fun NavGraphBuilder.webViewScreen(
             url = route.url,
             purpose = runCatching { WebViewPurpose.valueOf(route.purpose) }
                 .getOrDefault(WebViewPurpose.GENERAL),
-            onClose = { cookies -> onClose(route.sourceId, route.url, cookies) },
+            onClose = { cookies, userAgent -> onClose(route.url, cookies, userAgent) },
         )
     }
 }

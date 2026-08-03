@@ -306,16 +306,29 @@ sealed interface Route {
     /**
      * Embedded WebView screen (e.g. CAPTCHA solving, OAuth).
      *
-     * @param sourceId Extension source ID this WebView is serving.
-     * @param url      URL to open.
+     * @param url      URL to open. The Cloudflare flow is keyed by this URL's host, since
+     *                 clearance is granted per domain and the network layer — which triggers
+     *                 the challenge — only ever knows a URL, never a source.
      * @param purpose  [app.otakureader.core.webview.WebViewPurpose] as a String to avoid
      *                 a cross-module enum reference in the navigation layer.
      *                 Defaults to "GENERAL".
      */
     @Serializable
     data class WebView(
-        val sourceId: Long,
         val url: String,
         val purpose: String = "GENERAL",
+        /**
+         * Identifies the Cloudflare challenge this screen was opened for, if any.
+         *
+         * Carried on the route so the navigation layer can ask the precise question — "is a
+         * WebView open for a challenge that is STILL pending?" — rather than the approximations
+         * that kept being subtly wrong: a remembered flag went stale, the current destination
+         * missed a screen the user had navigated away from, and the bare route matched a
+         * general-purpose WebView that has nothing to do with a challenge.
+         *
+         * Null for every non-challenge use, which is what keeps an OAuth or fallback WebView
+         * from masking a pending challenge.
+         */
+        val challengeId: Long? = null,
     ) : Route
 }

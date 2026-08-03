@@ -51,6 +51,16 @@ import app.otakureader.feature.updates.navigation.downloadsScreen
 import app.otakureader.feature.updates.navigation.updateErrorsScreen
 import app.otakureader.feature.updates.navigation.updatesScreen
 import app.otakureader.util.DeepLinkResult
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import app.otakureader.core.webview.WebViewPurpose
+import app.otakureader.core.webview.WebViewChallengeManager
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.toRoute
 
 @Composable
 fun OtakuReaderNavHost(
@@ -60,9 +70,74 @@ fun OtakuReaderNavHost(
     deepLinkResult: DeepLinkResult? = null,
     onDeepLinkConsumed: () -> Unit = {},
     onOnboardingComplete: () -> Unit = {},
+    challengeManager: WebViewChallengeManager = hiltViewModel<ChallengeHostViewModel>().manager,
 ) {
     // Determine start destination based on onboarding status
     val startDestination: Route = if (onboardingCompleted) Route.Library else Route.Onboarding
+
+    // Open the WebView when a source hits a Cloudflare wall.
+    //
+    // This observer is the step that was missing entirely: the manager published pending
+    // challenges and the KDoc said "the app's navigation layer observes" them, but nothing did —
+    // so a blocked source simply failed with no way for the user to intervene.
+    //
+    // Show a challenge that has no screen of its own yet — matched by challenge **id**, not by
+    // "is some WebView open". Whether a screen exists is read from the back stack rather than
+    // tracked in a flag of our own, because the NavController already knows the answer and a
+    // flag of ours can disagree with it.
+    //
+    // That distinction is the whole correctness of this block, and three narrower versions were
+    // each wrong in their own way: a remembered flag went stale when a deep link cleared the
+    // back stack and suppressed every later challenge; gating on the current destination missed
+    // a CAPTCHA the user had navigated away from and pushed a duplicate on top of it; gating on
+    // the bare route would let an unrelated general-purpose WebView mask pending challenges, and
+    // left a stranded CAPTCHA blocking the bypass permanently, since only its own close button
+    // can pop it.
+    //
+    // The predicate has to satisfy FOUR properties at once, and every previous version got some
+    // subset. Listed so the next change can be checked against all of them rather than the one
+    // that happens to be under discussion:
+    //
+    //  1. One at a time. Two hosts can be blocked together; stacking their screens means the
+    //     user dismisses a pile of CAPTCHAs to get back to reading.
+    //  2. No duplicate for a live challenge, even after navigating away from its screen.
+    //  3. A stranded screen must not wedge the bypass. Only its own close button pops it, so a
+    //     CAPTCHA left behind by a deep link would otherwise block every later challenge for the
+    //     lifetime of the nav host.
+    //  4. An unrelated WebView — OAuth, the fallback viewer — must not mask a challenge.
+    //
+    // Matching on challenge id gives 2, 3 and 4: a stranded screen whose challenge completed
+    // matches nothing pending, and a WebView opened for another purpose carries no id. Property
+    // 1 needs the extra check below, because once a screen exists for A its id counts as shown
+    // and B would immediately become eligible — which is how an id-only filter reintroduced the
+    // stacking it was not trying to fix.
+    val backStack by navController.currentBackStack.collectAsStateWithLifecycle()
+    val shownChallengeIds = backStack.mapNotNull { entry ->
+        runCatching { entry.toRoute<Route.WebView>() }.getOrNull()?.challengeId
+    }.toSet()
+
+    val pendingChallenges by challengeManager.pendingChallenges.collectAsStateWithLifecycle()
+
+    // A screen already exists for a challenge that is STILL pending — so the user is looking at
+    // (or has left open) live work, and nothing new should be pushed on top of it.
+    val liveChallengeOnStack = pendingChallenges.any { it.id in shownChallengeIds }
+
+    val nextChallenge = when {
+        liveChallengeOnStack -> null
+        else -> pendingChallenges.firstOrNull { it.id !in shownChallengeIds }
+    }
+
+    LaunchedEffect(nextChallenge?.id) {
+        if (nextChallenge != null) {
+            navController.navigate(
+                Route.WebView(
+                    url = nextChallenge.url,
+                    purpose = WebViewPurpose.CAPTCHA.name,
+                    challengeId = nextChallenge.id,
+                )
+            )
+        }
+    }
 
     // Handle deep link navigation - only trigger once when deepLinkResult changes
     LaunchedEffect(deepLinkResult) {
@@ -635,7 +710,14 @@ fun OtakuReaderNavHost(
 
         // WebView — embedded browser for CAPTCHA solving, OAuth, etc.
         webViewScreen(
-            onClose = { _, _, _ ->
+            onClose = { url, cookieString, userAgent ->
+                // Completing the challenge is what resumes the blocked request. The previous
+                // version discarded all three values and only popped the back stack, so the
+                // caller waiting on the challenge was never released — the WebView "worked"
+                // and nothing downstream ever knew.
+                url.toHttpUrlOrNull()?.host?.let { host ->
+                    challengeManager.completeChallenge(host, cookieString, userAgent)
+                }
                 navController.popBackStack()
             }
         )
