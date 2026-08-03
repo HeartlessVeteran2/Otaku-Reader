@@ -13,6 +13,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import kotlin.math.roundToInt
 
 /**
  * Tracker implementation for [AniList](https://anilist.co/).
@@ -46,7 +47,12 @@ class AniListTracker(
     override val name: String = "AniList"
 
     private var accessToken: String? = tokenStore.getTokens(TrackerType.ANILIST)?.accessToken
-    private var currentUserId: Long? = tokenStore.getTokens(TrackerType.ANILIST)?.userId
+    // No `currentUserId` here, unlike ShikimoriTracker. Shikimori's user-rate endpoints take a
+    // user id as a parameter, so it genuinely needs one; AniList's `Media { mediaListEntry }` and
+    // `SaveMediaListEntry` are already scoped to whoever the bearer token belongs to. The field
+    // used to exist and was written only by `logout()` — nothing ever read it, and `login()` never
+    // populated it, so it was null for the object's whole life. The plan called for adding a
+    // `Viewer { id }` query to fill it; that would have fetched a value with no consumer.
 
     override val isLoggedIn: Boolean
         get() = accessToken != null
@@ -109,7 +115,6 @@ class AniListTracker(
 
     override fun logout() {
         accessToken = null
-        currentUserId = null
         tokenStore.clearTokens(id)
     }
 
@@ -123,6 +128,10 @@ class AniListTracker(
         """.trimIndent()
         val variables = buildJsonObject { put("search", query) }
         val response = api.query(AniListGraphQlQuery(gqlQuery, variables))
+        // Same reason as in `update`: a rejected document arrives as HTTP 200, so without this a
+        // refused search is indistinguishable from a search that genuinely found nothing, and the
+        // user is told "no results" for a query that was never run.
+        response.errors.firstOrNull()?.let { throw AniListGraphQlException(it.message) }
         return response.data?.page?.media.orEmpty().map { media ->
             TrackEntry(
                 remoteId = media.id,
@@ -135,11 +144,28 @@ class AniListTracker(
         }
     }
 
+    /**
+     * Look up a media entry, whether or not the user has it on their list.
+     *
+     * The list entry used to be required — `media.mediaListEntry ?: return null` — which made this
+     * return null for every manga the user had not already added. That is exactly backwards for
+     * the flow that matters: you search for something *because* it isn't tracked yet, and the app
+     * then cannot resolve the thing it just found. `Media` and `mediaListEntry` are separate
+     * concerns, so a missing list entry now means "not tracked yet" (default status, zero
+     * progress) rather than "no such manga".
+     *
+     * `score(format: POINT_100)` is deliberate. Without the argument AniList returns the score in
+     * whatever format the *user* picked — 0–10, 0–5 stars, three smileys — so the same number
+     * meant different things per account, with nothing on the wire to say which. Naming the format
+     * makes the response self-describing, and it removes the need to fetch
+     * `mediaListOptions.scoreFormat` separately just to interpret it.
+     */
     override suspend fun find(remoteId: Long): TrackEntry? {
         val gqlQuery = """
             query (${'$'}id: Int) {
               Media(id: ${'$'}id, type: MANGA) {
-                id title { romaji english } chapters mediaListEntry { id status score progress }
+                id title { romaji english } chapters
+                mediaListEntry { id status score(format: POINT_100) progress }
               }
             }
         """.trimIndent()
@@ -148,17 +174,17 @@ class AniListTracker(
         return try {
             val response = api.query(AniListGraphQlQuery(gqlQuery, variables))
             val media = response.data?.media ?: return null
-            val listEntry = media.mediaListEntry ?: return null
+            val listEntry = media.mediaListEntry
             TrackEntry(
                 remoteId = remoteId,
                 mangaId = 0L,
                 trackerId = id,
                 title = media.title?.english ?: media.title?.romaji ?: "",
                 remoteUrl = "https://anilist.co/manga/$remoteId",
-                status = statusFromAniList(listEntry.status),
-                lastChapterRead = listEntry.progress.toFloat(),
+                status = listEntry?.let { statusFromAniList(it.status) } ?: TrackStatus.PLAN_TO_READ,
+                lastChapterRead = listEntry?.progress?.toFloat() ?: 0f,
                 totalChapters = media.chapters ?: 0,
-                score = listEntry.score
+                score = listEntry?.score?.fromAniListPoint100() ?: 0f
             )
         } catch (e: CancellationException) {
             throw e
@@ -167,11 +193,30 @@ class AniListTracker(
         }
     }
 
+    /**
+     * Push [entry] to AniList, throwing if the push does not land.
+     *
+     * This used to catch every exception and return the input entry unchanged. The interface
+     * forbids that in as many words — *"implementations must throw on remote failure rather than
+     * silently returning the input entry"* — and the reason is visible at the call sites:
+     * `TrackerSyncRepositoryImpl` writes `syncStatus = SYNCED` and a `lastSuccessfulSync` stamp
+     * immediately after this returns. Swallowing the failure recorded a successful sync for a
+     * request that never reached AniList, and the entry then looked up to date forever. All three
+     * call sites already sit inside `catch` blocks that mark `SyncStatus.ERROR`, so throwing is
+     * what they were built to receive.
+     *
+     * `scoreRaw` is typed `Int` here because that is what AniList declares it as, and it is always
+     * on the 0–100 scale regardless of the user's display format — which is the whole reason to
+     * use it rather than `score`. Declaring it `Float` was the same defect as the string-typed
+     * variables fixed in #1232, one line over.
+     */
     override suspend fun update(entry: TrackEntry): TrackEntry {
         val gqlMutation = """
-            mutation (${'$'}mediaId: Int, ${'$'}status: MediaListStatus, ${'$'}score: Float, ${'$'}progress: Int) {
-              SaveMediaListEntry(mediaId: ${'$'}mediaId, status: ${'$'}status, scoreRaw: ${'$'}score, progress: ${'$'}progress) {
-                id status score progress
+            mutation (${'$'}mediaId: Int, ${'$'}status: MediaListStatus, ${'$'}scoreRaw: Int, ${'$'}progress: Int) {
+              SaveMediaListEntry(
+                mediaId: ${'$'}mediaId, status: ${'$'}status, scoreRaw: ${'$'}scoreRaw, progress: ${'$'}progress
+              ) {
+                id status score(format: POINT_100) progress
               }
             }
         """.trimIndent()
@@ -180,17 +225,36 @@ class AniListTracker(
         val variables = buildJsonObject {
             put("mediaId", entry.remoteId)
             put("status", statusToAniList(entry.status))
-            put("score", entry.score)
+            put("scoreRaw", entry.score.toAniListPoint100())
             put("progress", entry.lastChapterRead.toInt())
         }
-        return try {
-            api.query(AniListGraphQlQuery(gqlMutation, variables))
-            entry
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            entry
-        }
+        val response = api.query(AniListGraphQlQuery(gqlMutation, variables))
+        // Errors first, exactly as in `search`. GraphQL is not all-or-nothing: a response may
+        // carry `data` *and* `errors` when one resolver fails and its siblings succeed, so
+        // checking errors only where `savedEntry` is null would accept a partial write and
+        // persist its half-filled values. Any error at all means this push is not something to
+        // report as done.
+        response.errors.firstOrNull()?.let { throw AniListGraphQlException(it.message) }
+        // No confirmed entry means the mutation did not take, and this must not return normally.
+        // GraphQL reports a rejected document with **HTTP 200**, so Retrofit throws nothing and
+        // the exception-propagation fix above never fires for this case — an unauthenticated
+        // token, a media id AniList doesn't have, a variable it won't accept. Returning `entry`
+        // here would have been the very behaviour this change set out to remove, one branch over:
+        // the caller writes `syncStatus = SYNCED` on the next line.
+        val saved = response.data?.savedEntry
+            ?: throw AniListGraphQlException("AniList did not confirm the update for media ${entry.remoteId}")
+        // Prefer what AniList confirmed over what was sent. The mutation already asked for these
+        // fields and then discarded them, so a value the server clamped or normalised — a score
+        // above the user's maximum, progress past the final chapter — was written back locally as
+        // whatever this app had guessed.
+        return entry.copy(
+            // A blank status means the field was absent from the response, not that the entry is
+            // unset — mapping "" would run through statusFromAniList's else branch and quietly
+            // rewrite the user's status to PLAN_TO_READ.
+            status = saved.status.takeIf { it.isNotBlank() }?.let { statusFromAniList(it) } ?: entry.status,
+            lastChapterRead = saved.progress.toFloat(),
+            score = saved.score.fromAniListPoint100(),
+        )
     }
 
     override fun toTrackStatus(remoteStatus: Int): TrackStatus = TrackStatus.fromOrdinal(remoteStatus)
@@ -215,4 +279,46 @@ class AniListTracker(
         TrackStatus.PLAN_TO_READ -> "PLANNING"
         TrackStatus.RE_READING -> "REPEATING"
     }
+
+    /**
+     * Canonical 0–10 score → AniList's 0–100 `scoreRaw`.
+     *
+     * `roundToInt`, not `toInt`: `0.7f * 10` is 6.9999995, and truncating would file a 0.7 as 6.
+     * The clamp keeps a malformed local score from producing a request AniList rejects outright.
+     */
+    private fun Float.toAniListPoint100(): Int =
+        (this * ANILIST_POINTS_PER_SCORE_POINT).roundToInt().coerceIn(ANILIST_MIN_SCORE, ANILIST_MAX_SCORE)
+
+    /** AniList's 0–100 score → canonical 0–10. */
+    private fun Float.fromAniListPoint100(): Float = this / ANILIST_POINTS_PER_SCORE_POINT
+
+    private companion object {
+        /**
+         * How many AniList points make one point of [TrackEntry.score].
+         *
+         * `TrackEntry.score` has no documented scale, so the one that counts is what the other
+         * trackers already store: Kitsu halves its 0–20 `ratingTwenty`, and MAL and Shikimori are
+         * natively 0–10. That makes **0–10** the de-facto canonical scale, and AniList's
+         * `scoreRaw`/`score(format: POINT_100)` is 0–100.
+         *
+         * Nothing converted between them. A user who rated something 8 sent `scoreRaw: 8`, which
+         * AniList stores as 8/100 — an 0.8 out of 10. Every score written to AniList was a tenth
+         * of what the user meant, and every score read back was ten times it.
+         */
+        const val ANILIST_POINTS_PER_SCORE_POINT = 10f
+
+        /** The bounds AniList accepts for `scoreRaw`; anything outside is rejected. */
+        const val ANILIST_MIN_SCORE = 0
+        const val ANILIST_MAX_SCORE = 100
+    }
 }
+
+/**
+ * AniList accepted the request but refused the mutation.
+ *
+ * Distinct from the `IOException` a transport failure produces, because the two want different
+ * handling: a dropped connection is worth retrying, a rejected media id never will be. Callers in
+ * `TrackerSyncRepositoryImpl` catch `Exception` and mark `SyncStatus.ERROR` either way, so this
+ * exists to carry AniList's own message to the log rather than to be caught separately today.
+ */
+class AniListGraphQlException(message: String) : Exception(message)

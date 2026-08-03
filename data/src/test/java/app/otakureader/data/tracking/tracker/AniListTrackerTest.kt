@@ -3,6 +3,7 @@ package app.otakureader.data.tracking.tracker
 import app.otakureader.data.tracking.api.AniListApi
 import app.otakureader.data.tracking.api.AniListCoverImage
 import app.otakureader.data.tracking.api.AniListData
+import app.otakureader.data.tracking.api.AniListError
 import app.otakureader.data.tracking.api.AniListGraphQlQuery
 import app.otakureader.data.tracking.api.AniListMedia
 import app.otakureader.data.tracking.api.AniListMediaList
@@ -212,7 +213,9 @@ class AniListTrackerTest {
 
     @Test
     fun `find returns TrackEntry when media list entry is present`() = runTest {
-        val listEntry = AniListMediaList(id = 1L, status = "CURRENT", score = 8.5f, progress = 50)
+        // 85 on AniList's POINT_100 scale, which the query asks for by name. The canonical
+        // TrackEntry scale is 0-10, so this must come back as 8.5 — not 85.
+        val listEntry = AniListMediaList(id = 1L, status = "CURRENT", score = 85f, progress = 50)
         val media = AniListMedia(
             id = 101L,
             title = AniListTitle(romaji = "Berserk", english = "Berserk"),
@@ -233,8 +236,17 @@ class AniListTrackerTest {
         assertEquals(8.5f, entry.score)
     }
 
+    /**
+     * A manga the user has not added yet must still resolve.
+     *
+     * This test previously asserted `assertNull` — it locked in the bug rather than catching it.
+     * `mediaListEntry` is null for anything not already on the user's list, and requiring it made
+     * `find` fail for precisely the case that matters: you look something up *because* you want to
+     * start tracking it. Media identity and list membership are separate facts, so a missing list
+     * entry now means "found, not tracked yet".
+     */
     @Test
-    fun `find returns null when media has no list entry`() = runTest {
+    fun `find returns an untracked entry when media has no list entry`() = runTest {
         val media = AniListMedia(
             id = 101L,
             title = AniListTitle(romaji = "Berserk"),
@@ -247,7 +259,30 @@ class AniListTrackerTest {
 
         val entry = tracker.find(101L)
 
-        assertNull(entry)
+        assertNotNull(entry)
+        assertEquals(101L, entry!!.remoteId)
+        assertEquals("Berserk", entry.title)
+        // The media's own facts survive; only the per-user ones default.
+        assertEquals(364, entry.totalChapters)
+        assertEquals(TrackStatus.PLAN_TO_READ, entry.status)
+        assertEquals(0f, entry.lastChapterRead)
+        assertEquals(0f, entry.score)
+    }
+
+    @Test
+    fun `find asks AniList for the score on a named scale`() = runTest {
+        // Without `format:` AniList answers in whatever format the *user* picked — 0-10, 5 stars,
+        // three smileys — and the response carries nothing saying which. The same number would
+        // then mean different things per account, and no amount of arithmetic here could tell.
+        var capturedQuery: AniListGraphQlQuery? = null
+        coEvery { api.query(any()) } answers {
+            capturedQuery = firstArg()
+            AniListResponse(data = null)
+        }
+
+        tracker.find(1L)
+
+        assertTrue(capturedQuery!!.query, capturedQuery!!.query.contains("score(format: POINT_100)"))
     }
 
     @Test
@@ -273,7 +308,7 @@ class AniListTrackerTest {
     // ─────────────────────────────────────────────────────────────────────────
 
     @Test
-    fun `update sends GraphQL mutation and returns entry`() = runTest {
+    fun `update sends GraphQL mutation and returns the confirmed entry`() = runTest {
         val entry = TrackEntry(
             remoteId = 101L,
             mangaId = 1L,
@@ -282,7 +317,7 @@ class AniListTrackerTest {
             lastChapterRead = 364f,
             score = 9f
         )
-        coEvery { api.query(any()) } returns AniListResponse(data = null)
+        coEvery { api.query(any()) } returns confirmation(status = "COMPLETED", score = 90f, progress = 364)
 
         val result = tracker.update(entry)
 
@@ -290,8 +325,105 @@ class AniListTrackerTest {
         coVerify(exactly = 1) { api.query(any()) }
     }
 
+    /**
+     * A GraphQL rejection arrives as HTTP 200 with `data: null`, which Retrofit does not throw on.
+     *
+     * This is the same defect as the swallowed exception above, one branch over, and the first
+     * version of this change set had it: returning the input entry here would be reported by
+     * `TrackerSyncRepositoryImpl` as `syncStatus = SYNCED` on the very next line. An expired
+     * token, a media id AniList doesn't have, or a variable it won't accept all land here — none
+     * of them raise anything by themselves.
+     */
     @Test
-    fun `update returns entry unchanged on network error`() = runTest {
+    fun `update throws when AniList returns no confirmed entry`() = runTest {
+        coEvery { api.query(any()) } returns AniListResponse(data = null)
+
+        val thrown = try {
+            tracker.update(sampleEntry())
+            null
+        } catch (e: AniListGraphQlException) {
+            e
+        }
+
+        assertNotNull(thrown)
+    }
+
+    @Test
+    fun `update surfaces AniList's own error message`() = runTest {
+        // Without the `errors` field the reason wasn't merely unreported, it was unparsed — so
+        // "Invalid token" and "everything worked" were the same response as far as this code knew.
+        coEvery { api.query(any()) } returns AniListResponse(
+            data = null,
+            errors = listOf(AniListError(message = "Invalid token"))
+        )
+
+        val thrown = try {
+            tracker.update(sampleEntry())
+            null
+        } catch (e: AniListGraphQlException) {
+            e
+        }
+
+        assertEquals("Invalid token", thrown!!.message)
+    }
+
+    /**
+     * GraphQL is not all-or-nothing.
+     *
+     * A response can carry `data` *and* `errors` when one resolver fails and its siblings
+     * succeed. Checking `errors` only on the `savedEntry == null` path — as the first version of
+     * this fix did — accepts that response and writes its half-filled values locally, which is
+     * the same "reported as synced when it wasn't" failure in a subtler shape.
+     */
+    @Test
+    fun `update throws on a partial response that carries both data and errors`() = runTest {
+        coEvery { api.query(any()) } returns AniListResponse(
+            data = AniListData(savedEntry = AniListMediaList(id = 7L, status = "CURRENT", score = 0f, progress = 0)),
+            errors = listOf(AniListError(message = "Failed to update progress"))
+        )
+
+        val thrown = try {
+            tracker.update(sampleEntry())
+            null
+        } catch (e: AniListGraphQlException) {
+            e
+        }
+
+        assertEquals("Failed to update progress", thrown!!.message)
+    }
+
+    @Test
+    fun `search throws rather than reporting a rejected query as no results`() = runTest {
+        coEvery { api.query(any()) } returns AniListResponse(
+            data = null,
+            errors = listOf(AniListError(message = "Invalid token"))
+        )
+
+        val thrown = try {
+            tracker.search("Berserk")
+            null
+        } catch (e: AniListGraphQlException) {
+            e
+        }
+
+        // An empty list here would tell the user their search found nothing, when in fact it was
+        // never run — indistinguishable from a genuine miss, and unfixable from the UI.
+        assertEquals("Invalid token", thrown!!.message)
+    }
+
+    /**
+     * A failed push must surface, not be reported as the entry it failed to send.
+     *
+     * The previous version of this test asserted the opposite — that `update` returns the input
+     * unchanged on a network error — which locked in the exact behaviour the `Tracker` KDoc
+     * forbids. It matters because of what happens next: `TrackerSyncRepositoryImpl` writes
+     * `syncStatus = SYNCED` and a `lastSuccessfulSync` timestamp on the line after this returns.
+     * Swallowing the error recorded a successful sync for a request AniList never saw, and the
+     * entry then looked up to date indefinitely. All three call sites are already inside `catch`
+     * blocks that mark `SyncStatus.ERROR`.
+     */
+    @Test
+    fun `update propagates a network error instead of reporting success`() = runTest {
         val entry = TrackEntry(
             remoteId = 101L,
             mangaId = 1L,
@@ -302,9 +434,99 @@ class AniListTrackerTest {
         )
         coEvery { api.query(any()) } throws RuntimeException("Network error")
 
-        val result = tracker.update(entry)
+        val thrown = try {
+            tracker.update(entry)
+            null
+        } catch (e: RuntimeException) {
+            e
+        }
 
-        assertEquals(entry, result)
+        assertNotNull(thrown)
+        assertEquals("Network error", thrown!!.message)
+    }
+
+    @Test
+    fun `update sends the score on AniList's 0-100 scale`() = runTest {
+        // TrackEntry.score is 0-10 — the scale Kitsu, MAL and Shikimori already store — while
+        // `scoreRaw` is 0-100. Passing it through unconverted filed a user's 8 as 8/100.
+        var capturedQuery: AniListGraphQlQuery? = null
+        coEvery { api.query(any()) } answers {
+            capturedQuery = firstArg()
+            confirmation()
+        }
+
+        tracker.update(
+            TrackEntry(
+                remoteId = 1L, mangaId = 1L, trackerId = TrackerType.ANILIST,
+                status = TrackStatus.READING, score = 8.5f
+            )
+        )
+
+        val scoreRaw = capturedQuery!!.variables["scoreRaw"]!!.jsonPrimitive
+        assertEquals("85", scoreRaw.content)
+        // Int, not a quoted string and not a Float: AniList declares scoreRaw as Int, and a
+        // mis-typed variable is rejected for the whole document — the defect fixed in #1232.
+        assertEquals(false, scoreRaw.isString)
+        assertTrue(capturedQuery!!.query, capturedQuery!!.query.contains("${'$'}scoreRaw: Int"))
+    }
+
+    @Test
+    fun `a score that does not divide evenly is rounded rather than truncated`() = runTest {
+        // 0.7f * 10 is 6.9999995 in binary floating point. `toInt()` would file this as a 6.
+        var capturedQuery: AniListGraphQlQuery? = null
+        coEvery { api.query(any()) } answers {
+            capturedQuery = firstArg()
+            confirmation()
+        }
+
+        tracker.update(
+            TrackEntry(
+                remoteId = 1L, mangaId = 1L, trackerId = TrackerType.ANILIST,
+                status = TrackStatus.READING, score = 0.7f
+            )
+        )
+
+        assertEquals("7", capturedQuery!!.variables["scoreRaw"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `update returns what AniList confirmed rather than what was sent`() = runTest {
+        // The mutation already asked for these fields and then threw them away, so a value the
+        // server clamped or normalised was written back locally as whatever the app had guessed.
+        coEvery { api.query(any()) } returns AniListResponse(
+            data = AniListData(
+                savedEntry = AniListMediaList(id = 7L, status = "COMPLETED", score = 90f, progress = 364)
+            )
+        )
+
+        val result = tracker.update(
+            TrackEntry(
+                remoteId = 101L, mangaId = 1L, trackerId = TrackerType.ANILIST,
+                status = TrackStatus.READING, lastChapterRead = 300f, score = 7f
+            )
+        )
+
+        assertEquals(TrackStatus.COMPLETED, result.status)
+        assertEquals(364f, result.lastChapterRead)
+        assertEquals(9f, result.score)
+    }
+
+    @Test
+    fun `a confirmation with no status keeps the status that was sent`() = runTest {
+        // An absent field deserializes to "", which statusFromAniList would map through its else
+        // branch to PLAN_TO_READ — silently rewriting the user's status on a successful update.
+        coEvery { api.query(any()) } returns AniListResponse(
+            data = AniListData(savedEntry = AniListMediaList(id = 7L, status = "", score = 90f, progress = 12))
+        )
+
+        val result = tracker.update(
+            TrackEntry(
+                remoteId = 101L, mangaId = 1L, trackerId = TrackerType.ANILIST,
+                status = TrackStatus.READING, lastChapterRead = 12f
+            )
+        )
+
+        assertEquals(TrackStatus.READING, result.status)
     }
 
     @Test
@@ -318,7 +540,7 @@ class AniListTrackerTest {
         var capturedQuery: AniListGraphQlQuery? = null
         coEvery { api.query(any()) } answers {
             capturedQuery = firstArg()
-            AniListResponse(data = null)
+            confirmation()
         }
 
         tracker.update(entry)
@@ -387,7 +609,7 @@ class AniListTrackerTest {
         var capturedQuery: AniListGraphQlQuery? = null
         coEvery { api.query(any()) } answers {
             capturedQuery = firstArg()
-            AniListResponse(data = null)
+            confirmation()
         }
 
         tracker.update(
@@ -405,7 +627,7 @@ class AniListTrackerTest {
         var capturedQuery: AniListGraphQlQuery? = null
         coEvery { api.query(any()) } answers {
             capturedQuery = firstArg()
-            AniListResponse(data = null)
+            confirmation()
         }
 
         tracker.update(
@@ -423,7 +645,7 @@ class AniListTrackerTest {
         var capturedQuery: AniListGraphQlQuery? = null
         coEvery { api.query(any()) } answers {
             capturedQuery = firstArg()
-            AniListResponse(data = null)
+            confirmation()
         }
 
         tracker.update(
@@ -441,7 +663,7 @@ class AniListTrackerTest {
         var capturedQuery: AniListGraphQlQuery? = null
         coEvery { api.query(any()) } answers {
             capturedQuery = firstArg()
-            AniListResponse(data = null)
+            confirmation()
         }
 
         tracker.update(
@@ -478,6 +700,31 @@ class AniListTrackerTest {
     // ─────────────────────────────────────────────────────────────────────────
     // Helpers
     // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * A response in which AniList confirms the mutation.
+     *
+     * The default `status` and `progress` are deliberately what the sample entries send, so tests
+     * that only care about the *request* aren't perturbed by the confirmation overwriting fields.
+     * Stubbing `AniListResponse(data = null)` here — as these tests used to — now means "AniList
+     * refused the mutation", which is a different scenario and throws.
+     */
+    private fun confirmation(
+        status: String = "CURRENT",
+        score: Float = 0f,
+        progress: Int = 0,
+    ) = AniListResponse(
+        data = AniListData(savedEntry = AniListMediaList(id = 1L, status = status, score = score, progress = progress))
+    )
+
+    private fun sampleEntry() = TrackEntry(
+        remoteId = 101L,
+        mangaId = 1L,
+        trackerId = TrackerType.ANILIST,
+        status = TrackStatus.READING,
+        lastChapterRead = 100f,
+        score = 7f,
+    )
 
     private suspend fun buildFindResponse(status: String): TrackEntry? {
         val listEntry = AniListMediaList(id = 1L, status = status, score = 5f, progress = 0)
