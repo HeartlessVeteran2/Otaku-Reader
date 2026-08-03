@@ -24,6 +24,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Test
 
 /**
@@ -323,7 +324,12 @@ class AniListTrackerTest {
         tracker.update(entry)
 
         assertNotNull(capturedQuery)
-        assertEquals("999", capturedQuery!!.variables["mediaId"])
+        // Unquoted: the old assertion expected the string "999", which is exactly the
+        // mis-typing AniList rejected. `content` is "999" either way, so it is the
+        // primitive's isString flag that actually distinguishes them.
+        val mediaId = capturedQuery!!.variables["mediaId"]!!.jsonPrimitive
+        assertEquals("999", mediaId.content)
+        assertEquals(false, mediaId.isString)
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -391,7 +397,7 @@ class AniListTrackerTest {
             )
         )
 
-        assertEquals("CURRENT", capturedQuery!!.variables["status"])
+        assertEquals("CURRENT", capturedQuery!!.variables["status"]!!.jsonPrimitive.content)
     }
 
     @Test
@@ -409,7 +415,7 @@ class AniListTrackerTest {
             )
         )
 
-        assertEquals("PAUSED", capturedQuery!!.variables["status"])
+        assertEquals("PAUSED", capturedQuery!!.variables["status"]!!.jsonPrimitive.content)
     }
 
     @Test
@@ -427,7 +433,7 @@ class AniListTrackerTest {
             )
         )
 
-        assertEquals("PLANNING", capturedQuery!!.variables["status"])
+        assertEquals("PLANNING", capturedQuery!!.variables["status"]!!.jsonPrimitive.content)
     }
 
     @Test
@@ -445,7 +451,7 @@ class AniListTrackerTest {
             )
         )
 
-        assertEquals("REPEATING", capturedQuery!!.variables["status"])
+        assertEquals("REPEATING", capturedQuery!!.variables["status"]!!.jsonPrimitive.content)
     }
 
     // ─────────────────────────────────────────────────────────────────────────
