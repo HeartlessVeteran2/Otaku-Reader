@@ -2,6 +2,7 @@ package app.otakureader.data.tracking.api
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.Field
@@ -116,7 +117,16 @@ interface AniListApi {
 @Serializable
 data class AniListGraphQlQuery(
     val query: String,
-    val variables: Map<String, String> = emptyMap()
+    /**
+     * GraphQL variables, typed.
+     *
+     * A `Map<String, String>` serialized every value as a JSON string, so `mediaId` went out as
+     * `"12345"` against a declared `Int` and `score` as `"8.0"` against a `Float`. AniList
+     * validates variables against the operation's declared types and rejected the whole
+     * document — which is why updates never persisted. [JsonObject] lets each value keep the
+     * type the query declares.
+     */
+    val variables: JsonObject = JsonObject(emptyMap())
 )
 
 @Serializable

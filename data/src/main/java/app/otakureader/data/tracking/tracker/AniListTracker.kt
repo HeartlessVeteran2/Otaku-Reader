@@ -8,6 +8,8 @@ import app.otakureader.domain.model.TrackStatus
 import app.otakureader.domain.model.TrackerType
 import app.otakureader.domain.tracking.Tracker
 import kotlinx.coroutines.CancellationException
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 /**
  * Tracker implementation for [AniList](https://anilist.co/).
@@ -65,7 +67,7 @@ class AniListTracker(
               } }
             }
         """.trimIndent()
-        val variables = mapOf("search" to query)
+        val variables = buildJsonObject { put("search", query) }
         val response = api.query(AniListGraphQlQuery(gqlQuery, variables))
         return response.data?.page?.media.orEmpty().map { media ->
             TrackEntry(
@@ -87,7 +89,8 @@ class AniListTracker(
               }
             }
         """.trimIndent()
-        val variables = mapOf("id" to remoteId.toString())
+        // Int, not a quoted string: the query declares `${'$'}id: Int`.
+        val variables = buildJsonObject { put("id", remoteId) }
         return try {
             val response = api.query(AniListGraphQlQuery(gqlQuery, variables))
             val media = response.data?.media ?: return null
@@ -118,12 +121,14 @@ class AniListTracker(
               }
             }
         """.trimIndent()
-        val variables = mapOf(
-            "mediaId" to entry.remoteId.toString(),
-            "status" to statusToAniList(entry.status),
-            "score" to entry.score.toString(),
-            "progress" to entry.lastChapterRead.toInt().toString()
-        )
+        // Each value keeps the type the mutation declares. Sending these as strings is what
+        // made every update fail server-side while looking successful here.
+        val variables = buildJsonObject {
+            put("mediaId", entry.remoteId)
+            put("status", statusToAniList(entry.status))
+            put("score", entry.score)
+            put("progress", entry.lastChapterRead.toInt())
+        }
         return try {
             api.query(AniListGraphQlQuery(gqlMutation, variables))
             entry
