@@ -4,6 +4,7 @@ import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.model.MigrationCandidate
 import app.otakureader.domain.repository.SourceRepository
+import app.otakureader.domain.util.StringSimilarity
 import app.otakureader.domain.util.TitleNormalizer
 import app.otakureader.sourceapi.SourceManga
 import javax.inject.Inject
@@ -178,46 +179,15 @@ class SearchMigrationTargetsUseCase @Inject constructor(
     /**
      * Calculate similarity score between two titles using Levenshtein distance.
      * Returns a score from 0.0 (completely different) to 1.0 (identical).
+     *
+     * Delegates to [StringSimilarity.ratio], which is the same `1 - distance / maxLength` measure
+     * this file used to implement privately. It moved because the AniList matcher needs the same
+     * arithmetic, and two Levenshtein implementations in one module drift apart — the second one
+     * is written from the same description rather than the same code, and the difference only
+     * shows up as two features disagreeing about whether two titles are the same manga.
      */
-    private fun calculateSimilarity(title1: String, title2: String): Float {
-        val normalized1 = title1.lowercase().trim()
-        val normalized2 = title2.lowercase().trim()
-
-        if (normalized1 == normalized2) return 1.0f
-
-        // Simple similarity check: calculate Levenshtein distance
-        val distance = levenshteinDistance(normalized1, normalized2)
-        val maxLength = maxOf(normalized1.length, normalized2.length)
-
-        return if (maxLength == 0) 1.0f
-        else 1.0f - (distance.toFloat() / maxLength)
-    }
-
-    /**
-     * Calculate Levenshtein distance between two strings.
-     */
-    private fun levenshteinDistance(s1: String, s2: String): Int {
-        val len1 = s1.length
-        val len2 = s2.length
-
-        val dp = Array(len1 + 1) { IntArray(len2 + 1) }
-
-        for (i in 0..len1) dp[i][0] = i
-        for (j in 0..len2) dp[0][j] = j
-
-        for (i in 1..len1) {
-            for (j in 1..len2) {
-                val cost = if (s1[i - 1] == s2[j - 1]) 0 else 1
-                dp[i][j] = minOf(
-                    dp[i - 1][j] + 1,      // deletion
-                    dp[i][j - 1] + 1,      // insertion
-                    dp[i - 1][j - 1] + cost // substitution
-                )
-            }
-        }
-
-        return dp[len1][len2]
-    }
+    private fun calculateSimilarity(title1: String, title2: String): Float =
+        StringSimilarity.ratio(title1.lowercase().trim(), title2.lowercase().trim())
 
     private fun SourceManga.toMigrationCandidate(
         sourceId: Long,
