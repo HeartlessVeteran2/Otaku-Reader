@@ -126,7 +126,8 @@ private const val CHAPTER_PANE_WEIGHT = 0.45f
 private const val HERO_TOP_BAR_FADE_RANGE = 600f
 
 // Genre/tag chip layout tokens.
-private val GENRE_CHIP_SPACING = 8.dp
+/** Shared with [AniListMetadataSection]'s tag chips so tags and genres line up on the same grid. */
+internal val GENRE_CHIP_SPACING = 8.dp
 private val GENRE_CHIP_PADDING_HORIZONTAL = 12.dp
 private val GENRE_CHIP_PADDING_VERTICAL = 6.dp
 
@@ -878,24 +879,52 @@ private fun LazyListScope.detailsInfoTabItems(
     state: DetailsContract.State,
     onEvent: (DetailsContract.Event) -> Unit,
 ) {
+    if (state.trackEntries.isNotEmpty()) {
+        item(key = "tracker_chips") {
+            TrackerChips(
+                entries = state.trackEntries,
+                trackerNames = state.trackerNames,
+                onOpenTracking = { onEvent(DetailsContract.Event.OpenTracking) },
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            )
+        }
+    }
+
     item {
+        // AniList's description fills in only where the source left a gap. Showing both would put
+        // a third party's synopsis directly beneath one the user may have edited by hand.
         MangaDescription(
-            description = manga.description,
+            description = manga.description?.takeIf { it.isNotBlank() } ?: state.metadata?.description,
             expanded = state.descriptionExpanded,
             onToggle = { onEvent(DetailsContract.Event.ToggleDescription) },
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
     }
 
-    if (manga.genre.isNotEmpty()) {
+    // Same rule for genres: the source's list wins, AniList's is the fallback, and the two are
+    // never concatenated — a chip row of duplicates with different spellings helps nobody.
+    val genres = manga.genre.ifEmpty { state.metadata?.genres.orEmpty() }
+    if (genres.isNotEmpty()) {
         item {
             MangaGenreChips(
-                genres = manga.genre,
+                genres = genres,
                 onGenreClick = { onEvent(DetailsContract.Event.GenreClick(it)) },
                 onGenreLongClick = { onEvent(DetailsContract.Event.GenreLongClick(it)) },
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
             )
         }
+    }
+
+    item(key = "anilist_metadata") {
+        AniListMetadataSection(
+            metadata = state.metadata,
+            isLoading = state.isMetadataLoading,
+            // A tag behaves exactly like a genre: tap searches this source, long-press searches
+            // every source. Reusing the events keeps that promise true by construction.
+            onTagClick = { onEvent(DetailsContract.Event.GenreClick(it)) },
+            onTagLongClick = { onEvent(DetailsContract.Event.GenreLongClick(it)) },
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
     }
 
     item {
@@ -919,6 +948,19 @@ private fun LazyListScope.detailsInfoTabItems(
         )
     }
 
+    detailsOptionItems(manga = manga, state = state, onEvent = onEvent)
+}
+
+/**
+ * The per-manga settings that live below the info content: download retention, notifications, and
+ * reader overrides. Split out of [detailsInfoTabItems] because they are settings rather than
+ * information about the manga, and keeping them together made that function too long to read.
+ */
+private fun LazyListScope.detailsOptionItems(
+    manga: app.otakureader.domain.model.Manga,
+    state: DetailsContract.State,
+    onEvent: (DetailsContract.Event) -> Unit,
+) {
     item { HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp)) }
 
     item {
@@ -1283,9 +1325,10 @@ private fun MangaGenreChips(
     }
 }
 
+/** Also used for AniList tag chips, so a tag and a genre are visually the same kind of thing. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun GenreChip(
+internal fun GenreChip(
     text: String,
     onClick: () -> Unit,
     onLongClick: () -> Unit,

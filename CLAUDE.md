@@ -86,7 +86,8 @@ Otaku-Reader/
 ### Manga Details (`feature/details/`)
 - Chapter list with filters (read/unread, bookmarked/not), sort (ascending/descending), search
 - Multi-select chapters: mark read, download, delete, bookmark (chapter-level bookmarks removed in PR #1130)
-- Tracker **count** button (tap to open the tracking screen). Per-tracker status/score/progress chips are **not** implemented: `DetailsViewModel.observeTrackingCount()` collects `observeEntriesForManga` and keeps only `entries.size`. The entries are already being fetched and discarded, so rendering real chips is mostly a state-shape change.
+- Tracker count button in the action row, plus per-tracker status/score/progress chips (`TrackerChips.kt`). `DetailsViewModel.observeTrackEntries()` keeps the whole `observeEntriesForManga` list; `State.trackingCount` is derived from it.
+- AniList metadata section (`AniListMetadataSection.kt`): community stats grid, rank-weighted tags ("Isekai 87%", tap → source search / long-press → global search), alternative titles. Read from `MangaMetadataRepository` as a **separate flow** — never folded into `Manga`. AniList's description and genres fill in only where the source left a gap; the two are never shown together. The screen renders `State.metadata`, which is *derived* — it hides `cachedMetadata` whose `anilistId` no longer matches the live AniList link, because the cache row is keyed by `mangaId` and deliberately survives both a failed refresh and a link change. The AniList media id comes from the AniList `TrackEntry.remoteId`, so **only manga already tracked on AniList get metadata** — `MatchAniListMediaUseCase` exists but is not wired up yet.
 - Track manga on multiple services simultaneously
 - Add to Reading List (overflow menu, live-toggle checkbox picker against `feature/library/readinglist/`)
 
