@@ -30,12 +30,15 @@ import javax.inject.Inject
  * differ by one token out of six and would otherwise be near-indistinguishable — while being
  * different entries with different chapter counts, which is precisely the mistake a user notices.
  *
- * ### Season numbers come from the raw title, not the normalized one
+ * ### Season numbers come from the raw title, and belong to the title
  *
  * [TitleNormalizer.normalize] **strips a trailing `season N` / `part N`** as noise, which is right
  * for its own purpose and fatal here: extracting the season after normalizing would find nothing
  * for every title, the bonus would never fire, and the code would look like it handled sequels.
- * So [seasonOf] reads the raw string, and normalization happens afterwards.
+ * So [seasonOf] reads the raw string, and every [TitleForm] carries its own season.
+ *
+ * Per *title*, not per manga or per candidate — an entry's romaji and english titles can disagree
+ * about which season they name, and the one that counts is the one that actually matched.
  *
  * ### Every candidate is scored against the whole title set at once
  *
@@ -60,7 +63,6 @@ class MatchAniListMediaUseCase @Inject constructor() {
 
         val targets = buildTitleSet(listOf(sourceTitle) + alternativeTitles)
         if (targets.isEmpty()) return null
-        val targetSeason = seasonOf(sourceTitle)
 
         // Ranked on the *unclamped* score, and every candidate is scored — both for the same
         // reason. `TitleNormalizer.normalize` strips the season marker, so a title and its sequel
@@ -70,7 +72,7 @@ class MatchAniListMediaUseCase @Inject constructor() {
         // list first. The clamp still applies to the score that is *reported* — a caller comparing
         // against a threshold should not see 1.3.
         val best = candidates
-            .map { it to rawScore(it, targets, targetSeason) }
+            .map { it to rawScore(it, targets) }
             .maxByOrNull { (_, score) -> score }
             ?: return null
 
@@ -82,12 +84,21 @@ class MatchAniListMediaUseCase @Inject constructor() {
         )
     }
 
-    /** Similarity plus the season term, deliberately not clamped — see [invoke]. */
-    private fun rawScore(
-        candidate: AniListMediaCandidate,
-        targets: List<TitleForm>,
-        targetSeason: Int?,
-    ): Float {
+    /**
+     * The best score over every (target title, candidate title) pair, deliberately not clamped.
+     *
+     * **The season term belongs to the pair, not to the candidate.** Deriving it once per candidate
+     * — from whichever of its titles happened to be listed first — applied one title's season to a
+     * match made by a different title: an entry whose romaji says `Season 5` while its english says
+     * `Season 2` was judged season 5 even when the english title was what matched. Scoring each
+     * pair whole removes the question.
+     *
+     * It also fixes the mirror-image problem on the target side for free. The season used to come
+     * from `sourceTitle` alone, so a season stated in an `alternativeTitles` override — the manual
+     * "this is really X" path — contributed nothing, which disabled the season term in exactly the
+     * case the override exists to repair.
+     */
+    private fun rawScore(candidate: AniListMediaCandidate, targets: List<TitleForm>): Float {
         val candidateTitles = buildTitleSet(
             listOfNotNull(candidate.romaji, candidate.english, candidate.native) + candidate.synonyms
         )
@@ -96,10 +107,12 @@ class MatchAniListMediaUseCase @Inject constructor() {
         var best = 0f
         for (target in targets) {
             for (candidateTitle in candidateTitles) {
-                best = maxOf(best, similarity(target, candidateTitle))
+                val paired = similarity(target, candidateTitle) +
+                    seasonAdjustment(target.season, candidateTitle.season)
+                best = maxOf(best, paired)
             }
         }
-        return best + seasonAdjustment(targetSeason, candidate.seasonOfAny())
+        return best
     }
 
     private fun similarity(a: TitleForm, b: TitleForm): Float {
@@ -127,40 +140,57 @@ class MatchAniListMediaUseCase @Inject constructor() {
         else -> -SEASON_WEIGHT
     }
 
-    private fun AniListMediaCandidate.seasonOfAny(): Int? =
-        (listOfNotNull(romaji, english, native) + synonyms).firstNotNullOfOrNull { seasonOf(it) }
-
     /**
      * The season number stated in [rawTitle], or null when it states none.
      *
-     * Reads the **raw** title deliberately — see the class docs. The three forms are the ones that
-     * actually appear in the wild: `"2nd Season"`, `"Season 2"`, and a bare trailing number as in
-     * `"Overlord 2"`.
+     * Reads the **raw** title deliberately — see the class docs.
+     *
+     * The bare-trailing-number form (`"Overlord 2"`) is the loose one, and it is deliberately
+     * refused when the number is introduced by a unit word. Manga titles end in numbers for all
+     * sorts of reasons — `"… Vol 3"`, `"… Part 2"`, `"… Chapter 12"` — and reading one of those as
+     * a season is worse than missing a real season: a wrong season produces a ±0.3 swing that can
+     * flip an otherwise correct match, while a missed one merely leaves the term neutral.
      */
     private fun seasonOf(rawTitle: String): Int? {
         val lower = rawTitle.lowercase()
         ORDINAL_SEASON.find(lower)?.groupValues?.get(1)?.toIntOrNull()?.let { return it }
         SEASON_NUMBER.find(lower)?.groupValues?.get(1)?.toIntOrNull()?.let { return it }
+        if (UNIT_QUALIFIED_NUMBER.containsMatchIn(lower)) return null
         TRAILING_NUMBER.find(lower)?.groupValues?.get(1)?.toIntOrNull()?.let { return it }
         return null
     }
 
-    /** Both normalizations of a title, computed once so the inner loops don't redo them. */
-    private data class TitleForm(val normalized: String, val heavy: String)
+    /**
+     * Both normalizations of a title plus the season it states, computed once.
+     *
+     * The season rides along here because it has to be read from the **raw** title:
+     * `TitleNormalizer.normalize` strips a trailing `season N`, so by the time a `TitleForm` exists
+     * the marker is gone from both normalized forms.
+     */
+    private data class TitleForm(val normalized: String, val heavy: String, val season: Int?)
 
     private fun buildTitleSet(titles: List<String>): List<TitleForm> =
         titles.asSequence()
-            .filter { it.isNotBlank() && it.trim() !in PLACEHOLDER_TITLES }
-            .map { TitleForm(normalized = TitleNormalizer.normalize(it), heavy = heavyNormalize(it)) }
+            // Uppercased on both sides: sources emit "n/a" as readily as "N/A", and a
+            // case-sensitive check would let one variant through to match another perfectly.
+            .filter { it.isNotBlank() && it.trim().uppercase() !in PLACEHOLDER_TITLES }
+            .map { raw ->
+                // Normalized once and reused. `heavyNormalize` used to call `TitleNormalizer`
+                // again, running its full regex chain twice per title on every candidate set.
+                val normalized = TitleNormalizer.normalize(raw)
+                TitleForm(
+                    normalized = normalized,
+                    heavy = heavyNormalize(normalized),
+                    season = seasonOf(raw),
+                )
+            }
             .filter { it.normalized.isNotEmpty() || it.heavy.isNotEmpty() }
             .distinct()
             .toList()
 
-    /** Normalized, then stripped of the word "season" and every non-alphanumeric character. */
-    private fun heavyNormalize(title: String): String =
-        TitleNormalizer.normalize(title)
-            .replace(SEASON_WORD, " ")
-            .replace(NON_ALPHANUMERIC, "")
+    /** Strips the word "season" and every non-alphanumeric character from an already-normalized title. */
+    private fun heavyNormalize(normalized: String): String =
+        normalized.replace(SEASON_WORD, " ").replace(NON_ALPHANUMERIC, "")
 
     companion object {
         const val WEIGHT_TOKEN_SET = 0.4f
@@ -181,6 +211,13 @@ class MatchAniListMediaUseCase @Inject constructor() {
 
         private val ORDINAL_SEASON = Regex("""(\d+)(?:st|nd|rd|th)\s+season""")
         private val SEASON_NUMBER = Regex("""season\s+(\d+)""")
+
+        /**
+         * A trailing number introduced by a unit word, which is therefore *not* a season.
+         * `"Berserk Vol 3"` and `"Gantz Chapter 12"` are the same manga as their unmarked forms.
+         */
+        private val UNIT_QUALIFIED_NUMBER =
+            Regex("""\b(?:vol|volume|part|pt|ch|chapter|book|arc|ep|episode)\.?\s*\d+\s*$""")
         private val TRAILING_NUMBER = Regex("""\s(\d{1,2})\s*$""")
         private val SEASON_WORD = Regex("""\bseason\b""")
         private val NON_ALPHANUMERIC = Regex("""[^\p{L}\p{N}]""")

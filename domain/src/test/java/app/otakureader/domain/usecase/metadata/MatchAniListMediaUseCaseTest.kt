@@ -183,6 +183,75 @@ class MatchAniListMediaUseCaseTest {
         assertFalse(result.confident)
     }
 
+    /**
+     * A season stated only in an override has to count.
+     *
+     * The season used to be read from `sourceTitle` alone. So when the source name is junk — which
+     * is the whole reason an override exists — the season term was silently switched off, the
+     * entry and its sequel tied on base score (normalization strips the marker from both), and the
+     * winner fell to search order. Every target title now carries its own season.
+     */
+    @Test
+    fun `a season stated in an alternative title disambiguates the sequel`() {
+        val result = match(
+            sourceTitle = "kaguya raw v2 scan",
+            alternativeTitles = listOf("Kaguya-sama: Love is War Season 2"),
+            candidates = listOf(
+                candidate(1, english = "Kaguya-sama: Love is War"),
+                candidate(2, english = "Kaguya-sama: Love is War Season 2"),
+            ),
+        )
+
+        assertEquals(2L, result!!.candidate.mediaId)
+    }
+
+    /**
+     * The season that counts is the one on the title that matched.
+     *
+     * The adjustment used to be computed once per candidate, from the first of its titles stating
+     * any season. An entry whose romaji says one season and whose english says another was then
+     * judged by whichever came first in the list, even when the *other* title was the exact match.
+     * Asserting the score rather than the winner, because that is where the difference shows:
+     * under the old rule the romaji's season 5 disagreed with the target's 2 and cost 0.3.
+     */
+    @Test
+    fun `the season comes from the matched title, not from a sibling title`() {
+        val result = match(
+            sourceTitle = "Overlord Season 2",
+            candidates = listOf(
+                candidate(1, romaji = "Overlord Season 5", english = "Overlord Season 2"),
+            ),
+        )
+
+        assertEquals(1f, result!!.score)
+        assertTrue(result.confident)
+    }
+
+    @Test
+    fun `a trailing volume number is not read as a season`() {
+        // "Berserk Vol 3" is the same manga as "Berserk". Reading the 3 as a season would put a
+        // 0.3 penalty on the correct entry, which is worse than having no season signal at all.
+        val result = match(
+            sourceTitle = "Berserk Vol 3",
+            candidates = listOf(candidate(1, romaji = "Berserk"), candidate(2, romaji = "Bastard!!")),
+        )
+
+        assertEquals(1L, result!!.candidate.mediaId)
+        assertTrue(result.confident)
+    }
+
+    @Test
+    fun `a lowercase placeholder is filtered too`() {
+        // The check used to be case-sensitive, so "n/a" slipped past "N/A" and could match another
+        // placeholder perfectly.
+        val result = match(
+            sourceTitle = "Vinland Saga",
+            candidates = listOf(candidate(1, romaji = "n/a", english = "n/a"), candidate(2, romaji = "Vinland Saga")),
+        )
+
+        assertEquals(2L, result!!.candidate.mediaId)
+    }
+
     @Test
     fun `no candidates yields null`() {
         assertNull(match(sourceTitle = "Berserk", candidates = emptyList()))
