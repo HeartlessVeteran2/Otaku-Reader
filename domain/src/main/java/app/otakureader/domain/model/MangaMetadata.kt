@@ -1,5 +1,7 @@
 package app.otakureader.domain.model
 
+import androidx.compose.runtime.Immutable
+
 /**
  * Rich metadata for a manga, sourced from AniList and cached locally.
  *
@@ -19,6 +21,7 @@ package app.otakureader.domain.model
  * a metadata gap must never look like a load failure. A null description means "AniList has no
  * description", which the UI renders by omitting the section — not by showing an error.
  */
+@Immutable
 data class MangaMetadata(
     /** The local manga this describes. */
     val mangaId: Long,
@@ -60,6 +63,7 @@ data class MangaMetadata(
  * remember to check — a flag on the model would eventually be missed by one call site, and the
  * failure mode is spoiling a plot twist on the details screen.
  */
+@Immutable
 data class MangaMetadataTag(
     val name: String,
     /** 0–100. AniList's own community-voted relevance. */

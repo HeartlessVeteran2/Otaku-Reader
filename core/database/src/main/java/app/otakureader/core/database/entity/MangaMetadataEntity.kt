@@ -12,8 +12,13 @@ import androidx.room.PrimaryKey
  * exactly one current answer per manga and no value in a history.
  *
  * `ON DELETE CASCADE` because this metadata is meaningless once the manga is gone. Without it,
- * removing a manga from the library would leave a row keyed to an id that no longer exists, and
- * the table would grow for as long as the app is used.
+ * removing a manga from the library would leave a row keyed to an id that no longer exists.
+ *
+ * That cascade is also the whole of the reclamation story, which is why there is no TTL sweep: one
+ * row per manga, deleted with the manga, so the table is bounded by the library rather than by how
+ * long the app has been used. An earlier draft carried a `deleteOlderThan` for a maintenance worker
+ * and a comment calling it the thing that "prevents indefinite growth" — nothing called it, and the
+ * growth it claimed to prevent could not happen.
  *
  * ### Tags are stored denormalized
  *

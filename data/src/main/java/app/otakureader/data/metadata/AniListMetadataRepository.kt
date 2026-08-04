@@ -5,9 +5,13 @@ import app.otakureader.core.database.entity.MangaMetadataEntity
 import app.otakureader.domain.model.MangaMetadata
 import app.otakureader.domain.model.MangaMetadataTag
 import app.otakureader.domain.repository.MangaMetadataRepository
+import app.otakureader.domain.util.PlaceholderTitles
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -40,25 +44,27 @@ class AniListMetadataRepository @Inject constructor(
         mangaId: Long,
         anilistId: Long,
         force: Boolean,
-    ): Result<MangaMetadata> {
-        val cached = dao.getByMangaId(mangaId)
-        // A cached copy is reused when it is fresh *and* describes the media being asked for. The
-        // second half matters: correcting a wrong match changes the anilistId while the mangaId
-        // stays put, and a TTL check alone would keep serving the old manga's metadata until it
-        // expired — the user's correction appearing to do nothing.
-        if (!force && cached != null && cached.anilistId == anilistId && cached.isFresh()) {
-            return Result.success(cached.toDomain())
-        }
+    ): Result<MangaMetadata> = lockFor(mangaId).withLock {
+        try {
+            val cached = dao.getByMangaId(mangaId)
+            // A cached copy is reused when it is fresh *and* describes the media being asked for.
+            // The second half matters: correcting a wrong match changes the anilistId while the
+            // mangaId stays put, and a TTL check alone would keep serving the old manga's metadata
+            // until it expired — the user's correction appearing to do nothing.
+            if (!force && cached != null && cached.anilistId == anilistId && cached.isFresh()) {
+                return@withLock Result.success(cached.toDomain())
+            }
 
-        return try {
             val response = api.fetch(anilistId)
             // Errors before data, matching the tracker: GraphQL answers a rejected document with
             // HTTP 200, and can return `data` and `errors` together when one resolver fails.
             response.errors.firstOrNull()?.let {
-                return Result.failure(AniListMetadataException(it.message))
+                return@withLock Result.failure(AniListMetadataException(it.message))
             }
             val media = response.data?.media
-                ?: return Result.failure(AniListMetadataException("AniList returned no media for id $anilistId"))
+                ?: return@withLock Result.failure(
+                    AniListMetadataException("AniList returned no media for id $anilistId")
+                )
 
             val entity = media.toEntity(mangaId = mangaId, fetchedAt = System.currentTimeMillis())
             dao.upsert(entity)
@@ -66,15 +72,52 @@ class AniListMetadataRepository @Inject constructor(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            // The cache is deliberately left alone. See the class docs.
+            // Covers the Room read as well as the fetch. A database failure during the cache
+            // lookup used to escape this method entirely, so a caller that had been promised a
+            // Result got an exception instead. The cache is deliberately left alone either way.
             Result.failure(e)
         }
     }
 
-    override suspend fun clearMetadata(mangaId: Long) = dao.deleteByMangaId(mangaId)
+    override suspend fun clearMetadata(mangaId: Long) {
+        // Under the same lock as refresh. Otherwise a refresh already past its cache check could
+        // land its upsert after the clear and silently repopulate the row the user just discarded.
+        lockFor(mangaId).withLock { dao.deleteByMangaId(mangaId) }
+    }
 
+    /**
+     * Serializes refresh and clear per manga.
+     *
+     * Read-decide-write across a network call is the shape that needs it: two refreshes for the
+     * same manga with different `anilistId`s — which is exactly what correcting a wrong match
+     * produces — would otherwise race, and the *slower* one wins because it writes last. The
+     * anilistId-aware freshness check above cannot help, since each call passes its own check
+     * before either writes.
+     *
+     * Per manga rather than one global lock, because the fetch happens inside the lock and AniList
+     * responses can be delayed by up to 90 seconds when the rate limiter is waiting out a 429
+     * (#1236). One lock would serialize every manga behind that.
+     *
+     * The map is keyed by `mangaId`, so it is bounded by the library size and entries are cheap
+     * (`Mutex` is a few words). It is not evicted: a `remove` after unlocking would race with the
+     * next caller that has already read the same instance, and swapping in a bounded cache would
+     * let a lock be evicted while held — both trade a real correctness property for memory that is
+     * not under pressure.
+     */
+    private fun lockFor(mangaId: Long): Mutex = locks.getOrPut(mangaId) { Mutex() }
+
+    private val locks = ConcurrentHashMap<Long, Mutex>()
+
+    /**
+     * Fresh means the age is within the TTL **and not negative**.
+     *
+     * A row stamped in the future — a clock correction, a restored backup, a device whose time was
+     * wrong when it was written — would otherwise read as fresh until the wall clock caught up,
+     * which for a badly wrong clock is indefinitely. Treating a future timestamp as stale costs
+     * one refetch; treating it as fresh can pin stale metadata forever.
+     */
     private fun MangaMetadataEntity.isFresh(): Boolean =
-        System.currentTimeMillis() - fetchedAt < TTL_MS
+        (System.currentTimeMillis() - fetchedAt) in 0..TTL_MS
 
     companion object {
         /**
@@ -133,10 +176,8 @@ private fun MetadataMedia.toEntity(mangaId: Long, fetchedAt: Long): MangaMetadat
 private fun MetadataMedia.buildSynonyms(): List<String> =
     (listOfNotNull(title?.english, title?.romaji, title?.native, title?.userPreferred) + synonyms)
         .map { it.trim() }
-        .filter { it.isNotBlank() && it !in PLACEHOLDER_TITLES }
+        .filter { PlaceholderTitles.isMeaningful(it) }
         .distinct()
-
-private val PLACEHOLDER_TITLES = setOf("?", "??", "???", "-", "N/A", "n/a")
 
 /**
  * AniList's split date as `YYYY-MM-DD`, or null when it has no year.

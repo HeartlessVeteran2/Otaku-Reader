@@ -2,6 +2,10 @@ package app.otakureader.data.metadata
 
 import app.otakureader.core.database.dao.MangaMetadataDao
 import app.otakureader.core.database.entity.MangaMetadataEntity
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
+import java.util.Collections
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.just
@@ -113,7 +117,40 @@ class AniListMetadataRepositoryTest {
         coVerify(exactly = 1) { api.fetch(99L) }
     }
 
+    /**
+     * A future timestamp is stale, not eternally fresh.
+     *
+     * A clock correction, a restored backup, or a device whose time was wrong when the row was
+     * written all produce one. `now - fetchedAt < TTL` is negative for those, which reads as fresh
+     * until the wall clock catches up — indefinitely, for a badly wrong clock. One wasted refetch
+     * is the cheaper mistake.
+     */
+    @Test
+    fun `a future-dated cache entry is treated as stale`() = runTest {
+        val tomorrow = System.currentTimeMillis() + 24 * 60 * 60 * 1000
+        coEvery { dao.getByMangaId(1L) } returns cached(fetchedAt = tomorrow)
+        coEvery { api.fetch(99L) } returns MetadataResponse(data = MetadataData(media = media()))
+
+        repository.refreshMetadata(mangaId = 1L, anilistId = 99L)
+
+        coVerify(exactly = 1) { api.fetch(99L) }
+    }
+
     // ── What not to overwrite ────────────────────────────────────────────────
+
+    @Test
+    fun `a database failure during the cache lookup becomes a failed Result`() = runTest {
+        // The lookup used to sit outside the try, so a Room error propagated as an exception to a
+        // caller that had been promised a Result — and did so before any of the network error
+        // handling below could run.
+        coEvery { dao.getByMangaId(1L) } throws RuntimeException("database is locked")
+
+        val result = repository.refreshMetadata(mangaId = 1L, anilistId = 99L)
+
+        assertTrue(result.isFailure)
+        assertEquals("database is locked", result.exceptionOrNull()?.message)
+        coVerify(exactly = 0) { api.fetch(any()) }
+    }
 
     @Test
     fun `a network failure leaves the cache untouched`() = runTest {
@@ -168,6 +205,85 @@ class AniListMetadataRepositoryTest {
 
         assertTrue(repository.refreshMetadata(mangaId = 1L, anilistId = 99L).isFailure)
         coVerify(exactly = 0) { dao.upsert(any()) }
+    }
+
+    // ── Concurrency ──────────────────────────────────────────────────────────
+
+    /**
+     * Two refreshes for the same manga must not interleave, or the *slower* one wins.
+     *
+     * This is what correcting a wrong match produces: a refresh for the old anilistId is still in
+     * flight when one for the new id starts. Both pass their own cache check — each was correct
+     * when it ran — and whichever writes last decides, so the user's correction can be undone by a
+     * request that started before it.
+     *
+     * The first fetch is held open until the second call has had a chance to start; if the lock
+     * were missing, the second would run its lookup and fetch concurrently and both would return
+     * before this test's latch was released.
+     */
+    @Test
+    fun `refreshes for the same manga are serialized`() = runTest {
+        val firstFetchStarted = CompletableDeferred<Unit>()
+        val releaseFirstFetch = CompletableDeferred<Unit>()
+        val fetchOrder = Collections.synchronizedList(mutableListOf<Long>())
+
+        coEvery { dao.getByMangaId(1L) } returns null
+        coEvery { dao.upsert(any()) } just runs
+        coEvery { api.fetch(any()) } coAnswers {
+            val requested = firstArg<Long>()
+            fetchOrder += requested
+            if (requested == 11L) {
+                firstFetchStarted.complete(Unit)
+                releaseFirstFetch.await()
+            }
+            MetadataResponse(data = MetadataData(media = media(id = requested)))
+        }
+
+        val slow = launch { repository.refreshMetadata(mangaId = 1L, anilistId = 11L) }
+        firstFetchStarted.await()
+
+        val fast = launch { repository.refreshMetadata(mangaId = 1L, anilistId = 99L) }
+        // The second refresh must not have reached the network while the first holds the lock.
+        runCurrent()
+        assertEquals(listOf(11L), fetchOrder.toList())
+
+        releaseFirstFetch.complete(Unit)
+        slow.join()
+        fast.join()
+
+        assertEquals(listOf(11L, 99L), fetchOrder.toList())
+    }
+
+    @Test
+    fun `a clear cannot be undone by a refresh that was already in flight`() = runTest {
+        // Same race from the other side: the user corrects a wrong match, which clears the row,
+        // while a refresh for the old id is mid-fetch. Without the shared lock its upsert lands
+        // after the delete and silently repopulates what the user just discarded.
+        val fetchStarted = CompletableDeferred<Unit>()
+        val releaseFetch = CompletableDeferred<Unit>()
+        val calls = Collections.synchronizedList(mutableListOf<String>())
+
+        coEvery { dao.getByMangaId(1L) } returns null
+        coEvery { dao.upsert(any()) } answers { calls += "upsert" }
+        coEvery { dao.deleteByMangaId(1L) } answers { calls += "delete" }
+        coEvery { api.fetch(11L) } coAnswers {
+            fetchStarted.complete(Unit)
+            releaseFetch.await()
+            MetadataResponse(data = MetadataData(media = media(id = 11L)))
+        }
+
+        val refresh = launch { repository.refreshMetadata(mangaId = 1L, anilistId = 11L) }
+        fetchStarted.await()
+        val clear = launch { repository.clearMetadata(1L) }
+        runCurrent()
+
+        releaseFetch.complete(Unit)
+        refresh.join()
+        clear.join()
+
+        // The delete runs after the upsert rather than being overwritten by it — the row the user
+        // discarded stays discarded.
+        assertEquals(listOf("upsert", "delete"), calls.toList())
     }
 
     // ── Mapping ──────────────────────────────────────────────────────────────

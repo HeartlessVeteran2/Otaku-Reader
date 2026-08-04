@@ -29,14 +29,4 @@ interface MangaMetadataDao {
 
     @Query("DELETE FROM manga_metadata WHERE mangaId = :mangaId")
     suspend fun deleteByMangaId(mangaId: Long)
-
-    /**
-     * Drop everything older than [cutoff] (epoch millis).
-     *
-     * The TTL alone only prevents *stale reads*; it never reclaims space, because an entry for a
-     * manga nobody opens again is never re-examined. This is the sweep that does, for a
-     * maintenance worker to call.
-     */
-    @Query("DELETE FROM manga_metadata WHERE fetchedAt < :cutoff")
-    suspend fun deleteOlderThan(cutoff: Long)
 }
