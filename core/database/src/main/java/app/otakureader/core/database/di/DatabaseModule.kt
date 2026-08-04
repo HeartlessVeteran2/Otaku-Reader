@@ -12,6 +12,7 @@ import app.otakureader.core.database.dao.DownloadQueueDao
 import app.otakureader.core.database.dao.MangaAlternativeSourceDao
 import app.otakureader.core.database.dao.SyncQueueDao
 import app.otakureader.core.database.dao.TrackEntryDao
+import app.otakureader.core.database.dao.MangaMetadataDao
 import app.otakureader.core.database.dao.UpdateErrorDao
 import app.otakureader.core.database.dao.UpdateRunSummaryDao
 import app.otakureader.core.database.migrations.ALL_MIGRATIONS
@@ -23,6 +24,15 @@ import dagger.hilt.components.SingletonComponent
 import java.util.concurrent.Executors
 import javax.inject.Singleton
 
+/**
+ * One `@Provides` per DAO, so this grows by exactly one function every time a table is added.
+ *
+ * [TooManyFunctions] measures a shape it was not written for here: the count is a list length, not
+ * complexity — every function is the same three-token body and none of them can interact. Splitting
+ * the object to satisfy the threshold would scatter a flat registry across arbitrary boundaries and
+ * make "where is this DAO provided" a search instead of a scroll.
+ */
+@Suppress("TooManyFunctions")
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
@@ -120,4 +130,7 @@ object DatabaseModule {
 
     @Provides
     fun provideUpdateErrorDao(database: OtakuReaderDatabase): UpdateErrorDao = database.updateErrorDao()
+
+    @Provides
+    fun provideMangaMetadataDao(database: OtakuReaderDatabase): MangaMetadataDao = database.mangaMetadataDao()
 }
