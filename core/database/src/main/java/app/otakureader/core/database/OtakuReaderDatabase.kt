@@ -11,8 +11,10 @@ import app.otakureader.core.database.dao.DataUsageDao
 import app.otakureader.core.database.dao.DownloadQueueDao
 import app.otakureader.core.database.dao.DynamicCategoryRuleDao
 import app.otakureader.core.database.dao.FeedDao
+import app.otakureader.core.database.dao.MangaAlternativeSourceDao
 import app.otakureader.core.database.dao.MangaCategoryDao
 import app.otakureader.core.database.dao.MangaDao
+import app.otakureader.core.database.dao.MangaMetadataDao
 import app.otakureader.core.database.dao.OpdsServerDao
 import app.otakureader.core.database.dao.PageBookmarkDao
 import app.otakureader.core.database.dao.ReaderCommentDao
@@ -23,13 +25,10 @@ import app.otakureader.core.database.dao.RecommendationDao
 import app.otakureader.core.database.dao.SyncQueueDao
 import app.otakureader.core.database.dao.TrackEntryDao
 import app.otakureader.core.database.dao.TrackerSyncDao
-import app.otakureader.core.database.dao.MangaMetadataDao
 import app.otakureader.core.database.dao.UpdateErrorDao
 import app.otakureader.core.database.dao.UpdateRunSummaryDao
-import app.otakureader.core.database.dao.MangaAlternativeSourceDao
 import app.otakureader.core.database.entity.AchievementEntity
 import app.otakureader.core.database.entity.BookmarkCollectionEntity
-import app.otakureader.core.database.entity.MangaAlternativeSourceEntity
 import app.otakureader.core.database.entity.CategoryEntity
 import app.otakureader.core.database.entity.ChapterEntity
 import app.otakureader.core.database.entity.DataUsageEntity
@@ -38,9 +37,11 @@ import app.otakureader.core.database.entity.DynamicCategoryRuleEntity
 import app.otakureader.core.database.entity.FeedItemEntity
 import app.otakureader.core.database.entity.FeedSavedSearchEntity
 import app.otakureader.core.database.entity.FeedSourceEntity
+import app.otakureader.core.database.entity.MangaAlternativeSourceEntity
 import app.otakureader.core.database.entity.MangaCategoryEntity
 import app.otakureader.core.database.entity.MangaEntity
 import app.otakureader.core.database.entity.MangaFtsEntity
+import app.otakureader.core.database.entity.MangaMetadataEntity
 import app.otakureader.core.database.entity.OpdsServerEntity
 import app.otakureader.core.database.entity.PageBookmarkEntity
 import app.otakureader.core.database.entity.ReaderCommentEntity
@@ -53,7 +54,6 @@ import app.otakureader.core.database.entity.SyncConfigurationEntity
 import app.otakureader.core.database.entity.SyncQueueEntity
 import app.otakureader.core.database.entity.TrackEntryEntity
 import app.otakureader.core.database.entity.TrackerSyncStateEntity
-import app.otakureader.core.database.entity.MangaMetadataEntity
 import app.otakureader.core.database.entity.UpdateErrorEntity
 import app.otakureader.core.database.entity.UpdateRunSummaryEntity
 

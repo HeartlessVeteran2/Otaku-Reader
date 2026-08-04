@@ -6,14 +6,14 @@ import app.otakureader.domain.model.MangaMetadata
 import app.otakureader.domain.model.MangaMetadataTag
 import app.otakureader.domain.repository.MangaMetadataRepository
 import app.otakureader.domain.util.PlaceholderTitles
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Fetches manga metadata from AniList and caches it in Room.
