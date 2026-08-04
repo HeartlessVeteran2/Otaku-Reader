@@ -10,6 +10,7 @@ import app.otakureader.domain.model.Manga
 import app.otakureader.domain.repository.CategoryRepository
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
+import app.otakureader.domain.repository.MangaMetadataRepository
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.domain.repository.ReadingListRepository
 import app.otakureader.domain.repository.StatisticsRepository
@@ -37,9 +38,12 @@ import kotlinx.coroutines.sync.withLock
 import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.domain.repository.resolveDownloadFolderName
 import app.otakureader.domain.tracking.TrackRepository
+import app.otakureader.domain.tracking.Tracker
 import app.otakureader.sourceapi.SourceChapter
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.supervisorScope
 import javax.inject.Inject
 
@@ -62,10 +66,20 @@ class DetailsViewModel @Inject constructor(
     private val statisticsRepository: StatisticsRepository,
     private val trackRepository: TrackRepository,
     private val readingListRepository: ReadingListRepository,
+    private val metadataRepository: MangaMetadataRepository,
+    trackers: Set<@JvmSuppressWildcards Tracker>,
 ) : ViewModel() {
 
-    private val mangaId: Long = savedStateHandle.get<Long>(MANGA_ID_ARG) 
+    private val mangaId: Long = savedStateHandle.get<Long>(MANGA_ID_ARG)
         ?: throw IllegalArgumentException("Manga ID is required")
+
+    /**
+     * Tracker display names, taken from the trackers themselves rather than a local `when`.
+     *
+     * A second copy of "AniList"/"MyAnimeList"/… in this module would be one more place to forget
+     * when a tracker is added, and the name is already a property on [Tracker].
+     */
+    private val trackerNames: Map<Int, String> = trackers.associate { it.id to it.name }
 
     private val _state = MutableStateFlow(DetailsContract.State())
     val state: StateFlow<DetailsContract.State> = _state.asStateFlow()
@@ -95,11 +109,13 @@ class DetailsViewModel @Inject constructor(
         )
 
     init {
+        _state.update { it.copy(trackerNames = trackerNames) }
         loadMangaDetails()
         loadChapters()
         loadNextUnreadChapter()
         observeStaticSettings()
-        observeTrackingCount()
+        observeTrackEntries()
+        observeMetadata()
         loadMangaWebUrl()
         observeCategories()
         loadSourceName()
@@ -276,11 +292,70 @@ class DetailsViewModel @Inject constructor(
         }
     }
 
-    private fun observeTrackingCount() {
+    /**
+     * Keeps the tracker entries themselves, and uses the AniList one as the metadata key.
+     *
+     * The entries were already being collected here to produce a count; keeping the list is what
+     * lets the screen show real per-tracker status/score/progress instead of a number. The second
+     * job it does is supply [DetailsContract.State.anilistMediaId] — for a manga the user tracks on
+     * AniList, that id is already known, so metadata needs no separate matching step.
+     */
+    private fun observeTrackEntries() {
         trackRepository.observeEntriesForManga(mangaId)
-            .onEach { entries -> _state.update { it.copy(trackingCount = entries.size) } }
+            .onEach { entries ->
+                _state.update { it.copy(trackEntries = entries) }
+                _state.value.anilistMediaId?.let { requestMetadataRefresh(it, force = false) }
+            }
             .launchIn(viewModelScope)
     }
+
+    /** Cache-only. Emits null until something has been fetched, and never triggers a fetch. */
+    private fun observeMetadata() {
+        metadataRepository.observeMetadata(mangaId)
+            .onEach { metadata -> _state.update { it.copy(metadata = metadata) } }
+            .launchIn(viewModelScope)
+    }
+
+    /**
+     * Requests a metadata fetch for [anilistId], at most once per id unless [force] is set.
+     *
+     * The guard matters because [observeTrackEntries] re-emits on *every* tracker write — pushing
+     * chapter progress after a read is enough — and without it each of those would launch another
+     * refresh. The repository's TTL would turn most of them into a Room read rather than a request,
+     * but launching a coroutine per progress update to discover that is waste.
+     *
+     * The cost of the guard is that a **failed** refresh is not retried while the screen is open.
+     * That is deliberate rather than overlooked: retrying on the next tracker write would mean one
+     * network attempt per chapter read on an offline device. Pull-to-refresh
+     * ([DetailsContract.Event.Refresh]) is the explicit retry, and it passes `force = true`.
+     *
+     * [metadataRefreshJob] and [refreshedAnilistId] are only touched from `viewModelScope`, which is
+     * `Dispatchers.Main.immediate` — single-threaded, so no lock is needed. The new job waits for
+     * the previous one to finish cancelling before it flips [State.isMetadataLoading] on, so an
+     * outgoing job's `finally` can never switch the spinner off underneath its replacement.
+     */
+    private fun requestMetadataRefresh(anilistId: Long, force: Boolean) {
+        if (!force && refreshedAnilistId == anilistId) return
+        refreshedAnilistId = anilistId
+        val previous = metadataRefreshJob
+        metadataRefreshJob = viewModelScope.launch {
+            previous?.cancelAndJoin()
+            _state.update { it.copy(isMetadataLoading = true) }
+            try {
+                // The result is intentionally not surfaced. This is a cache-first section: on
+                // failure the screen keeps rendering whatever was already cached, and on a first
+                // visit with nothing cached it renders no metadata section at all. An error banner
+                // for a supplementary third-party lookup would be noise on top of a page that is
+                // already complete without it.
+                metadataRepository.refreshMetadata(mangaId, anilistId, force)
+            } finally {
+                _state.update { it.copy(isMetadataLoading = false) }
+            }
+        }
+    }
+
+    private var metadataRefreshJob: Job? = null
+    private var refreshedAnilistId: Long? = null
 
     private fun loadMangaWebUrl() {
         viewModelScope.launch {
@@ -489,6 +564,10 @@ class DetailsViewModel @Inject constructor(
 
     private fun refreshData() {
         _state.update { it.copy(isRefreshing = true) }
+        // Pull-to-refresh is also the retry path for metadata: it bypasses both the once-per-id
+        // guard and the repository's 7-day TTL, so a fetch that failed earlier gets another go and
+        // a user who wants a fresh score can ask for one.
+        _state.value.anilistMediaId?.let { requestMetadataRefresh(it, force = true) }
         viewModelScope.launch {
             try {
                 val manga = mangaRepository.getMangaById(mangaId)

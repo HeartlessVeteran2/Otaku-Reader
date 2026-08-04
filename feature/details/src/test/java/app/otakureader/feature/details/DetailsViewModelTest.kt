@@ -8,14 +8,21 @@ import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.DownloadItem
 import app.otakureader.domain.model.DownloadStatus
 import app.otakureader.domain.model.Manga
+import app.otakureader.domain.model.MangaMetadata
+import app.otakureader.domain.model.MangaMetadataTag
 import app.otakureader.domain.model.MangaStatus
+import app.otakureader.domain.model.TrackEntry
+import app.otakureader.domain.model.TrackStatus
+import app.otakureader.domain.model.TrackerType
 import app.otakureader.domain.repository.CategoryRepository
 import app.otakureader.domain.repository.ChapterRepository
+import app.otakureader.domain.repository.MangaMetadataRepository
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.ReadingListRepository
 import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.domain.tracking.TrackRepository
+import app.otakureader.domain.tracking.Tracker
 import app.otakureader.domain.usecase.SetMangaNotificationsUseCase
 import app.otakureader.domain.usecase.UpdateMangaNoteUseCase
 import app.cash.turbine.test
@@ -24,6 +31,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -62,6 +70,8 @@ class DetailsViewModelTest {
     private lateinit var statisticsRepository: app.otakureader.domain.repository.StatisticsRepository
     private lateinit var trackRepository: TrackRepository
     private lateinit var readingListRepository: ReadingListRepository
+    private lateinit var metadataRepository: MangaMetadataRepository
+    private lateinit var anilistTracker: Tracker
     private lateinit var savedStateHandle: SavedStateHandle
 
     private val sampleManga = Manga(
@@ -95,6 +105,11 @@ class DetailsViewModelTest {
         statisticsRepository = mockk(relaxed = true)
         trackRepository = mockk(relaxed = true)
         readingListRepository = mockk(relaxed = true)
+        metadataRepository = mockk(relaxed = true)
+        every { metadataRepository.observeMetadata(mangaId) } returns flowOf(null)
+        anilistTracker = mockk(relaxed = true)
+        every { anilistTracker.id } returns TrackerType.ANILIST
+        every { anilistTracker.name } returns "AniList"
         savedStateHandle = SavedStateHandle(mapOf(DetailsViewModel.MANGA_ID_ARG to mangaId))
     }
 
@@ -118,6 +133,8 @@ class DetailsViewModelTest {
             statisticsRepository,
             trackRepository,
             readingListRepository,
+            metadataRepository,
+            trackers = setOf(anilistTracker),
         )
     }
 
@@ -136,6 +153,9 @@ class DetailsViewModelTest {
         every { downloadPreferences.perMangaOverrides } returns flowOf(emptyMap())
         coEvery { mangaRepository.updateChapterFlags(any(), any()) } returns Unit
         every { categoryRepository.getCategories() } returns flowOf(emptyList())
+        // Result is a value class, which a relaxed mock cannot fabricate — stub it explicitly.
+        coEvery { metadataRepository.refreshMetadata(any(), any(), any()) } returns
+            Result.success(sampleMetadata)
     }
 
     // ---- Initial load ----
@@ -1033,5 +1053,195 @@ class DetailsViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
             expectNoEvents()
         }
+    }
+
+    // ---- Tracker entries + AniList metadata (Stage 5b) ----
+
+    private fun trackEntry(
+        trackerId: Int,
+        remoteId: Long,
+        status: TrackStatus = TrackStatus.READING,
+        lastChapterRead: Float = 12f,
+        totalChapters: Int = 45,
+        score: Float = 8.5f,
+    ) = TrackEntry(
+        remoteId = remoteId,
+        mangaId = mangaId,
+        trackerId = trackerId,
+        status = status,
+        lastChapterRead = lastChapterRead,
+        totalChapters = totalChapters,
+        score = score,
+    )
+
+    private val sampleMetadata = MangaMetadata(
+        mangaId = mangaId,
+        anilistId = 53390L,
+        description = "AniList synopsis",
+        genres = listOf("Action", "Drama"),
+        tags = listOf(MangaMetadataTag("Isekai", 87)),
+        averageScore = 84,
+    )
+
+    @Test
+    fun init_keepsTrackEntriesAndDerivesTrackingCountFromThem() = runTest {
+        setUpDefaultMocks()
+        val entries = listOf(
+            trackEntry(TrackerType.ANILIST, remoteId = 53390L),
+            trackEntry(TrackerType.MY_ANIME_LIST, remoteId = 777L),
+        )
+        every { trackRepository.observeEntriesForManga(mangaId) } returns flowOf(entries)
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.state.value
+        // The entries themselves are what the chips render; the count is now derived, not stored.
+        assertEquals(entries, state.trackEntries)
+        assertEquals(2, state.trackingCount)
+        assertEquals(53390L, state.anilistMediaId)
+    }
+
+    @Test
+    fun init_exposesTrackerNamesFromInjectedTrackers() = runTest {
+        setUpDefaultMocks()
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals("AniList", viewModel.state.value.trackerNames[TrackerType.ANILIST])
+    }
+
+    @Test
+    fun init_refreshesMetadataUsingTheAniListEntryRemoteIdAsMediaId() = runTest {
+        setUpDefaultMocks()
+        every { trackRepository.observeEntriesForManga(mangaId) } returns flowOf(
+            listOf(trackEntry(TrackerType.ANILIST, remoteId = 53390L))
+        )
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // The AniList tracker's remoteId *is* the AniList media id, so no matching step is needed.
+        coVerify(exactly = 1) { metadataRepository.refreshMetadata(mangaId, 53390L, false) }
+        // A finished refresh must leave the spinner off, not just return.
+        assertFalse(viewModel.state.value.isMetadataLoading)
+    }
+
+    @Test
+    fun init_doesNotRefreshMetadataWhenNoAniListEntryExists() = runTest {
+        setUpDefaultMocks()
+        every { trackRepository.observeEntriesForManga(mangaId) } returns flowOf(
+            listOf(trackEntry(TrackerType.MY_ANIME_LIST, remoteId = 777L))
+        )
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 0) { metadataRepository.refreshMetadata(any(), any(), any()) }
+        assertFalse(viewModel.state.value.isMetadataLoading)
+    }
+
+    @Test
+    fun observeTrackEntries_refreshesOnceAcrossRepeatedEmissionsOfTheSameMediaId() = runTest {
+        setUpDefaultMocks()
+        // The entries flow re-emits on every tracker write — pushing chapter progress after a read
+        // is enough. Without the once-per-id guard each of those would launch another refresh.
+        val entry = trackEntry(TrackerType.ANILIST, remoteId = 53390L)
+        every { trackRepository.observeEntriesForManga(mangaId) } returns flowOf(
+            listOf(entry),
+            listOf(entry.copy(lastChapterRead = 13f)),
+            listOf(entry.copy(lastChapterRead = 14f)),
+        )
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 1) { metadataRepository.refreshMetadata(mangaId, 53390L, false) }
+        // The later emissions still have to reach state — the guard suppresses the fetch, not the
+        // entries themselves.
+        assertEquals(14f, viewModel.state.value.trackEntries.single().lastChapterRead, 0f)
+    }
+
+    @Test
+    fun observeTrackEntries_lastAniListLinkWinsAndCancelsTheStaleFetch() = runTest {
+        setUpDefaultMocks()
+        // Correcting a wrong link changes the remoteId while the mangaId stays put. Two things
+        // have to hold: the new id gets past the per-id guard, and the fetch for the *old* id is
+        // abandoned. Without the second, a slow stale fetch lands after the fresh one and writes
+        // the wrong manga's metadata into the cache — the same "slower writer wins" race the
+        // repository's per-manga lock cannot decide, because ordering is what's at stake, not
+        // mutual exclusion.
+        var staleFetchCompleted = false
+        coEvery { metadataRepository.refreshMetadata(mangaId, 53390L, false) } coAnswers {
+            delay(SLOW_FETCH_MS)
+            staleFetchCompleted = true
+            Result.success(sampleMetadata)
+        }
+        every { trackRepository.observeEntriesForManga(mangaId) } returns flowOf(
+            listOf(trackEntry(TrackerType.ANILIST, remoteId = 53390L)),
+            listOf(trackEntry(TrackerType.ANILIST, remoteId = 99999L)),
+        )
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 1) { metadataRepository.refreshMetadata(mangaId, 99999L, false) }
+        assertFalse(staleFetchCompleted)
+        assertEquals(99999L, viewModel.state.value.anilistMediaId)
+        assertFalse(viewModel.state.value.isMetadataLoading)
+    }
+
+    @Test
+    fun onEvent_Refresh_forcesAMetadataRefetch() = runTest {
+        setUpDefaultMocks()
+        every { trackRepository.observeEntriesForManga(mangaId) } returns flowOf(
+            listOf(trackEntry(TrackerType.ANILIST, remoteId = 53390L))
+        )
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onEvent(DetailsContract.Event.Refresh)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // force = true is what makes pull-to-refresh a real retry: it bypasses both the
+        // once-per-id guard here and the repository's TTL.
+        coVerify(exactly = 1) { metadataRepository.refreshMetadata(mangaId, 53390L, true) }
+    }
+
+    @Test
+    fun observeMetadata_putsCachedMetadataIntoState() = runTest {
+        setUpDefaultMocks()
+        every { metadataRepository.observeMetadata(mangaId) } returns flowOf(sampleMetadata)
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(sampleMetadata, viewModel.state.value.metadata)
+    }
+
+    @Test
+    fun observeMetadata_survivesAFailedRefresh() = runTest {
+        setUpDefaultMocks()
+        every { metadataRepository.observeMetadata(mangaId) } returns flowOf(sampleMetadata)
+        every { trackRepository.observeEntriesForManga(mangaId) } returns flowOf(
+            listOf(trackEntry(TrackerType.ANILIST, remoteId = 53390L))
+        )
+        coEvery { metadataRepository.refreshMetadata(mangaId, 53390L, false) } returns
+            Result.failure(IllegalStateException("AniList is down"))
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Cache-first: a failed fetch must leave what was already cached on screen, and must not
+        // strand the spinner. Asserting the state left behind, not just that the call returned.
+        assertEquals(sampleMetadata, viewModel.state.value.metadata)
+        assertFalse(viewModel.state.value.isMetadataLoading)
+    }
+
+    private companion object {
+        /** Long enough that a fetch left running would obviously outlive the one that replaced it. */
+        const val SLOW_FETCH_MS = 5_000L
     }
 }

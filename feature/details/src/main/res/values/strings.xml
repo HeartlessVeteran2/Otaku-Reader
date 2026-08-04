@@ -245,6 +245,39 @@
     <string name="details_category_picker_confirm">Add</string>
     <string name="details_category_picker_skip">Skip</string>
 
+    <!-- Per-tracker chips (Stage 5b) -->
+    <string name="details_tracker_unknown">Tracker</string>
+    <string name="details_tracker_progress">%1$s/%2$s</string>
+    <string name="details_tracker_total_unknown">?</string>
+    <string name="details_tracker_score">★ %1$s</string>
+    <string name="track_status_reading">Reading</string>
+    <string name="track_status_completed">Completed</string>
+    <string name="track_status_on_hold">On hold</string>
+    <string name="track_status_dropped">Dropped</string>
+    <string name="track_status_plan_to_read">Plan to read</string>
+    <string name="track_status_re_reading">Re-reading</string>
+
+    <!-- AniList metadata section (Stage 5b) -->
+    <string name="details_metadata_title">AniList</string>
+    <string name="details_metadata_score">Score</string>
+    <string name="details_metadata_format">Format</string>
+    <string name="details_metadata_status">Status</string>
+    <string name="details_metadata_origin">Origin</string>
+    <string name="details_metadata_chapters">Chapters</string>
+    <string name="details_metadata_popularity">Popularity</string>
+    <string name="details_metadata_favourites">Favourites</string>
+    <string name="details_metadata_published">Published</string>
+    <string name="details_metadata_percent">%1$d%%</string>
+    <string name="details_metadata_published_range">%1$s – %2$s</string>
+    <string name="details_metadata_published_ongoing">%1$s – present</string>
+    <string name="details_metadata_tags">Tags</string>
+    <string name="details_metadata_tag">%1$s %2$d%%</string>
+    <string name="details_metadata_synonyms">Also known as</string>
+    <string name="details_metadata_country_jp">Japan</string>
+    <string name="details_metadata_country_kr">Korea</string>
+    <string name="details_metadata_country_cn">China</string>
+    <string name="details_metadata_country_tw">Taiwan</string>
+
     <string name="details_add_to_reading_list">Add to Reading List</string>
     <string name="details_reading_list_picker_title">Reading lists</string>
     <string name="details_reading_list_picker_empty">No reading lists yet. Create one from More → Reading Lists.</string>
