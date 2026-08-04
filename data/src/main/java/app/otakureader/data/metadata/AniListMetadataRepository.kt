@@ -6,7 +6,6 @@ import app.otakureader.domain.model.MangaMetadata
 import app.otakureader.domain.model.MangaMetadataTag
 import app.otakureader.domain.repository.MangaMetadataRepository
 import app.otakureader.domain.util.PlaceholderTitles
-import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
@@ -86,27 +85,34 @@ class AniListMetadataRepository @Inject constructor(
     }
 
     /**
-     * Serializes refresh and clear per manga.
+     * Serializes refresh and clear for a given manga.
      *
      * Read-decide-write across a network call is the shape that needs it: two refreshes for the
      * same manga with different `anilistId`s — which is exactly what correcting a wrong match
      * produces — would otherwise race, and the *slower* one wins because it writes last. The
-     * anilistId-aware freshness check above cannot help, since each call passes its own check
-     * before either writes.
+     * anilistId-aware freshness check cannot help, since each call passes its own check before
+     * either writes.
      *
-     * Per manga rather than one global lock, because the fetch happens inside the lock and AniList
-     * responses can be delayed by up to 90 seconds when the rate limiter is waiting out a 429
-     * (#1236). One lock would serialize every manga behind that.
+     * Not one global lock, because the fetch happens inside it and the rate limiter can hold an
+     * AniList response for up to 90 seconds (#1236) — that would queue every other manga behind
+     * one slow request.
      *
-     * The map is keyed by `mangaId`, so it is bounded by the library size and entries are cheap
-     * (`Mutex` is a few words). It is not evicted: a `remove` after unlocking would race with the
-     * next caller that has already read the same instance, and swapping in a bounded cache would
-     * let a lock be evicted while held — both trade a real correctness property for memory that is
-     * not under pressure.
+     * **Striped rather than per-id.** A `ConcurrentHashMap<Long, Mutex>` was the obvious shape and
+     * it leaks by design: an entry is added for every manga ever refreshed and never removed, so
+     * the map tracks session history rather than the library. Evicting is worse than it sounds —
+     * removing after unlocking races the next caller that already read the same instance, and a
+     * bounded cache can evict a lock while it is held. Reference counting fixes that and is a
+     * well-known source of subtle bugs.
+     *
+     * A fixed array sidesteps all of it. The same `mangaId` always maps to the same stripe, so
+     * serialization is exact where it matters; two *different* manga can collide and serialize
+     * unnecessarily, which costs nothing but a little parallelism and cannot cause a wrong result.
+     * Memory is [STRIPE_COUNT] mutexes, forever, whatever the user does to their library.
      */
-    private fun lockFor(mangaId: Long): Mutex = locks.getOrPut(mangaId) { Mutex() }
+    private fun lockFor(mangaId: Long): Mutex = locks[Math.floorMod(mangaId, STRIPE_COUNT)]
 
-    private val locks = ConcurrentHashMap<Long, Mutex>()
+    /** `floorMod`, not `%`: a negative id would otherwise index out of bounds. */
+    private val locks = Array(STRIPE_COUNT) { Mutex() }
 
     /**
      * Fresh means the age is within the TTL **and not negative**.
@@ -130,6 +136,16 @@ class AniListMetadataRepository @Inject constructor(
          * per visit against a rate limit this app has to wait out.
          */
         const val TTL_MS = 7L * 24 * 60 * 60 * 1000
+
+        /**
+         * How many refresh locks exist, total.
+         *
+         * Comfortably above the concurrency this can actually reach — OkHttp's default dispatcher
+         * allows 5 requests per host, and the library sync loop is sequential — so a collision
+         * between two different manga is rare, and when it happens it only costs the parallelism
+         * of one extra request.
+         */
+        const val STRIPE_COUNT = 64
     }
 }
 
