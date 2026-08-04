@@ -2,6 +2,7 @@ package app.otakureader.domain.usecase.metadata
 
 import app.otakureader.domain.model.AniListMatch
 import app.otakureader.domain.model.AniListMediaCandidate
+import app.otakureader.domain.util.PlaceholderTitles
 import app.otakureader.domain.util.StringSimilarity
 import app.otakureader.domain.util.TitleNormalizer
 import javax.inject.Inject
@@ -171,9 +172,7 @@ class MatchAniListMediaUseCase @Inject constructor() {
 
     private fun buildTitleSet(titles: List<String>): List<TitleForm> =
         titles.asSequence()
-            // Uppercased on both sides: sources emit "n/a" as readily as "N/A", and a
-            // case-sensitive check would let one variant through to match another perfectly.
-            .filter { it.isNotBlank() && it.trim().uppercase() !in PLACEHOLDER_TITLES }
+            .filter { PlaceholderTitles.isMeaningful(it) }
             .map { raw ->
                 // Normalized once and reused. `heavyNormalize` used to call `TitleNormalizer`
                 // again, running its full regex chain twice per title on every candidate set.
@@ -202,12 +201,6 @@ class MatchAniListMediaUseCase @Inject constructor() {
 
         /** At or above this, the match is reported as [AniListMatch.confident]. */
         const val ACCEPT_THRESHOLD = 0.7f
-
-        /**
-         * Titles that carry no information and would otherwise match each other perfectly.
-         * Sources really do emit these for entries with a missing localized name.
-         */
-        private val PLACEHOLDER_TITLES = setOf("?", "??", "???", "-", "N/A")
 
         private val ORDINAL_SEASON = Regex("""(\d+)(?:st|nd|rd|th)\s+season""")
         private val SEASON_NUMBER = Regex("""season\s+(\d+)""")

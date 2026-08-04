@@ -1,5 +1,6 @@
 package app.otakureader.data.tracking.di
 
+import app.otakureader.data.metadata.AniListMetadataService
 import app.otakureader.data.tracking.api.AniListApi
 import app.otakureader.data.tracking.api.AniListRateLimitInterceptor
 import app.otakureader.data.tracking.api.KitsuApi
@@ -200,6 +201,16 @@ object TrackingNetworkModule {
     @Singleton
     fun provideShikimoriApi(@ShikimoriApiQ retrofit: Retrofit): ShikimoriApi =
         retrofit.create(ShikimoriApi::class.java)
+
+    /**
+     * Built on the same `@AniListApiQ` Retrofit as [AniListApi], so it inherits the rate-limit
+     * interceptor and certificate pinning without restating either. A separate service interface
+     * because the response shapes share no fields — see [AniListMetadataService].
+     */
+    @Provides
+    @Singleton
+    fun provideAniListMetadataService(@AniListApiQ retrofit: Retrofit): AniListMetadataService =
+        retrofit.create(AniListMetadataService::class.java)
 
     @Provides
     @Singleton

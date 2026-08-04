@@ -28,7 +28,7 @@ Otaku-Reader/
 ├── build-logic/            # Gradle convention plugins
 ├── core/
 │   ├── common/             # Shared utilities, Palette API, coroutine helpers
-│   ├── database/           # Room entities, DAOs, migrations (current schema v37)
+│   ├── database/           # Room entities, DAOs, migrations (current schema v41)
 │   ├── network/            # OkHttp + Retrofit + Kotlinx Serialization setup
 │   ├── preferences/        # DataStore preferences, encrypted credential storage
 │   ├── ui/                 # Shared Compose components, Material 3 theme, Coil integration
@@ -86,7 +86,7 @@ Otaku-Reader/
 ### Manga Details (`feature/details/`)
 - Chapter list with filters (read/unread, bookmarked/not), sort (ascending/descending), search
 - Multi-select chapters: mark read, download, delete, bookmark (chapter-level bookmarks removed in PR #1130)
-- Tracker status chips inline (tap to open tracker)
+- Tracker **count** button (tap to open the tracking screen). Per-tracker status/score/progress chips are **not** implemented: `DetailsViewModel.observeTrackingCount()` collects `observeEntriesForManga` and keeps only `entries.size`. The entries are already being fetched and discarded, so rendering real chips is mostly a state-shape change.
 - Track manga on multiple services simultaneously
 - Add to Reading List (overflow menu, live-toggle checkbox picker against `feature/library/readinglist/`)
 
@@ -212,8 +212,8 @@ LibraryScreen.kt    — stateless composable consuming state
 - **Every DAO read function returns `Flow<T>`** — never a plain value.
 - Migrations must be explicit. **Never use `fallbackToDestructiveMigration()` in production.**
 - Entities are separate from domain models. Always write and use mapper functions.
-- For tests, use in-memory Room databases — no `MigrationTestHelper`.
-- Current schema version: **v40** (adds `update_errors` table — per-manga current-unresolved library update failures, keyed by `mangaId`, replaced on each new failure and cleared on the manga's next successful update).
+- For DAO tests, use in-memory Room databases. **Migrations are tested with `MigrationTestHelper`** in `core/database/src/test/.../DatabaseMigrationTest.kt` — this file used to say not to, which was simply wrong about the code. `runMigrationsAndValidate` against the exported schema is the assertion that catches a column-type mismatch, and that class of bug fails *only on upgrade*, never on a fresh install.
+- Current schema version: **v41** (adds `manga_metadata` — cached AniList metadata for the details screen, keyed by `mangaId`, `ON DELETE CASCADE` from `manga`, refreshed against a 7-day TTL). v40 added `update_errors` (per-manga current-unresolved library update failures, keyed by `mangaId`, replaced on each new failure and cleared on the manga's next successful update).
 - **SQLite cannot `DROP COLUMN`** — to remove a column, CREATE TABLE new → INSERT INTO SELECT (omit removed column) → DROP TABLE old → RENAME new. When child tables have FK references to the table being recreated, wrap the entire block with `PRAGMA foreign_keys = OFF` (before) and `PRAGMA foreign_keys = ON` (after) to prevent `SQLITE_CONSTRAINT_FOREIGNKEY` on the DROP step.
 
 ---
@@ -538,7 +538,7 @@ CI uses JDK 21. Gradle setup/caching is handled by `gradle/actions/setup-gradle`
 
 - Solo developer, veteran background, newer to Kotlin — explain fixes, don't just drop code.
 - Multi-agent workflow: Claude (architecture + debugging), Copilot (day-to-day), Gemini Code Assist, Kimi Claw (bulk GitHub tasks).
-- **Current priority: cut v1.0.0 release tag.** All features including page bookmarks (PR #1130, merged 2026-06-20) are shipped.
+- **Current priority: the source-system rebuild + AniList metadata backbone.** Stage 5a (AniList tracker correctness) shipped in #1232/#1234/#1235/#1236; Stage 5b is in progress. The v1.0.0 tag waits on that work.
 
 ---
 

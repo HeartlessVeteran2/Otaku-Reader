@@ -65,6 +65,8 @@ import app.otakureader.domain.scheduler.DownloadFolderMigrationScheduler
 import app.otakureader.domain.scheduler.ExtensionUpdateScheduler
 import app.otakureader.domain.scheduler.LibraryUpdateScheduler
 import app.otakureader.domain.scheduler.ReminderScheduler
+import app.otakureader.data.metadata.AniListMetadataRepository
+import app.otakureader.domain.repository.MangaMetadataRepository
 import app.otakureader.domain.repository.UpdateErrorRepository
 import app.otakureader.domain.repository.UpdateRunSummaryRepository
 import app.otakureader.domain.scheduler.SyncScheduler
@@ -195,6 +197,9 @@ abstract class RepositoryModule {
 
     @Binds
     abstract fun bindEhFavoritesRepository(impl: EhFavoritesRepositoryImpl): EhFavoritesRepository
+
+    @Binds
+    abstract fun bindMangaMetadataRepository(impl: AniListMetadataRepository): MangaMetadataRepository
 
     companion object {
         @Provides

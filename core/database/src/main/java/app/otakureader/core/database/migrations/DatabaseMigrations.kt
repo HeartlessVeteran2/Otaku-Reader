@@ -547,6 +547,45 @@ internal val MIGRATION_39_40 = object : Migration(39, 40) {
     }
 }
 
+/**
+ * Add manga_metadata, the local cache of AniList metadata.
+ *
+ * Column types must match what Room generates from [MangaMetadataEntity] exactly, or the schema
+ * validation Room runs on open fails — and only on an *upgrade*, never on a fresh install, which
+ * is how a mismatch reaches users who already have the app. The `List<String>` columns are TEXT
+ * because `DatabaseConverters` joins them to a string; the nullable Int columns are INTEGER with
+ * no NOT NULL.
+ */
+internal val MIGRATION_40_41 = object : Migration(40, 41) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS manga_metadata (
+                mangaId INTEGER PRIMARY KEY NOT NULL,
+                anilistId INTEGER NOT NULL,
+                description TEXT,
+                bannerImage TEXT,
+                coverImage TEXT,
+                coverColor TEXT,
+                genres TEXT NOT NULL,
+                tagNames TEXT NOT NULL,
+                tagRanks TEXT NOT NULL,
+                averageScore INTEGER,
+                popularity INTEGER,
+                favourites INTEGER,
+                format TEXT,
+                countryOfOrigin TEXT,
+                status TEXT,
+                chapters INTEGER,
+                startDate TEXT,
+                endDate TEXT,
+                synonyms TEXT NOT NULL,
+                fetchedAt INTEGER NOT NULL,
+                FOREIGN KEY (mangaId) REFERENCES manga(id) ON DELETE CASCADE
+            )
+        """.trimIndent())
+    }
+}
+
 /** All migrations in order, for use in [Room.databaseBuilder] and migration tests. */
 internal val ALL_MIGRATIONS = arrayOf(
     MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6,
@@ -558,4 +597,5 @@ internal val ALL_MIGRATIONS = arrayOf(
     MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31,
     MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34, MIGRATION_34_35,
     MIGRATION_35_36, MIGRATION_36_37, MIGRATION_37_38, MIGRATION_38_39, MIGRATION_39_40,
+    MIGRATION_40_41,
 )
