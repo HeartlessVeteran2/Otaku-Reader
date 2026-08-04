@@ -265,7 +265,9 @@
     <string name="details_metadata_origin">Origin</string>
     <string name="details_metadata_chapters">Chapters</string>
     <string name="details_metadata_popularity">Popularity</string>
-    <string name="details_metadata_favourites">Favourites</string>
+    <!-- American spelling to match the rest of the app's UI copy, even though AniList's own
+         field is spelled "favourites". -->
+    <string name="details_metadata_favourites">Favorites</string>
     <string name="details_metadata_published">Published</string>
     <string name="details_metadata_percent">%1$d%%</string>
     <string name="details_metadata_published_range">%1$s – %2$s</string>
