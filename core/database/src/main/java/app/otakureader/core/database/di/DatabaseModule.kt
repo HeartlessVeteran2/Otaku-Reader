@@ -59,7 +59,7 @@ object DatabaseModule {
         }
         return builder.build()
     }
-    
+
     @Provides
     fun provideMangaDao(database: OtakuReaderDatabase) = database.mangaDao()
 
