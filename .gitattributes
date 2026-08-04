@@ -10,3 +10,12 @@
 # Binary files should be left untouched
 *.jar           binary
 
+# Room exports one JSON per schema version, generated from the @Entity classes at build time.
+# They are committed because the migration tests validate against them — `runMigrationsAndValidate`
+# needs the exported schema to compare a migrated database with — but they are not written by hand.
+#
+# `linguist-generated` collapses them in pull request diffs, so a schema bump stops burying the
+# handful of real changes under a couple of thousand generated lines, and keeps them out of the
+# repository's language statistics.
+core/database/schemas/**/*.json linguist-generated=true
+
