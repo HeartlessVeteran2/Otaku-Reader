@@ -1214,6 +1214,64 @@ class DetailsViewModelTest {
     fun observeMetadata_putsCachedMetadataIntoState() = runTest {
         setUpDefaultMocks()
         every { metadataRepository.observeMetadata(mangaId) } returns flowOf(sampleMetadata)
+        every { trackRepository.observeEntriesForManga(mangaId) } returns flowOf(
+            listOf(trackEntry(TrackerType.ANILIST, remoteId = sampleMetadata.anilistId))
+        )
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(sampleMetadata, viewModel.state.value.metadata)
+    }
+
+    @Test
+    fun observeMetadata_hidesCachedMetadataForAMediaTheMangaIsNoLongerLinkedTo() = runTest {
+        setUpDefaultMocks()
+        // The cache row is keyed by mangaId and is deliberately never dropped on a failed refresh,
+        // so after the user corrects a wrong link it still holds the *old* media. Rendering it
+        // would put the old title's tags and score under chips pointing at the new one.
+        every { metadataRepository.observeMetadata(mangaId) } returns flowOf(sampleMetadata)
+        every { trackRepository.observeEntriesForManga(mangaId) } returns flowOf(
+            listOf(trackEntry(TrackerType.ANILIST, remoteId = sampleMetadata.anilistId + 1))
+        )
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertNull(viewModel.state.value.metadata)
+        // The raw row is still held — it is only hidden, not deleted, so re-linking to the same
+        // media makes it usable again without a refetch.
+        assertEquals(sampleMetadata, viewModel.state.value.cachedMetadata)
+    }
+
+    @Test
+    fun observeMetadata_hidesCachedMetadataWhenAniListIsUnlinked() = runTest {
+        setUpDefaultMocks()
+        // No AniList entry at all: there is no live link, so an AniList section must not render
+        // even though the cache still has a row from when there was one.
+        every { metadataRepository.observeMetadata(mangaId) } returns flowOf(sampleMetadata)
+        every { trackRepository.observeEntriesForManga(mangaId) } returns flowOf(
+            listOf(trackEntry(TrackerType.MY_ANIME_LIST, remoteId = 777L))
+        )
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertNull(viewModel.state.value.anilistMediaId)
+        assertNull(viewModel.state.value.metadata)
+    }
+
+    @Test
+    fun observeMetadata_showsMetadataAgainOnceTheLinkCatchesUp() = runTest {
+        setUpDefaultMocks()
+        // The derived check has to work in both directions: metadata that arrives *before* the
+        // tracker entries must not be discarded permanently. A filter inside the metadata collector
+        // would drop it and never reconsider; deriving from both fields re-evaluates on either.
+        every { metadataRepository.observeMetadata(mangaId) } returns flowOf(sampleMetadata)
+        every { trackRepository.observeEntriesForManga(mangaId) } returns flowOf(
+            emptyList(),
+            listOf(trackEntry(TrackerType.ANILIST, remoteId = sampleMetadata.anilistId)),
+        )
 
         val viewModel = createViewModel()
         testDispatcher.scheduler.advanceUntilIdle()

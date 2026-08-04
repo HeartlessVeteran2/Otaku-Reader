@@ -77,8 +77,13 @@ object DetailsContract {
          * carrying a UI label.
          */
         val trackerNames: Map<Int, String> = emptyMap(),
-        /** Cached AniList metadata, or null when nothing has been fetched for this manga. */
-        val metadata: MangaMetadata? = null,
+        /**
+         * The raw cached AniList record for this manga, whatever media it happens to describe.
+         *
+         * **Do not render this — render [metadata].** The cache row is keyed by `mangaId` alone, so
+         * it survives a change to which AniList media the manga is linked to. See [metadata].
+         */
+        val cachedMetadata: MangaMetadata? = null,
         /** True only while a metadata fetch is in flight. Never blocks what is already cached. */
         val isMetadataLoading: Boolean = false,
         /** Full web URL for this manga (source baseUrl + manga url). Null for local sources. */
@@ -115,6 +120,34 @@ object DetailsContract {
          */
         val anilistMediaId: Long?
             get() = trackEntries.firstOrNull { it.trackerId == TrackerType.ANILIST }?.remoteId
+
+        /**
+         * The cached metadata, but only when it still describes the media this manga is linked to.
+         *
+         * The cache row is keyed by `mangaId`, not by AniList id, and `AniListMetadataRepository`
+         * deliberately never deletes it on a failed refresh — losing yesterday's metadata because
+         * today's request timed out would be strictly worse than showing yesterday's. That is right
+         * for a cache and wrong for a screen, and the two cases where it diverges are both ones the
+         * user just caused:
+         *
+         * - **The link was corrected.** `remoteId` changes while `mangaId` stays put. Until the
+         *   refetch lands — or forever, if the device is offline — the row still holds the *old*
+         *   media, so the chips would say one thing and the tags, score and synonyms another.
+         * - **AniList was unlinked entirely.** There is no live link at all, yet the row is still
+         *   there, so an AniList section would keep rendering for a manga that is no longer tracked.
+         *
+         * Deriving it here rather than filtering inside the metadata collector is what makes it
+         * safe: this is a pure function of two fields already in state, so it re-evaluates whenever
+         * *either* changes. A point-in-time filter in one of the two collectors would be wrong in
+         * both directions — metadata arriving before the tracker entries would be dropped and never
+         * reconsidered, and a link change would leave already-accepted metadata sitting in state.
+         *
+         * The stale row is left in the database on purpose. It costs nothing, it is reclaimed by
+         * the `ON DELETE CASCADE` from `manga`, and re-linking to the same media makes it usable
+         * again instantly — so deleting it would only buy a redundant refetch.
+         */
+        val metadata: MangaMetadata?
+            get() = cachedMetadata?.takeIf { it.anilistId == anilistMediaId }
 
         /** Estimated time remaining to finish all unread chapters of this manga. */
         val estimatedRemainingTimeMs: Long

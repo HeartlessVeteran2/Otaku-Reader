@@ -309,10 +309,17 @@ class DetailsViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
-    /** Cache-only. Emits null until something has been fetched, and never triggers a fetch. */
+    /**
+     * Cache-only. Emits null until something has been fetched, and never triggers a fetch.
+     *
+     * What lands here is the raw row, which may describe a media the manga is no longer linked to —
+     * the cache is keyed by `mangaId` and outlives a link change on purpose. The screen reads
+     * [DetailsContract.State.metadata], which derives from this *and* the current tracker entries,
+     * so the check happens where both are known rather than in whichever collector emits last.
+     */
     private fun observeMetadata() {
         metadataRepository.observeMetadata(mangaId)
-            .onEach { metadata -> _state.update { it.copy(metadata = metadata) } }
+            .onEach { metadata -> _state.update { it.copy(cachedMetadata = metadata) } }
             .launchIn(viewModelScope)
     }
 
