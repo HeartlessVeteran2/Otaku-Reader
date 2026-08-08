@@ -43,6 +43,46 @@ class BrowsableUrlTest {
         assertFalse("://example.test".isBrowsableHttpUrl())
     }
 
+    /**
+     * `http:foo` and `https:///path` parse cleanly and report an http scheme with no authority at
+     * all. Waved through, they become a chip that opens nothing — the dead control the fail-closed
+     * rule exists to avoid.
+     */
+    @Test
+    fun `a scheme with no authority is refused`() {
+        assertFalse("http:foo".isBrowsableHttpUrl())
+        assertFalse("https:///path".isBrowsableHttpUrl())
+        assertFalse("https:".isBrowsableHttpUrl())
+    }
+
+    /**
+     * `URI.getHost()` returns null for an internationalised name, so a host-based check would drop
+     * every IDN link — turning a cosmetic labelling problem into a missing link. The predicate
+     * tests the authority for exactly this reason.
+     */
+    @Test
+    fun `an internationalised host is browsable and labelled by its host`() {
+        assertTrue("https://\u4F8B\u3048.\u30C6\u30B9\u30C8/p".isBrowsableHttpUrl())
+        assertEquals("\u4F8B\u3048.\u30C6\u30B9\u30C8", "https://\u4F8B\u3048.\u30C6\u30B9\u30C8/p".browsableHostOrNull())
+        // Punycode parses as an ordinary host and needs no fallback.
+        assertEquals("xn--r8jz45g.xn--zckzah", "https://xn--r8jz45g.xn--zckzah/p".browsableHostOrNull())
+    }
+
+    @Test
+    fun `an internationalised authority still loses its userinfo and port`() {
+        assertEquals(
+            "\u4F8B\u3048.\u30C6\u30B9\u30C8",
+            "https://user:pw@\u4F8B\u3048.\u30C6\u30B9\u30C8:8443/p".browsableHostOrNull(),
+        )
+    }
+
+    /** Hostnames are case-insensitive, so the label normalises and the `www.` strip is case-blind. */
+    @Test
+    fun `the label is lowercased whatever case it arrived in`() {
+        assertEquals("example.test", "https://WWW.Example.TEST/p".browsableHostOrNull())
+        assertEquals("example.test", "https://Example.Test".browsableHostOrNull())
+    }
+
     @Test
     fun `the host drops a www prefix and ignores path, query and port`() {
         assertEquals("example.test", "https://www.example.test/path?q=1".browsableHostOrNull())
