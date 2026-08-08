@@ -19,6 +19,11 @@ class AniListSearchRepositoryImpl @Inject constructor(
         // A blank or placeholder title cannot match anything, and sending it would spend a request
         // against the rate limit to be told so. Sources really do emit "?" and "??" for a missing
         // localized title — see PlaceholderTitles.
+        //
+        // This returns success-with-nothing rather than a failure on purpose: the caller should
+        // move on to the next title, which is exactly what an empty result already means to it.
+        // Note that it makes "empty" mean "no candidates", not "AniList had none" — see the
+        // interface docs.
         if (!PlaceholderTitles.isMeaningful(title)) return Result.success(emptyList())
 
         return try {
@@ -30,7 +35,18 @@ class AniListSearchRepositoryImpl @Inject constructor(
             response.errors.firstOrNull()?.let {
                 return Result.failure(AniListMetadataException(it.message))
             }
-            Result.success(response.data?.page?.media.orEmpty().map { it.toCandidate() })
+            // A missing `Page` is not an empty page. `media: []` means AniList looked and found
+            // nothing — a normal outcome that must let the cascade try the next title. A null
+            // `data` or `Page` means the response was not the shape the query asked for, and
+            // advancing on that would make four malformed requests where one already failed,
+            // which is the same reasoning that makes ResolveAniListMediaUseCase abort on failure.
+            // `refreshMetadata` already draws this line for a missing `Media`; search was the
+            // inconsistent one.
+            val page = response.data?.page
+                ?: return Result.failure(
+                    AniListMetadataException("AniList returned no result page for \"$title\"")
+                )
+            Result.success(page.media.map { it.toCandidate() })
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

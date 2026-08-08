@@ -107,6 +107,39 @@ class AniListSearchRepositoryImplTest {
     }
 
     @Test
+    fun `a response with no page is a failure, not an empty search`() = runTest {
+        // "AniList found nothing" and "AniList did not answer the question asked" must stay
+        // distinguishable: the cascade advances on the first and aborts on the second, so calling
+        // a malformed response empty would make four malformed requests where one already failed.
+        coEvery { api.searchMedia(any()) } returns SearchResponse(data = SearchData(page = null))
+
+        val result = repository.searchMedia("Berserk")
+
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull() is AniListMetadataException)
+    }
+
+    @Test
+    fun `a response with no data at all is a failure`() = runTest {
+        coEvery { api.searchMedia(any()) } returns SearchResponse(data = null)
+
+        assertTrue(repository.searchMedia("Berserk").isFailure)
+    }
+
+    @Test
+    fun `an empty media list is still a success`() = runTest {
+        // The other side of the same line: `media: []` means AniList looked and found nothing,
+        // which is a normal outcome the cascade must be allowed to move past.
+        coEvery { api.searchMedia(any()) } returns
+            SearchResponse(data = SearchData(page = SearchPage(media = emptyList())))
+
+        val result = repository.searchMedia("Some Obscure Doujin")
+
+        assertTrue(result.isSuccess)
+        assertTrue(result.getOrThrow().isEmpty())
+    }
+
+    @Test
     fun `a placeholder query never reaches the network`() = runTest {
         val result = repository.searchMedia("??")
 

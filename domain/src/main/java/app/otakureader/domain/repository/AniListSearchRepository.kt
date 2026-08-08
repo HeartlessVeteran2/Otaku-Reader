@@ -24,9 +24,18 @@ interface AniListSearchRepository {
      * orders by its own relevance, which knows nothing about the alternative titles the local
      * record carries.
      *
-     * @return the candidates, or a failure carrying why the search did not happen. An empty list is
-     *   a success: AniList genuinely has nothing under that name, which is a normal outcome for a
-     *   long-tail source title and must not be reported as an error.
+     * @return the candidates, or a failure carrying why the search did not happen.
+     *
+     * An empty list means **no candidates**, and deliberately does not say why. It covers two
+     * paths: AniList looked and had nothing under that name — normal for a long-tail source title,
+     * and not an error — and the title being unusable enough that it was never sent, which
+     * implementations may short-circuit locally rather than spend a request against the rate limit
+     * to be told the same thing. Callers treat both identically (move on to the next title), so
+     * naming only the first would be a claim the contract does not keep.
+     *
+     * A malformed response is a **failure**, not an empty list. "AniList found nothing" and
+     * "AniList did not answer the question asked" have to stay distinguishable, because the caller
+     * advances on the first and aborts on the second.
      */
     suspend fun searchMedia(title: String): Result<List<AniListMediaCandidate>>
 }
