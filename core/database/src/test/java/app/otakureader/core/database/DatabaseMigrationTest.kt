@@ -32,6 +32,7 @@ import app.otakureader.core.database.migrations.MIGRATION_37_38
 import app.otakureader.core.database.migrations.MIGRATION_38_39
 import app.otakureader.core.database.migrations.MIGRATION_39_40
 import app.otakureader.core.database.migrations.MIGRATION_40_41
+import app.otakureader.core.database.migrations.MIGRATION_41_42
 import app.otakureader.core.database.migrations.MIGRATION_9_10
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -45,7 +46,8 @@ private const val SCHEMA_V37 = 37
 private const val SCHEMA_V39 = 39
 private const val SCHEMA_V40 = 40
 private const val SCHEMA_V41 = 41
-private const val EXPECTED_MIGRATION_COUNT = 39
+private const val SCHEMA_V42 = 42
+private const val EXPECTED_MIGRATION_COUNT = 40
 
 @RunWith(AndroidJUnit4::class)
 // One test class per migration chain: it grows by design with every schema version.
@@ -64,7 +66,7 @@ class DatabaseMigrationTest {
     fun allMigrations_formsContiguousChain() {
         val sorted = ALL_MIGRATIONS.sortedBy { it.startVersion }
         assertEquals("Migration chain must start at version 2", 2, sorted.first().startVersion)
-        assertEquals("Migration chain must end at version 41", SCHEMA_V41, sorted.last().endVersion)
+        assertEquals("Migration chain must end at version 42", SCHEMA_V42, sorted.last().endVersion)
 
         for (i in 0 until sorted.size - 1) {
             val current = sorted[i]
@@ -91,7 +93,7 @@ class DatabaseMigrationTest {
 
     @Test
     fun allMigrations_count() {
-        assertEquals("Expected 39 migrations (v2→v41)", EXPECTED_MIGRATION_COUNT, ALL_MIGRATIONS.size)
+        assertEquals("Expected 40 migrations (v2→v42)", EXPECTED_MIGRATION_COUNT, ALL_MIGRATIONS.size)
     }
 
     // ── Migration 9 → 10 ────────────────────────────────────────────────────
@@ -999,6 +1001,75 @@ class DatabaseMigrationTest {
         helper.createDatabase(TEST_DB, SCHEMA_V40).close()
         val db = helper.runMigrationsAndValidate(TEST_DB, SCHEMA_V41, true, MIGRATION_40_41)
         assertTrue("manga_metadata must exist after validation", "manga_metadata" in db.tableNames())
+        db.close()
+    }
+
+    // ── Migration 41 → 42 ───────────────────────────────────────────────────
+    // Adds: manga_anilist_link (which AniList media a manga is, and whether a human said so).
+
+    @Test
+    fun migration41To42_createsMangaAniListLinkTable() {
+        val db = helper.createDatabase(TEST_DB, SCHEMA_V41)
+        assertFalse("manga_anilist_link must NOT exist at v41", "manga_anilist_link" in db.tableNames())
+        MIGRATION_41_42.migrate(db)
+        assertTrue("manga_anilist_link must exist after 41\u219242", "manga_anilist_link" in db.tableNames())
+        val cols = db.columnNames("manga_anilist_link")
+        listOf("mangaId", "anilistId", "userConfirmed", "matchedAt").forEach { column ->
+            assertTrue("$column must exist on manga_anilist_link", column in cols)
+        }
+        db.close()
+    }
+
+    @Test
+    fun migration41To42_linkCascadesFromManga() {
+        // Without the cascade, removing a manga leaves a link keyed to an id that no longer
+        // exists. The cascade is the whole reclamation story for this table — there is no sweep.
+        val db = helper.createDatabase(TEST_DB, SCHEMA_V41)
+        MIGRATION_41_42.migrate(db)
+        val fkCursor = db.query("PRAGMA foreign_key_list('manga_anilist_link')")
+        var foundMangaFk = false
+        while (fkCursor.moveToNext()) {
+            val table = fkCursor.getString(fkCursor.getColumnIndexOrThrow("table"))
+            val from = fkCursor.getString(fkCursor.getColumnIndexOrThrow("from"))
+            val to = fkCursor.getString(fkCursor.getColumnIndexOrThrow("to"))
+            val onDelete = fkCursor.getString(fkCursor.getColumnIndexOrThrow("on_delete"))
+            if (table == "manga" && from == "mangaId" && to == "id" && onDelete == "CASCADE") {
+                foundMangaFk = true
+                break
+            }
+        }
+        fkCursor.close()
+        assertTrue("mangaId FK must reference manga(id) ON DELETE CASCADE", foundMangaFk)
+        db.close()
+    }
+
+    @Test
+    fun migration41To42_leavesTheMetadataCacheAlone() {
+        // The link is deliberately a second table rather than a column on manga_metadata, because
+        // a user's manual correction has to outlive a cache that clearMetadata throws away. If a
+        // later change ever folds them together, this is the test that should stop it.
+        val db = helper.createDatabase(TEST_DB, SCHEMA_V41)
+        MIGRATION_41_42.migrate(db)
+        assertTrue("manga_metadata must still exist after 41\u219242", "manga_metadata" in db.tableNames())
+        assertTrue(
+            "manga_metadata must keep its own anilistId",
+            "anilistId" in db.columnNames("manga_metadata"),
+        )
+        db.close()
+    }
+
+    /**
+     * The assertion that actually catches a column-type mismatch.
+     *
+     * `userConfirmed` is the one to watch here: it is a `Boolean` on the entity, which Room exports
+     * as INTEGER. A hand-written CREATE TABLE saying TEXT would pass both tests above and fail only
+     * for users upgrading — never on a fresh install, where the table is built from the entity.
+     */
+    @Test
+    fun migration41To42_validatesAgainstTheExportedSchema() {
+        helper.createDatabase(TEST_DB, SCHEMA_V41).close()
+        val db = helper.runMigrationsAndValidate(TEST_DB, SCHEMA_V42, true, MIGRATION_41_42)
+        assertTrue("manga_anilist_link must exist after validation", "manga_anilist_link" in db.tableNames())
         db.close()
     }
 

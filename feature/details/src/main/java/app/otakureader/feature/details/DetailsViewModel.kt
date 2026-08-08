@@ -7,6 +7,7 @@ import app.otakureader.domain.model.DownloadBlockedException
 import app.otakureader.domain.model.DownloadStatus
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
+import app.otakureader.domain.repository.AniListLinkRepository
 import app.otakureader.domain.repository.CategoryRepository
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
@@ -39,6 +40,7 @@ import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.domain.repository.resolveDownloadFolderName
 import app.otakureader.domain.tracking.TrackRepository
 import app.otakureader.domain.tracking.Tracker
+import app.otakureader.domain.usecase.metadata.ResolveAniListMediaUseCase
 import app.otakureader.sourceapi.SourceChapter
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -67,6 +69,8 @@ class DetailsViewModel @Inject constructor(
     private val trackRepository: TrackRepository,
     private val readingListRepository: ReadingListRepository,
     private val metadataRepository: MangaMetadataRepository,
+    private val linkRepository: AniListLinkRepository,
+    private val resolveAniListMedia: ResolveAniListMediaUseCase,
     trackers: Set<@JvmSuppressWildcards Tracker>,
 ) : ViewModel() {
 
@@ -116,6 +120,7 @@ class DetailsViewModel @Inject constructor(
         observeStaticSettings()
         observeTrackEntries()
         observeMetadata()
+        observeAniListLink()
         loadMangaWebUrl()
         observeCategories()
         loadSourceName()
@@ -308,6 +313,68 @@ class DetailsViewModel @Inject constructor(
             }
             .launchIn(viewModelScope)
     }
+
+    /**
+     * Watches the stored AniList link, and kicks off auto-matching when there is nothing to watch.
+     *
+     * Matching is attempted at most once per screen, guarded by [hasAttemptedMatch], because a
+     * search that legitimately finds nothing leaves the link null — so without the guard every
+     * later emission of this flow would search again. That is one AniList search per re-emission
+     * for any manga AniList has never heard of, against a rate limit that can hold a response for
+     * 90 seconds.
+     */
+    private fun observeAniListLink() {
+        linkRepository.observeLink(mangaId)
+            .onEach { link ->
+                _state.update { it.copy(anilistLink = link) }
+                // A stored link is a media id like any other, so it has to drive the metadata
+                // fetch too — otherwise an untracked manga would resolve its id and then never
+                // fetch anything with it, which is the entire point of the slice. Harmless to
+                // call alongside observeTrackEntries: requestMetadataRefresh is guarded per id.
+                _state.value.anilistMediaId?.let { requestMetadataRefresh(it, force = false) }
+                if (_state.value.needsAniListMatch) matchAniListMedia()
+            }
+            .launchIn(viewModelScope)
+    }
+
+    /**
+     * Searches AniList for this manga and stores the result, but only when it is confident.
+     *
+     * A guess is deliberately not persisted. Below `MatchAniListMediaUseCase.ACCEPT_THRESHOLD` the
+     * matcher is saying it could not separate a work from its sequel, and writing that would attach
+     * a wrong synopsis, wrong tags and a wrong score — all of which look authoritative and give the
+     * user no reason to doubt them. Nothing renders instead, and the manga can be linked by hand.
+     *
+     * Search terms are the manga's title plus any synonyms a *previous* successful match cached. On
+     * a first visit there are none, which is the common case and fine — they exist to rescue a
+     * retry after a source renames something.
+     */
+    private fun matchAniListMedia() {
+        if (hasAttemptedMatch) return
+        val manga = _state.value.manga ?: return
+        // Set only once a title is actually in hand. Claiming the attempt before the manga has
+        // loaded would burn the one try on an empty search and never look again.
+        hasAttemptedMatch = true
+        viewModelScope.launch {
+            _state.update { it.copy(isMatchingAniList = true) }
+            try {
+                val match = resolveAniListMedia(
+                    sourceTitle = manga.title,
+                    alternativeTitles = _state.value.cachedMetadata?.synonyms.orEmpty(),
+                ).getOrNull()
+                if (match != null && match.confident) {
+                    // saveAutoLink refuses to overwrite a user-confirmed link. That rule lives in
+                    // the repository rather than here so no future caller can forget it.
+                    linkRepository.saveAutoLink(mangaId, match.candidate.mediaId)
+                }
+            } finally {
+                _state.update { it.copy(isMatchingAniList = false) }
+            }
+        }
+    }
+
+    /** One auto-match attempt per screen visit. See [observeAniListLink]. */
+    private var hasAttemptedMatch = false
 
     /**
      * Cache-only. Emits null until something has been fetched, and never triggers a fetch.

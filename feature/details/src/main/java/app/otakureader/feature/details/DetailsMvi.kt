@@ -5,6 +5,7 @@ import app.otakureader.core.common.mvi.UiEffect
 import app.otakureader.core.common.mvi.UiEvent
 import app.otakureader.core.common.mvi.UiState
 import app.otakureader.core.preferences.DeleteAfterReadMode
+import app.otakureader.domain.model.AniListLink
 import app.otakureader.domain.model.Category
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
@@ -86,6 +87,15 @@ object DetailsContract {
         val cachedMetadata: MangaMetadata? = null,
         /** True only while a metadata fetch is in flight. Never blocks what is already cached. */
         val isMetadataLoading: Boolean = false,
+        /**
+         * The stored AniList link for this manga, for the case where no tracker entry supplies one.
+         *
+         * Durable, unlike [cachedMetadata] — see `AniListLinkRepository`. Null means nothing has
+         * matched this manga yet, which is also true while auto-matching is still running.
+         */
+        val anilistLink: AniListLink? = null,
+        /** True while auto-matching is searching AniList for this manga's media id. */
+        val isMatchingAniList: Boolean = false,
         /** Full web URL for this manga (source baseUrl + manga url). Null for local sources. */
         val mangaWebUrl: String? = null,
         /** Display name of the manga's source, shown next to the status (Komikku parity). */
@@ -111,15 +121,30 @@ object DetailsContract {
             get() = trackEntries.size
 
         /**
-         * The AniList media id this manga is linked to, via its AniList tracker entry.
+         * The AniList media id this manga is linked to, from whichever source knows it.
          *
-         * `TrackEntry.remoteId` for the AniList tracker *is* the AniList media id — that is the id
-         * `AniListTracker.find()` queries `Media(id:)` with — so a manga the user already tracks on
-         * AniList needs no separate matching step to get its metadata. A manga that isn't tracked
-         * there has no id yet; see `MatchAniListMediaUseCase`, which is not wired up.
+         * **The tracker entry wins.** `TrackEntry.remoteId` for the AniList tracker *is* the AniList
+         * media id — that is the id `AniListTracker.find()` queries `Media(id:)` with — so it is
+         * authoritative: the user linked it there themselves, and it is the id progress is written
+         * back against. A stored link is the fallback for manga that aren't tracked on AniList.
+         *
+         * The order matters beyond preference. [metadata] hides cached metadata whose `anilistId`
+         * disagrees with this value, so if a stale stored link could shadow a live tracker entry,
+         * correcting the tracker link would stop invalidating the cache.
          */
         val anilistMediaId: Long?
             get() = trackEntries.firstOrNull { it.trackerId == TrackerType.ANILIST }?.remoteId
+                ?: anilistLink?.anilistId
+
+        /**
+         * Whether this manga still needs an AniList media id found for it.
+         *
+         * Both sources have to be absent, not just the link: a manga tracked on AniList already has
+         * its id from the tracker, and searching for one would spend a request to rediscover
+         * something authoritative that is already in hand.
+         */
+        val needsAniListMatch: Boolean
+            get() = trackEntries.none { it.trackerId == TrackerType.ANILIST } && anilistLink == null
 
         /**
          * The cached metadata, but only when it still describes the media this manga is linked to.
