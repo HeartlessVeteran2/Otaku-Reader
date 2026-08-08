@@ -19,6 +19,16 @@ import javax.inject.Inject
 interface AniListMetadataService {
     @POST("graphql")
     suspend fun query(@Body body: MetadataGraphQlQuery): MetadataResponse
+
+    /**
+     * Same endpoint, different response type.
+     *
+     * Retrofit picks the deserializer from the declared return type, so a search cannot reuse
+     * [query] without making `MetadataResponse` cover both shapes — every field nullable, and a
+     * missing `Media` indistinguishable from a missing `Page`.
+     */
+    @POST("graphql")
+    suspend fun search(@Body body: MetadataGraphQlQuery): SearchResponse
 }
 
 @kotlinx.serialization.Serializable
@@ -48,4 +58,30 @@ class AniListMetadataApi @Inject constructor(
                 variables = buildJsonObject { put("id", anilistId) },
             )
         )
+
+    /**
+     * Search AniList for manga whose title resembles [title].
+     *
+     * [perPage] is capped rather than taken on trust: AniList's own maximum is 50, and the matcher
+     * gains nothing from a long tail — it scores every candidate, so a hundred near-misses only
+     * costs time and bandwidth to reject.
+     */
+    suspend fun searchMedia(title: String, perPage: Int = DEFAULT_PER_PAGE): SearchResponse =
+        service.search(
+            MetadataGraphQlQuery(
+                query = SEARCH_QUERY,
+                variables = buildJsonObject {
+                    put("search", title)
+                    put("perPage", perPage.coerceIn(1, MAX_PER_PAGE))
+                },
+            )
+        )
+
+    companion object {
+        /** Enough for the right entry to be present; short enough that scoring stays cheap. */
+        const val DEFAULT_PER_PAGE = 10
+
+        /** AniList rejects anything above this. */
+        const val MAX_PER_PAGE = 50
+    }
 }
