@@ -209,8 +209,7 @@ class DetailsViewModel @Inject constructor(
             is DetailsContract.Event.OpenTracking -> openTracking()
 
             is DetailsContract.Event.ShowAniListPicker -> showAniListPicker()
-            is DetailsContract.Event.DismissAniListPicker ->
-                _state.update { it.copy(anilistPicker = null) }
+            is DetailsContract.Event.DismissAniListPicker -> dismissAniListPicker()
             is DetailsContract.Event.SetAniListPickerQuery -> _state.update { state ->
                 state.copy(anilistPicker = state.anilistPicker?.copy(query = event.query))
             }
@@ -426,7 +425,24 @@ class DetailsViewModel @Inject constructor(
      */
     private fun searchAniListPicker() {
         val query = _state.value.anilistPicker?.query?.trim().orEmpty()
-        if (query.isEmpty()) return
+        if (query.isEmpty()) {
+            // Clear rather than simply decline. Searching for nothing and being shown the previous
+            // query's candidates is worse than being shown none: the box says one thing, the list
+            // says another, and the list is the part that gets tapped. No request is spent either
+            // way — a blank query cannot match anything.
+            pickerSearchJob?.cancel()
+            pickerSearchJob = null
+            _state.update { state ->
+                state.copy(
+                    anilistPicker = state.anilistPicker?.copy(
+                        results = emptyList(),
+                        isSearching = false,
+                        error = null,
+                    )
+                )
+            }
+            return
+        }
         val previous = pickerSearchJob
         pickerSearchJob = viewModelScope.launch {
             previous?.cancelAndJoin()
@@ -443,7 +459,7 @@ class DetailsViewModel @Inject constructor(
                         // Unlike auto-matching, a failure here is shown. The user asked for this
                         // search and is waiting on it, so silence would read as "no results" —
                         // which is a different answer with a different next step.
-                        error = result.exceptionOrNull()?.message,
+                        error = result.exceptionOrNull(),
                     )
                 )
             }
@@ -464,6 +480,19 @@ class DetailsViewModel @Inject constructor(
             linkRepository.saveUserLink(mangaId, mediaId)
             requestMetadataRefresh(mediaId, force = true)
         }
+    }
+
+    /**
+     * Closes the picker and abandons any search still running for it.
+     *
+     * The cancel is housekeeping rather than a correctness fix — the search's state update already
+     * no-ops when the picker is gone — but a closed dialog should not be holding a request against
+     * a rate limit that can make the next one wait 90 seconds.
+     */
+    private fun dismissAniListPicker() {
+        pickerSearchJob?.cancel()
+        pickerSearchJob = null
+        _state.update { it.copy(anilistPicker = null) }
     }
 
     private var pickerSearchJob: Job? = null

@@ -264,6 +264,8 @@
     <string name="details_anilist_picker_search">Search</string>
     <string name="details_anilist_picker_cancel">Cancel</string>
     <string name="details_anilist_picker_no_results">No matches on AniList for that title.</string>
+    <string name="details_anilist_picker_error">Couldn\'t search AniList. Check your connection and try again.</string>
+    <string name="details_anilist_picker_untitled">(Untitled)</string>
 
     <!-- AniList metadata section (Stage 5b) -->
     <string name="details_metadata_title">AniList</string>

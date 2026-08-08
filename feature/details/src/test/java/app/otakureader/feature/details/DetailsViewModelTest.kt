@@ -1579,7 +1579,7 @@ class DetailsViewModelTest {
         // Unlike auto-matching, the user asked for this and is waiting on it — silence would read
         // as "no results", which is a different answer with a different next step.
         val picker = viewModel.state.value.anilistPicker
-        assertEquals("AniList is down", picker?.error)
+        assertEquals("AniList is down", picker?.error?.message)
         assertFalse("a failure is not an empty result", picker!!.isEmpty)
     }
 
@@ -1659,6 +1659,69 @@ class DetailsViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         coVerify(exactly = 0) { searchRepository.searchMedia(any()) }
+    }
+
+    @Test
+    fun picker_aFailureWithNoMessageStillReadsAsAFailure() = runTest {
+        setUpDefaultMocks()
+        // Throwable.message is nullable. Storing the message rather than the throwable turned a
+        // failure that carries none into `error = null`, which the UI renders as "no results" —
+        // a different answer with a different next step.
+        coEvery { searchRepository.searchMedia(any()) } returns Result.failure(IllegalStateException())
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        viewModel.onEvent(DetailsContract.Event.ShowAniListPicker)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val picker = viewModel.state.value.anilistPicker
+        assertNotNull(picker?.error)
+        assertNull("this failure genuinely has no message", picker?.error?.message)
+        assertFalse("and it must still not read as an empty result", picker!!.isEmpty)
+    }
+
+    @Test
+    fun picker_blankingTheQueryClearsTheOldResults() = runTest {
+        setUpDefaultMocks()
+        coEvery { searchRepository.searchMedia("Attack on Titan") } returns
+            Result.success(listOf(candidate(53390L)))
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        viewModel.onEvent(DetailsContract.Event.ShowAniListPicker)
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(1, viewModel.state.value.anilistPicker?.results?.size)
+
+        viewModel.onEvent(DetailsContract.Event.SetAniListPickerQuery("   "))
+        viewModel.onEvent(DetailsContract.Event.SubmitAniListPickerSearch)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // An empty box next to the previous query's candidates is the worst of both: the list is
+        // the part that gets tapped, and it would no longer relate to anything on screen.
+        assertTrue(viewModel.state.value.anilistPicker!!.results.isEmpty())
+        coVerify(exactly = 1) { searchRepository.searchMedia(any()) }
+    }
+
+    @Test
+    fun picker_dismissingCancelsAnInFlightSearch() = runTest {
+        setUpDefaultMocks()
+        var searchCompleted = false
+        coEvery { searchRepository.searchMedia(any()) } coAnswers {
+            delay(SLOW_FETCH_MS)
+            searchCompleted = true
+            Result.success(listOf(candidate(1L)))
+        }
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        viewModel.onEvent(DetailsContract.Event.ShowAniListPicker)
+        viewModel.onEvent(DetailsContract.Event.DismissAniListPicker)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Housekeeping rather than correctness — the state update already no-ops once the picker
+        // is gone — but a closed dialog should not hold a request against the rate limit.
+        assertFalse(searchCompleted)
+        assertNull(viewModel.state.value.anilistPicker)
     }
 
     private companion object {

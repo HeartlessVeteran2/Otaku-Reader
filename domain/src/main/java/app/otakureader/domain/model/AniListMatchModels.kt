@@ -25,12 +25,21 @@ data class AniListMediaCandidate(
     /** Publication start year, the single most useful disambiguator between a work and its sequel. */
     val startYear: Int? = null,
 ) {
-    /** The best title to show a human, preferring what most users would recognise. */
-    val displayTitle: String
+    /**
+     * The best title to show a human, or null when this entry has no usable name at all.
+     *
+     * Nullable on purpose. Returning `""` would hand the UI a row with an invisible title and no
+     * indication anything was wrong, so the absence is made explicit and the caller has to supply
+     * a placeholder — which belongs in a string resource, not in a domain model.
+     *
+     * Synonyms are tried before giving up: they are real names users search by, and by the time a
+     * candidate reaches here they have already been stripped of placeholders like "?" and "??".
+     */
+    val displayTitle: String?
         get() = english?.takeIf { it.isNotBlank() }
             ?: romaji.takeIf { it.isNotBlank() }
-            ?: native
-            ?: ""
+            ?: native?.takeIf { it.isNotBlank() }
+            ?: synonyms.firstOrNull { it.isNotBlank() }
 }
 
 /** The outcome of matching, carrying enough for a picker UI to explain itself. */

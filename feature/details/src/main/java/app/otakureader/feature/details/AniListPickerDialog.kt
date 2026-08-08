@@ -1,5 +1,6 @@
 package app.otakureader.feature.details
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,8 +15,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -86,7 +90,10 @@ internal fun AniListPickerDialog(
                     // A failed search and an empty one are different answers with different next
                     // steps, so they never share a message.
                     picker.error != null -> Text(
-                        text = picker.error,
+                        // A failure that carries no message still has to read as a failure, so the
+                        // generic string is a fallback rather than a formatting nicety.
+                        text = picker.error.message?.takeIf { it.isNotBlank() }
+                            ?: stringResource(R.string.details_anilist_picker_error),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.error,
                     )
@@ -134,16 +141,35 @@ private fun AniListCandidateRow(
         modifier = modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = PICKER_ROW_PADDING),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        AsyncImage(
-            model = candidate.coverImage,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.width(PICKER_COVER_WIDTH).aspectRatio(COVER_ASPECT_RATIO),
-        )
+        // A null cover would leave AsyncImage occupying its reserved space with nothing in it,
+        // which reads as a broken row rather than an entry without artwork.
+        val coverModifier = Modifier.width(PICKER_COVER_WIDTH).aspectRatio(COVER_ASPECT_RATIO)
+        if (candidate.coverImage != null) {
+            AsyncImage(
+                model = candidate.coverImage,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = coverModifier,
+            )
+        } else {
+            Box(
+                modifier = coverModifier.background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Image,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
         Spacer(modifier = Modifier.width(PICKER_GAP))
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(
-                text = candidate.displayTitle,
+                // displayTitle is null when AniList gave this entry no usable name at all. Showing
+                // an empty row would leave a tappable target with nothing to identify it.
+                text = candidate.displayTitle
+                    ?: stringResource(R.string.details_anilist_picker_untitled),
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,

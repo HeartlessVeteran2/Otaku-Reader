@@ -277,8 +277,15 @@ object DetailsContract {
         val query: String = "",
         val results: List<AniListMediaCandidate> = emptyList(),
         val isSearching: Boolean = false,
-        /** Non-null when the search itself failed, as opposed to finding nothing. */
-        val error: String? = null,
+        /**
+         * Non-null when the search itself failed, as opposed to finding nothing.
+         *
+         * The throwable rather than its message, because `Throwable.message` is nullable and a
+         * failure that carries no message would have made this null — turning "the search failed"
+         * into "the search found nothing", which is a different answer with a different next step.
+         * The UI formats it and supplies a fallback string.
+         */
+        val error: Throwable? = null,
     ) {
         /** True when a completed search genuinely returned nothing, so the UI can say so. */
         val isEmpty: Boolean
