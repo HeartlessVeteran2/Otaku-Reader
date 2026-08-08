@@ -28,7 +28,7 @@ Otaku-Reader/
 ├── build-logic/            # Gradle convention plugins
 ├── core/
 │   ├── common/             # Shared utilities, Palette API, coroutine helpers
-│   ├── database/           # Room entities, DAOs, migrations (current schema v41)
+│   ├── database/           # Room entities, DAOs, migrations (current schema v42)
 │   ├── network/            # OkHttp + Retrofit + Kotlinx Serialization setup
 │   ├── preferences/        # DataStore preferences, encrypted credential storage
 │   ├── ui/                 # Shared Compose components, Material 3 theme, Coil integration
