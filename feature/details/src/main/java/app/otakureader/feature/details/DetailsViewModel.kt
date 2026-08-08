@@ -333,18 +333,6 @@ class DetailsViewModel @Inject constructor(
     }
 
     /**
-     * Searches AniList for this manga and stores the result, but only when it is confident.
-     *
-     * A guess is deliberately not persisted. Below `MatchAniListMediaUseCase.ACCEPT_THRESHOLD` the
-     * matcher is saying it could not separate a work from its sequel, and writing that would attach
-     * a wrong synopsis, wrong tags and a wrong score — all of which look authoritative and give the
-     * user no reason to doubt them. Nothing renders instead, and the manga can be linked by hand.
-     *
-     * Search terms are the manga's title plus any synonyms a *previous* successful match cached. On
-     * a first visit there are none, which is the common case and fine — they exist to rescue a
-     * retry after a source renames something.
-     */
-    /**
      * Starts auto-matching the moment every input it reads has loaded and none supplied an id.
      *
      * Collecting [state] rather than any one source flow is what makes this correct: readiness is a
@@ -365,6 +353,18 @@ class DetailsViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
+    /**
+     * Searches AniList for this manga and stores the result, but only when it is confident.
+     *
+     * A guess is deliberately not persisted. Below `MatchAniListMediaUseCase.ACCEPT_THRESHOLD` the
+     * matcher is saying it could not separate a work from its sequel, and writing that would attach
+     * a wrong synopsis, wrong tags and a wrong score — all of which look authoritative and give the
+     * user no reason to doubt them. Nothing renders instead, and the manga can be linked by hand.
+     *
+     * Search terms are the manga's title plus any synonyms a *previous* successful match cached. On
+     * a first visit there are none, which is the common case and fine — they exist to rescue a
+     * retry after a source renames something.
+     */
     private fun matchAniListMedia() {
         if (hasAttemptedMatch) return
         hasAttemptedMatch = true

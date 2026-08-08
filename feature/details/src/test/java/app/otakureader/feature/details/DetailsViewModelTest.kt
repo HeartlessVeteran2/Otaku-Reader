@@ -1483,12 +1483,19 @@ class DetailsViewModelTest {
     }
 
     @Test
-    fun autoMatch_waitsForCachedSynonymsBeforeSearching() = runTest {
+    fun autoMatch_startsOnceMetadataHasEmittedAndDoesNotResearchLater() = runTest {
         setUpDefaultMocks()
-        // Cached metadata with no link and no tracker entry is a real state — it is what a manga
-        // untracked from AniList after a previous match looks like. Its synonyms are exactly the
-        // fallback search terms ResolveAniListMediaUseCase exists to use, so starting the search
-        // before the metadata flow emits would silently skip them.
+        // The gate waits for the metadata *flow's first emission*, not for synonyms to exist —
+        // those are different things, and only the first is something the code can wait on.
+        //
+        // In production that is sufficient: Room's first emission carries the cached row if there
+        // is one, so synonyms are present by the time matching starts. What this test models is
+        // the other case — a row that appears *later*, which Room would not do for an existing
+        // row — and pins the resulting behaviour: search once on the first (null) emission, and
+        // do not search again when synonyms turn up afterwards.
+        //
+        // The positive case, synonyms present at first emission and actually used, is
+        // autoMatch_feedsCachedSynonymsBackInAsSearchTerms.
         val metadataFlow = MutableStateFlow<MangaMetadata?>(null)
         every { metadataRepository.observeMetadata(mangaId) } returns metadataFlow
         coEvery { resolveAniListMedia(any(), any()) } returns Result.success(null)
@@ -1496,8 +1503,8 @@ class DetailsViewModelTest {
         createViewModel()
         testDispatcher.scheduler.advanceUntilIdle()
 
-        // The flow has emitted (null), so matching is free to run with no synonyms — that is the
-        // common first-visit case and correct.
+        // The flow has emitted (null), so matching is free to run with no synonyms — the common
+        // first-visit case, and correct.
         coVerify(exactly = 1) { resolveAniListMedia("Attack on Titan", emptyList()) }
 
         metadataFlow.value = sampleMetadata.copy(synonyms = listOf("Shingeki no Kyojin"))
