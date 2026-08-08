@@ -278,18 +278,22 @@ object DetailsContract {
         val results: List<AniListMediaCandidate> = emptyList(),
         val isSearching: Boolean = false,
         /**
-         * Non-null when the search itself failed, as opposed to finding nothing.
+         * True when the search itself failed, as opposed to finding nothing.
          *
-         * The throwable rather than its message, because `Throwable.message` is nullable and a
-         * failure that carries no message would have made this null — turning "the search failed"
-         * into "the search found nothing", which is a different answer with a different next step.
-         * The UI formats it and supplies a fallback string.
+         * A flag rather than the exception, and deliberately not its message. `Throwable.message`
+         * is nullable, so storing the message turned a failure that carries none into "no results"
+         * — a different answer with a different next step. Storing the throwable fixed that but
+         * invited rendering it, and an exception message is written for a developer: "Unable to
+         * resolve host …" is not an instruction, and this app has no logging sink that would make
+         * keeping the detail worth the risk of putting it on screen.
+         *
+         * A boolean makes that impossible by construction rather than by remembering not to.
          */
-        val error: Throwable? = null,
+        val searchFailed: Boolean = false,
     ) {
         /** True when a completed search genuinely returned nothing, so the UI can say so. */
         val isEmpty: Boolean
-            get() = !isSearching && error == null && results.isEmpty()
+            get() = !isSearching && !searchFailed && results.isEmpty()
     }
 
     /**

@@ -1579,8 +1579,8 @@ class DetailsViewModelTest {
         // Unlike auto-matching, the user asked for this and is waiting on it — silence would read
         // as "no results", which is a different answer with a different next step.
         val picker = viewModel.state.value.anilistPicker
-        assertEquals("AniList is down", picker?.error?.message)
-        assertFalse("a failure is not an empty result", picker!!.isEmpty)
+        assertTrue(picker!!.searchFailed)
+        assertFalse("a failure is not an empty result", picker.isEmpty)
     }
 
     @Test
@@ -1664,9 +1664,9 @@ class DetailsViewModelTest {
     @Test
     fun picker_aFailureWithNoMessageStillReadsAsAFailure() = runTest {
         setUpDefaultMocks()
-        // Throwable.message is nullable. Storing the message rather than the throwable turned a
-        // failure that carries none into `error = null`, which the UI renders as "no results" —
-        // a different answer with a different next step.
+        // Throwable.message is nullable, so an error field derived from it turned a failure that
+        // carries none into "no results" — a different answer with a different next step. A flag
+        // has no such hole, and it also keeps developer-facing text off the screen.
         coEvery { searchRepository.searchMedia(any()) } returns Result.failure(IllegalStateException())
 
         val viewModel = createViewModel()
@@ -1675,9 +1675,8 @@ class DetailsViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         val picker = viewModel.state.value.anilistPicker
-        assertNotNull(picker?.error)
-        assertNull("this failure genuinely has no message", picker?.error?.message)
-        assertFalse("and it must still not read as an empty result", picker!!.isEmpty)
+        assertTrue("a message-less failure is still a failure", picker!!.searchFailed)
+        assertFalse("and it must not read as an empty result", picker.isEmpty)
     }
 
     @Test

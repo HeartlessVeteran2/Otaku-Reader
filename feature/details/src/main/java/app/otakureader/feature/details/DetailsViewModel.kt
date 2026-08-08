@@ -437,7 +437,7 @@ class DetailsViewModel @Inject constructor(
                     anilistPicker = state.anilistPicker?.copy(
                         results = emptyList(),
                         isSearching = false,
-                        error = null,
+                        searchFailed = false,
                     )
                 )
             }
@@ -447,7 +447,7 @@ class DetailsViewModel @Inject constructor(
         pickerSearchJob = viewModelScope.launch {
             previous?.cancelAndJoin()
             _state.update { state ->
-                state.copy(anilistPicker = state.anilistPicker?.copy(isSearching = true, error = null))
+                state.copy(anilistPicker = state.anilistPicker?.copy(isSearching = true, searchFailed = false))
             }
             val result = searchRepository.searchMedia(query)
             _state.update { state ->
@@ -459,7 +459,7 @@ class DetailsViewModel @Inject constructor(
                         // Unlike auto-matching, a failure here is shown. The user asked for this
                         // search and is waiting on it, so silence would read as "no results" —
                         // which is a different answer with a different next step.
-                        error = result.exceptionOrNull(),
+                        searchFailed = result.isFailure,
                     )
                 )
             }

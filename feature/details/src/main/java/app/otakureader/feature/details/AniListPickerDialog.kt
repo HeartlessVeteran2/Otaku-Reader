@@ -89,11 +89,10 @@ internal fun AniListPickerDialog(
 
                     // A failed search and an empty one are different answers with different next
                     // steps, so they never share a message.
-                    picker.error != null -> Text(
-                        // A failure that carries no message still has to read as a failure, so the
-                        // generic string is a fallback rather than a formatting nicety.
-                        text = picker.error.message?.takeIf { it.isNotBlank() }
-                            ?: stringResource(R.string.details_anilist_picker_error),
+                    picker.searchFailed -> Text(
+                        // Always the generic string. The exception's own message is written for a
+                        // developer, not a user, and never reaches the screen — see searchFailed.
+                        text = stringResource(R.string.details_anilist_picker_error),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.error,
                     )
