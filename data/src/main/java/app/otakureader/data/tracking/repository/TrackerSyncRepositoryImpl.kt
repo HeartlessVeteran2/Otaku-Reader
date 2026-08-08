@@ -9,9 +9,11 @@ import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.model.SyncConfiguration
 import app.otakureader.domain.model.SyncDirection
 import app.otakureader.domain.model.SyncStatus
+import app.otakureader.domain.model.TrackEntry
 import app.otakureader.domain.model.TrackerSyncState
 import app.otakureader.domain.repository.TrackerSyncRepository
 import app.otakureader.domain.tracking.TrackRepository
+import app.otakureader.domain.tracking.Tracker
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -145,6 +147,117 @@ class TrackerSyncRepositoryImpl @Inject constructor(
         // If no sync state exists, local changes will be captured on first sync
     }
 
+    /**
+     * The sync-state row as it stands *now*, but only if a local change landed since [snapshot].
+     *
+     * `syncManga` reads the row, makes a network call, then writes `snapshot.copy(...)`. That copy
+     * carries whatever the row held before the request — so a chapter finished during the request
+     * is silently overwritten, marked SYNCED, and never pushed. Re-reading afterwards is what makes
+     * the write conditional on nothing having moved underneath it.
+     *
+     * Compared on `localLastModified` rather than the chapter number, because a status-only change
+     * matters here too and would not move the number.
+     */
+    private suspend fun localChangeSince(snapshot: TrackerSyncStateEntity): TrackerSyncStateEntity? =
+        trackerSyncDao.getSyncState(snapshot.mangaId, snapshot.trackerId)
+            ?.takeIf { it.localLastModified > snapshot.localLastModified }
+
+    /**
+     * Local wins: send the entry to the tracker and record what came back.
+     *
+     * @return a non-null result when the caller should return early, or null to continue.
+     */
+    private suspend fun pushLocalToTracker(
+        mangaId: Long,
+        trackerId: Int,
+        tracker: Tracker,
+        syncState: TrackerSyncStateEntity,
+        now: Instant,
+    ): TrackerSyncRepository.SyncResult? {
+        val localEntry = trackRepository.getEntry(mangaId, trackerId)
+            // Matches the auto-create path in syncManga, which returns this same failure for the
+            // same condition. Returning "Sync successful" after pushing nothing told the caller
+            // progress had been sent when no entry existed to send.
+            ?: return TrackerSyncRepository.SyncResult(false, "No local entry found for manga")
+
+        val updated = tracker.update(localEntry)
+        val concurrent = localChangeSince(syncState)
+        trackerSyncDao.updateSyncState(
+            (concurrent ?: syncState).copy(
+                remoteLastChapterRead = updated.lastChapterRead,
+                remoteTotalChapters = updated.totalChapters,
+                remoteStatus = MangaStatus.UNKNOWN.ordinal,
+                remoteLastModified = now,
+                // A chapter finished while the push was in flight has not been sent, so the row
+                // stays PENDING and `lastSuccessfulSync` is deliberately left alone. Advancing it
+                // would put it *after* the new `localLastModified`, and `localChanged` is exactly
+                // that comparison — the next sync would decide there was nothing to send, and the
+                // read would be lost with no error anywhere.
+                syncStatus = if (concurrent != null) SyncStatus.PENDING.ordinal else SyncStatus.SYNCED.ordinal,
+                lastSuccessfulSync = if (concurrent != null) syncState.lastSuccessfulSync else now,
+                syncError = null
+            )
+        )
+        return null
+    }
+
+    /**
+     * Remote wins: adopt the tracker's values locally.
+     *
+     * @return a non-null result when the caller should return early, or null to continue.
+     */
+    private suspend fun applyRemoteToLocal(
+        mangaId: Long,
+        trackerId: Int,
+        remoteEntry: TrackEntry,
+        syncState: TrackerSyncStateEntity,
+        now: Instant,
+    ): TrackerSyncRepository.SyncResult? {
+        val concurrent = localChangeSince(syncState)
+        if (concurrent != null) {
+            // A chapter finished while the remote was being fetched, so this is no longer a clean
+            // remote-wins case: both sides have changed. Record what the remote holds and leave the
+            // row PENDING so the next sync re-evaluates it as the conflict it now is — overwriting
+            // local here would discard the chapter the user just read in favour of a remote value
+            // that predates it.
+            trackerSyncDao.updateSyncState(
+                concurrent.copy(
+                    remoteLastChapterRead = remoteEntry.lastChapterRead,
+                    remoteTotalChapters = remoteEntry.totalChapters,
+                    remoteStatus = MangaStatus.UNKNOWN.ordinal,
+                    remoteLastModified = now,
+                    syncStatus = SyncStatus.PENDING.ordinal,
+                    syncError = null
+                )
+            )
+            return TrackerSyncRepository.SyncResult(true, "Remote recorded; local change pending")
+        }
+
+        val localEntry = trackRepository.getEntry(mangaId, trackerId)
+        val entryToUpsert = (localEntry ?: remoteEntry).copy(
+            lastChapterRead = remoteEntry.lastChapterRead,
+            totalChapters = remoteEntry.totalChapters,
+            status = remoteEntry.status
+        )
+        trackRepository.upsertEntry(entryToUpsert)
+        trackerSyncDao.updateSyncState(
+            syncState.copy(
+                localLastChapterRead = remoteEntry.lastChapterRead,
+                localTotalChapters = remoteEntry.totalChapters,
+                localStatus = MangaStatus.UNKNOWN.ordinal,
+                localLastModified = now,
+                remoteLastChapterRead = remoteEntry.lastChapterRead,
+                remoteTotalChapters = remoteEntry.totalChapters,
+                remoteStatus = MangaStatus.UNKNOWN.ordinal,
+                remoteLastModified = now,
+                syncStatus = SyncStatus.SYNCED.ordinal,
+                lastSuccessfulSync = now,
+                syncError = null
+            )
+        )
+        return null
+    }
+
     // ── Sync Operations ────────────────────────────────────────────────────
 
     @Suppress("LongMethod", "CyclomaticComplexMethod")
@@ -255,44 +368,11 @@ class TrackerSyncRepositoryImpl @Inject constructor(
             }
 
             if (useLocal) {
-                val localEntry = trackRepository.getEntry(mangaId, trackerId)
-                if (localEntry != null) {
-                    val updated = tracker.update(localEntry)
-                    trackerSyncDao.updateSyncState(
-                        syncState.copy(
-                            remoteLastChapterRead = updated.lastChapterRead,
-                            remoteTotalChapters = updated.totalChapters,
-                            remoteStatus = MangaStatus.UNKNOWN.ordinal,
-                            remoteLastModified = now,
-                            syncStatus = SyncStatus.SYNCED.ordinal,
-                            lastSuccessfulSync = now,
-                            syncError = null
-                        )
-                    )
-                }
+                pushLocalToTracker(mangaId, trackerId, tracker, syncState, now)
+                    ?.let { return it }
             } else {
-                val localEntry = trackRepository.getEntry(mangaId, trackerId)
-                val entryToUpsert = (localEntry ?: remoteEntry).copy(
-                    lastChapterRead = remoteEntry.lastChapterRead,
-                    totalChapters = remoteEntry.totalChapters,
-                    status = remoteEntry.status
-                )
-                trackRepository.upsertEntry(entryToUpsert)
-                trackerSyncDao.updateSyncState(
-                    syncState.copy(
-                        localLastChapterRead = remoteEntry.lastChapterRead,
-                        localTotalChapters = remoteEntry.totalChapters,
-                        localStatus = MangaStatus.UNKNOWN.ordinal,
-                        localLastModified = now,
-                        remoteLastChapterRead = remoteEntry.lastChapterRead,
-                        remoteTotalChapters = remoteEntry.totalChapters,
-                        remoteStatus = MangaStatus.UNKNOWN.ordinal,
-                        remoteLastModified = now,
-                        syncStatus = SyncStatus.SYNCED.ordinal,
-                        lastSuccessfulSync = now,
-                        syncError = null
-                    )
-                )
+                applyRemoteToLocal(mangaId, trackerId, remoteEntry, syncState, now)
+                    ?.let { return it }
             }
 
             TrackerSyncRepository.SyncResult(true, "Sync successful")
