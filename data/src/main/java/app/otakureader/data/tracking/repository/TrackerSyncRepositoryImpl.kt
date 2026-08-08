@@ -92,6 +92,32 @@ class TrackerSyncRepositoryImpl @Inject constructor(
             entities.map { it.toDomain() }
         }
 
+    /**
+     * Records that the user read up to [chapterRead] locally, for later push.
+     *
+     * ### It has to write the [TrackEntry], not only the sync-state row
+     *
+     * This used to update `localLastChapterRead` and nothing else — and the push does not read
+     * that field. [syncManga]'s local-wins branch builds its payload from
+     * `trackRepository.getEntry(...)`, so progress recorded here reached a column that only
+     * conflict detection ever looks at. Finishing a chapter marked the sync PENDING, pushed the
+     * *previous* entry unchanged, and then marked itself SYNCED — so reading never advanced
+     * progress on any tracker, and the per-tracker chips on the details screen never moved either,
+     * since those render the same [TrackEntry].
+     *
+     * ### Progress only ever goes forward
+     *
+     * Re-reading an old chapter is normal, and it must not tell AniList you have un-read fifty
+     * chapters. Both writes take the maximum rather than the incoming value.
+     *
+     * The sync-state row needs the same guard for a second reason: `localLastChapterRead` feeds
+     * the conflict check, so a re-read that wrote a lower number could manufacture a conflict
+     * against a remote that had not changed at all, and hand the user a resolution prompt for a
+     * disagreement they created by opening chapter 5.
+     *
+     * Status is recorded either way — dropping a manga is a real change even when no chapter was
+     * read — which is why the timestamp and PENDING marking are outside the progress guard.
+     */
     override suspend fun recordLocalChange(
         mangaId: Long,
         trackerId: Int,
@@ -99,11 +125,17 @@ class TrackerSyncRepositoryImpl @Inject constructor(
         status: MangaStatus
     ) {
         val now = Instant.now()
+
+        val entry = trackRepository.getEntry(mangaId, trackerId)
+        if (entry != null && chapterRead > entry.lastChapterRead) {
+            trackRepository.upsertEntry(entry.copy(lastChapterRead = chapterRead))
+        }
+
         val existing = trackerSyncDao.getSyncState(mangaId, trackerId)
         if (existing != null) {
             trackerSyncDao.updateSyncState(
                 existing.copy(
-                    localLastChapterRead = chapterRead,
+                    localLastChapterRead = maxOf(existing.localLastChapterRead, chapterRead),
                     localStatus = status.ordinal,
                     localLastModified = now,
                     syncStatus = SyncStatus.PENDING.ordinal
