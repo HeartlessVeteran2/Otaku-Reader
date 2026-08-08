@@ -2,7 +2,6 @@ package app.otakureader.feature.details
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -51,11 +50,14 @@ internal fun PersonCarousel(
         Spacer(modifier = Modifier.height(PERSON_TITLE_GAP))
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(PERSON_CARD_GAP),
-            contentPadding = PaddingValues(horizontal = PERSON_ROW_EDGE_PADDING),
         ) {
-            // Keyed by AniList's person id so recomposition survives the list being replaced
-            // wholesale by a metadata refresh, which is the common case here.
-            items(items = people, key = { it.id }) { person ->
+            // Deliberately unkeyed. An `it.id` key looks right and is a crash: a staff member
+            // credited for both Story and Art is two legitimate edges sharing one person id, and
+            // LazyList throws IllegalArgumentException on a repeated key — taking down the whole
+            // details screen, from data no test would think to construct. Nothing here needs
+            // identity anyway: the cards are read-only, hold no internal state, never reorder and
+            // never animate, so positional keying is both correct and free.
+            items(items = people) { person ->
                 PersonCard(person = person, roleLabel = roleLabel)
             }
         }
@@ -102,7 +104,6 @@ private fun PersonCard(
 
 private val PERSON_CARD_WIDTH = 84.dp
 private val PERSON_CARD_GAP = 12.dp
-private val PERSON_ROW_EDGE_PADDING = 0.dp
 private val PERSON_TITLE_GAP = 8.dp
 private val PERSON_IMAGE_GAP = 4.dp
 private val PERSON_CARD_CORNER = 8.dp

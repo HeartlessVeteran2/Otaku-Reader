@@ -15,6 +15,15 @@ import org.junit.Test
  */
 class AniListMetadataQueryTest {
 
+    /**
+     * The `25` is written out rather than read from `PEOPLE_PER_PAGE` on purpose.
+     *
+     * A test that computes its expectation from the same constant as the code cannot tell a
+     * correct value from a wrong one — bump the constant to 500 and it still passes, having
+     * verified only that Kotlin can interpolate. Restating the number makes changing the page size
+     * a deliberate act that has to touch this file, which is where the reason for the limit is
+     * written down. (It is also the only option here: the constant is file-private.)
+     */
     @Test
     fun `the page size is substituted, not sent as a literal template`() {
         assertTrue("perPage must carry a number", METADATA_QUERY.contains("perPage: 25"))

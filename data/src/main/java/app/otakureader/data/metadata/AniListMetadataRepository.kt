@@ -196,6 +196,14 @@ private fun MetadataMedia.toEntity(mangaId: Long, fetchedAt: Long): MangaMetadat
  * The list is not re-sorted. `characters` is requested `sort: [ROLE, RELEVANCE]`, which puts the
  * main cast first, and re-sorting locally would either duplicate that rule or quietly contradict
  * it.
+ *
+ * ### `distinct()`, not `distinctBy { it.id }`
+ *
+ * One person can legitimately appear twice in a staff connection — AniList returns one edge per
+ * credit, so someone responsible for both Story and Art is two edges sharing an id, and both are
+ * real credits the reader should see. Deduplicating on id alone would silently drop the second.
+ * `distinct()` compares the whole record, so it collapses only edges that are identical in every
+ * field, which carry no information the first copy does not.
  */
 private fun List<MetadataPersonEdge>.toStoredPeople(): List<StoredPerson> = mapNotNull { edge ->
     val node = edge.node ?: return@mapNotNull null
@@ -206,7 +214,7 @@ private fun List<MetadataPersonEdge>.toStoredPeople(): List<StoredPerson> = mapN
         imageUrl = node.image?.large,
         role = edge.role?.trim()?.takeIf { it.isNotEmpty() },
     )
-}
+}.distinct()
 
 /**
  * Every name this manga is known by, de-duplicated and stripped of placeholders.

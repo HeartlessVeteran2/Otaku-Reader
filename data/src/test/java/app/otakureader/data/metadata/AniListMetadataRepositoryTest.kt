@@ -417,6 +417,57 @@ class AniListMetadataRepositoryTest {
         assertEquals(listOf("Main One", "Support One", "Background One"), characters.map { it.name })
     }
 
+    /**
+     * AniList returns one staff edge per credit, so someone who did both Story and Art is two
+     * edges sharing one person id. Both are real credits. Deduplicating on id — the obvious
+     * reading of "these are the same person" — would drop one of them.
+     */
+    @Test
+    fun `a person credited for two roles keeps both credits`() = runTest {
+        coEvery { dao.getByMangaId(1L) } returns null
+        coEvery { dao.upsert(any()) } just runs
+        coEvery { api.fetch(99L) } returns MetadataResponse(
+            data = MetadataData(
+                media = media().copy(
+                    staff = MetadataStaffConnection(
+                        edges = listOf(
+                            personEdge(40L, "Yoshihiro Togashi", role = "Story"),
+                            personEdge(40L, "Yoshihiro Togashi", role = "Art"),
+                        ),
+                    ),
+                )
+            )
+        )
+
+        val staff = repository.refreshMetadata(mangaId = 1L, anilistId = 99L).getOrThrow().staff
+
+        assertEquals(listOf("Story", "Art"), staff.map { it.role })
+    }
+
+    /** An edge repeated verbatim carries nothing the first copy does not. */
+    @Test
+    fun `an entirely duplicate edge is collapsed`() = runTest {
+        coEvery { dao.getByMangaId(1L) } returns null
+        coEvery { dao.upsert(any()) } just runs
+        coEvery { api.fetch(99L) } returns MetadataResponse(
+            data = MetadataData(
+                media = media().copy(
+                    characters = MetadataCharacterConnection(
+                        edges = listOf(
+                            personEdge(50L, "Gon Freecss", role = "MAIN"),
+                            personEdge(50L, "Gon Freecss", role = "MAIN"),
+                        ),
+                    ),
+                )
+            )
+        )
+
+        val characters = repository.refreshMetadata(mangaId = 1L, anilistId = 99L)
+            .getOrThrow().characters
+
+        assertEquals(1, characters.size)
+    }
+
     @Test
     fun `a media with no characters or staff maps to empty lists, not a failure`() = runTest {
         coEvery { dao.getByMangaId(1L) } returns null

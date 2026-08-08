@@ -14,7 +14,8 @@ import org.junit.Test
  */
 class PersonListConverterTest {
 
-    private val converters = DatabaseConverters()
+    private val failures = mutableListOf<Pair<Int, Throwable>>()
+    private val converters = DatabaseConverters { length, throwable -> failures += length to throwable }
 
     private val people = listOf(
         StoredPerson(id = 1, name = "Gon Freecss", imageUrl = "https://x/1.jpg", role = "MAIN"),
@@ -58,6 +59,31 @@ class PersonListConverterTest {
     fun `a malformed blob yields an empty list instead of propagating out of a Room read`() {
         assertEquals(emptyList<StoredPerson>(), converters.fromPersonList("{not json"))
         assertEquals(emptyList<StoredPerson>(), converters.fromPersonList("""{"id":1}"""))
+    }
+
+    /**
+     * The discard has to be *observable*, not merely survivable.
+     *
+     * If [StoredPerson] ever changes shape incompatibly, every row starts failing at once and
+     * nothing else reports it — Room validates the table's columns, not the JSON inside a TEXT
+     * one, so the carousels would vanish app-wide with no other symptom. A test that only asserts
+     * "returns empty" passes with the signalling deleted, which is the whole point of this one.
+     */
+    @Test
+    fun `a discarded blob is signalled, with its length and not its contents`() {
+        converters.fromPersonList("{not json")
+
+        assertEquals(1, failures.size)
+        assertEquals("the payload length is what gets reported", "{not json".length, failures.single().first)
+    }
+
+    @Test
+    fun `a blob that decodes cleanly signals nothing`() {
+        converters.fromPersonList(converters.toPersonList(people))
+        converters.fromPersonList("[]")
+        converters.fromPersonList("")
+
+        assertEquals("only a failure is worth reporting", emptyList<Any>(), failures)
     }
 
     /**
