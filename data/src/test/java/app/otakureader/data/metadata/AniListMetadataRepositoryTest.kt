@@ -2,6 +2,7 @@ package app.otakureader.data.metadata
 
 import app.otakureader.core.database.dao.MangaMetadataDao
 import app.otakureader.core.database.entity.MangaMetadataEntity
+import app.otakureader.domain.model.MangaMetadata
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.just
@@ -478,6 +479,164 @@ class AniListMetadataRepositoryTest {
 
         assertEquals(emptyList<Any>(), result.characters)
         assertEquals(emptyList<Any>(), result.staff)
+    }
+
+    private fun relationEdge(
+        id: Long,
+        title: String?,
+        type: String? = "MANGA",
+        relationType: String? = "SEQUEL",
+    ) = MetadataRelationEdge(
+        relationType = relationType,
+        node = MetadataRelationNode(
+            id = id,
+            type = type,
+            format = "MANGA",
+            title = title?.let { MetadataTitle(userPreferred = it) },
+            coverImage = MetadataCoverImage(large = "https://x/$id.jpg"),
+        ),
+    )
+
+    private fun relationEdgeWithTitle(id: Long, title: MetadataTitle?) = MetadataRelationEdge(
+        relationType = "SEQUEL",
+        node = MetadataRelationNode(id = id, type = "MANGA", format = "MANGA", title = title),
+    )
+
+    private suspend fun mediaWith(media: MetadataMedia): MangaMetadata {
+        coEvery { dao.getByMangaId(1L) } returns null
+        coEvery { dao.upsert(any()) } just runs
+        coEvery { api.fetch(99L) } returns MetadataResponse(data = MetadataData(media = media))
+        return repository.refreshMetadata(mangaId = 1L, anilistId = 99L).getOrThrow()
+    }
+
+    /**
+     * AniList lists a manga's anime adaptation among its relations. This app has no anime surface,
+     * so such a tile could only do nothing when tapped — and every relation tile is tappable.
+     */
+    @Test
+    fun `an anime relation is dropped and a manga relation is kept`() = runTest {
+        val relations = mediaWith(
+            media().copy(
+                relations = MetadataRelationConnection(
+                    edges = listOf(
+                        relationEdge(1L, "Hunter x Hunter", type = "MANGA"),
+                        relationEdge(2L, "Hunter x Hunter (2011)", type = "ANIME"),
+                        relationEdge(3L, "Untyped", type = null),
+                        relationEdge(4L, null, type = "MANGA"),
+                    ),
+                )
+            )
+        ).relations
+
+        assertEquals(listOf("Hunter x Hunter"), relations.map { it.title })
+        assertEquals("SEQUEL", relations.single().relationType)
+    }
+
+    /**
+     * `userPreferred` is *derived* — it resolves the viewer's title-language setting, defaulting to
+     * romaji. An entry whose romaji is missing can leave it null while `english` or `native` are
+     * perfectly good, so keying on it alone silently drops a real relation from the carousel.
+     */
+    @Test
+    fun `a relation falls back through every title AniList offers`() = runTest {
+        val relations = mediaWith(
+            media().copy(
+                relations = MetadataRelationConnection(
+                    edges = listOf(
+                        relationEdgeWithTitle(1L, MetadataTitle(userPreferred = "Preferred")),
+                        relationEdgeWithTitle(2L, MetadataTitle(romaji = "Romaji Only")),
+                        relationEdgeWithTitle(3L, MetadataTitle(english = "English Only")),
+                        relationEdgeWithTitle(4L, MetadataTitle(native = "\u30CD\u30A4\u30C6\u30A3\u30D6")),
+                    ),
+                )
+            )
+        ).relations
+
+        assertEquals(
+            listOf("Preferred", "Romaji Only", "English Only", "\u30CD\u30A4\u30C6\u30A3\u30D6"),
+            relations.map { it.title },
+        )
+    }
+
+    /** A tile labelled "?" is tappable and searching for "?" finds nothing. */
+    @Test
+    fun `a relation with only a placeholder title is dropped`() = runTest {
+        val relations = mediaWith(
+            media().copy(
+                relations = MetadataRelationConnection(
+                    edges = listOf(
+                        relationEdgeWithTitle(1L, MetadataTitle(userPreferred = "?", romaji = "N/A")),
+                        relationEdgeWithTitle(2L, MetadataTitle(userPreferred = "??", english = "Real Title")),
+                        relationEdgeWithTitle(3L, null),
+                    ),
+                )
+            )
+        ).relations
+
+        assertEquals(listOf("Real Title"), relations.map { it.title })
+    }
+
+    /**
+     * AniList's link list is user-submitted, so it is untrusted third-party input. A
+     * `javascript:` URL cached now is a chip that can only be refused later; refusing it here
+     * means the chip never exists.
+     */
+    @Test
+    fun `only http and https links are cached`() = runTest {
+        val links = mediaWith(
+            media().copy(
+                externalLinks = listOf(
+                    MetadataExternalLink(url = "https://example.test/a", site = "Official Site"),
+                    MetadataExternalLink(url = "HTTP://example.test/b", site = "Mirror"),
+                    MetadataExternalLink(url = "javascript:alert(1)", site = "Bad"),
+                    MetadataExternalLink(url = "intent://evil", site = "Worse"),
+                    MetadataExternalLink(url = "file:///etc/passwd", site = "Worst"),
+                    MetadataExternalLink(url = "   ", site = "Blank"),
+                )
+            )
+        ).externalLinks
+
+        assertEquals(listOf("Official Site", "Mirror"), links.map { it.site })
+    }
+
+    /** AniList leaves `site` blank more often than `url`, and a nameless chip is still usable. */
+    @Test
+    fun `a link with no site name falls back to its host`() = runTest {
+        val links = mediaWith(
+            media().copy(
+                externalLinks = listOf(
+                    MetadataExternalLink(url = "https://www.example.test/path?q=1", site = null),
+                )
+            )
+        ).externalLinks
+
+        assertEquals("example.test", links.single().site)
+    }
+
+    @Test
+    fun `relations and links round trip through storage`() = runTest {
+        val captured = slot<MangaMetadataEntity>()
+        coEvery { dao.getByMangaId(1L) } returns null
+        coEvery { dao.upsert(capture(captured)) } just runs
+        coEvery { api.fetch(99L) } returns MetadataResponse(
+            data = MetadataData(
+                media = media().copy(
+                    relations = MetadataRelationConnection(
+                        edges = listOf(relationEdge(1L, "Level E")),
+                    ),
+                    externalLinks = listOf(
+                        MetadataExternalLink(url = "https://example.test/a", site = "Official Site"),
+                    ),
+                )
+            )
+        )
+
+        val result = repository.refreshMetadata(mangaId = 1L, anilistId = 99L).getOrThrow()
+
+        assertEquals(listOf("Level E"), captured.captured.relations.map { it.title })
+        assertEquals(listOf("Official Site"), captured.captured.externalLinks.map { it.site })
+        assertEquals(1L, result.relations.single().anilistId)
+        assertEquals("https://example.test/a", result.externalLinks.single().url)
     }
 
     @Test

@@ -73,6 +73,10 @@ data class MangaMetadataEntity(
     val characters: List<StoredPerson> = emptyList(),
     @ColumnInfo(defaultValue = "[]")
     val staff: List<StoredPerson> = emptyList(),
+    @ColumnInfo(defaultValue = "[]")
+    val relations: List<StoredRelation> = emptyList(),
+    @ColumnInfo(defaultValue = "[]")
+    val externalLinks: List<StoredExternalLink> = emptyList(),
     val fetchedAt: Long = 0L,
 )
 
@@ -91,4 +95,25 @@ data class StoredPerson(
     val name: String,
     val imageUrl: String? = null,
     val role: String? = null,
+)
+
+/**
+ * The stored form of a related manga. Kept apart from the domain model for the reason
+ * [StoredPerson] is — serialized field names are a persisted format, and the domain layer should
+ * not have to treat a rename as a data-compatibility decision.
+ */
+@Serializable
+data class StoredRelation(
+    val anilistId: Long,
+    val title: String,
+    val coverImage: String? = null,
+    val format: String? = null,
+    val relationType: String? = null,
+)
+
+/** The stored form of an off-site link. */
+@Serializable
+data class StoredExternalLink(
+    val url: String,
+    val site: String,
 )

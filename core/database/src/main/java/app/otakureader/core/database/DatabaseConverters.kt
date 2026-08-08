@@ -1,7 +1,9 @@
 package app.otakureader.core.database
 
 import androidx.room.TypeConverter
+import app.otakureader.core.database.entity.StoredExternalLink
 import app.otakureader.core.database.entity.StoredPerson
+import app.otakureader.core.database.entity.StoredRelation
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import java.time.Instant
@@ -69,26 +71,56 @@ class DatabaseConverters(
      */
     @TypeConverter
     fun fromPersonList(value: String): List<StoredPerson> =
+        decodeOrDiscard(value) { json.decodeFromString(it) }
+
+    @TypeConverter
+    fun toPersonList(list: List<StoredPerson>): String =
+        json.encodeToString(list)
+
+    /** Same encoding and same discard policy as [fromPersonList]; see its KDoc for both. */
+    @TypeConverter
+    fun fromRelationList(value: String): List<StoredRelation> =
+        decodeOrDiscard(value) { json.decodeFromString(it) }
+
+    @TypeConverter
+    fun toRelationList(list: List<StoredRelation>): String =
+        json.encodeToString(list)
+
+    /** Same encoding and same discard policy as [fromPersonList]; see its KDoc for both. */
+    @TypeConverter
+    fun fromExternalLinkList(value: String): List<StoredExternalLink> =
+        decodeOrDiscard(value) { json.decodeFromString(it) }
+
+    @TypeConverter
+    fun toExternalLinkList(list: List<StoredExternalLink>): String =
+        json.encodeToString(list)
+
+    /**
+     * The shared body of every JSON list converter: empty column means empty list, a decoding
+     * failure is discarded and signalled, and anything else propagates.
+     *
+     * Factored out so the three converters cannot drift — the interesting part is *which*
+     * exception is tolerated, and three hand-written copies would be three chances to widen one of
+     * them back to `runCatching` without noticing.
+     *
+     * [SerializationException] specifically, and not `runCatching`, which swallows every
+     * `Throwable`: an `OutOfMemoryError` or `StackOverflowError` on a pathological blob would then
+     * be reported to the user as "this manga has no characters" while the process is actually in
+     * trouble. A decoding failure is the only tolerable case, and that is exactly what
+     * [SerializationException] means — malformed, truncated, or a shape this build no longer
+     * understands.
+     */
+    private inline fun <T> decodeOrDiscard(value: String, decode: (String) -> List<T>): List<T> =
         if (value.isEmpty()) {
             emptyList()
         } else {
-            // SerializationException specifically, not runCatching. runCatching swallows every
-            // Throwable, so an OutOfMemoryError or StackOverflowError on a pathological blob would
-            // be reported to the user as "this manga has no characters" while the process is
-            // actually in trouble. Only a decoding failure is the tolerable case, and
-            // SerializationException is exactly that — malformed, truncated, or a shape this build
-            // no longer understands.
             try {
-                json.decodeFromString<List<StoredPerson>>(value)
+                decode(value)
             } catch (e: SerializationException) {
                 onDecodeFailure(value.length, e)
                 emptyList()
             }
         }
-
-    @TypeConverter
-    fun toPersonList(list: List<StoredPerson>): String =
-        json.encodeToString(list)
 
     @TypeConverter
     fun fromInstant(value: Instant?): Long? =

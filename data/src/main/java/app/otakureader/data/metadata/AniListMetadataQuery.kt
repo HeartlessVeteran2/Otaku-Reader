@@ -57,6 +57,10 @@ internal const val METADATA_QUERY = """
         staff(perPage: $PEOPLE_PER_PAGE, sort: [RELEVANCE]) {
           edges { role node { id name { full } image { large } } }
         }
+        relations {
+          edges { relationType node { id type format title { userPreferred romaji english native } coverImage { large } } }
+        }
+        externalLinks { url site type language }
       }
     }
 """
@@ -96,6 +100,8 @@ data class MetadataMedia(
     val title: MetadataTitle? = null,
     val characters: MetadataCharacterConnection? = null,
     val staff: MetadataStaffConnection? = null,
+    val relations: MetadataRelationConnection? = null,
+    val externalLinks: List<MetadataExternalLink> = emptyList(),
 )
 
 @Serializable
@@ -241,4 +247,47 @@ data class MetadataPersonName(
 @Serializable
 data class MetadataPersonImage(
     val large: String? = null,
+)
+
+/**
+ * Related media, again as edges onto nodes: `relationType` describes *this* pairing (sequel,
+ * side story, adaptation), so it belongs to the edge, while the work itself is the node.
+ */
+@Serializable
+data class MetadataRelationConnection(
+    val edges: List<MetadataRelationEdge> = emptyList(),
+)
+
+@Serializable
+data class MetadataRelationEdge(
+    val relationType: String? = null,
+    val node: MetadataRelationNode? = null,
+)
+
+/**
+ * `type` is `MANGA` or `ANIME`. AniList happily returns anime adaptations among a manga's
+ * relations, and the mapper drops them — see `toStoredRelations`.
+ */
+@Serializable
+data class MetadataRelationNode(
+    val id: Long = 0,
+    val type: String? = null,
+    val format: String? = null,
+    val title: MetadataTitle? = null,
+    val coverImage: MetadataCoverImage? = null,
+)
+
+/**
+ * An off-site link AniList holds for this manga — the official site, a publisher page, a store.
+ *
+ * `url` is the only field worth anything on its own; `site` is the display name and `type` is
+ * AniList's own categorisation (`INFO`, `STREAMING`, `SOCIAL`), neither of which is guaranteed
+ * present.
+ */
+@Serializable
+data class MetadataExternalLink(
+    val url: String? = null,
+    val site: String? = null,
+    val type: String? = null,
+    val language: String? = null,
 )

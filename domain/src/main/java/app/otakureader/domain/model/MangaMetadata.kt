@@ -53,6 +53,10 @@ data class MangaMetadata(
     val characters: List<MangaMetadataPerson> = emptyList(),
     /** Authors, artists and other credited staff. See [MangaMetadataPerson]. */
     val staff: List<MangaMetadataPerson> = emptyList(),
+    /** Other manga AniList links to this one — sequels, side stories, alternative versions. */
+    val relations: List<MangaMetadataRelation> = emptyList(),
+    /** Off-site links AniList holds for this manga. See [MangaMetadataExternalLink]. */
+    val externalLinks: List<MangaMetadataExternalLink> = emptyList(),
     /** When this was fetched, epoch millis — the basis for the TTL. */
     val fetchedAt: Long = 0L,
 )
@@ -97,4 +101,44 @@ data class MangaMetadataPerson(
     val imageUrl: String? = null,
     /** What they were to this manga. Null when AniList records no role. */
     val role: String? = null,
+)
+
+/**
+ * Another manga AniList connects to this one.
+ *
+ * ### Manga only
+ *
+ * AniList returns anime adaptations among a manga's relations, and those are filtered out before
+ * one of these exists. This app reads manga and novels and has no anime surface at all, so an
+ * adaptation entry could only be a tile that does nothing when tapped — and a dead control is
+ * worse than an absent one.
+ *
+ * ### [relationType] is raw, for the same reason a person's role is
+ *
+ * An AniList enum: `SEQUEL`, `PREQUEL`, `SIDE_STORY`, `ALTERNATIVE`. Formatted at render.
+ */
+@Immutable
+data class MangaMetadataRelation(
+    /** AniList's media id for the related work, not a local manga id — it may not be in the library. */
+    val anilistId: Long,
+    val title: String,
+    val coverImage: String? = null,
+    /** AniList's `format` for the related work: MANGA, NOVEL, ONE_SHOT… */
+    val format: String? = null,
+    val relationType: String? = null,
+)
+
+/**
+ * An off-site link for this manga: the official site, a publisher page, a store.
+ *
+ * The URL is **not** validated here. This is a data model, and a model that silently dropped
+ * unusable values would make "AniList gave us nothing" and "AniList gave us something we refused"
+ * the same state. Validation belongs at the point of use, where refusing can be explained; see the
+ * details screen's link handling.
+ */
+@Immutable
+data class MangaMetadataExternalLink(
+    val url: String,
+    /** AniList's display name for the destination — "Official Site", "Amazon". */
+    val site: String,
 )

@@ -2,9 +2,15 @@ package app.otakureader.data.metadata
 
 import app.otakureader.core.database.dao.MangaMetadataDao
 import app.otakureader.core.database.entity.MangaMetadataEntity
+import app.otakureader.core.common.network.browsableHostOrNull
+import app.otakureader.core.common.network.isBrowsableHttpUrl
+import app.otakureader.core.database.entity.StoredExternalLink
 import app.otakureader.core.database.entity.StoredPerson
+import app.otakureader.core.database.entity.StoredRelation
 import app.otakureader.domain.model.MangaMetadata
+import app.otakureader.domain.model.MangaMetadataExternalLink
 import app.otakureader.domain.model.MangaMetadataPerson
+import app.otakureader.domain.model.MangaMetadataRelation
 import app.otakureader.domain.model.MangaMetadataTag
 import app.otakureader.domain.repository.MangaMetadataRepository
 import app.otakureader.domain.util.PlaceholderTitles
@@ -181,6 +187,8 @@ private fun MetadataMedia.toEntity(mangaId: Long, fetchedAt: Long): MangaMetadat
         synonyms = buildSynonyms(),
         characters = characters?.edges.orEmpty().toStoredPeople(),
         staff = staff?.edges.orEmpty().toStoredPeople(),
+        relations = relations?.edges.orEmpty().toStoredRelations(),
+        externalLinks = externalLinks.toStoredExternalLinks(),
         fetchedAt = fetchedAt,
     )
 }
@@ -270,6 +278,8 @@ private fun MangaMetadataEntity.toDomain() = MangaMetadata(
     synonyms = synonyms,
     characters = characters.map { it.toDomain() },
     staff = staff.map { it.toDomain() },
+    relations = relations.map { it.toDomain() },
+    externalLinks = externalLinks.map { it.toDomain() },
     fetchedAt = fetchedAt,
 )
 
@@ -279,3 +289,78 @@ private fun StoredPerson.toDomain() = MangaMetadataPerson(
     imageUrl = imageUrl,
     role = role,
 )
+
+/**
+ * Related *manga*, dropping the anime AniList mixes in.
+ *
+ * A manga's relations routinely include its anime adaptation. This app has no anime surface at
+ * all, so such a tile could only sit there doing nothing when tapped — and every relation here is
+ * tappable, because the point of showing a sequel is being able to go and find it. Filtering at
+ * the boundary means the UI never has to ask whether a given tile is actionable.
+ *
+ * A relation with no title goes too, for the same reason a nameless person does: the tile is the
+ * title, and there would be nothing to render or search for — but only after trying every title
+ * AniList offers. See [firstMeaningfulTitle].
+ */
+private fun List<MetadataRelationEdge>.toStoredRelations(): List<StoredRelation> = mapNotNull { edge ->
+    val node = edge.node ?: return@mapNotNull null
+    if (!node.type.equals("MANGA", ignoreCase = true)) return@mapNotNull null
+    val title = node.title.firstMeaningfulTitle() ?: return@mapNotNull null
+    StoredRelation(
+        anilistId = node.id,
+        title = title,
+        coverImage = node.coverImage?.extraLarge ?: node.coverImage?.large,
+        format = node.format,
+        relationType = edge.relationType?.trim()?.takeIf { it.isNotEmpty() },
+    )
+}.distinct()
+
+/**
+ * Off-site links, keeping only the ones that could actually be opened.
+ *
+ * The scheme is checked *here* as well as at the tap site, and that is two deliberate call sites
+ * of one shared predicate: this decides what is worth caching, while the tap site decides what is
+ * safe to hand to an Intent. Storing a `javascript:` URL and refusing it later would leave a chip
+ * that exists only to reject the user; storing nothing means the chip never appears. The tap-site
+ * check still has to exist, because a row cached by an older build predates this filter.
+ *
+ * A link with no site name falls back to its host, so a nameless entry is still a usable chip
+ * rather than a discarded one — AniList leaves `site` blank more often than it leaves `url` blank.
+ */
+private fun List<MetadataExternalLink>.toStoredExternalLinks(): List<StoredExternalLink> =
+    mapNotNull { link ->
+        val url = link.url?.trim()?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+        if (!url.isBrowsableHttpUrl()) return@mapNotNull null
+        StoredExternalLink(
+            url = url,
+            site = link.site?.trim()?.takeIf { it.isNotEmpty() } ?: url.browsableHostOrNull() ?: url,
+        )
+    }.distinct()
+
+
+private fun StoredRelation.toDomain() = MangaMetadataRelation(
+    anilistId = anilistId,
+    title = title,
+    coverImage = coverImage,
+    format = format,
+    relationType = relationType,
+)
+
+private fun StoredExternalLink.toDomain() = MangaMetadataExternalLink(url = url, site = site)
+
+/**
+ * The first title AniList gives that actually says something.
+ *
+ * `userPreferred` first, because that is the whole point of the field — it already encodes the
+ * viewer's title-language setting, defaulting to romaji when unauthenticated. But it is *derived*,
+ * so an entry whose romaji is missing can leave it null while `english` or `native` are perfectly
+ * good, and keying on it alone would drop a real relation from the carousel with no trace.
+ *
+ * Placeholders are filtered with the same rule the synonym set uses: sources and AniList both emit
+ * `"?"` and `"N/A"` for a missing title, and a tile labelled `?` is no more useful than no tile —
+ * worse, it is tappable, and searching for `?` finds nothing.
+ */
+private fun MetadataTitle?.firstMeaningfulTitle(): String? =
+    listOfNotNull(this?.userPreferred, this?.romaji, this?.english, this?.native)
+        .map { it.trim() }
+        .firstOrNull { PlaceholderTitles.isMeaningful(it) }

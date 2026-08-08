@@ -228,6 +228,7 @@ class DetailsViewModel @Inject constructor(
 
             is DetailsContract.Event.GenreClick -> searchGenreInSource(event.genre)
             is DetailsContract.Event.GenreLongClick -> searchGlobally(event.genre)
+            is DetailsContract.Event.RelatedMangaClick -> searchGlobally(event.title)
             is DetailsContract.Event.SearchGlobally -> searchGlobally(event.query)
             is DetailsContract.Event.OpenWebView -> openInWebView()
             is DetailsContract.Event.OpenWebViewFallback -> openWebViewFallback()

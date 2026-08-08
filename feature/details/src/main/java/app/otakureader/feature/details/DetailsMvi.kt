@@ -480,6 +480,14 @@ object DetailsContract {
         /** Genre/tag chip long-press: search this tag across all sources (global search). */
         data class GenreLongClick(val genre: String) : Event
 
+        /**
+         * A related manga on the AniList metadata section was tapped.
+         *
+         * Carries the *title*, not an id: the related work is an AniList media the app has no
+         * local record for, so there is nothing to navigate to and a global search is the action.
+         */
+        data class RelatedMangaClick(val title: String) : Event
+
         /** Title/author/artist tap in the header: search that text across all sources. */
         data class SearchGlobally(val query: String) : Event
 

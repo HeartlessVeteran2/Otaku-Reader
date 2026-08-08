@@ -625,6 +625,19 @@ internal val MIGRATION_42_43 = object : Migration(42, 43) {
     }
 }
 
+/**
+ * Adds `relations` and `externalLinks` to `manga_metadata` — related manga, and off-site links.
+ *
+ * Same JSON-text encoding and the same `DEFAULT '[]'` / `@ColumnInfo(defaultValue = "[]")` pairing
+ * as [MIGRATION_42_43]; see it for why the default has to live in both places.
+ */
+internal val MIGRATION_43_44 = object : Migration(43, 44) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE manga_metadata ADD COLUMN relations TEXT NOT NULL DEFAULT '[]'")
+        db.execSQL("ALTER TABLE manga_metadata ADD COLUMN externalLinks TEXT NOT NULL DEFAULT '[]'")
+    }
+}
+
 /** All migrations in order, for use in [Room.databaseBuilder] and migration tests. */
 internal val ALL_MIGRATIONS = arrayOf(
     MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6,
@@ -639,4 +652,5 @@ internal val ALL_MIGRATIONS = arrayOf(
     MIGRATION_40_41,
     MIGRATION_41_42,
     MIGRATION_42_43,
+    MIGRATION_43_44,
 )
