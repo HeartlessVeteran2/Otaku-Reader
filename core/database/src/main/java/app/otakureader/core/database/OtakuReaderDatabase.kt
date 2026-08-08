@@ -12,6 +12,7 @@ import app.otakureader.core.database.dao.DownloadQueueDao
 import app.otakureader.core.database.dao.DynamicCategoryRuleDao
 import app.otakureader.core.database.dao.FeedDao
 import app.otakureader.core.database.dao.MangaAlternativeSourceDao
+import app.otakureader.core.database.dao.MangaAniListLinkDao
 import app.otakureader.core.database.dao.MangaCategoryDao
 import app.otakureader.core.database.dao.MangaDao
 import app.otakureader.core.database.dao.MangaMetadataDao
@@ -38,6 +39,7 @@ import app.otakureader.core.database.entity.FeedItemEntity
 import app.otakureader.core.database.entity.FeedSavedSearchEntity
 import app.otakureader.core.database.entity.FeedSourceEntity
 import app.otakureader.core.database.entity.MangaAlternativeSourceEntity
+import app.otakureader.core.database.entity.MangaAniListLinkEntity
 import app.otakureader.core.database.entity.MangaCategoryEntity
 import app.otakureader.core.database.entity.MangaEntity
 import app.otakureader.core.database.entity.MangaFtsEntity
@@ -106,8 +108,10 @@ import app.otakureader.core.database.entity.UpdateRunSummaryEntity
         UpdateErrorEntity::class,
         // Cached AniList metadata for the details screen (Stage 5b)
         MangaMetadataEntity::class,
+        // Which AniList media a manga is, durable across metadata cache clears (Stage 5b)
+        MangaAniListLinkEntity::class,
     ],
-    version = 41,
+    version = 42,
     exportSchema = true
 )
 @TypeConverters(DatabaseConverters::class)
@@ -138,6 +142,7 @@ abstract class OtakuReaderDatabase : RoomDatabase() {
     abstract fun bookmarkCollectionDao(): BookmarkCollectionDao
     abstract fun updateErrorDao(): UpdateErrorDao
     abstract fun mangaMetadataDao(): MangaMetadataDao
+    abstract fun mangaAniListLinkDao(): MangaAniListLinkDao
 
     companion object {
         const val DATABASE_NAME = "otakureader.db"

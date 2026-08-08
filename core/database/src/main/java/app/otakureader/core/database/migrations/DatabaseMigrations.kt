@@ -586,6 +586,26 @@ internal val MIGRATION_40_41 = object : Migration(40, 41) {
     }
 }
 
+/**
+ * Adds `manga_anilist_link` — which AniList media a manga is, and whether a human said so.
+ *
+ * Separate from `manga_metadata` despite both carrying an `anilistId`, because that row is a
+ * seven-day cache that `clearMetadata` throws away, and a user's manual correction must outlive it.
+ */
+internal val MIGRATION_41_42 = object : Migration(41, 42) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS manga_anilist_link (
+                mangaId INTEGER PRIMARY KEY NOT NULL,
+                anilistId INTEGER NOT NULL,
+                userConfirmed INTEGER NOT NULL,
+                matchedAt INTEGER NOT NULL,
+                FOREIGN KEY (mangaId) REFERENCES manga(id) ON DELETE CASCADE
+            )
+        """.trimIndent())
+    }
+}
+
 /** All migrations in order, for use in [Room.databaseBuilder] and migration tests. */
 internal val ALL_MIGRATIONS = arrayOf(
     MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6,
@@ -598,4 +618,5 @@ internal val ALL_MIGRATIONS = arrayOf(
     MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34, MIGRATION_34_35,
     MIGRATION_35_36, MIGRATION_36_37, MIGRATION_37_38, MIGRATION_38_39, MIGRATION_39_40,
     MIGRATION_40_41,
+    MIGRATION_41_42,
 )

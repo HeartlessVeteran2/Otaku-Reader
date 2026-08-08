@@ -8,12 +8,16 @@ import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.DownloadItem
 import app.otakureader.domain.model.DownloadStatus
 import app.otakureader.domain.model.Manga
+import app.otakureader.domain.model.AniListLink
+import app.otakureader.domain.model.AniListMatch
+import app.otakureader.domain.model.AniListMediaCandidate
 import app.otakureader.domain.model.MangaMetadata
 import app.otakureader.domain.model.MangaMetadataTag
 import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.model.TrackEntry
 import app.otakureader.domain.model.TrackStatus
 import app.otakureader.domain.model.TrackerType
+import app.otakureader.domain.repository.AniListLinkRepository
 import app.otakureader.domain.repository.CategoryRepository
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.MangaMetadataRepository
@@ -23,6 +27,7 @@ import app.otakureader.domain.repository.ReadingListRepository
 import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.domain.tracking.TrackRepository
 import app.otakureader.domain.tracking.Tracker
+import app.otakureader.domain.usecase.metadata.ResolveAniListMediaUseCase
 import app.otakureader.domain.usecase.SetMangaNotificationsUseCase
 import app.otakureader.domain.usecase.UpdateMangaNoteUseCase
 import app.cash.turbine.test
@@ -33,6 +38,8 @@ import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -71,6 +78,8 @@ class DetailsViewModelTest {
     private lateinit var trackRepository: TrackRepository
     private lateinit var readingListRepository: ReadingListRepository
     private lateinit var metadataRepository: MangaMetadataRepository
+    private lateinit var linkRepository: AniListLinkRepository
+    private lateinit var resolveAniListMedia: ResolveAniListMediaUseCase
     private lateinit var anilistTracker: Tracker
     private lateinit var savedStateHandle: SavedStateHandle
 
@@ -107,6 +116,10 @@ class DetailsViewModelTest {
         readingListRepository = mockk(relaxed = true)
         metadataRepository = mockk(relaxed = true)
         every { metadataRepository.observeMetadata(mangaId) } returns flowOf(null)
+        linkRepository = mockk(relaxed = true)
+        every { linkRepository.observeLink(mangaId) } returns flowOf(null)
+        resolveAniListMedia = mockk()
+        coEvery { resolveAniListMedia(any(), any()) } returns Result.success(null)
         anilistTracker = mockk(relaxed = true)
         every { anilistTracker.id } returns TrackerType.ANILIST
         every { anilistTracker.name } returns "AniList"
@@ -134,6 +147,8 @@ class DetailsViewModelTest {
             trackRepository,
             readingListRepository,
             metadataRepository,
+            linkRepository,
+            resolveAniListMedia,
             trackers = setOf(anilistTracker),
         )
     }
@@ -153,6 +168,10 @@ class DetailsViewModelTest {
         every { downloadPreferences.perMangaOverrides } returns flowOf(emptyMap())
         coEvery { mangaRepository.updateChapterFlags(any(), any()) } returns Unit
         every { categoryRepository.getCategories() } returns flowOf(emptyList())
+        // A relaxed mock returns a Flow that never emits, which no Room flow does — and
+        // auto-matching now waits for a first emission from each of its inputs, so leaving this
+        // unstubbed would block on a condition production never has.
+        every { trackRepository.observeEntriesForManga(mangaId) } returns flowOf(emptyList())
         // Result is a value class, which a relaxed mock cannot fabricate — stub it explicitly.
         coEvery { metadataRepository.refreshMetadata(any(), any(), any()) } returns
             Result.success(sampleMetadata)
@@ -1296,6 +1315,227 @@ class DetailsViewModelTest {
         // strand the spinner. Asserting the state left behind, not just that the call returned.
         assertEquals(sampleMetadata, viewModel.state.value.metadata)
         assertFalse(viewModel.state.value.isMetadataLoading)
+    }
+
+    // ---- AniList auto-matching for untracked manga (Stage 5b slice 4b) ----
+
+    private fun match(mediaId: Long, confident: Boolean) = AniListMatch(
+        candidate = AniListMediaCandidate(mediaId = mediaId, romaji = "Shingeki no Kyojin"),
+        score = if (confident) 0.94f else 0.55f,
+        confident = confident,
+    )
+
+    @Test
+    fun autoMatch_storesAConfidentMatchForAnUntrackedManga() = runTest {
+        setUpDefaultMocks()
+        coEvery { resolveAniListMedia(any(), any()) } returns Result.success(match(53390L, confident = true))
+
+        createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 1) { resolveAniListMedia("Attack on Titan", emptyList()) }
+        coVerify(exactly = 1) { linkRepository.saveAutoLink(mangaId, 53390L) }
+    }
+
+    @Test
+    fun autoMatch_neverStoresAGuess() = runTest {
+        setUpDefaultMocks()
+        coEvery { resolveAniListMedia(any(), any()) } returns Result.success(match(53390L, confident = false))
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertFalse("a finished match must leave the spinner off", viewModel.state.value.isMatchingAniList)
+        // Proving the guess was consumed and discarded, not that matching silently never ran —
+        // an absent save is also what a broken invocation produces.
+        coVerify(exactly = 1) { resolveAniListMedia(any(), any()) }
+        // Below the accept threshold the matcher is saying it could not separate a work from its
+        // sequel. Persisting that attaches a wrong synopsis, tags and score to the manga — all of
+        // which look authoritative — so nothing is stored and nothing renders.
+        coVerify(exactly = 0) { linkRepository.saveAutoLink(any(), any()) }
+    }
+
+    @Test
+    fun autoMatch_doesNotRunForAMangaAlreadyTrackedOnAniList() = runTest {
+        setUpDefaultMocks()
+        every { trackRepository.observeEntriesForManga(mangaId) } returns flowOf(
+            listOf(trackEntry(TrackerType.ANILIST, remoteId = 53390L))
+        )
+
+        createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // The tracker entry already carries the media id, so searching would spend a request to
+        // rediscover something authoritative that is already in hand.
+        coVerify(exactly = 0) { resolveAniListMedia(any(), any()) }
+    }
+
+    @Test
+    fun autoMatch_doesNotRunWhenALinkIsAlreadyStored() = runTest {
+        setUpDefaultMocks()
+        every { linkRepository.observeLink(mangaId) } returns flowOf(
+            AniListLink(mangaId = mangaId, anilistId = 53390L, userConfirmed = true)
+        )
+
+        createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 0) { resolveAniListMedia(any(), any()) }
+    }
+
+    @Test
+    fun autoMatch_searchesOnlyOnceWhenAniListHasNothing() = runTest {
+        setUpDefaultMocks()
+        // A search that legitimately finds nothing leaves the link null, so every later emission
+        // of the link flow would search again without the once-per-screen guard.
+        every { linkRepository.observeLink(mangaId) } returns flowOf(null, null, null)
+        coEvery { resolveAniListMedia(any(), any()) } returns Result.success(null)
+
+        createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 1) { resolveAniListMedia(any(), any()) }
+    }
+
+    @Test
+    fun autoMatch_feedsCachedSynonymsBackInAsSearchTerms() = runTest {
+        setUpDefaultMocks()
+        every { metadataRepository.observeMetadata(mangaId) } returns flowOf(
+            sampleMetadata.copy(synonyms = listOf("Shingeki no Kyojin", "\u9032\u6483\u306e\u5DE8\u4EBA"))
+        )
+        coEvery { resolveAniListMedia(any(), any()) } returns Result.success(null)
+
+        createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify {
+            resolveAniListMedia("Attack on Titan", listOf("Shingeki no Kyojin", "\u9032\u6483\u306e\u5DE8\u4EBA"))
+        }
+    }
+
+    @Test
+    fun anilistMediaId_prefersTheTrackerEntryOverAStoredLink() = runTest {
+        setUpDefaultMocks()
+        every { trackRepository.observeEntriesForManga(mangaId) } returns flowOf(
+            listOf(trackEntry(TrackerType.ANILIST, remoteId = 111L))
+        )
+        every { linkRepository.observeLink(mangaId) } returns flowOf(
+            AniListLink(mangaId = mangaId, anilistId = 999L)
+        )
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Order is load-bearing beyond preference: State.metadata hides cached metadata whose
+        // anilistId disagrees with this, so a stale stored link shadowing a live tracker entry
+        // would stop a corrected tracker link from invalidating the cache.
+        assertEquals(111L, viewModel.state.value.anilistMediaId)
+    }
+
+    @Test
+    fun anilistMediaId_fallsBackToTheStoredLinkWhenNotTracked() = runTest {
+        setUpDefaultMocks()
+        every { linkRepository.observeLink(mangaId) } returns flowOf(
+            AniListLink(mangaId = mangaId, anilistId = 999L)
+        )
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(999L, viewModel.state.value.anilistMediaId)
+    }
+
+    @Test
+    fun storedLink_drivesTheMetadataRefreshForAnUntrackedManga() = runTest {
+        setUpDefaultMocks()
+        every { linkRepository.observeLink(mangaId) } returns flowOf(
+            AniListLink(mangaId = mangaId, anilistId = 999L)
+        )
+
+        createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // The whole point of the slice: metadata now reaches manga that are not tracked anywhere.
+        coVerify(exactly = 1) { metadataRepository.refreshMetadata(mangaId, 999L, false) }
+    }
+
+    @Test
+    fun autoMatch_stillRunsWhenTheLinkFlowEmitsBeforeTheMangaLoads() = runTest {
+        setUpDefaultMocks()
+        // The failure this guards: both are Room flows launched in init, and launch order does not
+        // fix emission order. If the link's initial null arrives first, a trigger living in that
+        // collector finds no title and gives up — and the link flow never re-emits, so the manga
+        // stays unmatched for the entire screen visit.
+        val mangaFlow = MutableStateFlow<Manga?>(null)
+        every { mangaRepository.getMangaByIdFlow(mangaId) } returns mangaFlow
+        coEvery { resolveAniListMedia(any(), any()) } returns Result.success(match(53390L, confident = true))
+
+        createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 0) { resolveAniListMedia(any(), any()) }
+
+        mangaFlow.value = sampleManga
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 1) { resolveAniListMedia("Attack on Titan", emptyList()) }
+        coVerify(exactly = 1) { linkRepository.saveAutoLink(mangaId, 53390L) }
+    }
+
+    @Test
+    fun autoMatch_startsOnceMetadataHasEmittedAndDoesNotResearchLater() = runTest {
+        setUpDefaultMocks()
+        // The gate waits for the metadata *flow's first emission*, not for synonyms to exist —
+        // those are different things, and only the first is something the code can wait on.
+        //
+        // In production that is sufficient: Room's first emission carries the cached row if there
+        // is one, so synonyms are present by the time matching starts. What this test models is
+        // the other case — a row that appears *later*, which Room would not do for an existing
+        // row — and pins the resulting behaviour: search once on the first (null) emission, and
+        // do not search again when synonyms turn up afterwards.
+        //
+        // The positive case, synonyms present at first emission and actually used, is
+        // autoMatch_feedsCachedSynonymsBackInAsSearchTerms.
+        val metadataFlow = MutableStateFlow<MangaMetadata?>(null)
+        every { metadataRepository.observeMetadata(mangaId) } returns metadataFlow
+        coEvery { resolveAniListMedia(any(), any()) } returns Result.success(null)
+
+        createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // The flow has emitted (null), so matching is free to run with no synonyms — the common
+        // first-visit case, and correct.
+        coVerify(exactly = 1) { resolveAniListMedia("Attack on Titan", emptyList()) }
+
+        metadataFlow.value = sampleMetadata.copy(synonyms = listOf("Shingeki no Kyojin"))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // And it must not search again on the later emission.
+        coVerify(exactly = 1) { resolveAniListMedia(any(), any()) }
+    }
+
+    @Test
+    fun autoMatch_doesNotStartBeforeEveryInputHasLoaded() = runTest {
+        setUpDefaultMocks()
+        // needsAniListMatch reads null/empty as "nothing here", which is also what an un-emitted
+        // Room flow looks like. Without the loaded flags, a manga that IS tracked on AniList could
+        // be auto-matched purely because the tracker flow had not emitted yet.
+        val entriesFlow = MutableStateFlow<List<TrackEntry>?>(null)
+        every { trackRepository.observeEntriesForManga(mangaId) } returns
+            entriesFlow.filterNotNull()
+        coEvery { resolveAniListMedia(any(), any()) } returns Result.success(match(1L, confident = true))
+
+        createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 0) { resolveAniListMedia(any(), any()) }
+
+        entriesFlow.value = listOf(trackEntry(TrackerType.ANILIST, remoteId = 53390L))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Now that the entries have arrived, the manga turns out to be tracked after all.
+        coVerify(exactly = 0) { resolveAniListMedia(any(), any()) }
+        coVerify(exactly = 0) { linkRepository.saveAutoLink(any(), any()) }
     }
 
     private companion object {

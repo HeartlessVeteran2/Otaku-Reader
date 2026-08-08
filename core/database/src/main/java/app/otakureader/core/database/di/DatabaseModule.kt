@@ -10,6 +10,7 @@ import app.otakureader.core.database.dao.BookmarkCollectionDao
 import app.otakureader.core.database.dao.DataUsageDao
 import app.otakureader.core.database.dao.DownloadQueueDao
 import app.otakureader.core.database.dao.MangaAlternativeSourceDao
+import app.otakureader.core.database.dao.MangaAniListLinkDao
 import app.otakureader.core.database.dao.MangaMetadataDao
 import app.otakureader.core.database.dao.SyncQueueDao
 import app.otakureader.core.database.dao.TrackEntryDao
@@ -133,4 +134,9 @@ object DatabaseModule {
 
     @Provides
     fun provideMangaMetadataDao(database: OtakuReaderDatabase): MangaMetadataDao = database.mangaMetadataDao()
+
+    @Provides
+    fun provideMangaAniListLinkDao(
+        database: OtakuReaderDatabase,
+    ): MangaAniListLinkDao = database.mangaAniListLinkDao()
 }
