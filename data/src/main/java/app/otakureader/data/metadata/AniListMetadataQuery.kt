@@ -58,7 +58,7 @@ internal const val METADATA_QUERY = """
           edges { role node { id name { full } image { large } } }
         }
         relations {
-          edges { relationType node { id type format title { userPreferred } coverImage { large } } }
+          edges { relationType node { id type format title { userPreferred romaji english native } coverImage { large } } }
         }
         externalLinks { url site type language }
       }

@@ -19,6 +19,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import app.otakureader.core.common.network.isBrowsableHttpUrl
 import app.otakureader.domain.model.MangaMetadataExternalLink
 
 /**
@@ -29,8 +30,8 @@ import app.otakureader.domain.model.MangaMetadataExternalLink
  *
  * ### The scheme is checked again here
  *
- * The repository already refuses anything that is not `http`/`https` before caching it, so in
- * normal operation this check never fires. It is not redundant. The cache is a table on the
+ * The repository already refuses anything that is not `http`/`https` before caching it, using the
+ * same shared predicate, so in normal operation this check never fires. It is not redundant. The cache is a table on the
  * device, rows written by an older build predate that filter, and a restored backup can carry
  * rows this build never fetched — so the value reaching this composable has not necessarily passed
  * through today's mapper. Validating at the point where a URL becomes an `Intent` is the check
@@ -81,19 +82,6 @@ internal fun ExternalLinkChips(
             }
         }
     }
-}
-
-/**
- * `http`/`https` only, matched on the scheme alone and case-insensitively.
- *
- * Mirrors the repository's boundary filter deliberately — see this file's KDoc for why both exist.
- * Anything else (`javascript:`, `intent:`, `file:`, `content:`) is either useless to a browser or
- * a way to reach somewhere the user did not ask to go, and these URLs are third-party
- * user-submitted data.
- */
-private fun String.isBrowsableHttpUrl(): Boolean {
-    val scheme = substringBefore("://", missingDelimiterValue = "")
-    return scheme.equals("http", ignoreCase = true) || scheme.equals("https", ignoreCase = true)
 }
 
 private val LINK_TITLE_GAP = 8.dp

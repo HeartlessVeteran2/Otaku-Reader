@@ -497,6 +497,11 @@ class AniListMetadataRepositoryTest {
         ),
     )
 
+    private fun relationEdgeWithTitle(id: Long, title: MetadataTitle?) = MetadataRelationEdge(
+        relationType = "SEQUEL",
+        node = MetadataRelationNode(id = id, type = "MANGA", format = "MANGA", title = title),
+    )
+
     private suspend fun mediaWith(media: MetadataMedia): MangaMetadata {
         coEvery { dao.getByMangaId(1L) } returns null
         coEvery { dao.upsert(any()) } just runs
@@ -525,6 +530,50 @@ class AniListMetadataRepositoryTest {
 
         assertEquals(listOf("Hunter x Hunter"), relations.map { it.title })
         assertEquals("SEQUEL", relations.single().relationType)
+    }
+
+    /**
+     * `userPreferred` is *derived* — it resolves the viewer's title-language setting, defaulting to
+     * romaji. An entry whose romaji is missing can leave it null while `english` or `native` are
+     * perfectly good, so keying on it alone silently drops a real relation from the carousel.
+     */
+    @Test
+    fun `a relation falls back through every title AniList offers`() = runTest {
+        val relations = mediaWith(
+            media().copy(
+                relations = MetadataRelationConnection(
+                    edges = listOf(
+                        relationEdgeWithTitle(1L, MetadataTitle(userPreferred = "Preferred")),
+                        relationEdgeWithTitle(2L, MetadataTitle(romaji = "Romaji Only")),
+                        relationEdgeWithTitle(3L, MetadataTitle(english = "English Only")),
+                        relationEdgeWithTitle(4L, MetadataTitle(native = "\u30CD\u30A4\u30C6\u30A3\u30D6")),
+                    ),
+                )
+            )
+        ).relations
+
+        assertEquals(
+            listOf("Preferred", "Romaji Only", "English Only", "\u30CD\u30A4\u30C6\u30A3\u30D6"),
+            relations.map { it.title },
+        )
+    }
+
+    /** A tile labelled "?" is tappable and searching for "?" finds nothing. */
+    @Test
+    fun `a relation with only a placeholder title is dropped`() = runTest {
+        val relations = mediaWith(
+            media().copy(
+                relations = MetadataRelationConnection(
+                    edges = listOf(
+                        relationEdgeWithTitle(1L, MetadataTitle(userPreferred = "?", romaji = "N/A")),
+                        relationEdgeWithTitle(2L, MetadataTitle(userPreferred = "??", english = "Real Title")),
+                        relationEdgeWithTitle(3L, null),
+                    ),
+                )
+            )
+        ).relations
+
+        assertEquals(listOf("Real Title"), relations.map { it.title })
     }
 
     /**
