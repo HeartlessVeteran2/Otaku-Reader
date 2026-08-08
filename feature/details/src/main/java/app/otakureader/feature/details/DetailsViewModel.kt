@@ -417,11 +417,21 @@ class DetailsViewModel @Inject constructor(
     /**
      * Runs the picker's search, replacing any in-flight one.
      *
-     * Cancel-and-replace rather than ignore-while-busy: the user retyping means the previous query
-     * is no longer what they want, and letting a slow earlier search land afterwards would show
-     * results for a query that is no longer in the box. Same reasoning as
-     * [requestMetadataRefresh] — the new request waits for the old to finish cancelling before it
-     * touches the spinner, so an outgoing job cannot switch it off underneath its replacement.
+     * ### Submitting cancels; typing does not
+     *
+     * The search is submit-driven, so the results on screen answer the last query the user actually
+     * *submitted*, and the text field is a draft they are still composing. Editing the box
+     * therefore leaves a running search alone — it was asked for, and its answer is still the one
+     * the list is labelled with. Only submitting again supersedes it.
+     *
+     * Cancel-and-replace on submit rather than ignore-while-busy: the previous query is no longer
+     * what the user wants, and letting a slow earlier search land afterwards would put its results
+     * under a query nobody asked about. Same shape as [requestMetadataRefresh] — the new request
+     * waits for the old to finish cancelling before it touches the spinner, so an outgoing job
+     * cannot switch it off underneath its replacement.
+     *
+     * Type-to-search would be a different design, and would need debouncing to avoid a request per
+     * keystroke against a rate limit that can hold a response for 90 seconds.
      */
     private fun searchAniListPicker() {
         val query = _state.value.anilistPicker?.query?.trim().orEmpty()

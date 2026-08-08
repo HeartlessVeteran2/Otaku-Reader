@@ -1630,7 +1630,7 @@ class DetailsViewModelTest {
     }
 
     @Test
-    fun picker_aRetypedQueryReplacesTheInFlightSearch() = runTest {
+    fun picker_resubmittingReplacesTheInFlightSearch() = runTest {
         setUpDefaultMocks()
         var staleSearchCompleted = false
         coEvery { searchRepository.searchMedia("Attack on Titan") } coAnswers {
@@ -1648,8 +1648,9 @@ class DetailsViewModelTest {
         viewModel.onEvent(DetailsContract.Event.SubmitAniListPickerSearch)
         testDispatcher.scheduler.advanceUntilIdle()
 
-        // Retyping means the earlier query is no longer what the user wants; letting it land would
-        // show results for a query that is not in the box.
+        // Submitting again means the earlier query is superseded; letting it land would put its
+        // results under a query nobody asked about. Note this is the *submit* that cancels, not
+        // the edit — see searchAniListPicker.
         assertFalse(staleSearchCompleted)
         assertEquals(listOf(candidate(53390L)), viewModel.state.value.anilistPicker?.results)
         assertFalse(viewModel.state.value.anilistPicker!!.isSearching)
@@ -1666,6 +1667,30 @@ class DetailsViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         coVerify(exactly = 0) { searchRepository.searchMedia(any()) }
+    }
+
+    @Test
+    fun picker_editingTheQueryLeavesTheRunningSearchAlone() = runTest {
+        setUpDefaultMocks()
+        // The other half of the submit-driven contract, and the half that only existed in prose
+        // until now. The results answer the last *submitted* query; the text field is a draft. An
+        // edit must not discard an answer the user asked for and may still want.
+        var searchCompleted = false
+        coEvery { searchRepository.searchMedia("Attack on Titan") } coAnswers {
+            delay(SLOW_FETCH_MS)
+            searchCompleted = true
+            Result.success(listOf(candidate(53390L)))
+        }
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        viewModel.onEvent(DetailsContract.Event.ShowAniListPicker)
+        viewModel.onEvent(DetailsContract.Event.SetAniListPickerQuery("Shin"))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue("editing the box must not cancel the submitted search", searchCompleted)
+        assertEquals(listOf(candidate(53390L)), viewModel.state.value.anilistPicker?.results)
+        assertEquals("Shin", viewModel.state.value.anilistPicker?.query)
     }
 
     @Test
