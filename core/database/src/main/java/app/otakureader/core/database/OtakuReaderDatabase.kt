@@ -111,7 +111,7 @@ import app.otakureader.core.database.entity.UpdateRunSummaryEntity
         // Which AniList media a manga is, durable across metadata cache clears (Stage 5b)
         MangaAniListLinkEntity::class,
     ],
-    version = 43,
+    version = 44,
     exportSchema = true
 )
 @TypeConverters(DatabaseConverters::class)

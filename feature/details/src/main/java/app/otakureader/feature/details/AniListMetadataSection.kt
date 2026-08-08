@@ -47,6 +47,7 @@ internal fun AniListMetadataSection(
     isLoading: Boolean,
     onTagClick: (String) -> Unit,
     onTagLongClick: (String) -> Unit,
+    onRelationClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (metadata == null && !isLoading) return
@@ -99,6 +100,19 @@ internal fun AniListMetadataSection(
                 // the ampersand form into something AniList never said.
                 roleLabel = { it },
             )
+        }
+
+        if (metadata.relations.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(METADATA_SECTION_GAP))
+            MangaRelationCarousel(
+                relations = metadata.relations,
+                onRelationClick = onRelationClick,
+            )
+        }
+
+        if (metadata.externalLinks.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(METADATA_SECTION_GAP))
+            ExternalLinkChips(links = metadata.externalLinks)
         }
 
         if (metadata.synonyms.isNotEmpty()) {
@@ -264,7 +278,7 @@ private fun countryLabel(code: String): String = when (code.uppercase()) {
  * `lowercase()`/`uppercase()` use `Locale.ROOT`, deliberately: a locale-sensitive version would
  * turn `TITLE` into `tıtle` under a Turkish locale, and these are ASCII enum names, not user text.
  */
-private fun String.prettifyEnum(): String =
+internal fun String.prettifyEnum(): String =
     split('_').joinToString(" ") { part ->
         part.lowercase().replaceFirstChar { it.uppercase() }
     }

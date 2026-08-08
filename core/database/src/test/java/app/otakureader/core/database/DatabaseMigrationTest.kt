@@ -34,6 +34,7 @@ import app.otakureader.core.database.migrations.MIGRATION_39_40
 import app.otakureader.core.database.migrations.MIGRATION_40_41
 import app.otakureader.core.database.migrations.MIGRATION_41_42
 import app.otakureader.core.database.migrations.MIGRATION_42_43
+import app.otakureader.core.database.migrations.MIGRATION_43_44
 import app.otakureader.core.database.migrations.MIGRATION_9_10
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -49,7 +50,8 @@ private const val SCHEMA_V40 = 40
 private const val SCHEMA_V41 = 41
 private const val SCHEMA_V42 = 42
 private const val SCHEMA_V43 = 43
-private const val EXPECTED_MIGRATION_COUNT = 41
+private const val SCHEMA_V44 = 44
+private const val EXPECTED_MIGRATION_COUNT = 42
 
 @RunWith(AndroidJUnit4::class)
 // One test class per migration chain: it grows by design with every schema version.
@@ -68,7 +70,7 @@ class DatabaseMigrationTest {
     fun allMigrations_formsContiguousChain() {
         val sorted = ALL_MIGRATIONS.sortedBy { it.startVersion }
         assertEquals("Migration chain must start at version 2", 2, sorted.first().startVersion)
-        assertEquals("Migration chain must end at version 43", SCHEMA_V43, sorted.last().endVersion)
+        assertEquals("Migration chain must end at version 44", SCHEMA_V44, sorted.last().endVersion)
 
         for (i in 0 until sorted.size - 1) {
             val current = sorted[i]
@@ -95,7 +97,7 @@ class DatabaseMigrationTest {
 
     @Test
     fun allMigrations_count() {
-        assertEquals("Expected 41 migrations (v2→v43)", EXPECTED_MIGRATION_COUNT, ALL_MIGRATIONS.size)
+        assertEquals("Expected 42 migrations (v2→v44)", EXPECTED_MIGRATION_COUNT, ALL_MIGRATIONS.size)
     }
 
     // ── Migration 9 → 10 ────────────────────────────────────────────────────
@@ -1135,6 +1137,55 @@ class DatabaseMigrationTest {
     fun migration42To43_validatesAgainstTheExportedSchema() {
         helper.createDatabase(TEST_DB, SCHEMA_V42).close()
         val db = helper.runMigrationsAndValidate(TEST_DB, SCHEMA_V43, true, MIGRATION_42_43)
+        assertTrue("manga_metadata must exist after validation", "manga_metadata" in db.tableNames())
+        db.close()
+    }
+
+    // ── v43 → v44: relations and external links on manga_metadata ───────────
+
+    @Test
+    fun migration43To44_addsRelationAndExternalLinkColumns() {
+        val db = helper.createDatabase(TEST_DB, SCHEMA_V43)
+        MIGRATION_43_44.migrate(db)
+        val columns = db.columnNames("manga_metadata")
+        assertTrue("relations column must exist after 43\u219244", "relations" in columns)
+        assertTrue("externalLinks column must exist after 43\u219244", "externalLinks" in columns)
+        db.close()
+    }
+
+    /** Same NOT NULL backfill concern as 42→43: the default has to be JSON the converter can read. */
+    @Test
+    fun migration43To44_backfillsExistingRowsWithAnEmptyJsonArray() {
+        val db = helper.createDatabase(TEST_DB, SCHEMA_V43)
+        db.execSQL(
+            """
+            INSERT INTO manga(
+                id, sourceId, url, title, status, favorite, lastUpdate, initialized,
+                viewerFlags, chapterFlags, coverLastModified, dateAdded, autoDownload,
+                notifyNewChapters, contentRating, userCompleted, userDropped
+            ) VALUES (8, 1, 'u', 'T', 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+            """.trimIndent()
+        )
+        db.execSQL(
+            """
+            INSERT INTO manga_metadata(mangaId, anilistId, genres, tagNames, tagRanks, synonyms, fetchedAt)
+            VALUES (8, 999, '', '', '', '', 0)
+            """.trimIndent()
+        )
+        MIGRATION_43_44.migrate(db)
+
+        val cursor = db.query("SELECT relations, externalLinks FROM manga_metadata WHERE mangaId = 8")
+        assertTrue("the pre-existing row must survive the upgrade", cursor.moveToFirst())
+        assertEquals("[]", cursor.getString(0))
+        assertEquals("[]", cursor.getString(1))
+        cursor.close()
+        db.close()
+    }
+
+    @Test
+    fun migration43To44_validatesAgainstTheExportedSchema() {
+        helper.createDatabase(TEST_DB, SCHEMA_V43).close()
+        val db = helper.runMigrationsAndValidate(TEST_DB, SCHEMA_V44, true, MIGRATION_43_44)
         assertTrue("manga_metadata must exist after validation", "manga_metadata" in db.tableNames())
         db.close()
     }

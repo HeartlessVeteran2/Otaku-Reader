@@ -943,6 +943,9 @@ private fun LazyListScope.detailsInfoTabItems(
             // every source. Reusing the events keeps that promise true by construction.
             onTagClick = { onEvent(DetailsContract.Event.GenreClick(it)) },
             onTagLongClick = { onEvent(DetailsContract.Event.GenreLongClick(it)) },
+            // A relation is an AniList media id with no local record, so the only honest action is
+            // to go looking for it across the user's sources — same effect the tag chips use.
+            onRelationClick = { onEvent(DetailsContract.Event.RelatedMangaClick(it)) },
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
     }

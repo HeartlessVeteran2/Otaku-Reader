@@ -1,6 +1,8 @@
 package app.otakureader.core.database
 
+import app.otakureader.core.database.entity.StoredExternalLink
 import app.otakureader.core.database.entity.StoredPerson
+import app.otakureader.core.database.entity.StoredRelation
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -84,6 +86,42 @@ class PersonListConverterTest {
         converters.fromPersonList("")
 
         assertEquals("only a failure is worth reporting", emptyList<Any>(), failures)
+    }
+
+    @Test
+    fun `relations survive a round trip through storage`() {
+        val relations = listOf(
+            StoredRelation(anilistId = 1, title = "Hunter x Hunter", coverImage = "https://x/1.jpg",
+                format = "MANGA", relationType = "SEQUEL"),
+            StoredRelation(anilistId = 2, title = "Level E"),
+        )
+        assertEquals(relations, converters.fromRelationList(converters.toRelationList(relations)))
+    }
+
+    @Test
+    fun `external links survive a round trip through storage`() {
+        val links = listOf(StoredExternalLink(url = "https://example.test/a", site = "Official Site"))
+        assertEquals(links, converters.fromExternalLinkList(converters.toExternalLinkList(links)))
+    }
+
+    /**
+     * The three list converters share one body, so the discard policy cannot drift between them.
+     * If one is ever hand-rolled back to `runCatching`, this is what should notice.
+     */
+    @Test
+    fun `every list converter discards a malformed blob and signals it`() {
+        converters.fromPersonList("{not json")
+        converters.fromRelationList("{not json")
+        converters.fromExternalLinkList("{not json")
+
+        assertEquals(3, failures.size)
+    }
+
+    @Test
+    fun `every list converter backfills the migration default to an empty list`() {
+        assertEquals(emptyList<StoredRelation>(), converters.fromRelationList("[]"))
+        assertEquals(emptyList<StoredExternalLink>(), converters.fromExternalLinkList("[]"))
+        assertEquals(emptyList<Any>(), failures)
     }
 
     /**
