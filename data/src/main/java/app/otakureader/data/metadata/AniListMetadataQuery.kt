@@ -115,3 +115,57 @@ data class MetadataTitle(
     val native: String? = null,
     val userPreferred: String? = null,
 )
+
+/**
+ * Title search, used to find which AniList media a source manga corresponds to.
+ *
+ * ### Why this is not `AniListTracker.search`
+ *
+ * The tracker already has a search, and it is the wrong shape twice over. It asks only for
+ * `title { romaji english }`, while the matcher scores against **every** name a work is known by —
+ * dropping `native` and `synonyms` throws away the evidence that resolves a Japanese-titled source
+ * against an English AniList entry. And it returns `TrackEntry`, a *tracking* record, so using it
+ * here would mean inventing a fake list entry for a manga the user does not track — which is the
+ * exact case this exists to serve.
+ *
+ * ### Only what the matcher reads
+ *
+ * No cover, no format, no dates. [app.otakureader.domain.model.AniListMediaCandidate] holds titles
+ * and nothing else, so anything more would be fetched, parsed, and dropped. The wrong-match picker
+ * will need a cover and a year to be usable by a human; that slice extends the query and the
+ * candidate model together, where there is a consumer to justify each field.
+ */
+internal const val SEARCH_QUERY = """
+    query (${'$'}search: String, ${'$'}perPage: Int) {
+      Page(perPage: ${'$'}perPage) {
+        media(search: ${'$'}search, type: MANGA) {
+          id
+          title { romaji english native }
+          synonyms
+        }
+      }
+    }
+"""
+
+@Serializable
+data class SearchResponse(
+    val data: SearchData? = null,
+    val errors: List<MetadataError> = emptyList(),
+)
+
+@Serializable
+data class SearchData(
+    @SerialName("Page") val page: SearchPage? = null,
+)
+
+@Serializable
+data class SearchPage(
+    val media: List<SearchMedia> = emptyList(),
+)
+
+@Serializable
+data class SearchMedia(
+    val id: Long = 0,
+    val title: MetadataTitle? = null,
+    val synonyms: List<String> = emptyList(),
+)
