@@ -91,6 +91,14 @@ class BrowsableUrlTest {
         // rounds.
         "host_underscore" to false,
         "-lead.test" to false,
+        // Non-ASCII but not well-formed. A delimiter blocklist waved all of these through; IDN
+        // rejects them because it implements the specification instead of guessing.
+        "\u4F8B\u3048..\u30C6\u30B9\u30C8" to false,
+        "\u4F8B\u3048.\u30C6\u30B9\u30C8-" to false,
+        "-\u4F8B\u3048.\u30C6\u30B9\u30C8" to false,
+        "\uD83D\uDE00.test" to false,
+        // A degenerate ASCII authority IDN itself accepts — the non-ASCII gate is what stops it.
+        "." to false,
     )
 
     @Test

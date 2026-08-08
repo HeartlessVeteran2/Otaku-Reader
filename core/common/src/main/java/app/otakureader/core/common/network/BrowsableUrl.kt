@@ -1,5 +1,6 @@
 package app.otakureader.core.common.network
 
+import java.net.IDN
 import java.net.URI
 import java.net.URISyntaxException
 
@@ -93,25 +94,45 @@ private fun String.parseUriOrNull(): URI? =
  * the previous three rounds happened.
  *
  * So the fallback applies only when the authority actually contains a non-ASCII character, and
- * only once it is free of every delimiter that would mean it is something other than a bare name.
+ * only once [IDN] agrees it is a well-formed internationalised hostname — the specification's own
+ * validator rather than another guess about which characters look wrong. The non-ASCII gate stays
+ * in front of it because [IDN.toASCII] accepts some degenerate ASCII input (`"."` converts to
+ * `"."`), and because it is the thing that says *why* this fallback exists at all.
+ *
  * IPv6 literals never reach here: [URI.getHost] returns them bracketed, as `[::1]`.
  */
 private fun URI.hostnameOrNull(): String? {
     host?.let { return it }
     val candidate = authority?.stripUserInfoAndPort() ?: return null
-    val isInternationalised = candidate.any { it.code > MAX_ASCII }
-    val hasDelimiter = candidate.any { it in AUTHORITY_DELIMITERS || it.isWhitespace() }
-    return candidate.takeIf { it.isNotEmpty() && isInternationalised && !hasDelimiter }
+    if (candidate.none { it.code > MAX_ASCII }) return null
+    return candidate.takeIf { it.isValidIdnHostname() }
 }
 
 /** Above this and a character cannot be part of the ASCII grammar [URI] knows how to parse. */
 private const val MAX_ASCII = 127
 
 /**
- * Characters that mean an authority is carrying something besides a bare hostname — a port,
- * userinfo that survived stripping, or a path that was never an authority at all.
+ * Whether this is a well-formed internationalised hostname, per [IDN] rather than per a guess.
+ *
+ * The previous version of this check asked whether the candidate contained any of a handful of
+ * delimiter characters. That is a heuristic wearing a rule's clothing: it happened to reject the
+ * examples in front of it and said nothing about empty labels, leading or trailing hyphens,
+ * embedded spaces, over-long labels or emoji, all of which sailed through as browsable chips.
+ *
+ * [IDN.toASCII] is the implementation of the actual specification, and it throws for every one of
+ * those. [IDN.USE_STD3_ASCII_RULES] is what makes it strict about the ASCII portion too — without
+ * it, `例え.テスト-` and `host_underscore` both convert happily.
+ *
+ * The conversion result is discarded on purpose. Punycode is for resolvers; the caller wants the
+ * name the user would recognise, and `xn--r8jz45g.xn--zckzah` is not that.
  */
-private val AUTHORITY_DELIMITERS = charArrayOf(':', '@', '/', '?', '#', '[', ']')
+private fun String.isValidIdnHostname(): Boolean =
+    try {
+        IDN.toASCII(this, IDN.USE_STD3_ASCII_RULES)
+        true
+    } catch (e: IllegalArgumentException) {
+        false
+    }
 
 /**
  * Turns an authority into a bare hostname.
