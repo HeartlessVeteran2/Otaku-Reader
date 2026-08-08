@@ -59,6 +59,11 @@ class ResolveAniListMediaUseCase @Inject constructor(
             .filter { PlaceholderTitles.isMeaningful(it) }
             // Case-insensitively distinct: a source title that differs from a synonym only in
             // capitalisation would otherwise spend a second request to receive the same page.
+            //
+            // The no-argument `lowercase()` is already locale-invariant — Kotlin defines it as the
+            // invariant-locale mapping, which is exactly why it replaced `toLowerCase()`. Passing
+            // `Locale.ROOT` explicitly would be a no-op, and passing `Locale.getDefault()` would
+            // introduce the Turkish dotless-i bug rather than avoid it.
             .distinctBy { it.lowercase() }
             .take(MAX_SEARCH_ATTEMPTS)
 
