@@ -443,6 +443,16 @@ fun DetailsScreen(
                                 overflowExpanded = false
                             }
                         )
+                        // Always offered, not only when unmatched: the entry point has to exist
+                        // both when auto-matching declined to guess (nothing rendered, no clue why)
+                        // and when it guessed wrong (something rendered, and it is wrong).
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.details_anilist_link)) },
+                            onClick = {
+                                viewModel.onEvent(DetailsContract.Event.ShowAniListPicker)
+                                overflowExpanded = false
+                            }
+                        )
                         androidx.compose.material3.HorizontalDivider()
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.details_open_download_folder)) },
@@ -817,6 +827,16 @@ private fun DetailsContent(
             selectedIds = state.readingListPickerSelection,
             onToggle = { listId -> onEvent(DetailsContract.Event.ToggleReadingListPickerSelection(listId)) },
             onDismiss = { onEvent(DetailsContract.Event.DismissReadingListPicker) }
+        )
+    }
+
+    state.anilistPicker?.let { picker ->
+        AniListPickerDialog(
+            picker = picker,
+            onQueryChange = { onEvent(DetailsContract.Event.SetAniListPickerQuery(it)) },
+            onSearch = { onEvent(DetailsContract.Event.SubmitAniListPickerSearch) },
+            onSelect = { onEvent(DetailsContract.Event.SelectAniListCandidate(it)) },
+            onDismiss = { onEvent(DetailsContract.Event.DismissAniListPicker) },
         )
     }
 

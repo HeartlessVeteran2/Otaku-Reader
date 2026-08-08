@@ -18,6 +18,7 @@ import app.otakureader.domain.model.TrackEntry
 import app.otakureader.domain.model.TrackStatus
 import app.otakureader.domain.model.TrackerType
 import app.otakureader.domain.repository.AniListLinkRepository
+import app.otakureader.domain.repository.AniListSearchRepository
 import app.otakureader.domain.repository.CategoryRepository
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.MangaMetadataRepository
@@ -80,6 +81,7 @@ class DetailsViewModelTest {
     private lateinit var metadataRepository: MangaMetadataRepository
     private lateinit var linkRepository: AniListLinkRepository
     private lateinit var resolveAniListMedia: ResolveAniListMediaUseCase
+    private lateinit var searchRepository: AniListSearchRepository
     private lateinit var anilistTracker: Tracker
     private lateinit var savedStateHandle: SavedStateHandle
 
@@ -120,6 +122,8 @@ class DetailsViewModelTest {
         every { linkRepository.observeLink(mangaId) } returns flowOf(null)
         resolveAniListMedia = mockk()
         coEvery { resolveAniListMedia(any(), any()) } returns Result.success(null)
+        searchRepository = mockk()
+        coEvery { searchRepository.searchMedia(any()) } returns Result.success(emptyList())
         anilistTracker = mockk(relaxed = true)
         every { anilistTracker.id } returns TrackerType.ANILIST
         every { anilistTracker.name } returns "AniList"
@@ -148,6 +152,7 @@ class DetailsViewModelTest {
             readingListRepository,
             metadataRepository,
             linkRepository,
+            searchRepository,
             resolveAniListMedia,
             trackers = setOf(anilistTracker),
         )
@@ -1536,6 +1541,124 @@ class DetailsViewModelTest {
         // Now that the entries have arrived, the manga turns out to be tracked after all.
         coVerify(exactly = 0) { resolveAniListMedia(any(), any()) }
         coVerify(exactly = 0) { linkRepository.saveAutoLink(any(), any()) }
+    }
+
+    // ---- Wrong-match picker (Stage 5b slice 4c) ----
+
+    private fun candidate(mediaId: Long, romaji: String = "Shingeki no Kyojin") =
+        AniListMediaCandidate(mediaId = mediaId, romaji = romaji)
+
+    @Test
+    fun picker_opensSeededWithTheMangaTitleAndSearchesImmediately() = runTest {
+        setUpDefaultMocks()
+        coEvery { searchRepository.searchMedia("Attack on Titan") } returns
+            Result.success(listOf(candidate(53390L)))
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        viewModel.onEvent(DetailsContract.Event.ShowAniListPicker)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val picker = viewModel.state.value.anilistPicker
+        assertEquals("Attack on Titan", picker?.query)
+        assertEquals(listOf(candidate(53390L)), picker?.results)
+        assertFalse(picker!!.isSearching)
+    }
+
+    @Test
+    fun picker_surfacesASearchFailureInsteadOfShowingNoResults() = runTest {
+        setUpDefaultMocks()
+        coEvery { searchRepository.searchMedia(any()) } returns
+            Result.failure(IllegalStateException("AniList is down"))
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        viewModel.onEvent(DetailsContract.Event.ShowAniListPicker)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Unlike auto-matching, the user asked for this and is waiting on it — silence would read
+        // as "no results", which is a different answer with a different next step.
+        val picker = viewModel.state.value.anilistPicker
+        assertEquals("AniList is down", picker?.error)
+        assertFalse("a failure is not an empty result", picker!!.isEmpty)
+    }
+
+    @Test
+    fun picker_selectingACandidateStoresAUserLinkAndForcesARefetch() = runTest {
+        setUpDefaultMocks()
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        viewModel.onEvent(DetailsContract.Event.SelectAniListCandidate(53390L))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 1) { linkRepository.saveUserLink(mangaId, 53390L) }
+        // force = true because the cached row still describes the old media and is inside its
+        // seven-day TTL, so an unforced refresh would decline to do anything at all.
+        coVerify(exactly = 1) { metadataRepository.refreshMetadata(mangaId, 53390L, true) }
+        assertNull("picking closes the picker", viewModel.state.value.anilistPicker)
+    }
+
+    @Test
+    fun picker_correctingTheLinkHidesTheOldMediaMetadataImmediately() = runTest {
+        setUpDefaultMocks()
+        // The stale row is inside its TTL and survives a failed refetch by design, so the guard in
+        // State.metadata is what stops the old media's synopsis, tags and score rendering under a
+        // link that now points somewhere else. Asserted rather than assumed.
+        val linkFlow = MutableStateFlow<AniListLink?>(
+            AniListLink(mangaId = mangaId, anilistId = sampleMetadata.anilistId)
+        )
+        every { linkRepository.observeLink(mangaId) } returns linkFlow
+        every { metadataRepository.observeMetadata(mangaId) } returns flowOf(sampleMetadata)
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(sampleMetadata, viewModel.state.value.metadata)
+
+        linkFlow.value = AniListLink(mangaId = mangaId, anilistId = 99999L, userConfirmed = true)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertNull(viewModel.state.value.metadata)
+        assertEquals("the row itself is kept, only hidden", sampleMetadata, viewModel.state.value.cachedMetadata)
+    }
+
+    @Test
+    fun picker_aRetypedQueryReplacesTheInFlightSearch() = runTest {
+        setUpDefaultMocks()
+        var staleSearchCompleted = false
+        coEvery { searchRepository.searchMedia("Attack on Titan") } coAnswers {
+            delay(SLOW_FETCH_MS)
+            staleSearchCompleted = true
+            Result.success(listOf(candidate(1L)))
+        }
+        coEvery { searchRepository.searchMedia("Shingeki") } returns
+            Result.success(listOf(candidate(53390L)))
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        viewModel.onEvent(DetailsContract.Event.ShowAniListPicker)
+        viewModel.onEvent(DetailsContract.Event.SetAniListPickerQuery("Shingeki"))
+        viewModel.onEvent(DetailsContract.Event.SubmitAniListPickerSearch)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Retyping means the earlier query is no longer what the user wants; letting it land would
+        // show results for a query that is not in the box.
+        assertFalse(staleSearchCompleted)
+        assertEquals(listOf(candidate(53390L)), viewModel.state.value.anilistPicker?.results)
+        assertFalse(viewModel.state.value.anilistPicker!!.isSearching)
+    }
+
+    @Test
+    fun picker_aBlankQueryDoesNotSpendARequest() = runTest {
+        setUpDefaultMocks()
+        stubManga(sampleManga.copy(title = "  "))
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        viewModel.onEvent(DetailsContract.Event.ShowAniListPicker)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 0) { searchRepository.searchMedia(any()) }
     }
 
     private companion object {

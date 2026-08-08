@@ -6,6 +6,7 @@ import app.otakureader.core.common.mvi.UiEvent
 import app.otakureader.core.common.mvi.UiState
 import app.otakureader.core.preferences.DeleteAfterReadMode
 import app.otakureader.domain.model.AniListLink
+import app.otakureader.domain.model.AniListMediaCandidate
 import app.otakureader.domain.model.Category
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
@@ -106,6 +107,8 @@ object DetailsContract {
         val hasLoadedTrackEntries: Boolean = false,
         val hasLoadedLink: Boolean = false,
         val hasLoadedMetadata: Boolean = false,
+        /** Non-null while the wrong-match picker is open. See [AniListPickerState]. */
+        val anilistPicker: AniListPickerState? = null,
         /** Full web URL for this manga (source baseUrl + manga url). Null for local sources. */
         val mangaWebUrl: String? = null,
         /** Display name of the manga's source, shown next to the status (Komikku parity). */
@@ -260,6 +263,29 @@ object DetailsContract {
     }
 
     /**
+     * The wrong-match picker: a search box seeded with the manga's title, and what it found.
+     *
+     * Exists because auto-matching refuses to guess. Below `ACCEPT_THRESHOLD` nothing is stored and
+     * nothing renders, which is the right default — a wrong synopsis and wrong tags look
+     * authoritative and give the user no reason to doubt them — but it leaves the user with no
+     * metadata and no recourse. This is the recourse.
+     *
+     * The query is editable rather than fixed to the manga's title, because the case that needs
+     * fixing is precisely the one where the source's title is not what AniList calls the work.
+     */
+    data class AniListPickerState(
+        val query: String = "",
+        val results: List<AniListMediaCandidate> = emptyList(),
+        val isSearching: Boolean = false,
+        /** Non-null when the search itself failed, as opposed to finding nothing. */
+        val error: String? = null,
+    ) {
+        /** True when a completed search genuinely returned nothing, so the UI can say so. */
+        val isEmpty: Boolean
+            get() = !isSearching && error == null && results.isEmpty()
+    }
+
+    /**
      * Tri-state for chapter list filters: unset = show all, true = show only matching,
      * false = show only non-matching.
      */
@@ -379,6 +405,15 @@ object DetailsContract {
         data object MarkSelectedAsUnread : Event
         data object ToggleNotifications : Event
         data object OpenTracking : Event
+
+        // Wrong-match picker (Stage 5b slice 4c)
+        /** Overflow menu "Link to AniList…" — opens the picker seeded with the manga's title. */
+        data object ShowAniListPicker : Event
+        data object DismissAniListPicker : Event
+        data class SetAniListPickerQuery(val query: String) : Event
+        data object SubmitAniListPickerSearch : Event
+        /** The user picked a candidate; it becomes the confirmed link and wins over auto-matching. */
+        data class SelectAniListCandidate(val mediaId: Long) : Event
 
         // Completed / Dropped user-state toggles (#946)
         data object ToggleUserCompleted : Event
