@@ -1586,9 +1586,16 @@ class DetailsViewModelTest {
     @Test
     fun picker_selectingACandidateStoresAUserLinkAndForcesARefetch() = runTest {
         setUpDefaultMocks()
+        coEvery { searchRepository.searchMedia(any()) } returns Result.success(listOf(candidate(53390L)))
 
         val viewModel = createViewModel()
         testDispatcher.scheduler.advanceUntilIdle()
+        // The picker has to actually be open, or "picking closes it" is asserted against a null it
+        // was never going to be anything but.
+        viewModel.onEvent(DetailsContract.Event.ShowAniListPicker)
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertNotNull("precondition: the picker is open", viewModel.state.value.anilistPicker)
+
         viewModel.onEvent(DetailsContract.Event.SelectAniListCandidate(53390L))
         testDispatcher.scheduler.advanceUntilIdle()
 
