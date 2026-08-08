@@ -56,6 +56,26 @@ class BrowsableUrlTest {
     }
 
     /**
+     * An authority is not a hostname. These parse with a non-empty authority (`@`, `user@`,
+     * `:8443`) and point nowhere at all — accepted, they became tappable chips with no
+     * destination.
+     */
+    @Test
+    fun `an authority with no actual host is refused`() {
+        assertFalse("https://@/".isBrowsableHttpUrl())
+        assertFalse("https://@".isBrowsableHttpUrl())
+        assertFalse("https://user@/".isBrowsableHttpUrl())
+        assertFalse("https://:8443/".isBrowsableHttpUrl())
+        assertFalse("https://user:pw@:8443/".isBrowsableHttpUrl())
+    }
+
+    @Test
+    fun `a hostless authority has no label either`() {
+        assertNull("https://@/".browsableHostOrNull())
+        assertNull("https://:8443/".browsableHostOrNull())
+    }
+
+    /**
      * `URI.getHost()` returns null for an internationalised name, so a host-based check would drop
      * every IDN link — turning a cosmetic labelling problem into a missing link. The predicate
      * tests the authority for exactly this reason.

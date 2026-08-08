@@ -27,21 +27,19 @@ import java.net.URISyntaxException
  * authority at all. Passing them produced a chip that opened nothing — a dead control, which is
  * the outcome the fail-closed rule above exists to avoid. So an authority is required too.
  *
- * The check is on **authority, not host**: [URI.getHost] returns null for an internationalised
- * name like `https://例え.テスト`, which is a perfectly good URL that a browser resolves. Requiring
- * a host would silently drop every IDN link.
+ * The check does not simply require [URI.getHost], which returns null for an internationalised
+ * name like `https://例え.テスト` — a perfectly good URL a browser resolves, which that reading
+ * would silently drop. Nor does it simply require a non-empty authority, which `https://@/` and
+ * `https://:8443/` both satisfy while pointing nowhere. See [hostnameOrNull] for the rule that
+ * covers both.
  *
  * [URI] rather than `android.net.Uri` so this stays pure JVM and testable without Robolectric.
  */
 fun String.isBrowsableHttpUrl(): Boolean {
-    val uri = try {
-        URI(this)
-    } catch (e: URISyntaxException) {
-        return false
-    }
+    val uri = parseUriOrNull() ?: return false
     val scheme = uri.scheme
     val isHttp = scheme.equals("http", ignoreCase = true) || scheme.equals("https", ignoreCase = true)
-    return isHttp && !uri.authority.isNullOrEmpty()
+    return isHttp && uri.hostnameOrNull() != null
 }
 
 /**
@@ -64,14 +62,32 @@ fun String.isBrowsableHttpUrl(): Boolean {
  *
  * Never throws. A label is not worth an exception, and the caller has a sensible fallback.
  */
-fun String.browsableHostOrNull(): String? {
-    val uri = try {
+fun String.browsableHostOrNull(): String? =
+    parseUriOrNull()?.hostnameOrNull()?.lowercase()?.removePrefix("www.")?.takeIf { it.isNotEmpty() }
+
+private fun String.parseUriOrNull(): URI? =
+    try {
         URI(this)
     } catch (e: URISyntaxException) {
-        return null
+        null
     }
-    val host = uri.host ?: uri.authority?.stripUserInfoAndPort()
-    return host?.lowercase()?.removePrefix("www.")?.takeIf { it.isNotEmpty() }
+
+/**
+ * The hostname this URL points at, or null when it does not point anywhere.
+ *
+ * Both public functions above go through here, and that is the point: the predicate decides
+ * whether a URL has a destination and the label names that destination, so if they disagreed about
+ * what counts as a host, one would cache a link the other could not describe. Sharing the
+ * extraction makes disagreement impossible rather than merely unlikely.
+ *
+ * An authority is not a hostname. `https://@/` parses with an authority of `@`, and
+ * `https://:8443/` with `:8443` — both non-empty, both pointing nowhere, and both previously
+ * accepted as browsable. What survives removing userinfo and port has to be *something*, and must
+ * not still start with the colon that introduces a port.
+ */
+private fun URI.hostnameOrNull(): String? {
+    val raw = host ?: authority?.stripUserInfoAndPort() ?: return null
+    return raw.takeIf { it.isNotEmpty() && !it.startsWith(':') }
 }
 
 /**
