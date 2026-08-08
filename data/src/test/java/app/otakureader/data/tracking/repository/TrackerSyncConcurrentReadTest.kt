@@ -296,6 +296,55 @@ class TrackerSyncConcurrentReadTest {
         coVerify(exactly = 0) { trackerSyncDao.markSyncSuccess(any(), any(), any()) }
     }
 
+    /**
+     * A relink during a push must not inherit the old link's data.
+     *
+     * `getSyncState` looks up by (mangaId, trackerId) — a key that is *reused*. Unlink then relink
+     * deletes the row and inserts a fresh one under the same key, so the lookup succeeds and the
+     * new row's timestamp is naturally newer. Without an identity check that reads as "a local
+     * change landed", and the push stamps the new link's row with the old link's tracker response.
+     */
+    @Test
+    fun `a relink during a push is not mistaken for a local change`() = runTest {
+        stubLoggedInTracker()
+        coEvery { trackerSyncDao.getSyncState(mangaId, trackerId) } returnsMany listOf(
+            syncState(localLastChapterRead = 50f, localLastModified = baseTime.plusSeconds(10)),
+            // Same manga, same tracker, different row: id 2 is the relinked series.
+            syncState(localLastChapterRead = 0f, localLastModified = baseTime.plusSeconds(20))
+                .copy(id = 2L, remoteId = "99999"),
+        )
+
+        val result = repository.syncManga(mangaId, trackerId)
+
+        coVerify(exactly = 0) { trackerSyncDao.updateSyncState(any()) }
+        assertEquals(false, result.success)
+    }
+
+    /**
+     * A failure *returned* rather than thrown still has to clear SYNCING.
+     *
+     * Every entry point stamps SYNCING before its request. `getPendingSyncs` selects
+     * `syncStatus = PENDING`, so a row left at SYNCING is never picked up by `syncAllPending`
+     * again — the manga just stops syncing, with a spinner as the only symptom.
+     */
+    @Test
+    fun `a returned failure does not leave the row stuck in syncing`() = runTest {
+        stubLoggedInTracker()
+        coEvery { trackRepository.getEntry(mangaId, trackerId) } returns null
+        coEvery { trackerSyncDao.getSyncState(mangaId, trackerId) } returns
+            syncState(localLastChapterRead = 51f, localLastModified = baseTime.plusSeconds(10))
+
+        repository.syncManga(mangaId, trackerId)
+
+        val status = slot<Int>()
+        coVerify { trackerSyncDao.markSyncError(eq(1L), capture(status), any(), any()) }
+        assertEquals(
+            "SYNCING is terminal for syncAllPending, which only selects PENDING",
+            SyncStatus.ERROR.ordinal,
+            status.captured,
+        )
+    }
+
     @Test
     fun `pushing with no local entry reports failure rather than silent success`() = runTest {
         stubLoggedInTracker()
