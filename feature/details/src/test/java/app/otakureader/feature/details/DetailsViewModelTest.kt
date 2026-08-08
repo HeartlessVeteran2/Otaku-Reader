@@ -18,6 +18,7 @@ import app.otakureader.domain.model.TrackEntry
 import app.otakureader.domain.model.TrackStatus
 import app.otakureader.domain.model.TrackerType
 import app.otakureader.domain.repository.AniListLinkRepository
+import app.otakureader.domain.repository.AniListSearchRepository
 import app.otakureader.domain.repository.CategoryRepository
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.MangaMetadataRepository
@@ -80,6 +81,7 @@ class DetailsViewModelTest {
     private lateinit var metadataRepository: MangaMetadataRepository
     private lateinit var linkRepository: AniListLinkRepository
     private lateinit var resolveAniListMedia: ResolveAniListMediaUseCase
+    private lateinit var searchRepository: AniListSearchRepository
     private lateinit var anilistTracker: Tracker
     private lateinit var savedStateHandle: SavedStateHandle
 
@@ -120,6 +122,8 @@ class DetailsViewModelTest {
         every { linkRepository.observeLink(mangaId) } returns flowOf(null)
         resolveAniListMedia = mockk()
         coEvery { resolveAniListMedia(any(), any()) } returns Result.success(null)
+        searchRepository = mockk()
+        coEvery { searchRepository.searchMedia(any()) } returns Result.success(emptyList())
         anilistTracker = mockk(relaxed = true)
         every { anilistTracker.id } returns TrackerType.ANILIST
         every { anilistTracker.name } returns "AniList"
@@ -148,6 +152,7 @@ class DetailsViewModelTest {
             readingListRepository,
             metadataRepository,
             linkRepository,
+            searchRepository,
             resolveAniListMedia,
             trackers = setOf(anilistTracker),
         )
@@ -1536,6 +1541,218 @@ class DetailsViewModelTest {
         // Now that the entries have arrived, the manga turns out to be tracked after all.
         coVerify(exactly = 0) { resolveAniListMedia(any(), any()) }
         coVerify(exactly = 0) { linkRepository.saveAutoLink(any(), any()) }
+    }
+
+    // ---- Wrong-match picker (Stage 5b slice 4c) ----
+
+    private fun candidate(mediaId: Long, romaji: String = "Shingeki no Kyojin") =
+        AniListMediaCandidate(mediaId = mediaId, romaji = romaji)
+
+    @Test
+    fun picker_opensSeededWithTheMangaTitleAndSearchesImmediately() = runTest {
+        setUpDefaultMocks()
+        coEvery { searchRepository.searchMedia("Attack on Titan") } returns
+            Result.success(listOf(candidate(53390L)))
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        viewModel.onEvent(DetailsContract.Event.ShowAniListPicker)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val picker = viewModel.state.value.anilistPicker
+        assertEquals("Attack on Titan", picker?.query)
+        assertEquals(listOf(candidate(53390L)), picker?.results)
+        assertFalse(picker!!.isSearching)
+    }
+
+    @Test
+    fun picker_surfacesASearchFailureInsteadOfShowingNoResults() = runTest {
+        setUpDefaultMocks()
+        coEvery { searchRepository.searchMedia(any()) } returns
+            Result.failure(IllegalStateException("AniList is down"))
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        viewModel.onEvent(DetailsContract.Event.ShowAniListPicker)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Unlike auto-matching, the user asked for this and is waiting on it — silence would read
+        // as "no results", which is a different answer with a different next step.
+        val picker = viewModel.state.value.anilistPicker
+        assertTrue(picker!!.searchFailed)
+        assertFalse("a failure is not an empty result", picker.isEmpty)
+    }
+
+    @Test
+    fun picker_selectingACandidateStoresAUserLinkAndForcesARefetch() = runTest {
+        setUpDefaultMocks()
+        coEvery { searchRepository.searchMedia(any()) } returns Result.success(listOf(candidate(53390L)))
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        // The picker has to actually be open, or "picking closes it" is asserted against a null it
+        // was never going to be anything but.
+        viewModel.onEvent(DetailsContract.Event.ShowAniListPicker)
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertNotNull("precondition: the picker is open", viewModel.state.value.anilistPicker)
+
+        viewModel.onEvent(DetailsContract.Event.SelectAniListCandidate(53390L))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 1) { linkRepository.saveUserLink(mangaId, 53390L) }
+        // force = true because the cached row still describes the old media and is inside its
+        // seven-day TTL, so an unforced refresh would decline to do anything at all.
+        coVerify(exactly = 1) { metadataRepository.refreshMetadata(mangaId, 53390L, true) }
+        assertNull("picking closes the picker", viewModel.state.value.anilistPicker)
+    }
+
+    @Test
+    fun picker_correctingTheLinkHidesTheOldMediaMetadataImmediately() = runTest {
+        setUpDefaultMocks()
+        // The stale row is inside its TTL and survives a failed refetch by design, so the guard in
+        // State.metadata is what stops the old media's synopsis, tags and score rendering under a
+        // link that now points somewhere else. Asserted rather than assumed.
+        val linkFlow = MutableStateFlow<AniListLink?>(
+            AniListLink(mangaId = mangaId, anilistId = sampleMetadata.anilistId)
+        )
+        every { linkRepository.observeLink(mangaId) } returns linkFlow
+        every { metadataRepository.observeMetadata(mangaId) } returns flowOf(sampleMetadata)
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(sampleMetadata, viewModel.state.value.metadata)
+
+        linkFlow.value = AniListLink(mangaId = mangaId, anilistId = 99999L, userConfirmed = true)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertNull(viewModel.state.value.metadata)
+        assertEquals("the row itself is kept, only hidden", sampleMetadata, viewModel.state.value.cachedMetadata)
+    }
+
+    @Test
+    fun picker_resubmittingReplacesTheInFlightSearch() = runTest {
+        setUpDefaultMocks()
+        var staleSearchCompleted = false
+        coEvery { searchRepository.searchMedia("Attack on Titan") } coAnswers {
+            delay(SLOW_FETCH_MS)
+            staleSearchCompleted = true
+            Result.success(listOf(candidate(1L)))
+        }
+        coEvery { searchRepository.searchMedia("Shingeki") } returns
+            Result.success(listOf(candidate(53390L)))
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        viewModel.onEvent(DetailsContract.Event.ShowAniListPicker)
+        viewModel.onEvent(DetailsContract.Event.SetAniListPickerQuery("Shingeki"))
+        viewModel.onEvent(DetailsContract.Event.SubmitAniListPickerSearch)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Submitting again means the earlier query is superseded; letting it land would put its
+        // results under a query nobody asked about. Note this is the *submit* that cancels, not
+        // the edit — see searchAniListPicker.
+        assertFalse(staleSearchCompleted)
+        assertEquals(listOf(candidate(53390L)), viewModel.state.value.anilistPicker?.results)
+        assertFalse(viewModel.state.value.anilistPicker!!.isSearching)
+    }
+
+    @Test
+    fun picker_aBlankQueryDoesNotSpendARequest() = runTest {
+        setUpDefaultMocks()
+        stubManga(sampleManga.copy(title = "  "))
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        viewModel.onEvent(DetailsContract.Event.ShowAniListPicker)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 0) { searchRepository.searchMedia(any()) }
+    }
+
+    @Test
+    fun picker_editingTheQueryLeavesTheRunningSearchAlone() = runTest {
+        setUpDefaultMocks()
+        // The other half of the submit-driven contract, and the half that only existed in prose
+        // until now. The results answer the last *submitted* query; the text field is a draft. An
+        // edit must not discard an answer the user asked for and may still want.
+        var searchCompleted = false
+        coEvery { searchRepository.searchMedia("Attack on Titan") } coAnswers {
+            delay(SLOW_FETCH_MS)
+            searchCompleted = true
+            Result.success(listOf(candidate(53390L)))
+        }
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        viewModel.onEvent(DetailsContract.Event.ShowAniListPicker)
+        viewModel.onEvent(DetailsContract.Event.SetAniListPickerQuery("Shin"))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue("editing the box must not cancel the submitted search", searchCompleted)
+        assertEquals(listOf(candidate(53390L)), viewModel.state.value.anilistPicker?.results)
+        assertEquals("Shin", viewModel.state.value.anilistPicker?.query)
+    }
+
+    @Test
+    fun picker_aFailureWithNoMessageStillReadsAsAFailure() = runTest {
+        setUpDefaultMocks()
+        // Throwable.message is nullable, so an error field derived from it turned a failure that
+        // carries none into "no results" — a different answer with a different next step. A flag
+        // has no such hole, and it also keeps developer-facing text off the screen.
+        coEvery { searchRepository.searchMedia(any()) } returns Result.failure(IllegalStateException())
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        viewModel.onEvent(DetailsContract.Event.ShowAniListPicker)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val picker = viewModel.state.value.anilistPicker
+        assertTrue("a message-less failure is still a failure", picker!!.searchFailed)
+        assertFalse("and it must not read as an empty result", picker.isEmpty)
+    }
+
+    @Test
+    fun picker_blankingTheQueryClearsTheOldResults() = runTest {
+        setUpDefaultMocks()
+        coEvery { searchRepository.searchMedia("Attack on Titan") } returns
+            Result.success(listOf(candidate(53390L)))
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        viewModel.onEvent(DetailsContract.Event.ShowAniListPicker)
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(1, viewModel.state.value.anilistPicker?.results?.size)
+
+        viewModel.onEvent(DetailsContract.Event.SetAniListPickerQuery("   "))
+        viewModel.onEvent(DetailsContract.Event.SubmitAniListPickerSearch)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // An empty box next to the previous query's candidates is the worst of both: the list is
+        // the part that gets tapped, and it would no longer relate to anything on screen.
+        assertTrue(viewModel.state.value.anilistPicker!!.results.isEmpty())
+        coVerify(exactly = 1) { searchRepository.searchMedia(any()) }
+    }
+
+    @Test
+    fun picker_dismissingCancelsAnInFlightSearch() = runTest {
+        setUpDefaultMocks()
+        var searchCompleted = false
+        coEvery { searchRepository.searchMedia(any()) } coAnswers {
+            delay(SLOW_FETCH_MS)
+            searchCompleted = true
+            Result.success(listOf(candidate(1L)))
+        }
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        viewModel.onEvent(DetailsContract.Event.ShowAniListPicker)
+        viewModel.onEvent(DetailsContract.Event.DismissAniListPicker)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Housekeeping rather than correctness — the state update already no-ops once the picker
+        // is gone — but a closed dialog should not hold a request against the rate limit.
+        assertFalse(searchCompleted)
+        assertNull(viewModel.state.value.anilistPicker)
     }
 
     private companion object {

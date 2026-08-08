@@ -128,12 +128,12 @@ data class MetadataTitle(
  * here would mean inventing a fake list entry for a manga the user does not track — which is the
  * exact case this exists to serve.
  *
- * ### Only what the matcher reads
+ * ### Titles for the matcher, three more fields for the picker
  *
- * No cover, no format, no dates. [app.otakureader.domain.model.AniListMediaCandidate] holds titles
- * and nothing else, so anything more would be fetched, parsed, and dropped. The wrong-match picker
- * will need a cover and a year to be usable by a human; that slice extends the query and the
- * candidate model together, where there is a consumer to justify each field.
+ * It fetched titles and nothing else until the wrong-match picker existed to consume more, because
+ * anything unread would have been fetched, parsed and dropped. `coverImage`, `format` and the start
+ * year are here now for exactly one reason: a picker listing "Kaguya-sama wa Kokurasetai" three
+ * times over is not a choice a human can make. The matcher still ignores all three.
  */
 internal const val SEARCH_QUERY = """
     query (${'$'}search: String, ${'$'}perPage: Int) {
@@ -142,6 +142,9 @@ internal const val SEARCH_QUERY = """
           id
           title { romaji english native }
           synonyms
+          coverImage { large }
+          format
+          startDate { year }
         }
       }
     }
@@ -168,4 +171,7 @@ data class SearchMedia(
     val id: Long = 0,
     val title: MetadataTitle? = null,
     val synonyms: List<String> = emptyList(),
+    val coverImage: MetadataCoverImage? = null,
+    val format: String? = null,
+    val startDate: MetadataDate? = null,
 )

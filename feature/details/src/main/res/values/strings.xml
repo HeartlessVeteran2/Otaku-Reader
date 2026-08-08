@@ -257,6 +257,16 @@
     <string name="track_status_plan_to_read">Plan to read</string>
     <string name="track_status_re_reading">Re-reading</string>
 
+    <!-- Wrong-match picker (Stage 5b) -->
+    <string name="details_anilist_link">Link to AniList\u2026</string>
+    <string name="details_anilist_picker_title">Which AniList entry is this?</string>
+    <string name="details_anilist_picker_search_label">Search AniList</string>
+    <string name="details_anilist_picker_search">Search</string>
+    <string name="details_anilist_picker_cancel">Cancel</string>
+    <string name="details_anilist_picker_no_results">No matches on AniList for that title.</string>
+    <string name="details_anilist_picker_error">Couldn\'t search AniList. Check your connection and try again.</string>
+    <string name="details_anilist_picker_untitled">(Untitled)</string>
+
     <!-- AniList metadata section (Stage 5b) -->
     <string name="details_metadata_title">AniList</string>
     <string name="details_metadata_score">Score</string>

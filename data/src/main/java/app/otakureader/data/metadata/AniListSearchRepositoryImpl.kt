@@ -71,5 +71,8 @@ private fun SearchMedia.toCandidate(): AniListMediaCandidate {
         english = title?.english.meaningful(),
         native = title?.native.meaningful(),
         synonyms = synonyms.filter { PlaceholderTitles.isMeaningful(it) },
+        coverImage = coverImage?.large,
+        format = format,
+        startYear = startDate?.year,
     )
 }

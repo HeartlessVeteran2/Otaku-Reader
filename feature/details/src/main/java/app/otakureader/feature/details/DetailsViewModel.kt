@@ -8,6 +8,7 @@ import app.otakureader.domain.model.DownloadStatus
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.repository.AniListLinkRepository
+import app.otakureader.domain.repository.AniListSearchRepository
 import app.otakureader.domain.repository.CategoryRepository
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
@@ -73,6 +74,7 @@ class DetailsViewModel @Inject constructor(
     private val readingListRepository: ReadingListRepository,
     private val metadataRepository: MangaMetadataRepository,
     private val linkRepository: AniListLinkRepository,
+    private val searchRepository: AniListSearchRepository,
     private val resolveAniListMedia: ResolveAniListMediaUseCase,
     trackers: Set<@JvmSuppressWildcards Tracker>,
 ) : ViewModel() {
@@ -205,6 +207,14 @@ class DetailsViewModel @Inject constructor(
             is DetailsContract.Event.TogglePanoramaCover -> togglePanoramaCover()
 
             is DetailsContract.Event.OpenTracking -> openTracking()
+
+            is DetailsContract.Event.ShowAniListPicker -> showAniListPicker()
+            is DetailsContract.Event.DismissAniListPicker -> dismissAniListPicker()
+            is DetailsContract.Event.SetAniListPickerQuery -> _state.update { state ->
+                state.copy(anilistPicker = state.anilistPicker?.copy(query = event.query))
+            }
+            is DetailsContract.Event.SubmitAniListPickerSearch -> searchAniListPicker()
+            is DetailsContract.Event.SelectAniListCandidate -> selectAniListCandidate(event.mediaId)
 
             // Edit manga info (#998)
             is DetailsContract.Event.ShowEditInfoSheet ->
@@ -389,6 +399,113 @@ class DetailsViewModel @Inject constructor(
 
     /** One auto-match attempt per screen visit. See [observeAniListLink]. */
     private var hasAttemptedMatch = false
+
+    /**
+     * Opens the wrong-match picker, seeded with the manga's title, and searches immediately.
+     *
+     * Seeding and searching up front means the common case — the source title is close enough, the
+     * matcher was just not confident enough to commit — costs one tap. The query stays editable
+     * because the case that actually needs fixing is the one where the source's title is not what
+     * AniList calls the work.
+     */
+    private fun showAniListPicker() {
+        val title = _state.value.manga?.title.orEmpty()
+        _state.update { it.copy(anilistPicker = DetailsContract.AniListPickerState(query = title)) }
+        searchAniListPicker()
+    }
+
+    /**
+     * Runs the picker's search, replacing any in-flight one.
+     *
+     * ### Submitting cancels; typing does not
+     *
+     * The search is submit-driven, so the results on screen answer the last query the user actually
+     * *submitted*, and the text field is a draft they are still composing. Editing the box
+     * therefore leaves a running search alone — it was asked for, and its answer is still the one
+     * the list is labelled with. Only submitting again supersedes it.
+     *
+     * Cancel-and-replace on submit rather than ignore-while-busy: the previous query is no longer
+     * what the user wants, and letting a slow earlier search land afterwards would put its results
+     * under a query nobody asked about. Same shape as [requestMetadataRefresh] — the new request
+     * waits for the old to finish cancelling before it touches the spinner, so an outgoing job
+     * cannot switch it off underneath its replacement.
+     *
+     * Type-to-search would be a different design, and would need debouncing to avoid a request per
+     * keystroke against a rate limit that can hold a response for 90 seconds.
+     */
+    private fun searchAniListPicker() {
+        val query = _state.value.anilistPicker?.query?.trim().orEmpty()
+        if (query.isEmpty()) {
+            // Clear rather than simply decline. Searching for nothing and being shown the previous
+            // query's candidates is worse than being shown none: the box says one thing, the list
+            // says another, and the list is the part that gets tapped. No request is spent either
+            // way — a blank query cannot match anything.
+            pickerSearchJob?.cancel()
+            pickerSearchJob = null
+            _state.update { state ->
+                state.copy(
+                    anilistPicker = state.anilistPicker?.copy(
+                        results = emptyList(),
+                        isSearching = false,
+                        searchFailed = false,
+                    )
+                )
+            }
+            return
+        }
+        val previous = pickerSearchJob
+        pickerSearchJob = viewModelScope.launch {
+            previous?.cancelAndJoin()
+            _state.update { state ->
+                state.copy(anilistPicker = state.anilistPicker?.copy(isSearching = true, searchFailed = false))
+            }
+            val result = searchRepository.searchMedia(query)
+            _state.update { state ->
+                val picker = state.anilistPicker ?: return@update state
+                state.copy(
+                    anilistPicker = picker.copy(
+                        isSearching = false,
+                        results = result.getOrDefault(emptyList()),
+                        // Unlike auto-matching, a failure here is shown. The user asked for this
+                        // search and is waiting on it, so silence would read as "no results" —
+                        // which is a different answer with a different next step.
+                        searchFailed = result.isFailure,
+                    )
+                )
+            }
+        }
+    }
+
+    /**
+     * Records the user's pick and refetches metadata for it.
+     *
+     * `force = true` because the cached row still describes the *old* media and is inside its
+     * seven-day TTL, so an unforced refresh would decline to do anything. Until it lands,
+     * [DetailsContract.State.metadata] already hides the stale row — its `anilistId` no longer
+     * matches the link — so the screen shows nothing rather than the wrong thing.
+     */
+    private fun selectAniListCandidate(mediaId: Long) {
+        _state.update { it.copy(anilistPicker = null) }
+        viewModelScope.launch {
+            linkRepository.saveUserLink(mangaId, mediaId)
+            requestMetadataRefresh(mediaId, force = true)
+        }
+    }
+
+    /**
+     * Closes the picker and abandons any search still running for it.
+     *
+     * The cancel is housekeeping rather than a correctness fix — the search's state update already
+     * no-ops when the picker is gone — but a closed dialog should not be holding a request against
+     * a rate limit that can make the next one wait 90 seconds.
+     */
+    private fun dismissAniListPicker() {
+        pickerSearchJob?.cancel()
+        pickerSearchJob = null
+        _state.update { it.copy(anilistPicker = null) }
+    }
+
+    private var pickerSearchJob: Job? = null
 
     /**
      * Cache-only. Emits null until something has been fetched, and never triggers a fetch.

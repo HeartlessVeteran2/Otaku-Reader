@@ -3,8 +3,10 @@ package app.otakureader.data.metadata
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -146,6 +148,28 @@ class AniListSearchRepositoryImplTest {
         assertTrue(result.isSuccess)
         assertTrue(result.getOrThrow().isEmpty())
         coVerify(exactly = 0) { api.searchMedia(any()) }
+    }
+
+    @Test
+    fun `cancellation propagates instead of becoming a failed search`() = runTest {
+        // Load-bearing in a way that is easy to miss. The picker cancels an in-flight search when
+        // the query is replaced or the dialog is dismissed. If cancellation were reported as
+        // Result.failure, the caller would carry on to its next statement — and `_state.update` is
+        // not a suspension point, so a cancelled coroutine still runs it. Every dismiss would flash
+        // "Couldn't search AniList".
+        //
+        // `kotlinx.coroutines.CancellationException` is a plain `Exception`, so it is only the
+        // ordering of the two catch blocks that keeps this true.
+        coEvery { api.searchMedia(any()) } throws CancellationException("replaced")
+
+        var caught: Throwable? = null
+        try {
+            repository.searchMedia("Berserk")
+        } catch (e: CancellationException) {
+            caught = e
+        }
+
+        assertNotNull("cancellation must escape, not be swallowed into a Result", caught)
     }
 
     @Test
