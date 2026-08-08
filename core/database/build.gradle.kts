@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.otakureader.android.library)
     alias(libs.plugins.otakureader.android.room)
     alias(libs.plugins.otakureader.android.hilt)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.kover)
 }
 
@@ -26,6 +27,7 @@ android {
 dependencies {
     implementation(projects.core.common)
     implementation(projects.domain)
+    implementation(libs.kotlinx.serialization.json)
     api(libs.room.paging)
     implementation(libs.paging.runtime)
 

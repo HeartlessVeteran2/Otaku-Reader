@@ -80,6 +80,27 @@ internal fun AniListMetadataSection(
             )
         }
 
+        if (metadata.characters.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(METADATA_SECTION_GAP))
+            PersonCarousel(
+                title = stringResource(R.string.details_metadata_characters),
+                people = metadata.characters,
+                // An AniList enum — MAIN, SUPPORTING, BACKGROUND — so it gets prettified.
+                roleLabel = { it.prettifyEnum() },
+            )
+        }
+
+        if (metadata.staff.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(METADATA_SECTION_GAP))
+            PersonCarousel(
+                title = stringResource(R.string.details_metadata_staff),
+                people = metadata.staff,
+                // Free text AniList stores verbatim ("Story & Art"). prettifyEnum would lowercase
+                // the ampersand form into something AniList never said.
+                roleLabel = { it },
+            )
+        }
+
         if (metadata.synonyms.isNotEmpty()) {
             Spacer(modifier = Modifier.height(METADATA_SECTION_GAP))
             MetadataSynonyms(synonyms = metadata.synonyms)

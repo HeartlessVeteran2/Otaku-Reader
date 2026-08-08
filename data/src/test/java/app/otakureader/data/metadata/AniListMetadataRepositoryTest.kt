@@ -314,6 +314,172 @@ class AniListMetadataRepositoryTest {
         assertEquals(87, result.getOrThrow().tags.single().rank)
     }
 
+    private fun personEdge(
+        id: Long,
+        name: String?,
+        role: String? = "MAIN",
+        image: String? = "https://x/$id.jpg",
+    ) = MetadataPersonEdge(
+        role = role,
+        node = MetadataPersonNode(
+            id = id,
+            name = name?.let { MetadataPersonName(full = it) },
+            image = MetadataPersonImage(large = image),
+        ),
+    )
+
+    @Test
+    fun `characters and staff survive the round trip through storage`() = runTest {
+        val captured = slot<MangaMetadataEntity>()
+        coEvery { dao.getByMangaId(1L) } returns null
+        coEvery { dao.upsert(capture(captured)) } just runs
+        coEvery { api.fetch(99L) } returns MetadataResponse(
+            data = MetadataData(
+                media = media().copy(
+                    characters = MetadataCharacterConnection(
+                        edges = listOf(personEdge(10L, "Gon Freecss", role = "MAIN")),
+                    ),
+                    staff = MetadataStaffConnection(
+                        edges = listOf(personEdge(20L, "Yoshihiro Togashi", role = "Story & Art")),
+                    ),
+                )
+            )
+        )
+
+        val result = repository.refreshMetadata(mangaId = 1L, anilistId = 99L).getOrThrow()
+
+        assertEquals(listOf("Gon Freecss"), captured.captured.characters.map { it.name })
+        assertEquals(listOf("Yoshihiro Togashi"), captured.captured.staff.map { it.name })
+        assertEquals(10L, result.characters.single().id)
+        assertEquals("https://x/10.jpg", result.characters.single().imageUrl)
+        // Raw, not prettified. The screen formats it, because MAIN and "Story & Art" follow
+        // different conventions and only the caller knows which list it is holding.
+        assertEquals("MAIN", result.characters.single().role)
+        assertEquals("Story & Art", result.staff.single().role)
+    }
+
+    /**
+     * A nameless entry would render as an anonymous tile the user cannot identify or act on.
+     * A missing *portrait* is ordinary and must not cost the person their place.
+     */
+    @Test
+    fun `an edge with no usable name is dropped, but a missing image is not`() = runTest {
+        coEvery { dao.getByMangaId(1L) } returns null
+        coEvery { dao.upsert(any()) } just runs
+        coEvery { api.fetch(99L) } returns MetadataResponse(
+            data = MetadataData(
+                media = media().copy(
+                    characters = MetadataCharacterConnection(
+                        edges = listOf(
+                            personEdge(10L, "Gon Freecss"),
+                            personEdge(11L, null),
+                            personEdge(12L, "   "),
+                            MetadataPersonEdge(role = "MAIN", node = null),
+                            personEdge(13L, "Killua Zoldyck", image = null),
+                        ),
+                    ),
+                )
+            )
+        )
+
+        val characters = repository.refreshMetadata(mangaId = 1L, anilistId = 99L)
+            .getOrThrow().characters
+
+        assertEquals(listOf("Gon Freecss", "Killua Zoldyck"), characters.map { it.name })
+        assertNull("a missing portrait is not a reason to drop the person", characters[1].imageUrl)
+    }
+
+    /**
+     * AniList is asked for `sort: [ROLE, RELEVANCE]`, which puts the main cast first. Re-sorting
+     * locally would either duplicate that rule or quietly contradict it.
+     */
+    @Test
+    fun `the order AniList returned is preserved`() = runTest {
+        coEvery { dao.getByMangaId(1L) } returns null
+        coEvery { dao.upsert(any()) } just runs
+        coEvery { api.fetch(99L) } returns MetadataResponse(
+            data = MetadataData(
+                media = media().copy(
+                    characters = MetadataCharacterConnection(
+                        edges = listOf(
+                            personEdge(30L, "Main One", role = "MAIN"),
+                            personEdge(31L, "Support One", role = "SUPPORTING"),
+                            personEdge(32L, "Background One", role = "BACKGROUND"),
+                        ),
+                    ),
+                )
+            )
+        )
+
+        val characters = repository.refreshMetadata(mangaId = 1L, anilistId = 99L)
+            .getOrThrow().characters
+
+        assertEquals(listOf("Main One", "Support One", "Background One"), characters.map { it.name })
+    }
+
+    /**
+     * AniList returns one staff edge per credit, so someone who did both Story and Art is two
+     * edges sharing one person id. Both are real credits. Deduplicating on id — the obvious
+     * reading of "these are the same person" — would drop one of them.
+     */
+    @Test
+    fun `a person credited for two roles keeps both credits`() = runTest {
+        coEvery { dao.getByMangaId(1L) } returns null
+        coEvery { dao.upsert(any()) } just runs
+        coEvery { api.fetch(99L) } returns MetadataResponse(
+            data = MetadataData(
+                media = media().copy(
+                    staff = MetadataStaffConnection(
+                        edges = listOf(
+                            personEdge(40L, "Yoshihiro Togashi", role = "Story"),
+                            personEdge(40L, "Yoshihiro Togashi", role = "Art"),
+                        ),
+                    ),
+                )
+            )
+        )
+
+        val staff = repository.refreshMetadata(mangaId = 1L, anilistId = 99L).getOrThrow().staff
+
+        assertEquals(listOf("Story", "Art"), staff.map { it.role })
+    }
+
+    /** An edge repeated verbatim carries nothing the first copy does not. */
+    @Test
+    fun `an entirely duplicate edge is collapsed`() = runTest {
+        coEvery { dao.getByMangaId(1L) } returns null
+        coEvery { dao.upsert(any()) } just runs
+        coEvery { api.fetch(99L) } returns MetadataResponse(
+            data = MetadataData(
+                media = media().copy(
+                    characters = MetadataCharacterConnection(
+                        edges = listOf(
+                            personEdge(50L, "Gon Freecss", role = "MAIN"),
+                            personEdge(50L, "Gon Freecss", role = "MAIN"),
+                        ),
+                    ),
+                )
+            )
+        )
+
+        val characters = repository.refreshMetadata(mangaId = 1L, anilistId = 99L)
+            .getOrThrow().characters
+
+        assertEquals(1, characters.size)
+    }
+
+    @Test
+    fun `a media with no characters or staff maps to empty lists, not a failure`() = runTest {
+        coEvery { dao.getByMangaId(1L) } returns null
+        coEvery { dao.upsert(any()) } just runs
+        coEvery { api.fetch(99L) } returns MetadataResponse(data = MetadataData(media = media()))
+
+        val result = repository.refreshMetadata(mangaId = 1L, anilistId = 99L).getOrThrow()
+
+        assertEquals(emptyList<Any>(), result.characters)
+        assertEquals(emptyList<Any>(), result.staff)
+    }
+
     @Test
     fun `placeholder titles are kept out of the synonym set`() = runTest {
         coEvery { dao.getByMangaId(1L) } returns null

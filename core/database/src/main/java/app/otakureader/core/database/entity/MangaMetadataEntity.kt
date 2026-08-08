@@ -1,8 +1,10 @@
 package app.otakureader.core.database.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 /**
  * Cached AniList metadata for a manga.
@@ -59,5 +61,34 @@ data class MangaMetadataEntity(
     val startDate: String? = null,
     val endDate: String? = null,
     val synonyms: List<String> = emptyList(),
+    /**
+     * Cast and credits, as JSON rather than parallel columns. See `DatabaseConverters`.
+     *
+     * `defaultValue` is declared, not just written into the migration's `ALTER TABLE`. Room
+     * compares the default it expects from the entity against the one it reads back from SQLite,
+     * so a default that exists only in the migration is a schema mismatch — and one that surfaces
+     * only on upgrade, never on a fresh install.
+     */
+    @ColumnInfo(defaultValue = "[]")
+    val characters: List<StoredPerson> = emptyList(),
+    @ColumnInfo(defaultValue = "[]")
+    val staff: List<StoredPerson> = emptyList(),
     val fetchedAt: Long = 0L,
+)
+
+/**
+ * The stored form of a person, kept apart from the domain `MangaMetadataPerson`.
+ *
+ * Serialized field names are a persisted format: renaming one here silently stops old rows
+ * deserializing. Putting `@Serializable` on the domain model instead would hand that constraint to
+ * a class whose whole job is to be free of storage concerns, and would make an ordinary domain
+ * rename a data-compatibility decision. The mapping between the two costs a few lines and keeps
+ * the coupling somewhere it is visible.
+ */
+@Serializable
+data class StoredPerson(
+    val id: Long,
+    val name: String,
+    val imageUrl: String? = null,
+    val role: String? = null,
 )
