@@ -116,6 +116,24 @@ class TrackerSyncRecordLocalChangeTest {
     }
 
     @Test
+    fun `progress still reaches the entry when no sync state exists yet`() = runTest {
+        // The common state immediately after linking a tracker: there is a TrackEntry but no
+        // sync-state row, since syncManga creates that lazily on the first sync. Progress has to
+        // land on the entry anyway — syncManga seeds the new row from it, so an entry left stale
+        // here would bake the stale value into the sync state permanently.
+        coEvery { trackRepository.getEntry(mangaId, trackerId) } returns entry(lastChapterRead = 50f)
+        coEvery { trackerSyncDao.getSyncState(mangaId, trackerId) } returns null
+
+        repository.recordLocalChange(mangaId, trackerId, chapterRead = 51f, status = MangaStatus.ONGOING)
+
+        val saved = slot<TrackEntry>()
+        coVerify(exactly = 1) { trackRepository.upsertEntry(capture(saved)) }
+        assertEquals(51f, saved.captured.lastChapterRead, 0f)
+        // And no sync-state row is invented; syncManga owns that creation.
+        coVerify(exactly = 0) { trackerSyncDao.updateSyncState(any()) }
+    }
+
+    @Test
     fun `a manga with no local entry yet records nothing rather than inventing one`() = runTest {
         coEvery { trackRepository.getEntry(mangaId, trackerId) } returns null
         coEvery { trackerSyncDao.getSyncState(mangaId, trackerId) } returns null
