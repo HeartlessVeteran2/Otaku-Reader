@@ -18,6 +18,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -95,6 +97,35 @@ class TrackerSyncRepositoryImpl @Inject constructor(
         }
 
     /**
+     * Serializes every read-decide-write on one sync-state row.
+     *
+     * Re-reading the row after the network call narrows the window in which a chapter read can be
+     * lost, but it does not close it: the re-read and the write that follows are two separate
+     * suspending calls, and a `recordLocalChange` landing between them is still overwritten. The
+     * lock is what makes that pair atomic — which is the rule this codebase already writes down,
+     * that a liveness check and the write it guards belong inside the same lock rather than each
+     * taking one separately.
+     *
+     * **Never held across a network call.** [pushLocalToTracker] does `tracker.update(...)`
+     * outside the lock and takes it only for the write, so a slow tracker cannot block a chapter
+     * from being recorded.
+     *
+     * This serializes writers inside this process, which is every production writer of the table
+     * except [app.otakureader.data.backup.BackupRestorer], and a restore is not concurrent with
+     * syncing. It is deliberately not a database-level compare-and-swap; if a second writing
+     * process ever appears, this becomes insufficient and the guard has to move into SQL.
+     *
+     * Striped rather than a map of per-row mutexes for the reason the metadata cache uses the same
+     * shape: a fixed array is bounded by construction, and two different rows colliding on a
+     * stripe costs a little parallelism and can never cause a wrong result.
+     */
+    private fun rowLock(mangaId: Long, trackerId: Int): Mutex =
+        // floorMod, not %: the product can overflow to a negative and index out of bounds.
+        rowLocks[Math.floorMod(mangaId * PRIME_MULTIPLIER + trackerId, STRIPE_COUNT)]
+
+    private val rowLocks = Array(STRIPE_COUNT) { Mutex() }
+
+    /**
      * Records that the user read up to [chapterRead] locally, for later push.
      *
      * ### It has to write the [TrackEntry], not only the sync-state row
@@ -128,23 +159,25 @@ class TrackerSyncRepositoryImpl @Inject constructor(
     ) {
         val now = Instant.now()
 
-        val entry = trackRepository.getEntry(mangaId, trackerId)
-        if (entry != null && chapterRead > entry.lastChapterRead) {
-            trackRepository.upsertEntry(entry.copy(lastChapterRead = chapterRead))
-        }
+        rowLock(mangaId, trackerId).withLock {
+            val entry = trackRepository.getEntry(mangaId, trackerId)
+            if (entry != null && chapterRead > entry.lastChapterRead) {
+                trackRepository.upsertEntry(entry.copy(lastChapterRead = chapterRead))
+            }
 
-        val existing = trackerSyncDao.getSyncState(mangaId, trackerId)
-        if (existing != null) {
-            trackerSyncDao.updateSyncState(
-                existing.copy(
-                    localLastChapterRead = maxOf(existing.localLastChapterRead, chapterRead),
-                    localStatus = status.ordinal,
-                    localLastModified = now,
-                    syncStatus = SyncStatus.PENDING.ordinal
+            val existing = trackerSyncDao.getSyncState(mangaId, trackerId)
+            if (existing != null) {
+                trackerSyncDao.updateSyncState(
+                    existing.copy(
+                        localLastChapterRead = maxOf(existing.localLastChapterRead, chapterRead),
+                        localStatus = status.ordinal,
+                        localLastModified = now,
+                        syncStatus = SyncStatus.PENDING.ordinal
+                    )
                 )
-            )
+            }
+            // If no sync state exists, local changes will be captured on first sync
         }
-        // If no sync state exists, local changes will be captured on first sync
     }
 
     /**
@@ -180,24 +213,32 @@ class TrackerSyncRepositoryImpl @Inject constructor(
             // progress had been sent when no entry existed to send.
             ?: return TrackerSyncRepository.SyncResult(false, "No local entry found for manga")
 
+        // Outside the lock: a slow tracker must not block a chapter from being recorded.
         val updated = tracker.update(localEntry)
-        val concurrent = localChangeSince(syncState)
-        trackerSyncDao.updateSyncState(
-            (concurrent ?: syncState).copy(
-                remoteLastChapterRead = updated.lastChapterRead,
-                remoteTotalChapters = updated.totalChapters,
-                remoteStatus = MangaStatus.UNKNOWN.ordinal,
-                remoteLastModified = now,
-                // A chapter finished while the push was in flight has not been sent, so the row
-                // stays PENDING and `lastSuccessfulSync` is deliberately left alone. Advancing it
-                // would put it *after* the new `localLastModified`, and `localChanged` is exactly
-                // that comparison — the next sync would decide there was nothing to send, and the
-                // read would be lost with no error anywhere.
-                syncStatus = if (concurrent != null) SyncStatus.PENDING.ordinal else SyncStatus.SYNCED.ordinal,
-                lastSuccessfulSync = if (concurrent != null) syncState.lastSuccessfulSync else now,
-                syncError = null
+
+        rowLock(mangaId, trackerId).withLock {
+            val concurrent = localChangeSince(syncState)
+            trackerSyncDao.updateSyncState(
+                (concurrent ?: syncState).copy(
+                    remoteLastChapterRead = updated.lastChapterRead,
+                    remoteTotalChapters = updated.totalChapters,
+                    remoteStatus = MangaStatus.UNKNOWN.ordinal,
+                    remoteLastModified = now,
+                    // A chapter finished while the push was in flight has not been sent, so the
+                    // row stays PENDING and `lastSuccessfulSync` is deliberately left alone.
+                    // Advancing it would put it *after* the new `localLastModified`, and
+                    // `localChanged` is exactly that comparison — the next sync would decide there
+                    // was nothing to send, and the read would be lost with no error anywhere.
+                    syncStatus = if (concurrent != null) {
+                        SyncStatus.PENDING.ordinal
+                    } else {
+                        SyncStatus.SYNCED.ordinal
+                    },
+                    lastSuccessfulSync = if (concurrent != null) syncState.lastSuccessfulSync else now,
+                    syncError = null
+                )
             )
-        )
+        }
         return null
     }
 
@@ -213,48 +254,51 @@ class TrackerSyncRepositoryImpl @Inject constructor(
         syncState: TrackerSyncStateEntity,
         now: Instant,
     ): TrackerSyncRepository.SyncResult? {
-        val concurrent = localChangeSince(syncState)
-        if (concurrent != null) {
-            // A chapter finished while the remote was being fetched, so this is no longer a clean
-            // remote-wins case: both sides have changed. Record what the remote holds and leave the
-            // row PENDING so the next sync re-evaluates it as the conflict it now is — overwriting
-            // local here would discard the chapter the user just read in favour of a remote value
-            // that predates it.
+        rowLock(mangaId, trackerId).withLock {
+            val concurrent = localChangeSince(syncState)
+            if (concurrent != null) {
+                // A chapter finished while the remote was being fetched, so this is no longer a
+                // clean remote-wins case: both sides have changed. Leave the row PENDING and
+                // return, so the next sync routes it through conflict detection — overwriting
+                // local here would discard the chapter the user just read in favour of a remote
+                // value that predates it.
+                //
+                // The remote snapshot is deliberately NOT advanced. `remoteChanged` is
+                // `remoteEntry.lastChapterRead != syncState.remoteLastChapterRead`, so writing the
+                // freshly-fetched value here would make the next sync compare it against itself,
+                // find them equal, and conclude the remote had not moved. With only `localChanged`
+                // left true that sync would take the clean local-push path and overwrite the very
+                // remote change this branch exists to preserve — no conflict prompt, no error.
+                // Leaving the pre-fetch snapshot in place is what keeps that signal alive.
+                //
+                // `concurrent` already carries PENDING and a fresh `localLastModified` from
+                // recordLocalChange, so there is nothing left to write.
+                return TrackerSyncRepository.SyncResult(true, "Local change pending; sync deferred")
+            }
+
+            val localEntry = trackRepository.getEntry(mangaId, trackerId)
+            val entryToUpsert = (localEntry ?: remoteEntry).copy(
+                lastChapterRead = remoteEntry.lastChapterRead,
+                totalChapters = remoteEntry.totalChapters,
+                status = remoteEntry.status
+            )
+            trackRepository.upsertEntry(entryToUpsert)
             trackerSyncDao.updateSyncState(
-                concurrent.copy(
+                syncState.copy(
+                    localLastChapterRead = remoteEntry.lastChapterRead,
+                    localTotalChapters = remoteEntry.totalChapters,
+                    localStatus = MangaStatus.UNKNOWN.ordinal,
+                    localLastModified = now,
                     remoteLastChapterRead = remoteEntry.lastChapterRead,
                     remoteTotalChapters = remoteEntry.totalChapters,
                     remoteStatus = MangaStatus.UNKNOWN.ordinal,
                     remoteLastModified = now,
-                    syncStatus = SyncStatus.PENDING.ordinal,
+                    syncStatus = SyncStatus.SYNCED.ordinal,
+                    lastSuccessfulSync = now,
                     syncError = null
                 )
             )
-            return TrackerSyncRepository.SyncResult(true, "Remote recorded; local change pending")
         }
-
-        val localEntry = trackRepository.getEntry(mangaId, trackerId)
-        val entryToUpsert = (localEntry ?: remoteEntry).copy(
-            lastChapterRead = remoteEntry.lastChapterRead,
-            totalChapters = remoteEntry.totalChapters,
-            status = remoteEntry.status
-        )
-        trackRepository.upsertEntry(entryToUpsert)
-        trackerSyncDao.updateSyncState(
-            syncState.copy(
-                localLastChapterRead = remoteEntry.lastChapterRead,
-                localTotalChapters = remoteEntry.totalChapters,
-                localStatus = MangaStatus.UNKNOWN.ordinal,
-                localLastModified = now,
-                remoteLastChapterRead = remoteEntry.lastChapterRead,
-                remoteTotalChapters = remoteEntry.totalChapters,
-                remoteStatus = MangaStatus.UNKNOWN.ordinal,
-                remoteLastModified = now,
-                syncStatus = SyncStatus.SYNCED.ordinal,
-                lastSuccessfulSync = now,
-                syncError = null
-            )
-        )
         return null
     }
 
@@ -628,5 +672,11 @@ class TrackerSyncRepositoryImpl @Inject constructor(
     private companion object {
         /** Delay between consecutive tracker syncs in a batch, to respect API rate limits. */
         const val BATCH_SYNC_STAGGER_MS = 350L
+
+        /** Number of [rowLocks] stripes. See [rowLock]. */
+        const val STRIPE_COUNT = 64
+
+        /** Spreads (mangaId, trackerId) pairs across stripes instead of clustering by tracker. */
+        const val PRIME_MULTIPLIER = 31L
     }
 }

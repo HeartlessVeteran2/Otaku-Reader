@@ -53,6 +53,9 @@ interface TrackerSyncDao {
     @Query("DELETE FROM tracker_sync_state WHERE mangaId = :mangaId")
     suspend fun deleteSyncStateForManga(mangaId: Long)
 
+    @Query("DELETE FROM tracker_sync_state WHERE mangaId = :mangaId AND trackerId = :trackerId")
+    suspend fun deleteSyncState(mangaId: Long, trackerId: Int)
+
     // Bulk operations
     @Query("SELECT * FROM tracker_sync_state")
     fun getAllSyncStates(): Flow<List<TrackerSyncStateEntity>>

@@ -15,7 +15,9 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import java.time.Instant
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -143,6 +145,94 @@ class TrackerSyncConcurrentReadTest {
         val saved = slot<TrackerSyncStateEntity>()
         coVerify { trackerSyncDao.updateSyncState(capture(saved)) }
         assertEquals(SyncStatus.SYNCED.ordinal, saved.captured.syncStatus)
+    }
+
+    /**
+     * The remote-wins branch must leave the *pre-fetch* remote snapshot in place.
+     *
+     * `remoteChanged` is `remoteEntry.lastChapterRead != syncState.remoteLastChapterRead`.
+     * Recording the freshly-fetched value when bailing out would make the next sync compare it
+     * against itself, find them equal, and conclude the remote had not moved — leaving only
+     * `localChanged` true, which is the clean local-push path. The remote chapter this branch
+     * exists to preserve would be overwritten with no conflict prompt and no error.
+     *
+     * So the assertion is on the *next* sync's verdict, not on what was written: it has to still
+     * see a conflict.
+     */
+    @Test
+    fun `a read during a remote-wins fetch leaves the next sync able to see the conflict`() = runTest {
+        every { trackManager.get(trackerId) } returns tracker
+        every { tracker.isLoggedIn } returns true
+        coEvery { trackerSyncDao.getSyncConfiguration(trackerId) } returns null
+        // Remote moved to 60 while the stored snapshot still says 50, so remoteChanged is true.
+        coEvery { tracker.find(53390L) } returns entry(lastChapterRead = 60f)
+        coEvery { tracker.update(any()) } returns entry(lastChapterRead = 60f)
+        coEvery { trackRepository.getEntry(mangaId, trackerId) } returns entry(lastChapterRead = 51f)
+
+        // Stateful, deliberately: a `returnsMany` stub would hand pass 2 a canned row no matter
+        // what pass 1 wrote, so the write this test is about would be invisible and the test
+        // would pass with the bug reinstated.
+        var stored = syncState(localLastChapterRead = 50f, localLastModified = baseTime)
+        var reads = 0
+        coEvery { trackerSyncDao.getSyncState(mangaId, trackerId) } answers {
+            reads++
+            // Read 2 is localChangeSince, mid-fetch. Stand in for a recordLocalChange landing
+            // right there.
+            if (reads == 2) {
+                stored = stored.copy(
+                    localLastChapterRead = 51f,
+                    localLastModified = baseTime.plusSeconds(20),
+                )
+            }
+            stored
+        }
+        coEvery { trackerSyncDao.updateSyncState(any()) } answers { stored = firstArg() }
+
+        repository.syncManga(mangaId, trackerId)
+        val second = repository.syncManga(mangaId, trackerId)
+
+        assertEquals(
+            "both sides moved, so the second pass owes the user a conflict rather than a push",
+            true,
+            second.hasConflict,
+        )
+    }
+
+    /**
+     * Two reads finishing at once must not lose the higher one.
+     *
+     * `recordLocalChange` is a read-modify-write: it reads the row, takes
+     * `maxOf(existing.localLastChapterRead, chapterRead)`, and writes it back. Interleaved, both
+     * calls read the same pre-state, and whichever writes *last* wins outright — so a lower
+     * chapter number landing second erases the higher one. The row lock is what makes the pair
+     * atomic.
+     *
+     * The DAO fake snapshots the row and *then* yields. Yielding first and reading afterwards
+     * looks equivalent and is not: the late read observes whatever the other coroutine already
+     * wrote, so both calls see consistent state and the test passes with the lock deleted. The
+     * read has to happen at the moment the caller's read happens.
+     */
+    @Test
+    fun `two concurrent reads do not lose the higher chapter`() = runTest {
+        var stored = syncState(localLastChapterRead = 50f, localLastModified = baseTime)
+        coEvery { trackerSyncDao.getSyncState(mangaId, trackerId) } coAnswers {
+            val snapshot = stored
+            yield()
+            snapshot
+        }
+        coEvery { trackerSyncDao.updateSyncState(any()) } answers {
+            stored = firstArg()
+        }
+        coEvery { trackRepository.getEntry(mangaId, trackerId) } returns null
+
+        // Higher first: without the lock the second call reads the stale 50, takes max(50, 51),
+        // and writes 51 over the 52 that had already landed.
+        val first = launch { repository.recordLocalChange(mangaId, trackerId, 52f, MangaStatus.ONGOING) }
+        val second = launch { repository.recordLocalChange(mangaId, trackerId, 51f, MangaStatus.ONGOING) }
+        first.join()
+        second.join()
+
+        assertEquals(52f, stored.localLastChapterRead, 0f)
     }
 
     @Test
