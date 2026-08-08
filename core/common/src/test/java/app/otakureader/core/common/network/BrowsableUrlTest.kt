@@ -56,23 +56,61 @@ class BrowsableUrlTest {
     }
 
     /**
-     * An authority is not a hostname. These parse with a non-empty authority (`@`, `user@`,
-     * `:8443`) and point nowhere at all — accepted, they became tappable chips with no
-     * destination.
+     * The authority grammar, as a table.
+     *
+     * Four rounds of review each found a different authority that is not a hostname — `@`, then
+     * `:8443`, then `host:abc` — because each fix patched the shape that was named rather than
+     * stating a rule. A table is the shape of the answer: a new case is a row, and the rows sit
+     * next to each other where a gap in the reasoning is visible.
+     *
+     * Each entry is the authority-bearing part of a URL and whether it should be reachable.
      */
-    @Test
-    fun `an authority with no actual host is refused`() {
-        assertFalse("https://@/".isBrowsableHttpUrl())
-        assertFalse("https://@".isBrowsableHttpUrl())
-        assertFalse("https://user@/".isBrowsableHttpUrl())
-        assertFalse("https://:8443/".isBrowsableHttpUrl())
-        assertFalse("https://user:pw@:8443/".isBrowsableHttpUrl())
-    }
+    private val authorityGrammar = listOf(
+        // Ordinary hosts, which URI.getHost() resolves without help.
+        "example.test" to true,
+        "www.example.test" to true,
+        "example.test:8443" to true,
+        "user:pw@example.test" to true,
+        "[::1]" to true,
+        "[::1]:8080" to true,
+        // Internationalised names: getHost() returns null, and the fallback exists for these.
+        "\u4F8B\u3048.\u30C6\u30B9\u30C8" to true,
+        "\u4F8B\u3048.\u30C6\u30B9\u30C8:8443" to true,
+        "user:pw@\u4F8B\u3048.\u30C6\u30B9\u30C8:8443" to true,
+        // Punycode is ordinary ASCII and needs no fallback.
+        "xn--r8jz45g.xn--zckzah" to true,
+        // Authorities that are not hostnames. Each of these shipped as a browsable chip once.
+        "@" to false,
+        "user@" to false,
+        ":8443" to false,
+        "user:pw@:8443" to false,
+        "host:abc" to false,
+        "\u4F8B\u3048.\u30C6\u30B9\u30C8:abc" to false,
+        // Rejected by URI.getHost() and deliberately not rescued by the fallback: the fallback is
+        // for non-ASCII names only, and second-guessing the parser is what caused the earlier
+        // rounds.
+        "host_underscore" to false,
+        "-lead.test" to false,
+    )
 
     @Test
-    fun `a hostless authority has no label either`() {
-        assertNull("https://@/".browsableHostOrNull())
-        assertNull("https://:8443/".browsableHostOrNull())
+    fun `the authority grammar decides what is browsable`() {
+        authorityGrammar.forEach { (authority, expected) ->
+            val url = "https://$authority/p"
+            assertEquals(url, expected, url.isBrowsableHttpUrl())
+        }
+    }
+
+    /**
+     * The predicate and the label must never disagree: one caching a link the other cannot
+     * describe is the bug that sharing `hostnameOrNull` exists to prevent.
+     */
+    @Test
+    fun `anything browsable has a label, and anything unbrowsable has none`() {
+        authorityGrammar.forEach { (authority, expected) ->
+            val url = "https://$authority/p"
+            assertEquals(url, expected, url.browsableHostOrNull() != null)
+        }
     }
 
     /**

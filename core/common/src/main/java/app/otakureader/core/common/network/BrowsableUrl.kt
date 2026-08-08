@@ -29,9 +29,9 @@ import java.net.URISyntaxException
  *
  * The check does not simply require [URI.getHost], which returns null for an internationalised
  * name like `https://例え.テスト` — a perfectly good URL a browser resolves, which that reading
- * would silently drop. Nor does it simply require a non-empty authority, which `https://@/` and
- * `https://:8443/` both satisfy while pointing nowhere. See [hostnameOrNull] for the rule that
- * covers both.
+ * would silently drop. Nor does it simply require a non-empty authority: `https://@/`,
+ * `https://:8443/` and `https://host:abc/` all satisfy that while pointing nowhere. See
+ * [hostnameOrNull] for the rule that covers both directions.
  *
  * [URI] rather than `android.net.Uri` so this stays pure JVM and testable without Robolectric.
  */
@@ -80,15 +80,38 @@ private fun String.parseUriOrNull(): URI? =
  * what counts as a host, one would cache a link the other could not describe. Sharing the
  * extraction makes disagreement impossible rather than merely unlikely.
  *
- * An authority is not a hostname. `https://@/` parses with an authority of `@`, and
- * `https://:8443/` with `:8443` — both non-empty, both pointing nowhere, and both previously
- * accepted as browsable. What survives removing userinfo and port has to be *something*, and must
- * not still start with the colon that introduces a port.
+ * ### [URI.getHost] decides, except for the one case it cannot
+ *
+ * This started as "an authority will do", and each round of review found another authority that is
+ * not a hostname — `@`, then `:8443`, then `host:abc`. Patching those one at a time was the
+ * mistake: the fallback needs a reason to exist, not a list of shapes it rejects.
+ *
+ * The reason is narrow. [URI.getHost] parses RFC 2396 and returns null for a non-ASCII name like
+ * `https://例え.テスト`, which is a URL browsers resolve perfectly well. That is the *only* thing
+ * this fallback is for. Everything else `getHost` refuses — `host_underscore`, `-lead.test`,
+ * `host:abc` — it refuses for a reason, and second-guessing a parser one example at a time is how
+ * the previous three rounds happened.
+ *
+ * So the fallback applies only when the authority actually contains a non-ASCII character, and
+ * only once it is free of every delimiter that would mean it is something other than a bare name.
+ * IPv6 literals never reach here: [URI.getHost] returns them bracketed, as `[::1]`.
  */
 private fun URI.hostnameOrNull(): String? {
-    val raw = host ?: authority?.stripUserInfoAndPort() ?: return null
-    return raw.takeIf { it.isNotEmpty() && !it.startsWith(':') }
+    host?.let { return it }
+    val candidate = authority?.stripUserInfoAndPort() ?: return null
+    val isInternationalised = candidate.any { it.code > MAX_ASCII }
+    val hasDelimiter = candidate.any { it in AUTHORITY_DELIMITERS || it.isWhitespace() }
+    return candidate.takeIf { it.isNotEmpty() && isInternationalised && !hasDelimiter }
 }
+
+/** Above this and a character cannot be part of the ASCII grammar [URI] knows how to parse. */
+private const val MAX_ASCII = 127
+
+/**
+ * Characters that mean an authority is carrying something besides a bare hostname — a port,
+ * userinfo that survived stripping, or a path that was never an authority at all.
+ */
+private val AUTHORITY_DELIMITERS = charArrayOf(':', '@', '/', '?', '#', '[', ']')
 
 /**
  * Turns an authority into a bare hostname.
