@@ -606,6 +606,25 @@ internal val MIGRATION_41_42 = object : Migration(41, 42) {
     }
 }
 
+/**
+ * Adds `characters` and `staff` to `manga_metadata` — the cast and credits carousels.
+ *
+ * Stored as JSON text rather than the parallel delimited columns the tag fields use; see
+ * `DatabaseConverters.fromPersonList` for why. To SQLite that is just TEXT.
+ *
+ * `DEFAULT '[]'` matters twice over. Rows written before this migration need *something* for a
+ * NOT NULL column, and the value has to be one the converter can read back — `''` would work by
+ * accident (the converter short-circuits on empty) but `'[]'` says what it means. It also has to
+ * match the `@ColumnInfo(defaultValue = "[]")` on the entity, because Room compares the default it
+ * expects against the one SQLite reports, and a mismatch fails validation on upgrade only.
+ */
+internal val MIGRATION_42_43 = object : Migration(42, 43) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE manga_metadata ADD COLUMN characters TEXT NOT NULL DEFAULT '[]'")
+        db.execSQL("ALTER TABLE manga_metadata ADD COLUMN staff TEXT NOT NULL DEFAULT '[]'")
+    }
+}
+
 /** All migrations in order, for use in [Room.databaseBuilder] and migration tests. */
 internal val ALL_MIGRATIONS = arrayOf(
     MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6,
@@ -619,4 +638,5 @@ internal val ALL_MIGRATIONS = arrayOf(
     MIGRATION_35_36, MIGRATION_36_37, MIGRATION_37_38, MIGRATION_38_39, MIGRATION_39_40,
     MIGRATION_40_41,
     MIGRATION_41_42,
+    MIGRATION_42_43,
 )

@@ -49,6 +49,10 @@ data class MangaMetadata(
     val endDate: String? = null,
     /** Alternative titles, de-duplicated and stripped of placeholders. */
     val synonyms: List<String> = emptyList(),
+    /** Cast, most prominent first. See [MangaMetadataPerson]. */
+    val characters: List<MangaMetadataPerson> = emptyList(),
+    /** Authors, artists and other credited staff. See [MangaMetadataPerson]. */
+    val staff: List<MangaMetadataPerson> = emptyList(),
     /** When this was fetched, epoch millis — the basis for the TTL. */
     val fetchedAt: Long = 0L,
 )
@@ -68,4 +72,29 @@ data class MangaMetadataTag(
     val name: String,
     /** 0–100. AniList's own community-voted relevance. */
     val rank: Int,
+)
+
+/**
+ * A person credited on a manga — a character in it, or someone who made it.
+ *
+ * One type for both because the data is the same shape: a name, a face, and what they were to
+ * *this* manga. AniList models it the same way, as an edge (the involvement) onto a node (the
+ * person), which is why [role] belongs here and not to some global fact about them.
+ *
+ * ### [role] is stored raw
+ *
+ * For a character it is an AniList enum — `MAIN`, `SUPPORTING`, `BACKGROUND`. For staff it is free
+ * text AniList keeps verbatim, like "Story & Art". The two are deliberately not normalised into
+ * one vocabulary here: prettifying `MAIN` to "Main" on the way in would make it identical to a
+ * staff credit that genuinely reads "Main", and the screen could no longer tell which convention
+ * it was rendering. Callers format it, and they know which list they are holding.
+ */
+@Immutable
+data class MangaMetadataPerson(
+    /** AniList's id for the person, stable across manga. Not the local manga id. */
+    val id: Long,
+    val name: String,
+    val imageUrl: String? = null,
+    /** What they were to this manga. Null when AniList records no role. */
+    val role: String? = null,
 )

@@ -2,7 +2,9 @@ package app.otakureader.data.metadata
 
 import app.otakureader.core.database.dao.MangaMetadataDao
 import app.otakureader.core.database.entity.MangaMetadataEntity
+import app.otakureader.core.database.entity.StoredPerson
 import app.otakureader.domain.model.MangaMetadata
+import app.otakureader.domain.model.MangaMetadataPerson
 import app.otakureader.domain.model.MangaMetadataTag
 import app.otakureader.domain.repository.MangaMetadataRepository
 import app.otakureader.domain.util.PlaceholderTitles
@@ -177,7 +179,32 @@ private fun MetadataMedia.toEntity(mangaId: Long, fetchedAt: Long): MangaMetadat
         startDate = startDate?.toIsoOrNull(),
         endDate = endDate?.toIsoOrNull(),
         synonyms = buildSynonyms(),
+        characters = characters?.edges.orEmpty().toStoredPeople(),
+        staff = staff?.edges.orEmpty().toStoredPeople(),
         fetchedAt = fetchedAt,
+    )
+}
+
+/**
+ * Drops edges with no usable person and keeps the order AniList sorted them into.
+ *
+ * A nameless entry is the one that has to go: the carousel renders a name under each face, and
+ * AniList occasionally returns an edge whose node is null or whose `name.full` is blank. Kept, it
+ * would be an anonymous tile the user cannot act on. A missing *image* is fine and common — that
+ * renders as a placeholder — so it is not a reason to drop the person.
+ *
+ * The list is not re-sorted. `characters` is requested `sort: [ROLE, RELEVANCE]`, which puts the
+ * main cast first, and re-sorting locally would either duplicate that rule or quietly contradict
+ * it.
+ */
+private fun List<MetadataPersonEdge>.toStoredPeople(): List<StoredPerson> = mapNotNull { edge ->
+    val node = edge.node ?: return@mapNotNull null
+    val name = node.name?.full?.trim()?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+    StoredPerson(
+        id = node.id,
+        name = name,
+        imageUrl = node.image?.large,
+        role = edge.role?.trim()?.takeIf { it.isNotEmpty() },
     )
 }
 
@@ -233,5 +260,14 @@ private fun MangaMetadataEntity.toDomain() = MangaMetadata(
     startDate = startDate,
     endDate = endDate,
     synonyms = synonyms,
+    characters = characters.map { it.toDomain() },
+    staff = staff.map { it.toDomain() },
     fetchedAt = fetchedAt,
+)
+
+private fun StoredPerson.toDomain() = MangaMetadataPerson(
+    id = id,
+    name = name,
+    imageUrl = imageUrl,
+    role = role,
 )

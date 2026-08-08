@@ -4,6 +4,18 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
+ * How many characters and staff to ask for.
+ *
+ * A carousel nobody scrolls to the end of does not need the whole cast, and AniList weights query
+ * complexity by requested page size — this query already asks for a lot of one `Media`.
+ *
+ * Interpolated with a plain `$` template, unlike the `${'$'}id` in the query: that one has to reach
+ * the server as a literal dollar because it is a *GraphQL* variable, while this is a Kotlin value
+ * that must be substituted before the query is sent.
+ */
+private const val PEOPLE_PER_PAGE = 25
+
+/**
  * The AniList query behind the details screen, and the shapes it comes back as.
  *
  * Kept apart from `TrackingApis.kt` deliberately. That file describes what the *tracker* needs —
@@ -39,6 +51,12 @@ internal const val METADATA_QUERY = """
         endDate { year month day }
         synonyms
         title { romaji english native userPreferred }
+        characters(perPage: $PEOPLE_PER_PAGE, sort: [ROLE, RELEVANCE]) {
+          edges { role node { id name { full } image { large } } }
+        }
+        staff(perPage: $PEOPLE_PER_PAGE, sort: [RELEVANCE]) {
+          edges { role node { id name { full } image { large } } }
+        }
       }
     }
 """
@@ -76,6 +94,8 @@ data class MetadataMedia(
     val endDate: MetadataDate? = null,
     val synonyms: List<String> = emptyList(),
     val title: MetadataTitle? = null,
+    val characters: MetadataCharacterConnection? = null,
+    val staff: MetadataStaffConnection? = null,
 )
 
 @Serializable
@@ -174,4 +194,51 @@ data class SearchMedia(
     val coverImage: MetadataCoverImage? = null,
     val format: String? = null,
     val startDate: MetadataDate? = null,
+)
+
+/**
+ * AniList returns people through an edge/node connection: the **node** is the person, the **edge**
+ * is their involvement in *this* manga. Role lives on the edge for that reason — the same voice
+ * actor is MAIN here and BACKGROUND there — so it cannot be read off the node.
+ */
+@Serializable
+data class MetadataCharacterConnection(
+    val edges: List<MetadataPersonEdge> = emptyList(),
+)
+
+@Serializable
+data class MetadataStaffConnection(
+    val edges: List<MetadataPersonEdge> = emptyList(),
+)
+
+/**
+ * Characters and staff differ in what `role` *means*, not in shape.
+ *
+ * For a character it is an enum — `MAIN`, `SUPPORTING`, `BACKGROUND`. For staff it is free text
+ * AniList stores verbatim, like "Story & Art" or "Original Creator". Both are carried through
+ * unchanged and interpreted at render, so the cache never stores display strings: prettifying an
+ * enum on the way in would make it indistinguishable from a staff credit that genuinely reads
+ * "Main".
+ */
+@Serializable
+data class MetadataPersonEdge(
+    val role: String? = null,
+    val node: MetadataPersonNode? = null,
+)
+
+@Serializable
+data class MetadataPersonNode(
+    val id: Long = 0,
+    val name: MetadataPersonName? = null,
+    val image: MetadataPersonImage? = null,
+)
+
+@Serializable
+data class MetadataPersonName(
+    val full: String? = null,
+)
+
+@Serializable
+data class MetadataPersonImage(
+    val large: String? = null,
 )
