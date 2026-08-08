@@ -53,6 +53,9 @@ interface TrackerSyncDao {
     @Query("DELETE FROM tracker_sync_state WHERE mangaId = :mangaId")
     suspend fun deleteSyncStateForManga(mangaId: Long)
 
+    @Query("DELETE FROM tracker_sync_state WHERE mangaId = :mangaId AND trackerId = :trackerId")
+    suspend fun deleteSyncState(mangaId: Long, trackerId: Int)
+
     // Bulk operations
     @Query("SELECT * FROM tracker_sync_state")
     fun getAllSyncStates(): Flow<List<TrackerSyncStateEntity>>
@@ -68,4 +71,16 @@ interface TrackerSyncDao {
 
     @Query("UPDATE tracker_sync_state SET syncStatus = 3, syncError = :error WHERE id = :id") // CONFLICT = 3
     suspend fun markSyncConflict(id: Long, error: String?)
+
+    /**
+     * Records a failure without rewriting the rest of the row.
+     *
+     * Callers hold a snapshot read before a network request; writing it back with `@Update` would
+     * carry its stale local columns over a chapter read that landed during the request.
+     */
+    @Query(
+        "UPDATE tracker_sync_state SET syncStatus = :status, lastSyncAttempt = :timestamp, " +
+            "syncError = :error WHERE id = :id"
+    )
+    suspend fun markSyncError(id: Long, status: Int, timestamp: java.time.Instant, error: String?)
 }
