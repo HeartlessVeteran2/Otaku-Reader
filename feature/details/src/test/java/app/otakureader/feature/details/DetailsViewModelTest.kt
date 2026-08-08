@@ -38,6 +38,8 @@ import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -166,6 +168,10 @@ class DetailsViewModelTest {
         every { downloadPreferences.perMangaOverrides } returns flowOf(emptyMap())
         coEvery { mangaRepository.updateChapterFlags(any(), any()) } returns Unit
         every { categoryRepository.getCategories() } returns flowOf(emptyList())
+        // A relaxed mock returns a Flow that never emits, which no Room flow does — and
+        // auto-matching now waits for a first emission from each of its inputs, so leaving this
+        // unstubbed would block on a condition production never has.
+        every { trackRepository.observeEntriesForManga(mangaId) } returns flowOf(emptyList())
         // Result is a value class, which a relaxed mock cannot fabricate — stub it explicitly.
         coEvery { metadataRepository.refreshMetadata(any(), any(), any()) } returns
             Result.success(sampleMetadata)
@@ -1340,6 +1346,9 @@ class DetailsViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         assertFalse("a finished match must leave the spinner off", viewModel.state.value.isMatchingAniList)
+        // Proving the guess was consumed and discarded, not that matching silently never ran —
+        // an absent save is also what a broken invocation produces.
+        coVerify(exactly = 1) { resolveAniListMedia(any(), any()) }
         // Below the accept threshold the matcher is saying it could not separate a work from its
         // sequel. Persisting that attaches a wrong synopsis, tags and score to the manga — all of
         // which look authoritative — so nothing is stored and nothing renders.
@@ -1448,6 +1457,78 @@ class DetailsViewModelTest {
 
         // The whole point of the slice: metadata now reaches manga that are not tracked anywhere.
         coVerify(exactly = 1) { metadataRepository.refreshMetadata(mangaId, 999L, false) }
+    }
+
+    @Test
+    fun autoMatch_stillRunsWhenTheLinkFlowEmitsBeforeTheMangaLoads() = runTest {
+        setUpDefaultMocks()
+        // The failure this guards: both are Room flows launched in init, and launch order does not
+        // fix emission order. If the link's initial null arrives first, a trigger living in that
+        // collector finds no title and gives up — and the link flow never re-emits, so the manga
+        // stays unmatched for the entire screen visit.
+        val mangaFlow = MutableStateFlow<Manga?>(null)
+        every { mangaRepository.getMangaByIdFlow(mangaId) } returns mangaFlow
+        coEvery { resolveAniListMedia(any(), any()) } returns Result.success(match(53390L, confident = true))
+
+        createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 0) { resolveAniListMedia(any(), any()) }
+
+        mangaFlow.value = sampleManga
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 1) { resolveAniListMedia("Attack on Titan", emptyList()) }
+        coVerify(exactly = 1) { linkRepository.saveAutoLink(mangaId, 53390L) }
+    }
+
+    @Test
+    fun autoMatch_waitsForCachedSynonymsBeforeSearching() = runTest {
+        setUpDefaultMocks()
+        // Cached metadata with no link and no tracker entry is a real state — it is what a manga
+        // untracked from AniList after a previous match looks like. Its synonyms are exactly the
+        // fallback search terms ResolveAniListMediaUseCase exists to use, so starting the search
+        // before the metadata flow emits would silently skip them.
+        val metadataFlow = MutableStateFlow<MangaMetadata?>(null)
+        every { metadataRepository.observeMetadata(mangaId) } returns metadataFlow
+        coEvery { resolveAniListMedia(any(), any()) } returns Result.success(null)
+
+        createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // The flow has emitted (null), so matching is free to run with no synonyms — that is the
+        // common first-visit case and correct.
+        coVerify(exactly = 1) { resolveAniListMedia("Attack on Titan", emptyList()) }
+
+        metadataFlow.value = sampleMetadata.copy(synonyms = listOf("Shingeki no Kyojin"))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // And it must not search again on the later emission.
+        coVerify(exactly = 1) { resolveAniListMedia(any(), any()) }
+    }
+
+    @Test
+    fun autoMatch_doesNotStartBeforeEveryInputHasLoaded() = runTest {
+        setUpDefaultMocks()
+        // needsAniListMatch reads null/empty as "nothing here", which is also what an un-emitted
+        // Room flow looks like. Without the loaded flags, a manga that IS tracked on AniList could
+        // be auto-matched purely because the tracker flow had not emitted yet.
+        val entriesFlow = MutableStateFlow<List<TrackEntry>?>(null)
+        every { trackRepository.observeEntriesForManga(mangaId) } returns
+            entriesFlow.filterNotNull()
+        coEvery { resolveAniListMedia(any(), any()) } returns Result.success(match(1L, confident = true))
+
+        createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 0) { resolveAniListMedia(any(), any()) }
+
+        entriesFlow.value = listOf(trackEntry(TrackerType.ANILIST, remoteId = 53390L))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Now that the entries have arrived, the manga turns out to be tracked after all.
+        coVerify(exactly = 0) { resolveAniListMedia(any(), any()) }
+        coVerify(exactly = 0) { linkRepository.saveAutoLink(any(), any()) }
     }
 
     private companion object {

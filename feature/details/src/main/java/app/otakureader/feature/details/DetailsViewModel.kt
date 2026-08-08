@@ -28,6 +28,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -121,6 +124,7 @@ class DetailsViewModel @Inject constructor(
         observeTrackEntries()
         observeMetadata()
         observeAniListLink()
+        observeAniListMatchReadiness()
         loadMangaWebUrl()
         observeCategories()
         loadSourceName()
@@ -308,31 +312,22 @@ class DetailsViewModel @Inject constructor(
     private fun observeTrackEntries() {
         trackRepository.observeEntriesForManga(mangaId)
             .onEach { entries ->
-                _state.update { it.copy(trackEntries = entries) }
+                _state.update { it.copy(trackEntries = entries, hasLoadedTrackEntries = true) }
                 _state.value.anilistMediaId?.let { requestMetadataRefresh(it, force = false) }
             }
             .launchIn(viewModelScope)
     }
 
-    /**
-     * Watches the stored AniList link, and kicks off auto-matching when there is nothing to watch.
-     *
-     * Matching is attempted at most once per screen, guarded by [hasAttemptedMatch], because a
-     * search that legitimately finds nothing leaves the link null — so without the guard every
-     * later emission of this flow would search again. That is one AniList search per re-emission
-     * for any manga AniList has never heard of, against a rate limit that can hold a response for
-     * 90 seconds.
-     */
+    /** Watches the stored AniList link. Matching is triggered by [observeAniListMatchReadiness]. */
     private fun observeAniListLink() {
         linkRepository.observeLink(mangaId)
             .onEach { link ->
-                _state.update { it.copy(anilistLink = link) }
+                _state.update { it.copy(anilistLink = link, hasLoadedLink = true) }
                 // A stored link is a media id like any other, so it has to drive the metadata
                 // fetch too — otherwise an untracked manga would resolve its id and then never
                 // fetch anything with it, which is the entire point of the slice. Harmless to
                 // call alongside observeTrackEntries: requestMetadataRefresh is guarded per id.
                 _state.value.anilistMediaId?.let { requestMetadataRefresh(it, force = false) }
-                if (_state.value.needsAniListMatch) matchAniListMedia()
             }
             .launchIn(viewModelScope)
     }
@@ -349,12 +344,31 @@ class DetailsViewModel @Inject constructor(
      * a first visit there are none, which is the common case and fine — they exist to rescue a
      * retry after a source renames something.
      */
+    /**
+     * Starts auto-matching the moment every input it reads has loaded and none supplied an id.
+     *
+     * Collecting [state] rather than any one source flow is what makes this correct: readiness is a
+     * function of four independently-collected values, so whichever of them completes last is the
+     * one that has to fire the trigger — and only a derived check knows which that was.
+     *
+     * `distinctUntilChanged` keeps this to the single transition into readiness, and
+     * [hasAttemptedMatch] holds the line afterwards: a search that legitimately finds nothing
+     * leaves the link null, so readiness stays true and every later state change would otherwise
+     * search again — one AniList request per emission for a manga AniList has never heard of.
+     */
+    private fun observeAniListMatchReadiness() {
+        state
+            .map { it.isReadyToMatchAniList }
+            .distinctUntilChanged()
+            .filter { it }
+            .onEach { matchAniListMedia() }
+            .launchIn(viewModelScope)
+    }
+
     private fun matchAniListMedia() {
         if (hasAttemptedMatch) return
-        val manga = _state.value.manga ?: return
-        // Set only once a title is actually in hand. Claiming the attempt before the manga has
-        // loaded would burn the one try on an empty search and never look again.
         hasAttemptedMatch = true
+        val manga = _state.value.manga ?: return
         viewModelScope.launch {
             _state.update { it.copy(isMatchingAniList = true) }
             try {
@@ -386,7 +400,7 @@ class DetailsViewModel @Inject constructor(
      */
     private fun observeMetadata() {
         metadataRepository.observeMetadata(mangaId)
-            .onEach { metadata -> _state.update { it.copy(cachedMetadata = metadata) } }
+            .onEach { metadata -> _state.update { it.copy(cachedMetadata = metadata, hasLoadedMetadata = true) } }
             .launchIn(viewModelScope)
     }
 

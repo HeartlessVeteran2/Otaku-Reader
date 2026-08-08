@@ -96,6 +96,16 @@ object DetailsContract {
         val anilistLink: AniListLink? = null,
         /** True while auto-matching is searching AniList for this manga's media id. */
         val isMatchingAniList: Boolean = false,
+        /**
+         * Whether each input that auto-matching depends on has produced its first value yet.
+         *
+         * These exist because `null` and `emptyList()` are ambiguous: they mean both "not loaded"
+         * and "loaded, and there is nothing". Auto-matching has to tell those apart, or it decides
+         * a manga is untracked and unlinked purely because two Room flows had not emitted yet.
+         */
+        val hasLoadedTrackEntries: Boolean = false,
+        val hasLoadedLink: Boolean = false,
+        val hasLoadedMetadata: Boolean = false,
         /** Full web URL for this manga (source baseUrl + manga url). Null for local sources. */
         val mangaWebUrl: String? = null,
         /** Display name of the manga's source, shown next to the status (Komikku parity). */
@@ -145,6 +155,30 @@ object DetailsContract {
          */
         val needsAniListMatch: Boolean
             get() = trackEntries.none { it.trackerId == TrackerType.ANILIST } && anilistLink == null
+
+        /**
+         * Whether auto-matching can start: every input it reads has loaded, and none supplied an id.
+         *
+         * Derived rather than checked inside one collector, and that is the whole point. Matching
+         * reads four independently-collected things — the manga, the tracker entries, the stored
+         * link and the cached synonyms — and a trigger living in any single collector fires on
+         * whatever that one emitted, whether or not the others have. Two concrete failures:
+         *
+         * - The link flow emits its initial `null` before `manga` loads. A trigger in that
+         *   collector finds no title, gives up, and nothing calls it again — the link flow has no
+         *   reason to re-emit — so the manga stays unmatched for the whole screen visit.
+         * - The metadata flow emits after matching starts, so [MangaMetadata.synonyms] are empty at
+         *   search time and the fallback searches that exist to rescue a renamed source never run.
+         *
+         * Gating on all four first-emissions costs nothing: every one is a Room flow, so each is
+         * guaranteed to emit exactly once up front.
+         */
+        val isReadyToMatchAniList: Boolean
+            get() = manga != null &&
+                hasLoadedTrackEntries &&
+                hasLoadedLink &&
+                hasLoadedMetadata &&
+                needsAniListMatch
 
         /**
          * The cached metadata, but only when it still describes the media this manga is linked to.
