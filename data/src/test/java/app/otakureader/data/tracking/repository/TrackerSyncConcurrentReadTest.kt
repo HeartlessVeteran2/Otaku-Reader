@@ -235,6 +235,67 @@ class TrackerSyncConcurrentReadTest {
         assertEquals(52f, stored.localLastChapterRead, 0f)
     }
 
+    /**
+     * Unlinking mid-fetch must not bring the link back.
+     *
+     * `applyRemoteToLocal` upserts `localEntry ?: remoteEntry` — a fallback meant for "tracked on
+     * the service, no local row yet". After an unlink, `getEntry` also returns null, so the
+     * fallback fired and recreated the entry from the fetched remote value: the manga reappeared
+     * as tracked moments after the user removed it. A deleted row is a third state, not an
+     * unchanged one.
+     */
+    @Test
+    fun `unlinking during a remote fetch does not resurrect the entry`() = runTest {
+        every { trackManager.get(trackerId) } returns tracker
+        every { tracker.isLoggedIn } returns true
+        coEvery { trackerSyncDao.getSyncConfiguration(trackerId) } returns null
+        coEvery { tracker.find(53390L) } returns entry(lastChapterRead = 60f)
+        // No local entry, exactly as after deleteEntry — this is what armed the fallback.
+        coEvery { trackRepository.getEntry(mangaId, trackerId) } returns null
+
+        coEvery { trackerSyncDao.getSyncState(mangaId, trackerId) } returnsMany listOf(
+            // Routes to the remote-wins branch: localChanged false, remoteChanged true.
+            syncState(localLastChapterRead = 50f, localLastModified = baseTime),
+            // The unlink landed during tracker.find, taking the sync-state row with it.
+            null,
+        )
+
+        val result = repository.syncManga(mangaId, trackerId)
+
+        coVerify(exactly = 0) { trackRepository.upsertEntry(any()) }
+        coVerify(exactly = 0) { trackerSyncDao.updateSyncState(any()) }
+        assertEquals("an unlinked tracker did not sync, so do not claim it did", false, result.success)
+    }
+
+    /**
+     * The no-op path reaches the same lost update by a different route.
+     *
+     * When neither side changed as of the snapshot, `syncManga` calls `markSyncSuccess`, which
+     * advances `lastSuccessfulSync` and sets SYNCED. `localChanged` is
+     * `localLastModified > lastSuccessfulSync`, so doing that to a row a chapter read has just
+     * marked PENDING drops the read: the next sync sees nothing to send.
+     */
+    @Test
+    fun `a read during a no-op sync is not flipped back to synced`() = runTest {
+        every { trackManager.get(trackerId) } returns tracker
+        every { tracker.isLoggedIn } returns true
+        coEvery { trackerSyncDao.getSyncConfiguration(trackerId) } returns null
+        // Remote matches the stored snapshot, so remoteChanged is false; localLastModified equals
+        // lastSuccessfulSync, so localChanged is false. Nothing to sync.
+        coEvery { tracker.find(53390L) } returns entry(lastChapterRead = 50f)
+        coEvery { trackRepository.getEntry(mangaId, trackerId) } returns entry(lastChapterRead = 50f)
+
+        coEvery { trackerSyncDao.getSyncState(mangaId, trackerId) } returnsMany listOf(
+            syncState(localLastChapterRead = 50f, localLastModified = baseTime),
+            // A chapter finished while the remote was being fetched.
+            syncState(localLastChapterRead = 51f, localLastModified = baseTime.plusSeconds(20)),
+        )
+
+        repository.syncManga(mangaId, trackerId)
+
+        coVerify(exactly = 0) { trackerSyncDao.markSyncSuccess(any(), any(), any()) }
+    }
+
     @Test
     fun `pushing with no local entry reports failure rather than silent success`() = runTest {
         stubLoggedInTracker()
