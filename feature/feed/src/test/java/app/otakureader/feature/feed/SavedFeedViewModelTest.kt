@@ -84,6 +84,49 @@ class SavedFeedViewModelTest {
         assertEquals(listOf("Local"), viewModel.state.value.availableSources.map { it.name })
     }
 
+    /**
+     * A row written by the old free-text sheet holds a hash of the *name*, which matches no
+     * source. It must not suppress the real source in the picker — the user would be stuck with
+     * an unusable row and no way to add the working one — and it has to be visibly marked, or it
+     * renders identically to a row that works.
+     *
+     * The same marking covers a source whose extension was simply uninstalled. The two are
+     * indistinguishable from the row alone, and "delete it" is the right action for both.
+     */
+    @Test
+    fun `a row whose key matches no installed source is flagged and does not block re-adding`() =
+        runTest(testDispatcher) {
+            val legacy = FeedSource(
+                sourceId = "MangaDex".hashCode().toLong(),
+                sourceName = "MangaDex",
+            )
+            every { feedRepository.getFeedSources() } returns flowOf(listOf(legacy))
+            every { sourceRepository.getSources() } returns flowOf(listOf(source(MANGADEX_ID, "MangaDex")))
+
+            val viewModel = createViewModel()
+            advanceUntilIdle()
+
+            assertEquals(listOf(false), viewModel.state.value.sources.map { it.isInstalled })
+            // The real source stays addable, keyed canonically — the legacy row is not treated
+            // as though it already covered it.
+            assertEquals(
+                listOf(MANGADEX_ID.toSourceId()),
+                viewModel.state.value.availableSources.map { it.sourceId },
+            )
+        }
+
+    @Test
+    fun `a row backed by an installed source is not flagged`() = runTest(testDispatcher) {
+        val added = FeedSource(sourceId = MANGADEX_ID.toSourceId(), sourceName = "MangaDex")
+        every { feedRepository.getFeedSources() } returns flowOf(listOf(added))
+        every { sourceRepository.getSources() } returns flowOf(listOf(source(MANGADEX_ID, "MangaDex")))
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        assertEquals(listOf(true), viewModel.state.value.sources.map { it.isInstalled })
+    }
+
     @Test
     fun `removing a source puts it back on offer`() = runTest(testDispatcher) {
         val feedSources = MutableStateFlow(

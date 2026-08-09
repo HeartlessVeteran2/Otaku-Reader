@@ -20,8 +20,23 @@ data class FeedSourceOption(
     val lang: String,
 )
 
+/**
+ * A row in the feed's source list, plus whether an installed source actually owns its key.
+ *
+ * [isInstalled] is false in two cases that cannot be told apart from the row alone: the source's
+ * extension has been uninstalled, or the row is a leftover from when the sheet hashed free text
+ * into an id (which matched no source, then or now). Both are dead weight the user can only act
+ * on if the UI admits it, and the right action — delete it — is the same either way, so they are
+ * shown identically rather than guessed between.
+ */
+@Immutable
+data class SavedFeedSourceRow(
+    val source: FeedSource,
+    val isInstalled: Boolean,
+)
+
 data class SavedFeedState(
-    val sources: List<FeedSource> = emptyList(),
+    val sources: List<SavedFeedSourceRow> = emptyList(),
     /**
      * Installed sources not already in the feed.
      *
@@ -29,6 +44,11 @@ data class SavedFeedState(
      * `OnConflictStrategy.REPLACE` against a unique index on `sourceId`, so re-adding a source
      * deletes the existing row and inserts a fresh one — silently resetting the user's enabled
      * toggle, item count and ordering back to defaults.
+     *
+     * A legacy row keyed off a hashed *name* does not suppress its source here, because its key
+     * matches nothing — so the source stays addable, which is what the user wants. The legacy row
+     * is surfaced separately as not-installed rather than deduplicated away, since matching it by
+     * display name would be the same guessing that produced it.
      */
     val availableSources: List<FeedSourceOption> = emptyList(),
     val isLoading: Boolean = false,

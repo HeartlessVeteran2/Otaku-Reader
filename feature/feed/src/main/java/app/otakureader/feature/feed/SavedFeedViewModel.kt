@@ -38,14 +38,19 @@ class SavedFeedViewModel @Inject constructor(
             feedRepository.getFeedSources(),
             sourceRepository.getSources(),
         ) { feedSources, installed ->
+            val installedKeys = installed.mapTo(mutableSetOf()) { it.id.toSourceId() }
             val alreadyAdded = feedSources.mapTo(mutableSetOf()) { it.sourceId }
-            feedSources to installed
+            val rows = feedSources.map {
+                SavedFeedSourceRow(source = it, isInstalled = it.sourceId in installedKeys)
+            }
+            val available = installed
                 .map { FeedSourceOption(it.id.toSourceId(), it.name, it.lang) }
                 .filterNot { it.sourceId in alreadyAdded }
                 .sortedBy { it.name.lowercase() }
+            rows to available
         }
-            .onEach { (feedSources, available) ->
-                _state.value = SavedFeedState(sources = feedSources, availableSources = available)
+            .onEach { (rows, available) ->
+                _state.value = SavedFeedState(sources = rows, availableSources = available)
             }
             .launchIn(viewModelScope)
     }

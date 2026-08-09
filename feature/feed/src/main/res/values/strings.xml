@@ -15,6 +15,7 @@
     <string name="feed_add_source">Add source</string>
     <string name="feed_remove_source">Remove source</string>
     <string name="feed_search_sources">Search sources</string>
+    <string name="feed_source_not_installed">Source not installed — remove it or install the extension</string>
     <string name="feed_no_available_sources">All installed sources are already in your feed. Install more from Browse → Extensions.</string>
     <string name="feed_cancel">Cancel</string>
     <string name="feed_add">Add</string>
