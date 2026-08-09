@@ -114,9 +114,10 @@ fun SavedFeedScreen(
 
     if (showAddSheet) {
         FeedBuilderBottomSheet(
+            availableSources = state.availableSources,
             onDismiss = { showAddSheet = false },
-            onAddSource = { sourceName ->
-                viewModel.onEvent(SavedFeedEvent.AddSource(sourceName))
+            onAddSource = { source ->
+                viewModel.onEvent(SavedFeedEvent.AddSource(source.sourceId, source.name))
                 showAddSheet = false
             }
         )
