@@ -131,7 +131,7 @@ Otaku-Reader/
 - Bookmarks screen: page-level bookmarks, collection filtering, multi-select, export (PR #1130)
 - History screen
 - Statistics screen
-- Feed screen (activity from followed manga)
+- Feed screen — new chapters from library updates. `LibraryUpdateWorker` writes the rows (`FeedRepository.addFeedItems`); before that nothing anywhere inserted a `FeedItemEntity`, so the tab was permanently empty while `FeedRefreshWorker` purged rows older than 30 days that never arrived. The screen reads `getFeedItems(limit)` **unfiltered by feed source**, so the `feed_sources` table does not gate what is shown (see #1251 for the separate `SavedFeedViewModel.addSource` bug, which hashes user-typed text into a source id that can never match a real source).
 - First-run Onboarding wizard
 - About screen (version, credits, links)
 - Update Errors screen (PR #1119/#1205; dedicated screen with sticky-header grouping by error message, long-press multi-select, migrate-selected — replaces the original dialog) — reachable from the More tab entry or the badge icon on the Updates screen's top bar

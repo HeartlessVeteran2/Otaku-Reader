@@ -19,6 +19,15 @@ interface FeedRepository {
     suspend fun updateFeedSourceItemCount(sourceId: Long, count: Int)
 
     // Feed Content
+    /**
+     * Records chapters that have just arrived, so the feed has something to show.
+     *
+     * The interface had no writer at all until now: `FeedRefreshWorker` purged items older than
+     * thirty days and nothing ever inserted one, so the tab rendered an empty list permanently.
+     * Callers pass items with `id = 0`; Room assigns the real one.
+     */
+    suspend fun addFeedItems(items: List<FeedItem>)
+
     fun getFeedItems(limit: Int = 100): Flow<List<FeedItem>>
     fun getFeedItemsForSource(sourceId: Long, limit: Int = 20): Flow<List<FeedItem>>
     suspend fun refreshFeed()

@@ -14,6 +14,9 @@ import app.otakureader.core.database.dao.UpdateRunSummaryDao
 import app.otakureader.core.preferences.NotificationPreferences
 import app.otakureader.data.download.DownloadManager
 import app.otakureader.domain.model.Chapter
+import java.time.Instant
+import app.otakureader.domain.model.FeedItem
+import app.otakureader.domain.repository.FeedRepository
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.repository.CategoryRepository
@@ -27,11 +30,13 @@ import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
+import io.mockk.slot
 import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -51,6 +56,28 @@ class LibraryUpdateWorkerTest {
     private lateinit var workerParams: WorkerParameters
     private lateinit var getLibraryManga: GetLibraryMangaUseCase
     private lateinit var updateLibraryManga: UpdateLibraryMangaUseCase
+    // Initialised here rather than in setUp, which is at detekt's length limit. JUnit builds a
+    // fresh test instance per method, so this is still isolated between tests.
+    private val feedRepository: FeedRepository = mockk(relaxed = true)
+
+    /**
+     * [count] chapters that stand in for whatever the update found.
+     *
+     * The use case returns the chapters now, not a count, because the feed has to name what
+     * arrived. These tests only care how many, so the contents are placeholders — but they have to
+     * be real [Chapter]s, since a size is no longer enough to express the result.
+     */
+    private fun newChapters(count: Int): List<Chapter> = List(count) { index ->
+        Chapter(
+            id = index + 1L,
+            mangaId = 1L,
+            url = "/chapter-${index + 1}",
+            name = "Chapter ${index + 1}",
+            chapterNumber = (index + 1).toFloat(),
+            dateUpload = 0L,
+            dateFetch = 0L,
+        )
+    }
     private lateinit var downloadPreferences: DownloadPreferences
     private lateinit var generalPreferences: GeneralPreferences
     private lateinit var libraryPreferences: LibraryPreferences
@@ -183,7 +210,97 @@ class LibraryUpdateWorkerTest {
             updateErrorDao,
             libraryUpdateFilter,
             sourceRepository,
+            feedRepository,
         )
+    }
+
+    // -------------------------------------------------------------------------
+    // Feed Writing
+    // -------------------------------------------------------------------------
+
+    /**
+     * The Feed tab was empty permanently: `FeedRefreshWorker` purged rows older than thirty days
+     * and nothing anywhere inserted one. `FeedRepository` did not even expose a writer. This is the
+     * test that says the tab has content at all.
+     */
+    @Test
+    fun `new chapters are recorded in the feed`() = runTest {
+        coEvery { getLibraryManga() } returns flowOf(listOf(testManga1))
+        coEvery { updateLibraryManga(testManga1) } returns Result.success(newChapters(2))
+        coEvery { sourceRepository.getSource(testManga1.sourceId.toString()) } returns
+            mockk { every { name } returns "MangaDex" }
+
+        worker.doWork()
+
+        val captured = slot<List<FeedItem>>()
+        coVerify { feedRepository.addFeedItems(capture(captured)) }
+        assertEquals(2, captured.captured.size)
+        assertEquals(testManga1.title, captured.captured.first().mangaTitle)
+        assertEquals("MangaDex", captured.captured.first().sourceName)
+        // The real chapter id, not the 0 the use case builds before Room assigns one — a feed row
+        // that cannot open its chapter is not much of a feed row.
+        assertEquals(1L, captured.captured.first().chapterId)
+    }
+
+    @Test
+    fun `an update that finds nothing writes no feed items`() = runTest {
+        coEvery { getLibraryManga() } returns flowOf(listOf(testManga1))
+        coEvery { updateLibraryManga(testManga1) } returns Result.success(emptyList())
+
+        worker.doWork()
+
+        coVerify(exactly = 0) { feedRepository.addFeedItems(any()) }
+    }
+
+    /**
+     * An extension can be uninstalled while its manga stay in the library. The chapter still
+     * arrived, so the row is kept with the id as its label rather than dropped.
+     */
+    @Test
+    fun `a chapter from an uninstalled source still reaches the feed`() = runTest {
+        coEvery { getLibraryManga() } returns flowOf(listOf(testManga1))
+        coEvery { updateLibraryManga(testManga1) } returns Result.success(newChapters(1))
+        coEvery { sourceRepository.getSource(any()) } returns null
+
+        worker.doWork()
+
+        val captured = slot<List<FeedItem>>()
+        coVerify { feedRepository.addFeedItems(capture(captured)) }
+        assertEquals(testManga1.sourceId.toString(), captured.captured.single().sourceName)
+    }
+
+    /**
+     * The feed is ordered by timestamp, so an undated chapter reported as 0 would be pinned to
+     * 1970 and buried under everything else.
+     */
+    @Test
+    fun `an undated chapter is stamped now rather than 1970`() = runTest {
+        coEvery { getLibraryManga() } returns flowOf(listOf(testManga1))
+        coEvery { updateLibraryManga(testManga1) } returns Result.success(newChapters(1))
+
+        worker.doWork()
+
+        val captured = slot<List<FeedItem>>()
+        coVerify { feedRepository.addFeedItems(capture(captured)) }
+        assertTrue(
+            "a zero dateUpload must not become the epoch",
+            captured.captured.single().timestamp.isAfter(Instant.now().minusSeconds(60)),
+        )
+    }
+
+    /**
+     * A feed row is a nicety; the auto-download pass that follows it is not. Failing the whole
+     * update because a secondary write failed would trade a real feature for a cosmetic one.
+     */
+    @Test
+    fun `a feed write failure does not fail the library update`() = runTest {
+        coEvery { getLibraryManga() } returns flowOf(listOf(testManga1))
+        coEvery { updateLibraryManga(testManga1) } returns Result.success(newChapters(1))
+        coEvery { feedRepository.addFeedItems(any()) } throws RuntimeException("disk full")
+
+        val result = worker.doWork()
+
+        assertTrue(result is ListenableWorker.Result.Success)
     }
 
     // -------------------------------------------------------------------------
@@ -211,8 +328,8 @@ class LibraryUpdateWorkerTest {
     fun `doWork updates all library manga successfully`() = runTest {
         // Given
         coEvery { getLibraryManga() } returns flowOf(listOf(testManga1, testManga2))
-        coEvery { updateLibraryManga(testManga1) } returns Result.success(2)
-        coEvery { updateLibraryManga(testManga2) } returns Result.success(1)
+        coEvery { updateLibraryManga(testManga1) } returns Result.success(newChapters(2))
+        coEvery { updateLibraryManga(testManga2) } returns Result.success(newChapters(1))
 
         // When
         val result = worker.doWork()
@@ -228,9 +345,9 @@ class LibraryUpdateWorkerTest {
         // Given
         val manga3 = testManga1.copy(id = 3L, title = "Manga 3")
         coEvery { getLibraryManga() } returns flowOf(listOf(testManga1, testManga2, manga3))
-        coEvery { updateLibraryManga(testManga1) } returns Result.success(1)
+        coEvery { updateLibraryManga(testManga1) } returns Result.success(newChapters(1))
         coEvery { updateLibraryManga(testManga2) } returns Result.failure(Exception("Network error"))
-        coEvery { updateLibraryManga(manga3) } returns Result.success(3)
+        coEvery { updateLibraryManga(manga3) } returns Result.success(newChapters(3))
 
         // When
         val result = worker.doWork()
@@ -262,7 +379,7 @@ class LibraryUpdateWorkerTest {
         // Given
         every { generalPreferences.notificationsEnabled } returns flowOf(false)
         coEvery { getLibraryManga() } returns flowOf(listOf(testManga1))
-        coEvery { updateLibraryManga(testManga1) } returns Result.success(5) // 5 new chapters
+        coEvery { updateLibraryManga(testManga1) } returns Result.success(newChapters(5)) // 5 new chapters
 
         // When
         val result = worker.doWork()
@@ -278,7 +395,7 @@ class LibraryUpdateWorkerTest {
         // Given
         every { generalPreferences.notificationsEnabled } returns flowOf(true)
         coEvery { getLibraryManga() } returns flowOf(listOf(testManga1))
-        coEvery { updateLibraryManga(testManga1) } returns Result.success(3)
+        coEvery { updateLibraryManga(testManga1) } returns Result.success(newChapters(3))
 
         // When
         val result = worker.doWork()
@@ -293,8 +410,8 @@ class LibraryUpdateWorkerTest {
         // Given - testManga1 has notifyNewChapters=true, testManga2 has notifyNewChapters=false
         every { generalPreferences.notificationsEnabled } returns flowOf(true)
         coEvery { getLibraryManga() } returns flowOf(listOf(testManga1, testManga2))
-        coEvery { updateLibraryManga(testManga1) } returns Result.success(2)
-        coEvery { updateLibraryManga(testManga2) } returns Result.success(1)
+        coEvery { updateLibraryManga(testManga1) } returns Result.success(newChapters(2))
+        coEvery { updateLibraryManga(testManga2) } returns Result.success(newChapters(1))
 
         // When
         val result = worker.doWork()
@@ -313,7 +430,7 @@ class LibraryUpdateWorkerTest {
         // Given
         every { downloadPreferences.autoDownloadEnabled } returns flowOf(false)
         coEvery { getLibraryManga() } returns flowOf(listOf(testManga1))
-        coEvery { updateLibraryManga(testManga1) } returns Result.success(2)
+        coEvery { updateLibraryManga(testManga1) } returns Result.success(newChapters(2))
 
         // When
         val result = worker.doWork()
@@ -332,7 +449,7 @@ class LibraryUpdateWorkerTest {
         every { networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) } returns true
 
         coEvery { getLibraryManga() } returns flowOf(listOf(testManga1))
-        coEvery { updateLibraryManga(testManga1) } returns Result.success(3)
+        coEvery { updateLibraryManga(testManga1) } returns Result.success(newChapters(3))
         coEvery { chapterRepository.getChaptersByMangaId(testManga1.id) } returns flowOf(
             listOf(
                 testChapter.copy(id = 1L, chapterNumber = 3.0f, read = false),
@@ -357,7 +474,7 @@ class LibraryUpdateWorkerTest {
         every { networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) } returns false
 
         coEvery { getLibraryManga() } returns flowOf(listOf(testManga1))
-        coEvery { updateLibraryManga(testManga1) } returns Result.success(2)
+        coEvery { updateLibraryManga(testManga1) } returns Result.success(newChapters(2))
 
         // When
         val result = worker.doWork()
@@ -376,7 +493,7 @@ class LibraryUpdateWorkerTest {
         every { networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) } returns false
 
         coEvery { getLibraryManga() } returns flowOf(listOf(testManga1))
-        coEvery { updateLibraryManga(testManga1) } returns Result.success(1)
+        coEvery { updateLibraryManga(testManga1) } returns Result.success(newChapters(1))
         coEvery { chapterRepository.getChaptersByMangaId(testManga1.id) } returns flowOf(
             listOf(testChapter.copy(read = false))
         )
@@ -397,8 +514,8 @@ class LibraryUpdateWorkerTest {
         every { downloadPreferences.autoDownloadLimit } returns flowOf(5)
 
         coEvery { getLibraryManga() } returns flowOf(listOf(testManga1, testManga2))
-        coEvery { updateLibraryManga(testManga1) } returns Result.success(2)
-        coEvery { updateLibraryManga(testManga2) } returns Result.success(1)
+        coEvery { updateLibraryManga(testManga1) } returns Result.success(newChapters(2))
+        coEvery { updateLibraryManga(testManga2) } returns Result.success(newChapters(1))
 
         coEvery { chapterRepository.getChaptersByMangaId(testManga2.id) } returns flowOf(
             listOf(testChapter.copy(id = 10L, mangaId = 2L, read = false))
@@ -420,7 +537,7 @@ class LibraryUpdateWorkerTest {
         every { downloadPreferences.autoDownloadLimit } returns flowOf(10)
 
         coEvery { getLibraryManga() } returns flowOf(listOf(testManga1))
-        coEvery { updateLibraryManga(testManga1) } returns Result.success(4)
+        coEvery { updateLibraryManga(testManga1) } returns Result.success(newChapters(4))
         coEvery { chapterRepository.getChaptersByMangaId(testManga1.id) } returns flowOf(
             listOf(
                 testChapter.copy(id = 1L, chapterNumber = 4.0f, read = false),
@@ -446,7 +563,7 @@ class LibraryUpdateWorkerTest {
         every { downloadPreferences.autoDownloadLimit } returns flowOf(2)
 
         coEvery { getLibraryManga() } returns flowOf(listOf(testManga1))
-        coEvery { updateLibraryManga(testManga1) } returns Result.success(3)
+        coEvery { updateLibraryManga(testManga1) } returns Result.success(newChapters(3))
         coEvery { chapterRepository.getChaptersByMangaId(testManga1.id) } returns flowOf(
             listOf(
                 testChapter.copy(id = 1L, chapterNumber = 1.0f, read = false),
@@ -477,7 +594,7 @@ class LibraryUpdateWorkerTest {
         every { downloadPreferences.autoDownloadEnabled } returns flowOf(true)
         every { downloadPreferences.downloadOnlyOnWifi } returns flowOf(true)
         coEvery { getLibraryManga() } returns flowOf(listOf(testManga1))
-        coEvery { updateLibraryManga(testManga1) } returns Result.success(1)
+        coEvery { updateLibraryManga(testManga1) } returns Result.success(newChapters(1))
 
         // When
         val result = worker.doWork()
@@ -495,7 +612,7 @@ class LibraryUpdateWorkerTest {
         every { downloadPreferences.downloadOnlyOnWifi } returns flowOf(true)
 
         coEvery { getLibraryManga() } returns flowOf(listOf(testManga1))
-        coEvery { updateLibraryManga(testManga1) } returns Result.success(1)
+        coEvery { updateLibraryManga(testManga1) } returns Result.success(newChapters(1))
 
         // When
         val result = worker.doWork()
@@ -513,7 +630,7 @@ class LibraryUpdateWorkerTest {
         every { downloadPreferences.downloadOnlyOnWifi } returns flowOf(true)
 
         coEvery { getLibraryManga() } returns flowOf(listOf(testManga1))
-        coEvery { updateLibraryManga(testManga1) } returns Result.success(1)
+        coEvery { updateLibraryManga(testManga1) } returns Result.success(newChapters(1))
 
         // When
         val result = worker.doWork()
@@ -548,7 +665,7 @@ class LibraryUpdateWorkerTest {
     fun `doWork clears a previously recorded error when the manga updates successfully`() = runTest {
         // Given
         coEvery { getLibraryManga() } returns flowOf(listOf(testManga1))
-        coEvery { updateLibraryManga(testManga1) } returns Result.success(1)
+        coEvery { updateLibraryManga(testManga1) } returns Result.success(newChapters(1))
 
         // When
         worker.doWork()
@@ -582,7 +699,7 @@ class LibraryUpdateWorkerTest {
         every { downloadPreferences.autoDownloadLimit } returns flowOf(1)
 
         coEvery { getLibraryManga() } returns flowOf(listOf(testManga1))
-        coEvery { updateLibraryManga(testManga1) } returns Result.success(1)
+        coEvery { updateLibraryManga(testManga1) } returns Result.success(newChapters(1))
         coEvery { chapterRepository.getChaptersByMangaId(testManga1.id) } returns flowOf(
             listOf(testChapter.copy(read = false))
         )
@@ -622,7 +739,7 @@ class LibraryUpdateWorkerTest {
         every { networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) } returns true
 
         coEvery { getLibraryManga() } returns flowOf(listOf(testManga1))
-        coEvery { updateLibraryManga(testManga1) } returns Result.success(0)
+        coEvery { updateLibraryManga(testManga1) } returns Result.success(newChapters(0))
 
         // When
         val result = worker.doWork()
@@ -639,7 +756,7 @@ class LibraryUpdateWorkerTest {
         every { networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) } returns false
 
         coEvery { getLibraryManga() } returns flowOf(listOf(testManga1))
-        coEvery { updateLibraryManga(testManga1) } returns Result.success(1)
+        coEvery { updateLibraryManga(testManga1) } returns Result.success(newChapters(1))
 
         // When
         val result = worker.doWork()

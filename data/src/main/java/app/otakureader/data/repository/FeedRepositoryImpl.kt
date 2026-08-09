@@ -53,6 +53,11 @@ class FeedRepositoryImpl @Inject constructor(
 
     // Feed Content
 
+    override suspend fun addFeedItems(items: List<FeedItem>) {
+        if (items.isEmpty()) return
+        feedDao.insertFeedItems(items.map { it.toEntity() })
+    }
+
     override fun getFeedItems(limit: Int): Flow<List<FeedItem>> =
         feedDao.getFeedItems(limit).map { entities -> entities.map { it.toDomain() } }
 
@@ -130,6 +135,24 @@ private fun FeedSourceEntity.toDomain(): FeedSource = FeedSource(
     isEnabled = isEnabled,
     itemCount = itemCount,
     order = order
+)
+
+/**
+ * `id` is deliberately not carried across. A new item always has `id = 0` so Room autogenerates
+ * one; passing a caller-supplied id through would let `OnConflictStrategy.REPLACE` overwrite an
+ * unrelated row that happened to hold that id.
+ */
+private fun FeedItem.toEntity(): FeedItemEntity = FeedItemEntity(
+    mangaId = mangaId,
+    mangaTitle = mangaTitle,
+    mangaThumbnailUrl = mangaThumbnailUrl,
+    chapterId = chapterId,
+    chapterName = chapterName,
+    chapterNumber = chapterNumber,
+    sourceId = sourceId,
+    sourceName = sourceName,
+    timestamp = timestamp,
+    isRead = isRead,
 )
 
 private fun FeedItemEntity.toDomain(): FeedItem = FeedItem(

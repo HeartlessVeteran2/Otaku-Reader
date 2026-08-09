@@ -22,7 +22,12 @@ import app.otakureader.core.preferences.LibraryPreferences
 import app.otakureader.data.download.ChapterDownloadRequest
 import app.otakureader.data.download.DownloadManager
 import app.otakureader.domain.repository.ChapterRepository
+import app.otakureader.domain.model.Chapter
+import app.otakureader.domain.model.FeedItem
+import app.otakureader.domain.model.Manga
+import app.otakureader.domain.repository.FeedRepository
 import app.otakureader.domain.repository.SourceRepository
+import java.time.Instant
 import app.otakureader.domain.repository.resolveDownloadFolderName
 import app.otakureader.domain.usecase.GetLibraryMangaUseCase
 import app.otakureader.domain.usecase.UpdateLibraryMangaUseCase
@@ -53,6 +58,7 @@ class LibraryUpdateWorker @AssistedInject constructor(
     private val updateErrorDao: UpdateErrorDao,
     private val libraryUpdateFilter: LibraryUpdateFilter,
     private val sourceRepository: SourceRepository,
+    private val feedRepository: FeedRepository,
 ) : CoroutineWorker(context, workerParams) {
 
     @Suppress("LongMethod", "CyclomaticComplexMethod", "CognitiveComplexMethod")
@@ -133,7 +139,8 @@ class LibraryUpdateWorker @AssistedInject constructor(
 
                 val result = updateLibraryManga(manga)
 
-                result.onSuccess { newChapterCount ->
+                result.onSuccess { newChapters ->
+                    val newChapterCount = newChapters.size
                     // Clear any previously recorded failure now that this manga updated fine.
                     try {
                         updateErrorDao.deleteByMangaId(manga.id)
@@ -153,6 +160,18 @@ class LibraryUpdateWorker @AssistedInject constructor(
                                 )
                             )
                         }
+                    }
+
+                    // Record the arrivals in the feed. This is the only thing that has ever
+                    // written a feed item: FeedRefreshWorker purges rows older than thirty days
+                    // and nothing inserted one, so the tab showed an empty list permanently.
+                    //
+                    // Guarded rather than left to throw. A feed row is a nicety; failing the whole
+                    // library update — and losing the auto-download pass below with it — because a
+                    // secondary write failed would trade a real feature for a cosmetic one.
+                    if (newChapterCount > 0) {
+                        runCatching { recordFeedItems(manga, newChapters) }
+                            .onFailure { Log.w(TAG, "Could not record feed items for ${manga.id}", it) }
                     }
 
                     // Auto-download new chapters if conditions are met.
@@ -309,6 +328,41 @@ class LibraryUpdateWorker @AssistedInject constructor(
         val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
 
         return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+    }
+
+    /**
+     * Turns freshly-arrived chapters into feed rows.
+     *
+     * The source *name* is looked up rather than derived from the id, because the feed shows it to
+     * the user and a numeric id is not a name. A source that is no longer installed yields null —
+     * an extension can be uninstalled while its manga stay in the library — so the id is shown
+     * instead of dropping the row: the chapter genuinely arrived, and hiding it because its
+     * extension went away would be a worse answer than an unfamiliar label.
+     *
+     * `dateUpload` is the timestamp, falling back to now. The feed is ordered by it, and a source
+     * that reports 0 for an undated chapter would otherwise pin that row to 1970 and bury it.
+     */
+    private suspend fun recordFeedItems(manga: Manga, newChapters: List<Chapter>) {
+        val sourceName = sourceRepository.getSource(manga.sourceId.toString())?.name
+            ?: manga.sourceId.toString()
+        val now = Instant.now()
+        feedRepository.addFeedItems(
+            newChapters.map { chapter ->
+                FeedItem(
+                    mangaId = manga.id,
+                    mangaTitle = manga.title,
+                    mangaThumbnailUrl = manga.thumbnailUrl,
+                    chapterId = chapter.id,
+                    chapterName = chapter.name,
+                    chapterNumber = chapter.chapterNumber,
+                    sourceId = manga.sourceId,
+                    sourceName = sourceName,
+                    timestamp = chapter.dateUpload.takeIf { it > 0 }
+                        ?.let(Instant::ofEpochMilli)
+                        ?: now,
+                )
+            }
+        )
     }
 
     companion object {
