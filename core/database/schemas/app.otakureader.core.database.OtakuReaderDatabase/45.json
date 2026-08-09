@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 45,
-    "identityHash": "d84be6f532acc52e5dee778b3e419cea",
+    "identityHash": "8e79a35de489bfaf3378071c75552e97",
     "entities": [
       {
         "tableName": "manga",
@@ -779,6 +779,16 @@
             ],
             "orders": [],
             "createSql": "CREATE INDEX IF NOT EXISTS `index_feed_items_mangaId` ON `${TABLE_NAME}` (`mangaId`)"
+          },
+          {
+            "name": "index_feed_items_mangaId_chapterId",
+            "unique": true,
+            "columnNames": [
+              "mangaId",
+              "chapterId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_feed_items_mangaId_chapterId` ON `${TABLE_NAME}` (`mangaId`, `chapterId`)"
           }
         ]
       },
@@ -1632,7 +1642,7 @@
       },
       {
         "tableName": "manga_feature_cache",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`mangaId` INTEGER NOT NULL, `title` TEXT NOT NULL, `thumbnailUrl` TEXT, `sourceId` INTEGER NOT NULL, `genresJson` TEXT NOT NULL, `score` REAL NOT NULL, `lastComputed` INTEGER NOT NULL, `anilistId` INTEGER, `becauseOf` TEXT, `sharedTagsJson` TEXT NOT NULL DEFAULT '[]', PRIMARY KEY(`mangaId`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`mangaId` INTEGER NOT NULL, `title` TEXT NOT NULL, `thumbnailUrl` TEXT, `sourceId` INTEGER NOT NULL, `genresJson` TEXT NOT NULL, `score` REAL NOT NULL, `lastComputed` INTEGER NOT NULL, PRIMARY KEY(`mangaId`))",
         "fields": [
           {
             "fieldPath": "mangaId",
@@ -1674,23 +1684,6 @@
             "columnName": "lastComputed",
             "affinity": "INTEGER",
             "notNull": true
-          },
-          {
-            "fieldPath": "anilistId",
-            "columnName": "anilistId",
-            "affinity": "INTEGER"
-          },
-          {
-            "fieldPath": "becauseOf",
-            "columnName": "becauseOf",
-            "affinity": "TEXT"
-          },
-          {
-            "fieldPath": "sharedTagsJson",
-            "columnName": "sharedTagsJson",
-            "affinity": "TEXT",
-            "notNull": true,
-            "defaultValue": "'[]'"
           }
         ],
         "primaryKey": {
@@ -2402,7 +2395,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'd84be6f532acc52e5dee778b3e419cea')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '8e79a35de489bfaf3378071c75552e97')"
     ]
   }
 }

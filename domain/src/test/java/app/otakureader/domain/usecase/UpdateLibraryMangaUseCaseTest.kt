@@ -72,7 +72,13 @@ class UpdateLibraryMangaUseCaseTest {
         val result = useCase(testManga)
 
         assertTrue(result.isSuccess)
+        // The size alone is the old count assertion wearing a new name. The point of returning
+        // chapters is that a caller can say *which* arrived, so that is what this checks.
         assertEquals(2, result.getOrNull()?.size)
+        assertEquals(
+            listOf("/c/2", "/c/3"),
+            result.getOrNull()?.map { it.url },
+        )
         coVerify(exactly = 1) { chapterRepository.insertChapters(any()) }
     }
 

@@ -8,12 +8,29 @@ import java.time.Instant
 /**
  * Entity for feed items - latest chapters from various sources.
  */
+/**
+ * A chapter that has arrived, for the Feed tab.
+ *
+ * ### `(mangaId, chapterId)` is unique
+ *
+ * A manual library update and the periodic one are separate WorkManager unique-work names
+ * (`library_update` and `library_update_periodic`), so they can run at the same time. Both can read
+ * the stored chapter list before either inserts, both then see the same chapter as new, and both
+ * try to record it.
+ *
+ * `chapters` already defends against exactly this with a unique `(mangaId, url)` index — the race
+ * is not hypothetical, it is one the schema has already conceded. Without the same constraint here
+ * a duplicated chapter is *persistent*: two rows in the feed, both consuming its limited window.
+ * Serializing the workers would also fix it, but a database constraint cannot be undone by a
+ * timing change somewhere else.
+ */
 @Entity(
     tableName = "feed_items",
     indices = [
         Index(value = ["sourceId"]),
         Index(value = ["timestamp"]),
-        Index(value = ["mangaId"])
+        Index(value = ["mangaId"]),
+        Index(value = ["mangaId", "chapterId"], unique = true)
     ]
 )
 data class FeedItemEntity(

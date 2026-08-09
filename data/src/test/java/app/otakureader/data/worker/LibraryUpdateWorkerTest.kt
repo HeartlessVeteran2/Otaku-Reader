@@ -33,6 +33,7 @@ import io.mockk.runs
 import io.mockk.slot
 import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -67,6 +68,8 @@ class LibraryUpdateWorkerTest {
      * arrived. These tests only care how many, so the contents are placeholders — but they have to
      * be real [Chapter]s, since a size is no longer enough to express the result.
      */
+    private val timestampToleranceSeconds = 60L
+
     private fun newChapters(count: Int): List<Chapter> = List(count) { index ->
         Chapter(
             id = index + 1L,
@@ -282,9 +285,16 @@ class LibraryUpdateWorkerTest {
 
         val captured = slot<List<FeedItem>>()
         coVerify { feedRepository.addFeedItems(capture(captured)) }
+        // Bounded both ways. A lower bound alone passes for any non-zero stamp, including a
+        // far-future one, which is not what "stamped now" means.
+        val timestamp = captured.captured.single().timestamp
         assertTrue(
             "a zero dateUpload must not become the epoch",
-            captured.captured.single().timestamp.isAfter(Instant.now().minusSeconds(60)),
+            timestamp.isAfter(Instant.now().minusSeconds(timestampToleranceSeconds)),
+        )
+        assertTrue(
+            "a zero dateUpload must be stamped now, not some other non-zero value",
+            timestamp.isBefore(Instant.now().plusSeconds(timestampToleranceSeconds)),
         )
     }
 
@@ -301,6 +311,28 @@ class LibraryUpdateWorkerTest {
         val result = worker.doWork()
 
         assertTrue(result is ListenableWorker.Result.Success)
+    }
+
+    /**
+     * Cancellation is not an ordinary failure, and the guard above must not treat it as one.
+     *
+     * `runCatching` caught it, which let a cancelled update carry on into the auto-download pass
+     * instead of stopping — the same rule this codebase applies at every other catch site.
+     */
+    @Test
+    fun `cancellation during a feed write is not swallowed`() = runTest {
+        coEvery { getLibraryManga() } returns flowOf(listOf(testManga1))
+        coEvery { updateLibraryManga(testManga1) } returns Result.success(newChapters(1))
+        coEvery { feedRepository.addFeedItems(any()) } throws CancellationException("cancelled")
+
+        var propagated = false
+        try {
+            worker.doWork()
+        } catch (e: CancellationException) {
+            propagated = true
+        }
+
+        assertTrue("a cancelled update must stop, not continue as a success", propagated)
     }
 
     // -------------------------------------------------------------------------

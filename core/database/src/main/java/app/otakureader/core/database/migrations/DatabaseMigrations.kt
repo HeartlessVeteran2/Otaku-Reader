@@ -638,6 +638,31 @@ internal val MIGRATION_43_44 = object : Migration(43, 44) {
     }
 }
 
+/**
+ * Makes a feed row unique per `(mangaId, chapterId)`.
+ *
+ * Nothing has ever written a `feed_items` row in a shipped build — the writer landed with this
+ * change — so in practice there is nothing to deduplicate. The DELETE runs anyway: a unique index
+ * fails to create if the table holds a violation, and a migration that throws on a device somebody
+ * managed to get rows onto is a far worse outcome than one redundant statement. It keeps the
+ * lowest `id` per pair, which is the first recording and the one whose `isRead` reflects reality.
+ */
+internal val MIGRATION_44_45 = object : Migration(44, 45) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            DELETE FROM feed_items WHERE id NOT IN (
+                SELECT MIN(id) FROM feed_items GROUP BY mangaId, chapterId
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS index_feed_items_mangaId_chapterId " +
+                "ON feed_items (mangaId, chapterId)"
+        )
+    }
+}
+
 /** All migrations in order, for use in [Room.databaseBuilder] and migration tests. */
 internal val ALL_MIGRATIONS = arrayOf(
     MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6,
@@ -653,4 +678,5 @@ internal val ALL_MIGRATIONS = arrayOf(
     MIGRATION_41_42,
     MIGRATION_42_43,
     MIGRATION_43_44,
+    MIGRATION_44_45,
 )

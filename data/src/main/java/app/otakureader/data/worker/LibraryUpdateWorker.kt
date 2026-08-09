@@ -170,8 +170,16 @@ class LibraryUpdateWorker @AssistedInject constructor(
                     // library update — and losing the auto-download pass below with it — because a
                     // secondary write failed would trade a real feature for a cosmetic one.
                     if (newChapterCount > 0) {
-                        runCatching { recordFeedItems(manga, newChapters) }
-                            .onFailure { Log.w(TAG, "Could not record feed items for ${manga.id}", it) }
+                        try {
+                            recordFeedItems(manga, newChapters)
+                        } catch (e: CancellationException) {
+                            // Not an ordinary failure. runCatching swallowed this, which let a
+                            // cancelled update carry on into the auto-download pass below instead
+                            // of stopping.
+                            throw e
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Could not record feed items for ${manga.id}", e)
+                        }
                     }
 
                     // Auto-download new chapters if conditions are met.
