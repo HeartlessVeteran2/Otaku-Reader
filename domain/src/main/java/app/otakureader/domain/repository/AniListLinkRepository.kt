@@ -9,8 +9,10 @@ import kotlinx.coroutines.flow.Flow
  * ### Why this is not part of [MangaMetadataRepository]
  *
  * Same reason the tables are separate: that one owns a seven-day cache whose whole contract is that
- * it can be thrown away and refetched. A link written by the user cannot be. Sharing an interface
- * would invite a future `clearMetadata` to take the correction with it.
+ * it can be thrown away and refetched: a fetch overwrites the row wholesale, and one happens as
+ * soon as the row goes stale or the AniList id changes. A link written by the user cannot be
+ * treated that way, and sharing an interface would invite some future cache-wide operation to take
+ * the correction with it.
  */
 interface AniListLinkRepository {
 
@@ -40,6 +42,4 @@ interface AniListLinkRepository {
      */
     suspend fun saveUserLink(mangaId: Long, anilistId: Long)
 
-    /** Forget the link entirely, so the next visit re-matches from scratch. */
-    suspend fun clearLink(mangaId: Long)
 }

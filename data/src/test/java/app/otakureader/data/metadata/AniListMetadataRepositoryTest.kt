@@ -255,38 +255,6 @@ class AniListMetadataRepositoryTest {
         assertEquals(listOf(11L, 99L), fetchOrder.toList())
     }
 
-    @Test
-    fun `a clear cannot be undone by a refresh that was already in flight`() = runTest {
-        // Same race from the other side: the user corrects a wrong match, which clears the row,
-        // while a refresh for the old id is mid-fetch. Without the shared lock its upsert lands
-        // after the delete and silently repopulates what the user just discarded.
-        val fetchStarted = CompletableDeferred<Unit>()
-        val releaseFetch = CompletableDeferred<Unit>()
-        val calls = Collections.synchronizedList(mutableListOf<String>())
-
-        coEvery { dao.getByMangaId(1L) } returns null
-        coEvery { dao.upsert(any()) } answers { calls += "upsert" }
-        coEvery { dao.deleteByMangaId(1L) } answers { calls += "delete" }
-        coEvery { api.fetch(11L) } coAnswers {
-            fetchStarted.complete(Unit)
-            releaseFetch.await()
-            MetadataResponse(data = MetadataData(media = media(id = 11L)))
-        }
-
-        val refresh = launch { repository.refreshMetadata(mangaId = 1L, anilistId = 11L) }
-        fetchStarted.await()
-        val clear = launch { repository.clearMetadata(1L) }
-        runCurrent()
-
-        releaseFetch.complete(Unit)
-        refresh.join()
-        clear.join()
-
-        // The delete runs after the upsert rather than being overwritten by it — the row the user
-        // discarded stays discarded.
-        assertEquals(listOf("upsert", "delete"), calls.toList())
-    }
-
     // ── Mapping ──────────────────────────────────────────────────────────────
 
     @Test

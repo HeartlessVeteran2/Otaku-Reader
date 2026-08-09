@@ -117,16 +117,6 @@ class AniListLinkRepositoryImplTest {
     }
 
     @Test
-    fun `clearLink forgets the link so the next visit re-matches`() = runTest {
-        val repository = AniListLinkRepositoryImpl(FakeLinkDao())
-        repository.saveUserLink(mangaId, 53390L)
-
-        repository.clearLink(mangaId)
-
-        assertNull(repository.getLink(mangaId))
-    }
-
-    @Test
     fun `links for different manga do not interfere`() = runTest {
         // Locks are striped, so two ids can share a mutex. That may cost parallelism; it must never
         // cost correctness.
