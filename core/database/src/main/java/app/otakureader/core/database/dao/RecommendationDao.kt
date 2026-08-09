@@ -21,7 +21,4 @@ interface RecommendationDao {
 
     @Query("DELETE FROM manga_feature_cache")
     suspend fun deleteAll()
-
-    @Query("DELETE FROM manga_feature_cache WHERE mangaId = :mangaId")
-    suspend fun deleteById(mangaId: Long)
 }

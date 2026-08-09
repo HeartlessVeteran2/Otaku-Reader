@@ -664,6 +664,51 @@ internal val MIGRATION_44_45 = object : Migration(44, 45) {
     }
 }
 
+/**
+ * Rebuilds `manga_feature_cache` so a recommendation need not be a manga the database already has.
+ *
+ * The old table had `mangaId` as its primary key. AniList's own recommendation edges name a media
+ * id and nothing local, so they cannot supply one; `mangaId` and `sourceId` become nullable and
+ * `anilistId` joins them.
+ *
+ * SQLite cannot alter a primary key, so this drops and recreates. That is honest here rather than
+ * destructive: the table is a derived cache that `RecommendationWorker` rebuilds wholesale on a
+ * weekly cadence and that `refreshRecommendations` already clears with `deleteAll()` on every run.
+ * Nothing in it is user data, and the only cost is an empty carousel until the next refresh —
+ * cheaper than copying rows that the very next run discards.
+ *
+ * The unique indices are declared here and on the entity; Room validates them against each other
+ * on upgrade, so a mismatch fails on an existing install while a fresh one passes.
+ */
+internal val MIGRATION_45_46 = object : Migration(45, 46) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("DROP TABLE IF EXISTS manga_feature_cache")
+        db.execSQL(
+            """
+            CREATE TABLE manga_feature_cache (
+                id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                mangaId INTEGER,
+                anilistId INTEGER,
+                title TEXT NOT NULL,
+                thumbnailUrl TEXT,
+                sourceId INTEGER,
+                genresJson TEXT NOT NULL,
+                score REAL NOT NULL,
+                lastComputed INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS index_manga_feature_cache_mangaId " +
+                "ON manga_feature_cache (mangaId)"
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS index_manga_feature_cache_anilistId " +
+                "ON manga_feature_cache (anilistId)"
+        )
+    }
+}
+
 /** All migrations in order, for use in [Room.databaseBuilder] and migration tests. */
 internal val ALL_MIGRATIONS = arrayOf(
     MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6,
@@ -680,4 +725,5 @@ internal val ALL_MIGRATIONS = arrayOf(
     MIGRATION_42_43,
     MIGRATION_43_44,
     MIGRATION_44_45,
+    MIGRATION_45_46,
 )

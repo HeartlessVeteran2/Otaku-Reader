@@ -73,10 +73,6 @@ class RecommendationRepositoryImpl @Inject constructor(
         if (scored.isNotEmpty()) recommendationDao.upsertAll(scored)
     }
 
-    override suspend fun dismissRecommendation(mangaId: Long) {
-        recommendationDao.deleteById(mangaId)
-    }
-
     private suspend fun seedCandidatesFromSources(libraryManga: List<Manga>) {
         // Seed from the sources the user's own library came from. These are the stored `Long`
         // keys, so each has to be resolved back to a real source id — stringifying the key
