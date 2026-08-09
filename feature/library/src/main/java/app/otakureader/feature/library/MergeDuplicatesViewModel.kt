@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.domain.repository.SourceRepository
-import app.otakureader.sourceapi.toSourceId
+import app.otakureader.domain.repository.associateBySourceKey
 import app.otakureader.domain.usecase.FillMissingChaptersUseCase
 import app.otakureader.domain.usecase.LinkAlternativeSourceUseCase
 import app.otakureader.domain.usecase.MergeDuplicateMangaUseCase
@@ -82,13 +82,11 @@ class MergeDuplicatesViewModel @Inject constructor(
     private fun observeSourceNames() {
         sourceRepository.getSources()
             .onEach { sources ->
-                val names = sources.associate { source ->
-                    // The canonical key, matching what manga rows store. This used to parse the
-                    // id as a number and only fall back to hashing when that failed, so numeric
-                    // (APK) sources were keyed one way and everything else another — and the
-                    // numeric ones, which are most of them, never matched a manga row at all.
-                    source.id.toSourceId() to source.name
-                }
+                // Indexed by every key a manga row can hold, matching getSourceByKey. This used
+                // to parse the id as a number and only fall back to hashing when that failed, so
+                // numeric (APK) sources were keyed one way and everything else another — and the
+                // numeric ones, which are most of them, never matched a manga row at all.
+                val names = sources.associateBySourceKey { it.id }.mapValues { (_, s) -> s.name }
                 _state.update { it.copy(sourceNames = names) }
             }
             .launchIn(viewModelScope)

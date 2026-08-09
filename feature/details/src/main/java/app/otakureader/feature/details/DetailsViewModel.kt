@@ -41,7 +41,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import app.otakureader.domain.repository.SourceRepository
-import app.otakureader.domain.repository.resolveDownloadFolderName
+import app.otakureader.domain.repository.downloadFolderNameFor
 import app.otakureader.domain.repository.resolveSourceId
 import app.otakureader.domain.tracking.TrackRepository
 import app.otakureader.domain.tracking.Tracker
@@ -1070,7 +1070,7 @@ class DetailsViewModel @Inject constructor(
             val manga = _state.value.manga
             val chapters = _state.value.chapters.filter { selectedIds.contains(it.id) }
             val mangaTitle = manga?.title ?: "Manga"
-            val sourceName = manga?.sourceId?.let { sourceRepository.resolveDownloadFolderName(it) } ?: ""
+            val sourceName = manga?.sourceId?.let { downloadFolderNameFor(it) } ?: ""
 
             val enqueuedCount = try {
                 enqueueChapters(chapters, sourceName, mangaTitle)
@@ -1095,7 +1095,7 @@ class DetailsViewModel @Inject constructor(
             val chapters = _state.value.chapters.filter { selectedIds.contains(it.id) }
 
             if (manga != null) {
-                val sourceName = sourceRepository.resolveDownloadFolderName(manga.sourceId)
+                val sourceName = downloadFolderNameFor(manga.sourceId)
                 chapters.forEach { chapter ->
                     downloadRepository.deleteChapterDownload(
                         chapterId = chapter.id,
@@ -1176,7 +1176,7 @@ class DetailsViewModel @Inject constructor(
             val chapter = _state.value.chapters.firstOrNull { it.id == chapterId }
             val manga = _state.value.manga
             val mangaTitle = manga?.title ?: "Manga"
-            val sourceName = manga?.sourceId?.let { sourceRepository.resolveDownloadFolderName(it) } ?: ""
+            val sourceName = manga?.sourceId?.let { downloadFolderNameFor(it) } ?: ""
 
             if (chapter != null) {
                 try {
@@ -1202,7 +1202,7 @@ class DetailsViewModel @Inject constructor(
     private fun downloadAllChapters(unreadOnly: Boolean) {
         viewModelScope.launch {
             val manga = _state.value.manga ?: return@launch
-            val sourceName = sourceRepository.resolveDownloadFolderName(manga.sourceId)
+            val sourceName = downloadFolderNameFor(manga.sourceId)
             val chapters = if (unreadOnly) {
                 _state.value.chapters.filter { !it.read }
             } else {
@@ -1270,7 +1270,7 @@ class DetailsViewModel @Inject constructor(
                 } else {
                     downloadRepository.deleteChapterDownload(
                         chapterId = chapterId,
-                        sourceName = sourceRepository.resolveDownloadFolderName(manga.sourceId),
+                        sourceName = downloadFolderNameFor(manga.sourceId),
                         mangaTitle = manga.title,
                         chapterTitle = chapter.name
                     )
@@ -1293,7 +1293,7 @@ class DetailsViewModel @Inject constructor(
                 return@launch
             }
             downloadRepository.exportChapterAsCbz(
-                sourceName = sourceRepository.resolveDownloadFolderName(manga.sourceId),
+                sourceName = downloadFolderNameFor(manga.sourceId),
                 mangaTitle = manga.title,
                 chapterTitle = chapter.name
             ).fold(
@@ -1364,7 +1364,7 @@ class DetailsViewModel @Inject constructor(
             val manga = _state.value.manga ?: return@launch
             _effect.send(
                 DetailsContract.Effect.OpenDownloadFolder(
-                    sourceName = sourceRepository.resolveDownloadFolderName(manga.sourceId),
+                    sourceName = downloadFolderNameFor(manga.sourceId),
                     mangaTitle = manga.title,
                 )
             )
@@ -1384,7 +1384,7 @@ class DetailsViewModel @Inject constructor(
                 return@launch
             }
             var cleared = 0
-            val sourceName = sourceRepository.resolveDownloadFolderName(manga.sourceId)
+            val sourceName = downloadFolderNameFor(manga.sourceId)
             downloadedChapters.forEach { chapter ->
                 try {
                     downloadRepository.deleteChapterDownload(

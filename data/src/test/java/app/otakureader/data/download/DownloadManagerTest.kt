@@ -10,7 +10,7 @@ import app.otakureader.domain.model.DownloadStatus
 import app.otakureader.domain.model.DownloadPriority
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.repository.ChapterRepository
-import app.otakureader.domain.repository.MangaRepository
+import app.otakureader.core.database.dao.MangaDao
 import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.sourceapi.Page
 import io.mockk.coEvery
@@ -46,7 +46,7 @@ class DownloadManagerTest {
     private lateinit var downloadQueueDao: DownloadQueueDao
     private lateinit var chapterRepository: ChapterRepository
     private lateinit var sourceRepository: SourceRepository
-    private lateinit var mangaRepository: MangaRepository
+    private lateinit var mangaDao: MangaDao
     private lateinit var downloadManager: DownloadManager
 
     private val testRequest = ChapterDownloadRequest(
@@ -86,7 +86,7 @@ class DownloadManagerTest {
         // tests override these stubs to exercise the successful-resolution path.
         chapterRepository = mockk { coEvery { getChapterById(any()) } returns null }
         sourceRepository = mockk(relaxed = true)
-        mangaRepository = mockk(relaxed = true)
+        mangaDao = mockk(relaxed = true)
 
         downloadManager = DownloadManager(
             context,
@@ -97,7 +97,7 @@ class DownloadManagerTest {
             downloadQueueDao,
             chapterRepository,
             sourceRepository,
-            mangaRepository,
+            mangaDao,
             TestScope(testDispatcher)
         )
     }
@@ -437,6 +437,27 @@ class DownloadManagerTest {
     // -------------------------------------------------------------------------
 
     @Test
+    fun `enqueue with empty pageUrls fails cleanly when no source owns the manga's key`() =
+        runTest(testDispatcher) {
+            coEvery { chapterRepository.getChapterById(testRequest.chapterId) } returns Chapter(
+                id = testRequest.chapterId,
+                mangaId = testRequest.mangaId,
+                url = "/chapter/1",
+                name = testRequest.chapterTitle,
+            )
+            coEvery { mangaDao.getMangaById(testRequest.mangaId) } returns mockk(relaxed = true) {
+                every { sourceId } returns SOURCE_KEY
+            }
+            coEvery { sourceRepository.getSourceByKey(SOURCE_KEY) } returns null
+
+            downloadManager.enqueue(testRequest.copy(pageUrls = emptyList()))
+            advanceUntilIdle()
+
+            coVerify(exactly = 0) { sourceRepository.getPageList(any(), any()) }
+            coVerify(exactly = 0) { downloader.downloadPage(any(), any()) }
+        }
+
+    @Test
     fun `enqueue with empty pageUrls resolves pages from the source and downloads`() = runTest(testDispatcher) {
         // Given - the chapter exists and the source returns a page list
         coEvery { chapterRepository.getChapterById(testRequest.chapterId) } returns Chapter(
@@ -445,7 +466,17 @@ class DownloadManagerTest {
             url = "/chapter/1",
             name = testRequest.chapterTitle,
         )
-        coEvery { sourceRepository.getPageList(any(), any()) } returns Result.success(
+        // The source is resolved from the manga's stored key, not from `request.sourceName` —
+        // that is the download folder name. Stubbed concretely rather than left to the relaxed
+        // mock, which hands back a source whose id is "" and would let this pass without the
+        // resolution working at all.
+        coEvery { mangaDao.getMangaById(testRequest.mangaId) } returns mockk(relaxed = true) {
+            every { sourceId } returns SOURCE_KEY
+        }
+        coEvery { sourceRepository.getSourceByKey(SOURCE_KEY) } returns mockk(relaxed = true) {
+            every { id } returns RESOLVED_SOURCE_ID
+        }
+        coEvery { sourceRepository.getPageList(RESOLVED_SOURCE_ID, any()) } returns Result.success(
             listOf(Page(index = 0, imageUrl = "https://example.com/resolved-page1.jpg"))
         )
 
@@ -455,6 +486,8 @@ class DownloadManagerTest {
 
         // Then - pages were resolved, downloaded, and persisted for restore
         coVerify { downloader.downloadPage("https://example.com/resolved-page1.jpg", any()) }
+        // The folder name is not a source id; passing it as one is the bug this guards.
+        coVerify(exactly = 0) { sourceRepository.getPageList(testRequest.sourceName, any()) }
         coVerify { downloadQueueDao.updatePageUrls(testRequest.chapterId, any()) }
     }
 
@@ -865,5 +898,12 @@ class DownloadManagerTest {
         assertEquals(1, downloads.size)
         assertEquals(DownloadStatus.FAILED, downloads[0].status)
     }
-}
 
+    private companion object {
+        /** The hashed key a manga row stores. */
+        const val SOURCE_KEY = -1874553621L
+
+        /** The source's own id, which is what a source call needs. */
+        const val RESOLVED_SOURCE_ID = "2499283573021220255"
+    }
+}

@@ -16,8 +16,7 @@ import app.otakureader.domain.download.selectChapterToDeleteAfterRead
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.MangaRepository
-import app.otakureader.domain.repository.SourceRepository
-import app.otakureader.domain.repository.resolveDownloadFolderName
+import app.otakureader.domain.repository.downloadFolderNameFor
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.CancellationException
@@ -44,7 +43,6 @@ class RecordReadingHistoryWorker @AssistedInject constructor(
     private val downloadPreferences: DownloadPreferences,
     private val downloadRepository: DownloadRepository,
     private val mangaRepository: MangaRepository,
-    private val sourceRepository: SourceRepository,
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
@@ -129,7 +127,7 @@ class RecordReadingHistoryWorker @AssistedInject constructor(
                 slots = slots,
             )
         } ?: return
-        val downloadFolderName = sourceRepository.resolveDownloadFolderName(manga.sourceId)
+        val downloadFolderName = downloadFolderNameFor(manga.sourceId)
         if (!downloadRepository.isChapterDownloaded(downloadFolderName, manga.title, chapter.name)) return
 
         downloadRepository.deleteChapterDownload(

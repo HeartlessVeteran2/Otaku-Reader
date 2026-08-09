@@ -77,7 +77,7 @@ class ReaderViewModelTest {
 
     /**
      * The download folder name, which is the numeric key and stays so — see
-     * `resolveDownloadFolderName`. Deliberately different from [testResolvedSourceId]: the two
+     * `downloadFolderNameFor`. Deliberately different from [testResolvedSourceId]: the two
      * were the same string while source resolution was broken, and one variable was doing both
      * jobs.
      */
@@ -285,7 +285,6 @@ class ReaderViewModelTest {
             deleteAfterReadDelegate = ReaderDeleteAfterReadDelegate(
                 downloadPreferences = downloadPreferences,
                 downloadRepository = downloadRepository,
-                sourceRepository = sourceRepository,
                 chapterRepository = chapterRepository,
                 mangaRepository = mangaRepository,
             ),

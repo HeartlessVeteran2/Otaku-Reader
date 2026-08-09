@@ -3,6 +3,7 @@ package app.otakureader.domain.repository
 import app.otakureader.sourceapi.FilterList
 import app.otakureader.sourceapi.MangaPage
 import app.otakureader.sourceapi.MangaSource
+import app.otakureader.sourceapi.toSourceId
 import app.otakureader.sourceapi.SourceChapter
 import app.otakureader.sourceapi.SourceManga
 import kotlinx.coroutines.flow.Flow
@@ -90,17 +91,38 @@ interface SourceRepository {
 suspend fun SourceRepository.resolveSourceId(key: Long): String? = getSourceByKey(key)?.id
 
 /**
+ * Indexes [this] by every `Long` key a manga row might hold for it.
+ *
+ * The rule has to match [SourceRepository.getSourceByKey], including its precedence: legacy
+ * parsed keys are written first so the canonical hashed key overwrites them on a collision. A
+ * map built from the canonical key alone would leave legacy rows unmatched here while
+ * `getSourceByKey` still resolved them — the same source reachable one way and not the other.
+ *
+ * [id] extracts the source's string id, because callers index different types: `MangaSource`
+ * holds it directly, `ExtensionSource` holds the raw Tachiyomi `Long` that has to be stringified
+ * first.
+ */
+fun <T> Iterable<T>.associateBySourceKey(id: (T) -> String): Map<Long, T> {
+    val items = this
+    return buildMap {
+        // Named receiver: inside buildMap a bare `forEach` binds to the map being built, not to
+        // the iterable being indexed.
+        items.forEach { item -> id(item).toLongOrNull()?.let { key -> put(key, item) } }
+        items.forEach { item -> put(id(item).toSourceId(), item) }
+    }
+}
+
+/**
  * The on-disk folder name used for a manga's downloads: the numeric source key, as a string.
  *
- * This deliberately does *not* resolve the source's display name. It used to try
- * (`getSource(sourceId.toString())?.name`), but that lookup compared a hashed key's decimal
- * against a source's real id and so could never match — every download on every device is
- * already filed under the number. Making the name resolve now would point every read at a
- * folder that does not exist, orphaning downloaded chapters. Switching to display names is a
- * migration, not an edit; see #1256.
+ * Not a [SourceRepository] extension, because it consults no source and pretending otherwise
+ * implied a dependency that does not exist. It used to be one — `getSource(sourceId.toString())
+ * ?.name` — but that lookup compared a hashed key's decimal against a source's real id and so
+ * could never match. Every download on every device is already filed under the number, so making
+ * the name resolve now would point every read at a folder that does not exist, orphaning
+ * downloaded chapters. Switching to display names is a migration, not an edit; see #1256.
  *
  * Every download enqueue/read/delete call site must resolve through this so they all agree on
  * the same folder — never build a download path from a raw sourceId directly.
  */
-@Suppress("UnusedReceiverParameter")
-suspend fun SourceRepository.resolveDownloadFolderName(sourceId: Long): String = sourceId.toString()
+fun downloadFolderNameFor(sourceId: Long): String = sourceId.toString()

@@ -5,6 +5,7 @@ import android.util.Log
 import app.otakureader.core.common.network.NetworkMonitor
 import app.otakureader.core.common.network.NetworkType
 import app.otakureader.core.database.dao.DownloadQueueDao
+import app.otakureader.core.database.dao.MangaDao
 import app.otakureader.core.database.entity.DownloadQueueEntity
 import app.otakureader.core.preferences.CbzEncryptionStore
 import app.otakureader.core.preferences.DownloadPreferences
@@ -13,7 +14,6 @@ import app.otakureader.domain.model.DownloadItem
 import app.otakureader.domain.model.DownloadPriority
 import app.otakureader.domain.model.DownloadStatus
 import app.otakureader.domain.repository.ChapterRepository
-import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.domain.repository.resolveSourceId
 import app.otakureader.sourceapi.SourceChapter
@@ -79,11 +79,11 @@ class DownloadManager @Inject constructor(
     private val downloadQueueDao: DownloadQueueDao,
     private val chapterRepository: ChapterRepository,
     private val sourceRepository: SourceRepository,
-    // There is a cycle here — DownloadRepositoryImpl injects this class, MangaRepositoryImpl
-    // injects DownloadRepository — but MangaRepositoryImpl already holds its end as a
-    // `dagger.Lazy`, which breaks it. This can stay eager only because of that; making that one
-    // eager would fail the build here, not there.
-    private val mangaRepository: MangaRepository,
+    // The DAO rather than MangaRepository: DownloadRepositoryImpl injects this class and
+    // MangaRepositoryImpl injects DownloadRepository, so going through the repository would
+    // close a cycle that only compiles because of a `dagger.Lazy` on the far side of it. The
+    // DAO has no such edges, and this class already takes DownloadQueueDao directly.
+    private val mangaDao: MangaDao,
     @param:ApplicationScope private val scope: CoroutineScope
 ) {
     private val mutex = Mutex()
@@ -733,7 +733,7 @@ class DownloadManager @Inject constructor(
         // resolved to an empty list and went straight to FAILED. The source is a property of the
         // manga, so it is resolved from the manga's key.
         val manga = try {
-            mangaRepository.getMangaById(request.mangaId)
+            mangaDao.getMangaById(request.mangaId)
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {

@@ -9,6 +9,7 @@ import app.otakureader.domain.model.Recommendation
 import app.otakureader.domain.repository.RecommendationRepository
 import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.domain.repository.resolveSourceId
+import app.otakureader.sourceapi.toSourceId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.encodeToString
@@ -81,11 +82,24 @@ class RecommendationRepositoryImpl @Inject constructor(
         // keys, so each has to be resolved back to a real source id — stringifying the key
         // produced a hash's decimal that matched nothing, and `toLongOrNull` on it then discarded
         // whatever came back, so this loop never seeded a single candidate.
-        val sourceKeys = libraryManga.map { it.sourceId }.distinct().take(MAX_SOURCES_TO_SEED)
+        //
+        // The cap is applied *after* resolving, not before: a key whose extension is uninstalled
+        // can never be seeded from, and letting it consume one of the slots would mean a library
+        // whose first few sources are gone seeds nothing while installed sources further down
+        // the list are never reached.
+        //
+        // The key kept is the *canonical* one derived from the resolved source id, not the one
+        // the library row happened to hold: a legacy row's key would otherwise be copied onto
+        // brand-new candidate rows, so the same source would end up written under two keys and
+        // later adds would not recognise the candidate as already present.
+        val resolved = libraryManga.map { it.sourceId }.distinct()
+            .mapNotNull { key -> sourceRepository.resolveSourceId(key) }
+            .distinct()
+            .take(MAX_SOURCES_TO_SEED)
+            .map { it.toSourceId() to it }
         val now = System.currentTimeMillis()
         val toInsert = mutableListOf<MangaEntity>()
-        for (sourceId in sourceKeys) {
-            val sourceIdStr = sourceRepository.resolveSourceId(sourceId) ?: continue
+        for ((sourceId, sourceIdStr) in resolved) {
             sourceRepository.getPopularManga(sourceIdStr, page = 1)
                 .getOrNull()
                 ?.mangas

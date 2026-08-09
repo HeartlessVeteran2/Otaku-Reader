@@ -25,8 +25,8 @@ import app.otakureader.core.extension.domain.repository.ExtensionRepository
 import app.otakureader.domain.repository.EhFavoritesRepository
 import app.otakureader.domain.repository.PageBookmarkRepository
 import app.otakureader.domain.repository.SourceRepository
-import app.otakureader.domain.repository.resolveDownloadFolderName
-import app.otakureader.sourceapi.toSourceId
+import app.otakureader.domain.repository.associateBySourceKey
+import app.otakureader.domain.repository.downloadFolderNameFor
 import app.otakureader.domain.usecase.SyncEhFavoritesUseCase
 import app.otakureader.domain.usecase.SyncLibraryUseCase
 import app.otakureader.domain.usecase.downloads.ReindexDownloadsUseCase
@@ -582,7 +582,7 @@ class LibraryViewModel @Inject constructor(
     }
 
     /**
-     * Keyed by the same canonical key a manga row stores, not by [ExtensionSource.id].
+     * Keyed by the same keys a manga row can store, not by [ExtensionSource.id].
      *
      * `ExtensionSource.id` is the raw Tachiyomi source id; the key on a manga row is that id
      * stringified and hashed, which is what `TachiyomiSourceAdapter` exposes as its `id` and what
@@ -591,8 +591,9 @@ class LibraryViewModel @Inject constructor(
      */
     private suspend fun buildSourceIconUrlMap(): Map<Long, String?> =
         extensionRepository.getInstalledExtensions().first()
-            .flatMap { ext -> ext.sources.map { src -> src.id.toString().toSourceId() to ext.iconUrl } }
-            .toMap()
+            .flatMap { ext -> ext.sources.map { src -> src to ext.iconUrl } }
+            .associateBySourceKey { (src, _) -> src.id.toString() }
+            .mapValues { (_, entry) -> entry.second }
 
     private fun loadLibrary() {
         val isRefreshing = _state.value.mangaList.isNotEmpty()
@@ -603,15 +604,14 @@ class LibraryViewModel @Inject constructor(
                 coroutineScope {
                     // Build source metadata (name + lang) lookup in parallel
                     val sourceMetaDeferred = async {
+                        // Indexed by every key a manga row can hold, matching getSourceByKey.
+                        // This used to parse the id as a number and nothing else, which both
+                        // dropped every non-numeric source and, for numeric ones, produced a key
+                        // no manga row uses — so `sourceName` came back blank for the whole
+                        // library and "group by source" showed numbers.
                         sourceRepository.getSources().first()
-                            .associate { source ->
-                                // Keyed by the canonical key. Parsing the id as a number instead
-                                // both dropped every non-numeric source and, for numeric ones,
-                                // produced a key no manga row uses — so `sourceName` came back
-                                // blank for the whole library and "group by source" showed
-                                // numbers.
-                                source.id.toSourceId() to Pair(source.name, source.lang)
-                            }
+                            .associateBySourceKey { it.id }
+                            .mapValues { (_, source) -> Pair(source.name, source.lang) }
                     }
 
                     val sourceIconUrlDeferred = async { buildSourceIconUrlMap() }
@@ -625,7 +625,7 @@ class LibraryViewModel @Inject constructor(
                     // filesystem walk for the whole library instead of a per-manga check
                     val mangaKeysDeferred = async {
                         mangaList.associate { manga ->
-                            manga.id to (sourceRepository.resolveDownloadFolderName(manga.sourceId) to manga.title)
+                            manga.id to (downloadFolderNameFor(manga.sourceId) to manga.title)
                         }
                     }
 
@@ -871,7 +871,7 @@ class LibraryViewModel @Inject constructor(
                 // Must match the folder-name resolution used everywhere else; a mismatch here
                 // stores files under a path isChapterDownloaded()/deleteChapterDownload() would
                 // never find when checking under the resolved name.
-                val sourceName = sourceRepository.resolveDownloadFolderName(manga.sourceId)
+                val sourceName = downloadFolderNameFor(manga.sourceId)
                 chapters.filter { !it.read }.forEach { chapter ->
                     downloadRepository.enqueueChapter(
                         mangaId = mangaId,

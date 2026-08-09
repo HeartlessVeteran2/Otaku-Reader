@@ -11,7 +11,6 @@ import app.otakureader.domain.model.Manga
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.MangaRepository
-import app.otakureader.domain.repository.SourceRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -46,7 +45,6 @@ class RecordReadingHistoryWorkerTest {
     private lateinit var downloadPreferences: DownloadPreferences
     private lateinit var downloadRepository: DownloadRepository
     private lateinit var mangaRepository: MangaRepository
-    private lateinit var sourceRepository: SourceRepository
 
     private val mangaId = 1L
     private val chapterId = 10L
@@ -69,7 +67,6 @@ class RecordReadingHistoryWorkerTest {
             downloadPreferences,
             downloadRepository,
             mangaRepository,
-            sourceRepository,
         )
     }
 
@@ -82,7 +79,6 @@ class RecordReadingHistoryWorkerTest {
         downloadPreferences = mockk()
         downloadRepository = mockk()
         mangaRepository = mockk()
-        sourceRepository = mockk(relaxed = true)
 
         coEvery { chapterRepository.recordHistory(any(), any(), any()) } just runs
         coEvery { chapterRepository.updateChapterProgress(any<Long>(), any<Boolean>(), any<Int>()) } just runs
@@ -90,9 +86,6 @@ class RecordReadingHistoryWorkerTest {
         coEvery { chapterRepository.getChapterById(chapterId) } returns testChapter
         coEvery { downloadRepository.isChapterDownloaded(any(), any(), any()) } returns true
         coEvery { downloadRepository.deleteChapterDownload(any(), any(), any(), any()) } just runs
-        // No installed source for this fixture id — resolveDownloadFolderName falls back to the
-        // numeric sourceId string.
-        coEvery { sourceRepository.getSource(any()) } returns null
         // Default: immediate delete-after-read (slots = 0).
         every { downloadPreferences.removeAfterReadSlots } returns flowOf(0)
     }

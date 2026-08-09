@@ -8,8 +8,7 @@ import app.otakureader.domain.model.SmartDownloadRule
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.MangaRepository
-import app.otakureader.domain.repository.SourceRepository
-import app.otakureader.domain.repository.resolveDownloadFolderName
+import app.otakureader.domain.repository.downloadFolderNameFor
 import app.otakureader.core.common.di.ApplicationScope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.first
@@ -33,7 +32,6 @@ class SmartDownloadTrigger @Inject constructor(
     private val mangaRepository: MangaRepository,
     private val chapterRepository: ChapterRepository,
     private val downloadRepository: DownloadRepository,
-    private val sourceRepository: SourceRepository,
     private val networkMonitor: NetworkMonitor,
     @param:ApplicationScope private val scope: CoroutineScope,
 ) {
@@ -73,7 +71,7 @@ class SmartDownloadTrigger @Inject constructor(
                 .filter { !it.read }
                 .take(rule.chaptersAhead)
 
-            val sourceName = sourceRepository.resolveDownloadFolderName(manga.sourceId)
+            val sourceName = downloadFolderNameFor(manga.sourceId)
             for (chapter in toDownload) {
                 downloadRepository.enqueueChapter(
                     mangaId = mangaId,
