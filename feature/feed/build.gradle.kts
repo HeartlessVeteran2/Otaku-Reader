@@ -9,6 +9,7 @@ android {
 
 dependencies {
     implementation(projects.core.common)
+    implementation(projects.sourceApi)
     implementation(projects.core.preferences)
     implementation(libs.lifecycle.viewmodel.ktx)
     implementation(libs.kotlinx.serialization.json)

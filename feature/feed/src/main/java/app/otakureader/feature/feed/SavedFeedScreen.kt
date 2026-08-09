@@ -96,15 +96,18 @@ fun SavedFeedScreen(
                     .fillMaxSize()
                     .padding(padding)
             ) {
-                items(state.sources, key = { it.sourceId }) { source ->
+                items(state.sources, key = { it.source.sourceId }) { row ->
                     FeedSourceItem(
-                        sourceName = source.sourceName,
-                        enabled = source.isEnabled,
+                        sourceName = row.source.sourceName,
+                        enabled = row.source.isEnabled,
+                        isInstalled = row.isInstalled,
                         onToggle = { enabled ->
-                            viewModel.onEvent(SavedFeedEvent.ToggleSource(source.sourceId, enabled))
+                            viewModel.onEvent(
+                                SavedFeedEvent.ToggleSource(row.source.sourceId, enabled)
+                            )
                         },
                         onDelete = {
-                            viewModel.onEvent(SavedFeedEvent.RemoveSource(source.sourceId))
+                            viewModel.onEvent(SavedFeedEvent.RemoveSource(row.source.sourceId))
                         }
                     )
                 }
@@ -114,9 +117,10 @@ fun SavedFeedScreen(
 
     if (showAddSheet) {
         FeedBuilderBottomSheet(
+            availableSources = state.availableSources,
             onDismiss = { showAddSheet = false },
-            onAddSource = { sourceName ->
-                viewModel.onEvent(SavedFeedEvent.AddSource(sourceName))
+            onAddSource = { source ->
+                viewModel.onEvent(SavedFeedEvent.AddSource(source.sourceId, source.name))
                 showAddSheet = false
             }
         )
@@ -127,6 +131,7 @@ fun SavedFeedScreen(
 private fun FeedSourceItem(
     sourceName: String,
     enabled: Boolean,
+    isInstalled: Boolean,
     onToggle: (Boolean) -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -137,10 +142,22 @@ private fun FeedSourceItem(
     ) {
         ListItem(
             headlineContent = { Text(sourceName) },
+            supportingContent = if (isInstalled) {
+                null
+            } else {
+                {
+                    Text(
+                        text = stringResource(R.string.feed_source_not_installed),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            },
             trailingContent = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Switch(
                         checked = enabled,
+                        // Nothing can reach the source, so enabling it would be a lie.
+                        enabled = isInstalled,
                         onCheckedChange = onToggle,
                     )
                     Spacer(modifier = Modifier.width(4.dp))
