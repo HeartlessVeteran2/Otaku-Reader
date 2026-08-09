@@ -74,7 +74,17 @@ class ReaderViewModelTest {
     private val mangaId = 1L
     private val chapterId = 10L
     private val testSourceId = 99L
+
+    /**
+     * The download folder name, which is the numeric key and stays so — see
+     * `resolveDownloadFolderName`. Deliberately different from [testResolvedSourceId]: the two
+     * were the same string while source resolution was broken, and one variable was doing both
+     * jobs.
+     */
     private val testSourceIdString = testSourceId.toString()
+
+    /** What the source itself is called, i.e. what a source call has to be given. */
+    private val testResolvedSourceId = "2499283573021220255"
 
     private lateinit var context: Context
     private lateinit var mangaRepository: MangaRepository
@@ -613,12 +623,20 @@ class ReaderViewModelTest {
         coEvery { chapterRepository.updateChapterProgress(any<Long>(), any<Boolean>(), any<Int>()) } just runs
         coEvery { downloadRepository.isChapterDownloaded(any(), any(), any()) } returns true
         coEvery { downloadRepository.deleteChapterDownload(any(), any(), any(), any()) } just runs
-        // sourceRepository is a relaxed mock — an unstubbed getSource() call returns a relaxed
-        // Source mock (not null), whose .name resolves to "" instead of falling through to the
-        // numeric sourceId fallback that resolveDownloadFolderName() expects. Stub it explicitly
-        // so the folder name resolves to testSourceIdString, matching the other fixtures in this
-        // file that already do this for the same reason.
-        coEvery { sourceRepository.getSource(testSourceIdString) } returns null
+        stubSourceResolution()
+    }
+
+    /**
+     * Makes the fixture's [testSourceId] resolve to a real source.
+     *
+     * `sourceRepository` is a relaxed mock, so an unstubbed `getSourceByKey` returns a relaxed
+     * `MangaSource` whose `id` and `name` are both `""` — which is not null, so nothing falls
+     * through to a sensible default and every source call goes to the empty-string source.
+     */
+    private fun stubSourceResolution() {
+        coEvery { sourceRepository.getSourceByKey(testSourceId) } returns mockk(relaxed = true) {
+            every { id } returns testResolvedSourceId
+        }
     }
 
     // These exercise the live in-session path (the debounced auto-save in saveCurrentProgress(),
@@ -900,12 +918,10 @@ class ReaderViewModelTest {
         every { downloadPreferences.downloadAheadWhileReading } returns flowOf(1)
         every { downloadPreferences.downloadAheadOnlyOnWifi } returns flowOf(false)
         every { downloadRepository.observeDownloads() } returns flowOf(emptyList())
-        // No installed source for this fixture id, so the download folder name falls back to
-        // the numeric sourceId string, matching testSourceIdString below.
-        coEvery { sourceRepository.getSource(testSourceIdString) } returns null
+        stubSourceResolution()
         coEvery {
             sourceRepository.getPageList(
-                testSourceIdString,
+                testResolvedSourceId,
                 match { it.url == nextChapter.url && it.name == nextChapter.name }
             )
         } returns Result.success(
@@ -974,9 +990,10 @@ class ReaderViewModelTest {
         every { downloadPreferences.downloadAheadWhileReading } returns flowOf(1)
         every { downloadPreferences.downloadAheadOnlyOnWifi } returns flowOf(false)
         every { downloadRepository.observeDownloads() } returns flowOf(emptyList())
+        stubSourceResolution()
         coEvery {
             sourceRepository.getPageList(
-                testSourceIdString,
+                testResolvedSourceId,
                 match { it.url == nextChapter.url && it.name == nextChapter.name }
             )
         } returns Result.failure(IllegalStateException("Network failed"))

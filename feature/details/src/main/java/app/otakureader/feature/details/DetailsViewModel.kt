@@ -42,6 +42,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.domain.repository.resolveDownloadFolderName
+import app.otakureader.domain.repository.resolveSourceId
 import app.otakureader.domain.tracking.TrackRepository
 import app.otakureader.domain.tracking.Tracker
 import app.otakureader.domain.usecase.metadata.ResolveAniListMediaUseCase
@@ -259,8 +260,9 @@ class DetailsViewModel @Inject constructor(
     private fun onSourceClick() {
         viewModelScope.launch {
             val manga = _state.value.manga ?: return@launch
+            val sourceId = sourceRepository.resolveSourceId(manga.sourceId) ?: return@launch
             _effect.send(
-                DetailsContract.Effect.NavigateToSourceSearch(sourceId = manga.sourceId.toString(), query = "")
+                DetailsContract.Effect.NavigateToSourceSearch(sourceId = sourceId, query = "")
             )
         }
     }
@@ -269,7 +271,7 @@ class DetailsViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val manga = mangaRepository.getMangaById(mangaId) ?: return@launch
-                val source = sourceRepository.getSource(manga.sourceId.toString())
+                val source = sourceRepository.getSourceByKey(manga.sourceId)
                 _state.update { it.copy(sourceName = source?.name) }
             } catch (e: CancellationException) {
                 throw e
@@ -295,9 +297,10 @@ class DetailsViewModel @Inject constructor(
     private fun searchGenreInSource(genre: String) {
         viewModelScope.launch {
             val manga = _state.value.manga ?: return@launch
+            val sourceId = sourceRepository.resolveSourceId(manga.sourceId) ?: return@launch
             _effect.send(
                 DetailsContract.Effect.NavigateToSourceSearch(
-                    sourceId = manga.sourceId.toString(),
+                    sourceId = sourceId,
                     query = genre,
                 )
             )
@@ -571,7 +574,7 @@ class DetailsViewModel @Inject constructor(
                 val fullUrl = if (manga.url.startsWith("http")) {
                     manga.url
                 } else {
-                    val source = sourceRepository.getSource(manga.sourceId.toString()) ?: return@launch
+                    val source = sourceRepository.getSourceByKey(manga.sourceId) ?: return@launch
                     val baseUrl = source.baseUrl.trimEnd('/')
                     if (baseUrl.isEmpty()) return@launch
                     "$baseUrl/${manga.url.removePrefix("/")}"
@@ -683,7 +686,9 @@ class DetailsViewModel @Inject constructor(
                             )
 
                             // Use repository instead of calling source directly (#587)
-                            val pages = sourceRepository.getPageList(manga.sourceId.toString(), sourceChapter)
+                            val sourceId = sourceRepository.resolveSourceId(manga.sourceId)
+                                ?: return@async
+                            val pages = sourceRepository.getPageList(sourceId, sourceChapter)
                                 .getOrNull() ?: return@async
                             if (pages.isNotEmpty()) {
                                 val firstPageUrl = pages.first().imageUrl
@@ -1648,7 +1653,11 @@ class DetailsViewModel @Inject constructor(
                 )
 
                 // Use repository to respect caching and abstraction layers (#587)
-                val pages = sourceRepository.getPageList(manga.sourceId.toString(), sourceChapter)
+                val sourceId = sourceRepository.resolveSourceId(manga.sourceId) ?: run {
+                    _effect.send(DetailsContract.Effect.ShowError("Source not available"))
+                    return@launch
+                }
+                val pages = sourceRepository.getPageList(sourceId, sourceChapter)
                     .getOrElse {
                         _effect.send(DetailsContract.Effect.ShowError("Source not available"))
                         return@launch
@@ -1697,7 +1706,7 @@ class DetailsViewModel @Inject constructor(
             _state.update { it.copy(isLoadingSourceSuggestions = true, sourceSuggestionsError = null) }
 
             try {
-                val source = sourceRepository.getSource(manga.sourceId.toString())
+                val source = sourceRepository.getSourceByKey(manga.sourceId)
                 if (source == null) {
                     _state.update {
                         it.copy(
@@ -1716,7 +1725,7 @@ class DetailsViewModel @Inject constructor(
                 val reason = if (author != null) "Same author" else "From ${source.name}"
 
                 val result = sourceRepository.searchManga(
-                    sourceId = manga.sourceId.toString(),
+                    sourceId = source.id,
                     query = query,
                     page = 1,
                 )

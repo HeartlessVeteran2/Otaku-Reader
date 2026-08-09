@@ -13,6 +13,7 @@ import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.domain.repository.resolveDownloadFolderName
+import app.otakureader.domain.repository.resolveSourceId
 import app.otakureader.domain.tracking.TrackRepository
 import app.otakureader.sourceapi.SourceChapter
 import app.otakureader.sourceapi.SourceManga
@@ -77,13 +78,18 @@ class MigrateMangaUseCase @Inject constructor(
                 thumbnailUrl = targetCandidate.thumbnailUrl
             )
 
+            val targetSourceId = sourceRepository.resolveSourceId(targetCandidate.sourceId)
+                ?: return Result.failure(
+                    IllegalStateException("Target source not found: ${targetCandidate.sourceId}")
+                )
+
             val detailsResult = sourceRepository.getMangaDetails(
-                sourceId = targetCandidate.sourceId.toString(),
+                sourceId = targetSourceId,
                 manga = sourceMangaForFetch
             )
 
             val chaptersResult = sourceRepository.getChapterList(
-                sourceId = targetCandidate.sourceId.toString(),
+                sourceId = targetSourceId,
                 manga = sourceMangaForFetch
             )
 

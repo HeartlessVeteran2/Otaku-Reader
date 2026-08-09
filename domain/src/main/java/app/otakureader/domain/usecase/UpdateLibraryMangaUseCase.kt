@@ -4,6 +4,7 @@ import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.SourceRepository
+import app.otakureader.domain.repository.resolveSourceId
 import app.otakureader.sourceapi.SourceChapter
 import app.otakureader.sourceapi.SourceManga
 import kotlinx.coroutines.CancellationException
@@ -33,9 +34,17 @@ class UpdateLibraryMangaUseCase @Inject constructor(
             // Convert domain Manga to SourceManga
             val sourceManga = manga.toSourceManga()
 
+            // `manga.sourceId` is a hash of the source's string id, so it has to be resolved back
+            // through the loaded sources — stringifying it yields the hash's decimal, which
+            // matches no source and made every library update fail with "Source not found".
+            val sourceId = sourceRepository.resolveSourceId(manga.sourceId)
+                ?: return Result.failure(
+                    IllegalStateException("Source not found for manga ${manga.id}")
+                )
+
             // Fetch chapter list from source
             val chaptersResult = sourceRepository.getChapterList(
-                sourceId = manga.sourceId.toString(),
+                sourceId = sourceId,
                 manga = sourceManga
             )
 

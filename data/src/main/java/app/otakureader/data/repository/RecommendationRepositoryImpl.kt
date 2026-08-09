@@ -8,6 +8,7 @@ import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.Recommendation
 import app.otakureader.domain.repository.RecommendationRepository
 import app.otakureader.domain.repository.SourceRepository
+import app.otakureader.domain.repository.resolveSourceId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.encodeToString
@@ -76,11 +77,15 @@ class RecommendationRepositoryImpl @Inject constructor(
     }
 
     private suspend fun seedCandidatesFromSources(libraryManga: List<Manga>) {
-        val sourceIds = libraryManga.map { it.sourceId.toString() }.distinct().take(MAX_SOURCES_TO_SEED)
+        // Seed from the sources the user's own library came from. These are the stored `Long`
+        // keys, so each has to be resolved back to a real source id — stringifying the key
+        // produced a hash's decimal that matched nothing, and `toLongOrNull` on it then discarded
+        // whatever came back, so this loop never seeded a single candidate.
+        val sourceKeys = libraryManga.map { it.sourceId }.distinct().take(MAX_SOURCES_TO_SEED)
         val now = System.currentTimeMillis()
         val toInsert = mutableListOf<MangaEntity>()
-        for (sourceIdStr in sourceIds) {
-            val sourceId = sourceIdStr.toLongOrNull() ?: continue
+        for (sourceId in sourceKeys) {
+            val sourceIdStr = sourceRepository.resolveSourceId(sourceId) ?: continue
             sourceRepository.getPopularManga(sourceIdStr, page = 1)
                 .getOrNull()
                 ?.mangas

@@ -10,6 +10,7 @@ import app.otakureader.domain.model.DownloadStatus
 import app.otakureader.domain.model.DownloadPriority
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.repository.ChapterRepository
+import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.sourceapi.Page
 import io.mockk.coEvery
@@ -45,6 +46,7 @@ class DownloadManagerTest {
     private lateinit var downloadQueueDao: DownloadQueueDao
     private lateinit var chapterRepository: ChapterRepository
     private lateinit var sourceRepository: SourceRepository
+    private lateinit var mangaRepository: MangaRepository
     private lateinit var downloadManager: DownloadManager
 
     private val testRequest = ChapterDownloadRequest(
@@ -84,6 +86,7 @@ class DownloadManagerTest {
         // tests override these stubs to exercise the successful-resolution path.
         chapterRepository = mockk { coEvery { getChapterById(any()) } returns null }
         sourceRepository = mockk(relaxed = true)
+        mangaRepository = mockk(relaxed = true)
 
         downloadManager = DownloadManager(
             context,
@@ -94,6 +97,7 @@ class DownloadManagerTest {
             downloadQueueDao,
             chapterRepository,
             sourceRepository,
+            mangaRepository,
             TestScope(testDispatcher)
         )
     }

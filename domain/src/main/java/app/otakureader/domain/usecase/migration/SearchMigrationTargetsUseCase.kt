@@ -4,6 +4,7 @@ import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.model.MigrationCandidate
 import app.otakureader.domain.repository.SourceRepository
+import app.otakureader.domain.repository.resolveSourceId
 import app.otakureader.domain.util.StringSimilarity
 import app.otakureader.domain.util.TitleNormalizer
 import app.otakureader.sourceapi.SourceManga
@@ -35,9 +36,14 @@ class SearchMigrationTargetsUseCase @Inject constructor(
         targetSourceId: Long
     ): Result<List<MigrationCandidate>> {
         return try {
+            val targetSource = sourceRepository.resolveSourceId(targetSourceId)
+                ?: return Result.failure(
+                    IllegalStateException("Target source not found: $targetSourceId")
+                )
+
             // Search in the target source using the manga title
             val searchResult = sourceRepository.searchManga(
-                sourceId = targetSourceId.toString(),
+                sourceId = targetSource,
                 query = sourceManga.title,
                 page = 1
             )

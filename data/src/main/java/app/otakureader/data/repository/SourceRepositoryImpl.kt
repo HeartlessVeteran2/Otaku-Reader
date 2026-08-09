@@ -17,6 +17,7 @@ import app.otakureader.sourceapi.MangaPage
 import app.otakureader.sourceapi.MangaSource
 import app.otakureader.sourceapi.SourceChapter
 import app.otakureader.sourceapi.SourceManga
+import app.otakureader.sourceapi.toSourceId
 import app.otakureader.core.common.di.ApplicationScope
 import app.otakureader.core.common.network.PageImageHeaders
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -165,6 +166,25 @@ class SourceRepositoryImpl @Inject constructor(
 
     override suspend fun getSource(sourceId: String): MangaSource? {
         return _sources.value.find { it.id == sourceId }
+    }
+
+    /**
+     * Reverses [toSourceId] by searching the loaded sources, because hashing is one-way.
+     *
+     * The second pass exists because two conventions for deriving the key were in use when manga
+     * rows were written, and a `Long` on disk carries no record of which produced it:
+     * [toSourceId] (the canonical one) and a plain `toLongOrNull()` parse, which
+     * `SourceMangaDetailViewModel` used. Rows written the second way are indistinguishable from
+     * hashed ones after the fact, so they cannot be repaired by a migration — they can only be
+     * matched by also trying that rule here. New rows are always [toSourceId]; this pass is for
+     * libraries built before that was true.
+     *
+     * The canonical rule is tried first so a hypothetical source matching both cannot shadow it.
+     */
+    override suspend fun getSourceByKey(key: Long): MangaSource? {
+        val sources = _sources.value
+        return sources.find { it.id.toSourceId() == key }
+            ?: sources.find { it.id.toLongOrNull() == key }
     }
 
     /**

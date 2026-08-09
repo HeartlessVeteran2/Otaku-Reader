@@ -90,9 +90,15 @@ private object LibraryListRowDefaults {
     const val TitleMaxLines = 2
 }
 
-/** Returns true when a manga item belongs to the manhwa/webtoon content type. */
+/**
+ * Returns true when a manga item belongs to the manhwa/webtoon content type.
+ *
+ * Matched against the source's *name*. It used to read `sourceId.toString()`, which is a decimal
+ * number — no number contains the word "webtoon", so the Manhwa tab was always empty and the
+ * Manga tab always held everything.
+ */
 internal fun isManhwa(manga: LibraryMangaItem): Boolean {
-    val src = manga.sourceId.toString().lowercase()
+    val src = manga.sourceName.lowercase()
     return src.contains("manhwa") || src.contains("webtoon") ||
         src.contains("korean") || src.contains("toon") || src.contains("naver")
 }

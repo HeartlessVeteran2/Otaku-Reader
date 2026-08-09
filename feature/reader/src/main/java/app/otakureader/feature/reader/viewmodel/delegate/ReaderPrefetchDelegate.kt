@@ -65,7 +65,7 @@ class ReaderPrefetchDelegate @Inject constructor(
                         strategy = cachedPrefetchStrategy,
                         behavior = behavior,
                         scope = scope,
-                        sourceId = currentManga?.sourceId?.toString(),
+                        sourceKey = currentManga?.sourceId,
                     )
                 }
             } else {

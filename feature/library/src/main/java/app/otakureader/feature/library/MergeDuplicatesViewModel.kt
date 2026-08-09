@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.domain.repository.SourceRepository
+import app.otakureader.sourceapi.toSourceId
 import app.otakureader.domain.usecase.FillMissingChaptersUseCase
 import app.otakureader.domain.usecase.LinkAlternativeSourceUseCase
 import app.otakureader.domain.usecase.MergeDuplicateMangaUseCase
@@ -82,9 +83,11 @@ class MergeDuplicatesViewModel @Inject constructor(
         sourceRepository.getSources()
             .onEach { sources ->
                 val names = sources.associate { source ->
-                    // MangaSource.id is the Long source ID serialized to String
-                    val id = source.id.toLongOrNull() ?: return@associate source.id.hashCode().toLong() to source.name
-                    id to source.name
+                    // The canonical key, matching what manga rows store. This used to parse the
+                    // id as a number and only fall back to hashing when that failed, so numeric
+                    // (APK) sources were keyed one way and everything else another — and the
+                    // numeric ones, which are most of them, never matched a manga row at all.
+                    source.id.toSourceId() to source.name
                 }
                 _state.update { it.copy(sourceNames = names) }
             }

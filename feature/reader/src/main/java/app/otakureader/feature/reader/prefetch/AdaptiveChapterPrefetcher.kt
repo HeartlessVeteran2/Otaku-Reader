@@ -5,6 +5,7 @@ import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.PrefetchStrategy
 import app.otakureader.domain.model.ReadingBehavior
 import app.otakureader.domain.repository.ChapterRepository
+import app.otakureader.domain.repository.resolveSourceId
 import app.otakureader.feature.reader.model.ReaderPage
 import coil3.ImageLoader
 import coil3.request.ImageRequest
@@ -77,7 +78,8 @@ class AdaptiveChapterPrefetcher @Inject constructor(
      * @param strategy Prefetch strategy
      * @param behavior User reading behavior
      * @param scope Coroutine scope for launching prefetch jobs
-     * @param sourceId Source ID string for the manga (used to fetch page URLs)
+     * @param sourceKey The manga row's `sourceId` — a hashed key, resolved back to a real
+     *   source id inside the prefetch job. Null skips chapter prefetching.
      */
     fun prefetchAdjacentChapters(
         currentChapterId: Long,
@@ -87,29 +89,32 @@ class AdaptiveChapterPrefetcher @Inject constructor(
         strategy: PrefetchStrategy,
         behavior: ReadingBehavior,
         scope: CoroutineScope,
-        sourceId: String? = null
+        sourceKey: Long? = null
     ) {
         // Check if we should prefetch next chapter
         if (strategy.shouldPrefetchNextChapter(currentPage, totalPages, behavior)) {
-            prefetchNextChapter(currentChapterId, mangaId, scope, sourceId)
+            prefetchNextChapter(currentChapterId, mangaId, scope, sourceKey)
         }
 
         // Check if we should prefetch previous chapter
         if (strategy.shouldPrefetchPreviousChapter(currentPage, behavior)) {
-            prefetchPreviousChapter(currentChapterId, mangaId, scope, sourceId)
+            prefetchPreviousChapter(currentChapterId, mangaId, scope, sourceKey)
         }
     }
 
     /**
      * Prefetches the first few pages of the next chapter.
      */
-    private fun prefetchNextChapter(currentChapterId: Long, mangaId: Long, scope: CoroutineScope, sourceId: String?) {
+    private fun prefetchNextChapter(currentChapterId: Long, mangaId: Long, scope: CoroutineScope, sourceKey: Long?) {
         nextChapterPrefetchJob?.cancel()
 
-        if (sourceId == null) return
+        if (sourceKey == null) return
 
         nextChapterPrefetchJob = scope.launch {
             try {
+                // Resolving has to happen here rather than at the call site: it suspends, and
+                // the caller hands us the hashed key that the manga row stores.
+                val sourceId = sourceRepository.resolveSourceId(sourceKey) ?: return@launch
                 // Get all chapters for this manga
                 val chapters = chapterRepository.getChaptersByMangaIdSync(mangaId)
 
@@ -143,13 +148,16 @@ class AdaptiveChapterPrefetcher @Inject constructor(
     /**
      * Prefetches the last few pages of the previous chapter.
      */
-    private fun prefetchPreviousChapter(currentChapterId: Long, mangaId: Long, scope: CoroutineScope, sourceId: String?) {
+    private fun prefetchPreviousChapter(currentChapterId: Long, mangaId: Long, scope: CoroutineScope, sourceKey: Long?) {
         previousChapterPrefetchJob?.cancel()
 
-        if (sourceId == null) return
+        if (sourceKey == null) return
 
         previousChapterPrefetchJob = scope.launch {
             try {
+                // Resolving has to happen here rather than at the call site: it suspends, and
+                // the caller hands us the hashed key that the manga row stores.
+                val sourceId = sourceRepository.resolveSourceId(sourceKey) ?: return@launch
                 // Get all chapters for this manga
                 val chapters = chapterRepository.getChaptersByMangaIdSync(mangaId)
 

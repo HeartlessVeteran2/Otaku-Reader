@@ -6,6 +6,8 @@ import app.otakureader.domain.model.Manga
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.domain.repository.SourceRepository
+import app.otakureader.domain.repository.resolveDownloadFolderName
+import app.otakureader.domain.repository.resolveSourceId
 import app.otakureader.feature.reader.model.ReaderPage
 import app.otakureader.sourceapi.SourceChapter
 import javax.inject.Inject
@@ -70,7 +72,15 @@ class ReaderChapterLoaderDelegate @Inject constructor(
         manga: Manga,
         chapter: Chapter,
     ): List<ReaderPage> {
-        val sourceId = manga.sourceId.toString()
+        // Two different strings, deliberately. `sourceId` addresses the *source* and must be
+        // resolved back from the hashed key on the manga row; `downloadFolderName` addresses the
+        // *download directory*. They happened to be the same value while the resolution was
+        // broken, which is why one variable was doing both jobs — and why fixing the source
+        // lookup alone would have pointed the reader at a folder that does not exist.
+        val sourceId = checkNotNull(sourceRepository.resolveSourceId(manga.sourceId)) {
+            "Source not found for manga ${manga.id}"
+        }
+        val downloadFolderName = sourceRepository.resolveDownloadFolderName(manga.sourceId)
         val sourceChapter = SourceChapter(
             url = chapter.url,
             name = chapter.name,
@@ -83,7 +93,7 @@ class ReaderChapterLoaderDelegate @Inject constructor(
                 index = index,
                 imageUrl = pageLoader.resolveUrl(
                     page.imageUrl.orEmpty(),
-                    sourceId,
+                    downloadFolderName,
                     manga.title,
                     chapter.name,
                     index,

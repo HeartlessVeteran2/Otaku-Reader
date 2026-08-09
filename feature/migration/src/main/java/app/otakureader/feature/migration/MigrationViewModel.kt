@@ -8,6 +8,7 @@ import app.otakureader.domain.model.MigrationMode
 import app.otakureader.domain.model.MigrationStatus
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.domain.repository.SourceRepository
+import app.otakureader.sourceapi.toSourceId
 import app.otakureader.domain.usecase.migration.MigrateMangaUseCase
 import app.otakureader.domain.usecase.migration.SearchMigrationTargetsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -68,7 +69,11 @@ class MigrationViewModel @Inject constructor(
                 val sourcesFlow = sourceRepository.getSources()
                 val sources = sourcesFlow.first().map { source ->
                     SourceItem(
-                        id = source.id.toLongOrNull() ?: 0L,
+                        // The canonical key, same as every manga row stores. Parsing the id as a
+                        // number instead mapped every non-numeric source — the local source, all
+                        // JS sources — onto 0L, so they shared one list key and only one of them
+                        // was selectable.
+                        id = source.id.toSourceId(),
                         name = source.name,
                         lang = source.lang
                     )

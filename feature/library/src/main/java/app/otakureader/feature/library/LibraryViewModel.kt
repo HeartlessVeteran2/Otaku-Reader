@@ -26,6 +26,7 @@ import app.otakureader.domain.repository.EhFavoritesRepository
 import app.otakureader.domain.repository.PageBookmarkRepository
 import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.domain.repository.resolveDownloadFolderName
+import app.otakureader.sourceapi.toSourceId
 import app.otakureader.domain.usecase.SyncEhFavoritesUseCase
 import app.otakureader.domain.usecase.SyncLibraryUseCase
 import app.otakureader.domain.usecase.downloads.ReindexDownloadsUseCase
@@ -580,9 +581,17 @@ class LibraryViewModel @Inject constructor(
             .launchIn(viewModelScope)
     }
 
+    /**
+     * Keyed by the same canonical key a manga row stores, not by [ExtensionSource.id].
+     *
+     * `ExtensionSource.id` is the raw Tachiyomi source id; the key on a manga row is that id
+     * stringified and hashed, which is what `TachiyomiSourceAdapter` exposes as its `id` and what
+     * `toSourceId` then derives. Keying by the raw id meant no library entry ever matched, so no
+     * source icons were shown.
+     */
     private suspend fun buildSourceIconUrlMap(): Map<Long, String?> =
         extensionRepository.getInstalledExtensions().first()
-            .flatMap { ext -> ext.sources.map { src -> src.id to ext.iconUrl } }
+            .flatMap { ext -> ext.sources.map { src -> src.id.toString().toSourceId() to ext.iconUrl } }
             .toMap()
 
     private fun loadLibrary() {
@@ -595,10 +604,14 @@ class LibraryViewModel @Inject constructor(
                     // Build source metadata (name + lang) lookup in parallel
                     val sourceMetaDeferred = async {
                         sourceRepository.getSources().first()
-                            .mapNotNull { source ->
-                                source.id.toLongOrNull()?.let { id -> id to Pair(source.name, source.lang) }
+                            .associate { source ->
+                                // Keyed by the canonical key. Parsing the id as a number instead
+                                // both dropped every non-numeric source and, for numeric ones,
+                                // produced a key no manga row uses — so `sourceName` came back
+                                // blank for the whole library and "group by source" showed
+                                // numbers.
+                                source.id.toSourceId() to Pair(source.name, source.lang)
                             }
-                            .toMap()
                     }
 
                     val sourceIconUrlDeferred = async { buildSourceIconUrlMap() }

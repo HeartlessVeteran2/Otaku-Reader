@@ -10,6 +10,7 @@ import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.domain.repository.resolveDownloadFolderName
+import app.otakureader.domain.repository.resolveSourceId
 import app.otakureader.core.preferences.DownloadPreferences
 import app.otakureader.sourceapi.Page
 import app.otakureader.sourceapi.SourceChapter
@@ -28,7 +29,7 @@ class ReaderDownloadAheadDelegate @Inject constructor(
     private val mangaRepository: MangaRepository,
 ) {
     suspend fun enqueueCurrentChapter(manga: Manga, chapter: Chapter): Boolean {
-        val sourceIdString = manga.sourceId.toString()
+        val sourceIdString = sourceRepository.resolveSourceId(manga.sourceId) ?: return false
         val downloadFolderName = sourceRepository.resolveDownloadFolderName(manga.sourceId)
         val existingDownloads = downloadRepository.observeDownloads().first()
         if (existingDownloads.any { it.chapterId == chapter.id }) return false
@@ -67,7 +68,7 @@ class ReaderDownloadAheadDelegate @Inject constructor(
             if (currentIndex == -1 || currentIndex >= chapters.size - 1) return@launch
 
             val manga = getCurrentManga() ?: mangaRepository.getMangaById(mangaId) ?: return@launch
-            val sourceIdString = manga.sourceId.toString()
+            val sourceIdString = sourceRepository.resolveSourceId(manga.sourceId) ?: return@launch
             val downloadFolderName = sourceRepository.resolveDownloadFolderName(manga.sourceId)
             val existingDownloads = downloadRepository.observeDownloads().first()
 

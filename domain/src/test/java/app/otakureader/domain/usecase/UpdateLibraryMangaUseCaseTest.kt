@@ -41,7 +41,34 @@ class UpdateLibraryMangaUseCaseTest {
     fun setUp() {
         chapterRepository = mockk()
         sourceRepository = mockk()
+        // The manga row stores a hashed key; the use case has to turn it back into the source's
+        // real string id before it can ask the source for anything.
+        coEvery { sourceRepository.getSourceByKey(1L) } returns mockk {
+            every { id } returns SOURCE_STRING_ID
+        }
         useCase = UpdateLibraryMangaUseCase(chapterRepository, sourceRepository)
+    }
+
+    @Test
+    fun `invoke asks the source by its resolved string id, not the stringified key`() = runTest {
+        coEvery { sourceRepository.getChapterList(any(), any()) } returns Result.success(emptyList())
+        every { chapterRepository.getChaptersByMangaId(1L) } returns flowOf(emptyList())
+
+        useCase(testManga)
+
+        // "1" — the key stringified — is what the code used to pass, and it matches no source.
+        coVerify(exactly = 0) { sourceRepository.getChapterList("1", any()) }
+        coVerify { sourceRepository.getChapterList(SOURCE_STRING_ID, any()) }
+    }
+
+    @Test
+    fun `invoke fails when no loaded source owns the manga's key`() = runTest {
+        coEvery { sourceRepository.getSourceByKey(1L) } returns null
+
+        val result = useCase(testManga)
+
+        assertTrue(result.isFailure)
+        coVerify(exactly = 0) { sourceRepository.getChapterList(any(), any()) }
     }
 
     @Test
@@ -118,5 +145,9 @@ class UpdateLibraryMangaUseCaseTest {
 
         assertTrue(result.isSuccess)
         assertEquals(0, result.getOrNull()?.size)
+    }
+
+    private companion object {
+        const val SOURCE_STRING_ID = "2499283573021220255"
     }
 }
