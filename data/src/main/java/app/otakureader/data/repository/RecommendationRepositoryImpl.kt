@@ -83,27 +83,41 @@ class RecommendationRepositoryImpl @Inject constructor(
         // produced a hash's decimal that matched nothing, and `toLongOrNull` on it then discarded
         // whatever came back, so this loop never seeded a single candidate.
         //
+        // Resolved once per distinct key rather than once per manga: a large library holds many
+        // rows but few sources.
+        val resolvedByKey = libraryManga.map { it.sourceId }.distinct()
+            .mapNotNull { key -> sourceRepository.resolveSourceId(key)?.let { key to it } }
+            .toMap()
+
+        // What the user already owns, grouped by the *resolved* source rather than by the raw
+        // key. That indirection is the point: a candidate row is written under the canonical key,
+        // so a legacy library row holding the parsed key would not collide with it on the
+        // (sourceId, url) unique index, and `insertIfNotExists` would happily add a second,
+        // non-favourite copy of a manga the user already has — which then gets recommended back
+        // to them. Comparing through the resolved source recognises the row either way.
+        val ownedUrls = mutableMapOf<String, MutableSet<String>>()
+        libraryManga.forEach { manga ->
+            val sourceIdStr = resolvedByKey[manga.sourceId] ?: return@forEach
+            ownedUrls.getOrPut(sourceIdStr) { mutableSetOf() }.add(manga.url)
+        }
+
         // The cap is applied *after* resolving, not before: a key whose extension is uninstalled
         // can never be seeded from, and letting it consume one of the slots would mean a library
         // whose first few sources are gone seeds nothing while installed sources further down
         // the list are never reached.
-        //
-        // The key kept is the *canonical* one derived from the resolved source id, not the one
-        // the library row happened to hold: a legacy row's key would otherwise be copied onto
-        // brand-new candidate rows, so the same source would end up written under two keys and
-        // later adds would not recognise the candidate as already present.
-        val resolved = libraryManga.map { it.sourceId }.distinct()
-            .mapNotNull { key -> sourceRepository.resolveSourceId(key) }
-            .distinct()
-            .take(MAX_SOURCES_TO_SEED)
-            .map { it.toSourceId() to it }
+        val seedSources = resolvedByKey.values.distinct().take(MAX_SOURCES_TO_SEED)
         val now = System.currentTimeMillis()
         val toInsert = mutableListOf<MangaEntity>()
-        for ((sourceId, sourceIdStr) in resolved) {
+        for (sourceIdStr in seedSources) {
+            // The canonical key, not whichever one the library row happened to hold: every new
+            // row this app writes uses the canonical convention, and seeding a legacy key would
+            // spread it to manga that never had it.
+            val sourceId = sourceIdStr.toSourceId()
+            val owned = ownedUrls[sourceIdStr].orEmpty()
             sourceRepository.getPopularManga(sourceIdStr, page = 1)
                 .getOrNull()
                 ?.mangas
-                ?.filter { !it.genre.isNullOrBlank() }
+                ?.filter { !it.genre.isNullOrBlank() && it.url !in owned }
                 ?.mapTo(toInsert) { sm ->
                     MangaEntity(
                         id = 0,

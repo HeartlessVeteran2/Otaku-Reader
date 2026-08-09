@@ -12,12 +12,12 @@ import app.otakureader.core.tachiyomi.health.SourceHealthMonitor
 import app.otakureader.core.tachiyomi.local.LocalSource
 import app.otakureader.domain.repository.ExtensionManagementRepository
 import app.otakureader.domain.repository.SourceRepository
+import app.otakureader.domain.repository.associateBySourceKey
 import app.otakureader.sourceapi.FilterList
 import app.otakureader.sourceapi.MangaPage
 import app.otakureader.sourceapi.MangaSource
 import app.otakureader.sourceapi.SourceChapter
 import app.otakureader.sourceapi.SourceManga
-import app.otakureader.sourceapi.toSourceId
 import app.otakureader.core.common.di.ApplicationScope
 import app.otakureader.core.common.network.PageImageHeaders
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -171,21 +171,15 @@ class SourceRepositoryImpl @Inject constructor(
     /**
      * Reverses [toSourceId] by searching the loaded sources, because hashing is one-way.
      *
-     * The second pass exists because two conventions for deriving the key were in use when manga
-     * rows were written, and a `Long` on disk carries no record of which produced it:
-     * [toSourceId] (the canonical one) and a plain `toLongOrNull()` parse, which
-     * `SourceMangaDetailViewModel` used. Rows written the second way are indistinguishable from
-     * hashed ones after the fact, so they cannot be repaired by a migration — they can only be
-     * matched by also trying that rule here. New rows are always [toSourceId]; this pass is for
-     * libraries built before that was true.
-     *
-     * The canonical rule is tried first so a hypothetical source matching both cannot shadow it.
+     * Delegates to [associateBySourceKey] rather than restating the rule. That rule has two parts
+     * — the canonical [toSourceId] hash, plus a legacy `toLongOrNull()` parse that
+     * `SourceMangaDetailViewModel` once wrote, indistinguishable from a hash on disk and so
+     * unrepairable by migration — and it is also used to index sources by key elsewhere. Written
+     * out twice, the two copies agreed on every key owned by one source but disagreed on which
+     * source won a collision, and nothing would have caught them drifting further apart.
      */
-    override suspend fun getSourceByKey(key: Long): MangaSource? {
-        val sources = _sources.value
-        return sources.find { it.id.toSourceId() == key }
-            ?: sources.find { it.id.toLongOrNull() == key }
-    }
+    override suspend fun getSourceByKey(key: Long): MangaSource? =
+        _sources.value.associateBySourceKey { it.id }[key]
 
     /**
      * Helper to perform a source health check and return a failure Result when unhealthy.

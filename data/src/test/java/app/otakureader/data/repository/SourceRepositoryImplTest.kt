@@ -15,6 +15,7 @@ import app.otakureader.domain.repository.ExtensionManagementRepository
 import app.otakureader.sourceapi.MangaPage
 import app.otakureader.sourceapi.MangaSource
 import app.otakureader.sourceapi.SourceManga
+import app.otakureader.domain.repository.associateBySourceKey
 import app.otakureader.sourceapi.toSourceId
 import eu.kanade.tachiyomi.source.CatalogueSource
 import eu.kanade.tachiyomi.source.online.HttpSource
@@ -536,6 +537,29 @@ class SourceRepositoryImplTest {
         repository.injectSourcesForTesting(listOf(source))
 
         assertEquals(source, repository.getSourceByKey(APK_SOURCE_ID.toLong()))
+    }
+
+    /**
+     * A genuine `String.hashCode()` collision, not a contrived one: `"Aa"` and `"BB"` both hash
+     * to 2112. Two installed sources whose ids collide therefore claim the same canonical key,
+     * and something has to decide which one wins.
+     *
+     * The value asserted here is not that a particular source wins — either would be defensible —
+     * but that `getSourceByKey` and `associateBySourceKey` agree. They used to be written out
+     * separately and disagreed exactly here: a linear `find` returns the first match in list
+     * order while a map built with `put` keeps the last. Same key, two different sources,
+     * depending on which path asked.
+     */
+    @Test
+    fun getSourceByKey_agreesWithTheKeyIndexOnAGenuinelyCollidingKey() = runTest {
+        val first = makeFakeSource(id = "Aa", name = "First")
+        val second = makeFakeSource(id = "BB", name = "Second")
+        val key = "Aa".toSourceId()
+        assertEquals(key, "BB".toSourceId())
+        repository.injectSourcesForTesting(listOf(first, second))
+
+        val viaIndex = listOf(first, second).associateBySourceKey { it.id }[key]
+        assertEquals(viaIndex, repository.getSourceByKey(key))
     }
 
     /**

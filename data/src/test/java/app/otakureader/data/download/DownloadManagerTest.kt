@@ -455,6 +455,10 @@ class DownloadManagerTest {
 
             coVerify(exactly = 0) { sourceRepository.getPageList(any(), any()) }
             coVerify(exactly = 0) { downloader.downloadPage(any(), any()) }
+            // The terminal state matters as much as the absent calls: "fails cleanly" means the
+            // item is visible and retryable as FAILED, not parked in QUEUED forever. Without
+            // this the test would pass on a regression that simply stalls the download.
+            assertEquals(DownloadStatus.FAILED, downloadManager.downloads.first().first().status)
         }
 
     @Test
