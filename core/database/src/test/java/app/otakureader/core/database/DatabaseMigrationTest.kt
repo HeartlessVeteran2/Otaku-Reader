@@ -35,6 +35,7 @@ import app.otakureader.core.database.migrations.MIGRATION_40_41
 import app.otakureader.core.database.migrations.MIGRATION_41_42
 import app.otakureader.core.database.migrations.MIGRATION_42_43
 import app.otakureader.core.database.migrations.MIGRATION_43_44
+import app.otakureader.core.database.migrations.MIGRATION_44_45
 import app.otakureader.core.database.migrations.MIGRATION_9_10
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -51,7 +52,8 @@ private const val SCHEMA_V41 = 41
 private const val SCHEMA_V42 = 42
 private const val SCHEMA_V43 = 43
 private const val SCHEMA_V44 = 44
-private const val EXPECTED_MIGRATION_COUNT = 42
+private const val SCHEMA_V45 = 45
+private const val EXPECTED_MIGRATION_COUNT = 43
 
 @RunWith(AndroidJUnit4::class)
 // One test class per migration chain: it grows by design with every schema version.
@@ -70,7 +72,7 @@ class DatabaseMigrationTest {
     fun allMigrations_formsContiguousChain() {
         val sorted = ALL_MIGRATIONS.sortedBy { it.startVersion }
         assertEquals("Migration chain must start at version 2", 2, sorted.first().startVersion)
-        assertEquals("Migration chain must end at version 44", SCHEMA_V44, sorted.last().endVersion)
+        assertEquals("Migration chain must end at version 45", SCHEMA_V45, sorted.last().endVersion)
 
         for (i in 0 until sorted.size - 1) {
             val current = sorted[i]
@@ -97,7 +99,7 @@ class DatabaseMigrationTest {
 
     @Test
     fun allMigrations_count() {
-        assertEquals("Expected 42 migrations (v2→v44)", EXPECTED_MIGRATION_COUNT, ALL_MIGRATIONS.size)
+        assertEquals("Expected 43 migrations (v2→v45)", EXPECTED_MIGRATION_COUNT, ALL_MIGRATIONS.size)
     }
 
     // ── Migration 9 → 10 ────────────────────────────────────────────────────
@@ -1187,6 +1189,84 @@ class DatabaseMigrationTest {
         helper.createDatabase(TEST_DB, SCHEMA_V43).close()
         val db = helper.runMigrationsAndValidate(TEST_DB, SCHEMA_V44, true, MIGRATION_43_44)
         assertTrue("manga_metadata must exist after validation", "manga_metadata" in db.tableNames())
+        db.close()
+    }
+
+    // ── v44 → v45: one feed row per chapter ─────────────────────────────────
+
+    private fun SupportSQLiteDatabase.insertFeedItem(id: Long, mangaId: Long, chapterId: Long) {
+        execSQL(
+            """
+            INSERT INTO feed_items(
+                id, mangaId, mangaTitle, mangaThumbnailUrl, chapterId, chapterName,
+                chapterNumber, sourceId, sourceName, timestamp, isRead
+            ) VALUES ($id, $mangaId, 'T', NULL, $chapterId, 'Ch', 1.0, 1, 'S', 0, 0)
+            """.trimIndent()
+        )
+    }
+
+    /**
+     * A manual and a periodic library update are separate unique-work names and can overlap, so
+     * both can see the same chapter as new. `chapters` already concedes this race with a unique
+     * `(mangaId, url)` index; this is the same defence for the feed.
+     */
+    @Test
+    fun migration44To45_rejectsASecondRowForTheSameChapter() {
+        val db = helper.createDatabase(TEST_DB, SCHEMA_V44)
+        MIGRATION_44_45.migrate(db)
+        db.insertFeedItem(id = 1, mangaId = 7, chapterId = 70)
+
+        var rejected = false
+        try {
+            db.insertFeedItem(id = 2, mangaId = 7, chapterId = 70)
+        } catch (e: android.database.sqlite.SQLiteConstraintException) {
+            rejected = true
+        }
+
+        assertTrue("a duplicate (mangaId, chapterId) must not be insertable", rejected)
+        db.close()
+    }
+
+    @Test
+    fun migration44To45_keepsDifferentChaptersOfTheSameManga() {
+        val db = helper.createDatabase(TEST_DB, SCHEMA_V44)
+        MIGRATION_44_45.migrate(db)
+        db.insertFeedItem(id = 1, mangaId = 7, chapterId = 70)
+        db.insertFeedItem(id = 2, mangaId = 7, chapterId = 71)
+
+        val cursor = db.query("SELECT COUNT(*) FROM feed_items WHERE mangaId = 7")
+        cursor.moveToFirst()
+        assertEquals(2, cursor.getInt(0))
+        cursor.close()
+        db.close()
+    }
+
+    /**
+     * The index cannot be created over an existing violation, so the migration deletes duplicates
+     * first — keeping the lowest id, which is the first recording and the one whose `isRead`
+     * reflects what the user actually saw.
+     */
+    @Test
+    fun migration44To45_dropsPreExistingDuplicatesKeepingTheFirst() {
+        val db = helper.createDatabase(TEST_DB, SCHEMA_V44)
+        db.insertFeedItem(id = 1, mangaId = 7, chapterId = 70)
+        db.insertFeedItem(id = 2, mangaId = 7, chapterId = 70)
+        db.insertFeedItem(id = 3, mangaId = 7, chapterId = 71)
+
+        MIGRATION_44_45.migrate(db)
+
+        val cursor = db.query("SELECT id FROM feed_items ORDER BY id")
+        val ids = buildList { while (cursor.moveToNext()) add(cursor.getLong(0)) }
+        cursor.close()
+        assertEquals(listOf(1L, 3L), ids)
+        db.close()
+    }
+
+    @Test
+    fun migration44To45_validatesAgainstTheExportedSchema() {
+        helper.createDatabase(TEST_DB, SCHEMA_V44).close()
+        val db = helper.runMigrationsAndValidate(TEST_DB, SCHEMA_V45, true, MIGRATION_44_45)
+        assertTrue("feed_items must exist after validation", "feed_items" in db.tableNames())
         db.close()
     }
 

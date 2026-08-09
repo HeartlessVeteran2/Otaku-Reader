@@ -45,7 +45,7 @@ class UpdateLibraryMangaUseCaseTest {
     }
 
     @Test
-    fun `invoke returns zero when no new chapters found`() = runTest {
+    fun `invoke returns an empty list when no new chapters found`() = runTest {
         val sourceChapters = listOf(SourceChapter(url = "/c/1", name = "Chapter 1"))
 
         coEvery { sourceRepository.getChapterList(any(), any()) } returns Result.success(sourceChapters)
@@ -54,11 +54,11 @@ class UpdateLibraryMangaUseCaseTest {
         val result = useCase(testManga)
 
         assertTrue(result.isSuccess)
-        assertEquals(0, result.getOrNull())
+        assertEquals(0, result.getOrNull()?.size)
     }
 
     @Test
-    fun `invoke returns count when new chapters found`() = runTest {
+    fun `invoke returns the new chapters, not just how many`() = runTest {
         val sourceChapters = listOf(
             SourceChapter(url = "/c/1", name = "Chapter 1"),
             SourceChapter(url = "/c/2", name = "Chapter 2"),
@@ -72,7 +72,13 @@ class UpdateLibraryMangaUseCaseTest {
         val result = useCase(testManga)
 
         assertTrue(result.isSuccess)
-        assertEquals(2, result.getOrNull())
+        // The size alone is the old count assertion wearing a new name. The point of returning
+        // chapters is that a caller can say *which* arrived, so that is what this checks.
+        assertEquals(2, result.getOrNull()?.size)
+        assertEquals(
+            listOf("/c/2", "/c/3"),
+            result.getOrNull()?.map { it.url },
+        )
         coVerify(exactly = 1) { chapterRepository.insertChapters(any()) }
     }
 
@@ -99,18 +105,18 @@ class UpdateLibraryMangaUseCaseTest {
         val result = useCase(testManga)
 
         assertTrue(result.isSuccess)
-        assertEquals(0, result.getOrNull())
+        assertEquals(0, result.getOrNull()?.size)
         coVerify(exactly = 0) { chapterRepository.insertChapters(any()) }
     }
 
     @Test
-    fun `invoke with empty source result returns zero new chapters`() = runTest {
+    fun `invoke with empty source result returns no new chapters`() = runTest {
         coEvery { sourceRepository.getChapterList(any(), any()) } returns Result.success(emptyList())
         every { chapterRepository.getChaptersByMangaId(1L) } returns flowOf(emptyList())
 
         val result = useCase(testManga)
 
         assertTrue(result.isSuccess)
-        assertEquals(0, result.getOrNull())
+        assertEquals(0, result.getOrNull()?.size)
     }
 }

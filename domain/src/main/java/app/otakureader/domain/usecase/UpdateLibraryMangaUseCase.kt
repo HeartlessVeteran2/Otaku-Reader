@@ -19,11 +19,16 @@ class UpdateLibraryMangaUseCase @Inject constructor(
     private val sourceRepository: SourceRepository
 ) {
     /**
-     * Update a single manga by fetching its latest chapters
+     * Update a single manga by fetching its latest chapters.
+     *
+     * Returns the new chapters rather than a count. The count was all any caller needed until the
+     * feed needed to *name* what arrived, and the chapters were already sitting here — they were
+     * computed, inserted, and then discarded in favour of `.size`.
+     *
      * @param manga The manga to update
-     * @return Result with number of new chapters found
+     * @return Result with the chapters that were new, empty when there were none
      */
-    suspend operator fun invoke(manga: Manga): Result<Int> {
+    suspend operator fun invoke(manga: Manga): Result<List<Chapter>> {
         return try {
             // Convert domain Manga to SourceManga
             val sourceManga = manga.toSourceManga()
@@ -50,7 +55,7 @@ class UpdateLibraryMangaUseCase @Inject constructor(
             val newSourceChapters = sourceChapters.filter { it.url !in existingUrls }
 
             if (newSourceChapters.isEmpty()) {
-                return Result.success(0) // No new chapters
+                return Result.success(emptyList())
             }
 
             // Convert and insert new chapters
@@ -60,7 +65,17 @@ class UpdateLibraryMangaUseCase @Inject constructor(
 
             chapterRepository.insertChapters(newChapters)
 
-            Result.success(newChapters.size)
+            // Re-read to get the chapters as stored. The ones built above carry `id = 0` because
+            // Room assigns the id on insert, and a caller that wants to link to a chapter — the
+            // feed does — needs the real one. Only pays for a read when something was new.
+            val newUrls = newSourceChapters.mapTo(mutableSetOf()) { it.url }
+            val stored = chapterRepository.getChaptersByMangaId(manga.id).first()
+                .filter { it.url in newUrls }
+
+            // Falling back to the pre-insert list keeps the count honest if the re-read comes back
+            // short: the chapters were inserted either way, and reporting none would tell the
+            // caller nothing happened.
+            Result.success(stored.ifEmpty { newChapters })
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
