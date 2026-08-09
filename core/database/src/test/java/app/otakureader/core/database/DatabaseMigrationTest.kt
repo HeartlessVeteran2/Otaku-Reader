@@ -1052,7 +1052,7 @@ class DatabaseMigrationTest {
     @Test
     fun migration41To42_leavesTheMetadataCacheAlone() {
         // The link is deliberately a second table rather than a column on manga_metadata, because
-        // a user's manual correction has to outlive a cache that clearMetadata throws away. If a
+        // a user's manual correction has to outlive a cache every refresh rewrites. If a
         // later change ever folds them together, this is the test that should stop it.
         val db = helper.createDatabase(TEST_DB, SCHEMA_V41)
         MIGRATION_41_42.migrate(db)

@@ -11,7 +11,8 @@ import androidx.room.PrimaryKey
  *
  * That row already carries an `anilistId`, so reusing it would need no migration at all — and it
  * would be wrong, because the two have different lifetimes. `manga_metadata` is a **cache**: it has
- * a seven-day TTL, it is rewritten by every refresh, and `clearMetadata` exists to throw it away.
+ * a seven-day TTL and is rewritten outright by every refresh, so nothing written there
+ * survives on the user's terms.
  * The link is **durable state**, and when [userConfirmed] is set it is a decision the user made by
  * hand. Storing a correction in a row designed to be discarded means the correction is discarded
  * with it, which defeats the picker that produced it.

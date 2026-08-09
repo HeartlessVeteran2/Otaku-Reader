@@ -86,14 +86,8 @@ class AniListMetadataRepository @Inject constructor(
         }
     }
 
-    override suspend fun clearMetadata(mangaId: Long) {
-        // Under the same lock as refresh. Otherwise a refresh already past its cache check could
-        // land its upsert after the clear and silently repopulate the row the user just discarded.
-        lockFor(mangaId).withLock { dao.deleteByMangaId(mangaId) }
-    }
-
     /**
-     * Serializes refresh and clear for a given manga.
+     * Serializes refreshes for a given manga.
      *
      * Read-decide-write across a network call is the shape that needs it: two refreshes for the
      * same manga with different `anilistId`s — which is exactly what correcting a wrong match

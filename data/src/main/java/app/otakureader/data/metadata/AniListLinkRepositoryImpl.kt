@@ -68,10 +68,6 @@ class AniListLinkRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun clearLink(mangaId: Long) {
-        lockFor(mangaId).withLock { dao.deleteByMangaId(mangaId) }
-    }
-
     /** `floorMod`, not `%`: a negative id would otherwise index out of bounds. */
     private fun lockFor(mangaId: Long): Mutex = locks[Math.floorMod(mangaId, STRIPE_COUNT)]
 

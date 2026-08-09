@@ -590,7 +590,8 @@ internal val MIGRATION_40_41 = object : Migration(40, 41) {
  * Adds `manga_anilist_link` — which AniList media a manga is, and whether a human said so.
  *
  * Separate from `manga_metadata` despite both carrying an `anilistId`, because that row is a
- * seven-day cache that `clearMetadata` throws away, and a user's manual correction must outlive it.
+ * seven-day cache that every refresh rewrites outright, and a user's manual correction must
+ * outlive it.
  */
 internal val MIGRATION_41_42 = object : Migration(41, 42) {
     override fun migrate(db: SupportSQLiteDatabase) {

@@ -33,6 +33,4 @@ interface MangaMetadataRepository {
      */
     suspend fun refreshMetadata(mangaId: Long, anilistId: Long, force: Boolean = false): Result<MangaMetadata>
 
-    /** Forget the cached metadata for [mangaId], e.g. after the user corrects a wrong match. */
-    suspend fun clearMetadata(mangaId: Long)
 }
