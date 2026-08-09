@@ -12,8 +12,7 @@ import app.otakureader.domain.model.DownloadItem
 import app.otakureader.domain.model.OrphanScanResult
 import app.otakureader.domain.model.ReindexResult
 import app.otakureader.domain.repository.DownloadRepository
-import app.otakureader.domain.repository.SourceRepository
-import app.otakureader.domain.repository.resolveDownloadFolderName
+import app.otakureader.domain.repository.downloadFolderNameFor
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import javax.inject.Inject
@@ -31,7 +30,6 @@ class DownloadRepositoryImpl @Inject constructor(
     private val downloadManager: DownloadManager,
     private val mangaDao: MangaDao,
     private val chapterDao: ChapterDao,
-    private val sourceRepository: SourceRepository,
     @param:ApplicationScope private val scope: CoroutineScope
 ) : DownloadRepository {
 
@@ -241,7 +239,7 @@ class DownloadRepositoryImpl @Inject constructor(
      * cleaning up the downloaded files.
      *
      * The directory path is derived from the same folder-name resolution used when the
-     * download was originally created: [resolveDownloadFolderName] / sanitize(title) /
+     * download was originally created: [downloadFolderNameFor] / sanitize(title) /
      * sanitize(name). This must stay in lockstep with every enqueue/delete call site — a
      * mismatch here would make every real download look "orphaned" and get deleted by
      * [deleteOrphanedDownloads].
@@ -258,7 +256,7 @@ class DownloadRepositoryImpl @Inject constructor(
         val sourceNameById = mangaById.values
             .map { it.sourceId }
             .distinct()
-            .associateWith { sourceRepository.resolveDownloadFolderName(it) }
+            .associateWith { downloadFolderNameFor(it) }
         val expectedPaths = buildSet<String> {
             for (chapter in chapterDao.getAllChaptersOnce()) {
                 val manga = mangaById[chapter.mangaId] ?: continue
@@ -316,7 +314,7 @@ class DownloadRepositoryImpl @Inject constructor(
             ?.mapNotNull { it.name.toLongOrNull() }
             ?: return@withContext 0
         val resolvedNames = candidateIds.associate { id ->
-            id.toString() to sourceRepository.resolveDownloadFolderName(id)
+            id.toString() to downloadFolderNameFor(id)
         }
         DownloadProvider.migrateSourceFolderNames(rootDir, resolvedNames)
     }

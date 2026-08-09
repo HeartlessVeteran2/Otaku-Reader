@@ -12,7 +12,8 @@ import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.domain.repository.SourceRepository
-import app.otakureader.domain.repository.resolveDownloadFolderName
+import app.otakureader.domain.repository.downloadFolderNameFor
+import app.otakureader.domain.repository.resolveSourceId
 import app.otakureader.domain.tracking.TrackRepository
 import app.otakureader.sourceapi.SourceChapter
 import app.otakureader.sourceapi.SourceManga
@@ -49,6 +50,14 @@ class MigrateMangaUseCase @Inject constructor(
         flags: Set<MigrationFlag> = MigrationFlag.entries.toSet()
     ): Result<MigrationResult> {
         return try {
+            // Resolved before anything is written. Doing it after the insert below would leave a
+            // library row for a source that cannot be reached — a target entry that can never be
+            // initialised and that the user did not ask to keep.
+            val targetSourceId = sourceRepository.resolveSourceId(targetCandidate.sourceId)
+                ?: return Result.failure(
+                    IllegalStateException("Target source not found: ${targetCandidate.sourceId}")
+                )
+
             // Check if target manga already exists in library
             val existingTarget = mangaRepository.getMangaBySourceAndUrl(
                 sourceId = targetCandidate.sourceId,
@@ -78,12 +87,12 @@ class MigrateMangaUseCase @Inject constructor(
             )
 
             val detailsResult = sourceRepository.getMangaDetails(
-                sourceId = targetCandidate.sourceId.toString(),
+                sourceId = targetSourceId,
                 manga = sourceMangaForFetch
             )
 
             val chaptersResult = sourceRepository.getChapterList(
-                sourceId = targetCandidate.sourceId.toString(),
+                sourceId = targetSourceId,
                 manga = sourceMangaForFetch
             )
 
@@ -249,9 +258,9 @@ class MigrateMangaUseCase @Inject constructor(
             .associateBy { it.chapterNumber }
 
         // Source names for download migration
-        val fromSourceName = sourceRepository.resolveDownloadFolderName(sourceManga.sourceId)
+        val fromSourceName = downloadFolderNameFor(sourceManga.sourceId)
         val fromMangaTitle = sourceManga.title
-        val toSourceName = sourceRepository.resolveDownloadFolderName(targetManga.sourceId)
+        val toSourceName = downloadFolderNameFor(targetManga.sourceId)
         val toMangaTitle = targetManga.title
 
         // Insert target chapters with matched reading progress

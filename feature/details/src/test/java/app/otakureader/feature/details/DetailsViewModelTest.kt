@@ -165,6 +165,12 @@ class DetailsViewModelTest {
 
     private fun setUpDefaultMocks() {
         stubManga(sampleManga)
+        // The manga row's `sourceId` is a hashed key. Every source call resolves it back through
+        // the repository first, so the id asserted below is the source's own — deliberately not
+        // `sampleManga.sourceId.toString()`, which is what the code used to pass and what matches
+        // no installed source.
+        coEvery { sourceRepository.getSourceByKey(sampleManga.sourceId) } returns
+            mockk(relaxed = true) { every { id } returns SAMPLE_SOURCE_ID }
         every { chapterRepository.getChaptersByMangaId(mangaId) } returns flowOf(sampleChapters)
         every { mangaRepository.isFavorite(mangaId) } returns flowOf(false)
         every { downloadRepository.observeDownloads() } returns flowOf(emptyList())
@@ -202,7 +208,7 @@ class DetailsViewModelTest {
         setUpDefaultMocks()
         val source = mockk<app.otakureader.sourceapi.MangaSource>(relaxed = true)
         every { source.name } returns "MangaDex"
-        coEvery { sourceRepository.getSource(sampleManga.sourceId.toString()) } returns source
+        coEvery { sourceRepository.getSourceByKey(sampleManga.sourceId) } returns source
 
         val viewModel = createViewModel()
         testDispatcher.scheduler.advanceUntilIdle()
@@ -896,7 +902,7 @@ class DetailsViewModelTest {
             val effect = awaitItem()
             assertTrue(effect is DetailsContract.Effect.NavigateToSourceSearch)
             val navigate = effect as DetailsContract.Effect.NavigateToSourceSearch
-            assertEquals(sampleManga.sourceId.toString(), navigate.sourceId)
+            assertEquals(SAMPLE_SOURCE_ID, navigate.sourceId)
             assertEquals("", navigate.query)
         }
     }
@@ -1045,7 +1051,7 @@ class DetailsViewModelTest {
         setUpDefaultMocks()
         val source = mockk<app.otakureader.sourceapi.MangaSource>(relaxed = true)
         every { source.baseUrl } returns "https://example.com"
-        coEvery { sourceRepository.getSource(sampleManga.sourceId.toString()) } returns source
+        coEvery { sourceRepository.getSourceByKey(sampleManga.sourceId) } returns source
 
         val viewModel = createViewModel()
         testDispatcher.scheduler.advanceUntilIdle()
@@ -1758,5 +1764,7 @@ class DetailsViewModelTest {
     private companion object {
         /** Long enough that a fetch left running would obviously outlive the one that replaced it. */
         const val SLOW_FETCH_MS = 5_000L
+
+        const val SAMPLE_SOURCE_ID = "2499283573021220255"
     }
 }

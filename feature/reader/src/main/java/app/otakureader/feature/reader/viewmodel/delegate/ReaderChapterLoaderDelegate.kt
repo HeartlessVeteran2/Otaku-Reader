@@ -6,6 +6,8 @@ import app.otakureader.domain.model.Manga
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.domain.repository.SourceRepository
+import app.otakureader.domain.repository.downloadFolderNameFor
+import app.otakureader.domain.repository.resolveSourceId
 import app.otakureader.feature.reader.model.ReaderPage
 import app.otakureader.sourceapi.SourceChapter
 import javax.inject.Inject
@@ -45,10 +47,15 @@ class ReaderChapterLoaderDelegate @Inject constructor(
                 ?: return Result.NotFound("Chapter not found")
             val manga = mangaRepository.getMangaById(mangaId)
                 ?: return Result.NotFound("Manga not found")
+            // An extension can be uninstalled while its manga stay in the library, so this is a
+            // normal outcome rather than a fault — same shape as the two lookups above.
+            val sourceId = sourceRepository.resolveSourceId(manga.sourceId)
+                ?: return Result.NotFound("Source not found")
 
             val pages = fetchPagesFromSource(
                 manga = manga,
                 chapter = chapter,
+                sourceId = sourceId,
             )
             Result.Success(manga = manga, chapter = chapter, pages = pages)
         } catch (e: kotlinx.coroutines.CancellationException) {
@@ -69,8 +76,14 @@ class ReaderChapterLoaderDelegate @Inject constructor(
     private suspend fun fetchPagesFromSource(
         manga: Manga,
         chapter: Chapter,
+        sourceId: String,
     ): List<ReaderPage> {
-        val sourceId = manga.sourceId.toString()
+        // Two different strings, deliberately. [sourceId] addresses the *source* and had to be
+        // resolved back from the hashed key on the manga row; `downloadFolderName` addresses the
+        // *download directory*. They happened to be the same value while the resolution was
+        // broken, which is why one variable was doing both jobs — and why fixing the source
+        // lookup alone would have pointed the reader at a folder that does not exist.
+        val downloadFolderName = downloadFolderNameFor(manga.sourceId)
         val sourceChapter = SourceChapter(
             url = chapter.url,
             name = chapter.name,
@@ -83,7 +96,7 @@ class ReaderChapterLoaderDelegate @Inject constructor(
                 index = index,
                 imageUrl = pageLoader.resolveUrl(
                     page.imageUrl.orEmpty(),
-                    sourceId,
+                    downloadFolderName,
                     manga.title,
                     chapter.name,
                     index,

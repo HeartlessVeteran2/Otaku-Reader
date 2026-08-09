@@ -28,7 +28,7 @@ import app.otakureader.domain.model.Manga
 import app.otakureader.domain.repository.FeedRepository
 import app.otakureader.domain.repository.SourceRepository
 import java.time.Instant
-import app.otakureader.domain.repository.resolveDownloadFolderName
+import app.otakureader.domain.repository.downloadFolderNameFor
 import app.otakureader.domain.usecase.GetLibraryMangaUseCase
 import app.otakureader.domain.usecase.UpdateLibraryMangaUseCase
 import dagger.assisted.Assisted
@@ -305,7 +305,7 @@ class LibraryUpdateWorker @AssistedInject constructor(
                 .sortedByDescending { it.chapterNumber }
                 .take(safeLimit)
 
-            val sourceName = sourceRepository.resolveDownloadFolderName(sourceId)
+            val sourceName = downloadFolderNameFor(sourceId)
 
             for (chapter in chapters) {
                 // Enqueue with empty pageUrls - DownloadManager will handle fetching them later
@@ -351,7 +351,7 @@ class LibraryUpdateWorker @AssistedInject constructor(
      * that reports 0 for an undated chapter would otherwise pin that row to 1970 and bury it.
      */
     private suspend fun recordFeedItems(manga: Manga, newChapters: List<Chapter>) {
-        val sourceName = sourceRepository.getSource(manga.sourceId.toString())?.name
+        val sourceName = sourceRepository.getSourceByKey(manga.sourceId)?.name
             ?: manga.sourceId.toString()
         val now = Instant.now()
         feedRepository.addFeedItems(

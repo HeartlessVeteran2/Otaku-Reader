@@ -6,6 +6,7 @@ import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.sourceapi.MangaPage
 import app.otakureader.sourceapi.SourceManga
 import io.mockk.coEvery
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -21,7 +22,22 @@ class SearchMigrationTargetsUseCaseTest {
     @Before
     fun setup() {
         sourceRepository = mockk()
+        // Target sources are chosen by their canonical `Long` key; the search itself needs the
+        // source's real string id, which only a lookup can produce. Deliberately not "1" — if the
+        // use case went back to stringifying the key, every test here would stop matching.
+        coEvery { sourceRepository.getSourceByKey(TARGET_SOURCE_KEY) } returns mockk {
+            every { id } returns TARGET_SOURCE_ID
+        }
         useCase = SearchMigrationTargetsUseCase(sourceRepository)
+    }
+
+    @Test
+    fun `returns failure when no loaded source owns the target key`() = runTest {
+        coEvery { sourceRepository.getSourceByKey(TARGET_SOURCE_KEY) } returns null
+
+        val result = useCase(createTestManga(title = "One Piece"), TARGET_SOURCE_KEY)
+
+        assertTrue(result.isFailure)
     }
 
     @Test
@@ -31,11 +47,11 @@ class SearchMigrationTargetsUseCaseTest {
         val targetManga = createTestSourceManga(title = "One Piece")
 
         coEvery {
-            sourceRepository.searchManga("1", "One Piece", 1)
+            sourceRepository.searchManga(TARGET_SOURCE_ID, "One Piece", 1)
         } returns Result.success(MangaPage(listOf(targetManga), false))
 
         // When
-        val result = useCase(sourceManga, 1L)
+        val result = useCase(sourceManga, TARGET_SOURCE_KEY)
 
         // Then
         assertTrue(result.isSuccess)
@@ -52,11 +68,11 @@ class SearchMigrationTargetsUseCaseTest {
         val targetManga = createTestSourceManga(title = "Tokyo Ghoul")
 
         coEvery {
-            sourceRepository.searchManga("1", "Tokyo Ghoul (2011)", 1)
+            sourceRepository.searchManga(TARGET_SOURCE_ID, "Tokyo Ghoul (2011)", 1)
         } returns Result.success(MangaPage(listOf(targetManga), false))
 
         // When
-        val result = useCase(sourceManga, 1L)
+        val result = useCase(sourceManga, TARGET_SOURCE_KEY)
 
         // Then
         assertTrue(result.isSuccess)
@@ -73,11 +89,11 @@ class SearchMigrationTargetsUseCaseTest {
         val targetManga = createTestSourceManga(title = "My Hero Academia")
 
         coEvery {
-            sourceRepository.searchManga("1", "Boku no Hero Academia", 1)
+            sourceRepository.searchManga(TARGET_SOURCE_ID, "Boku no Hero Academia", 1)
         } returns Result.success(MangaPage(listOf(targetManga), false))
 
         // When
-        val result = useCase(sourceManga, 1L)
+        val result = useCase(sourceManga, TARGET_SOURCE_KEY)
 
         // Then
         assertTrue(result.isSuccess)
@@ -104,11 +120,11 @@ class SearchMigrationTargetsUseCaseTest {
         )
 
         coEvery {
-            sourceRepository.searchManga("1", "One Piece", 1)
+            sourceRepository.searchManga(TARGET_SOURCE_ID, "One Piece", 1)
         } returns Result.success(MangaPage(listOf(targetManga1, targetManga2), false))
 
         // When
-        val result = useCase(sourceManga, 1L)
+        val result = useCase(sourceManga, TARGET_SOURCE_KEY)
 
         // Then
         assertTrue(result.isSuccess)
@@ -136,11 +152,11 @@ class SearchMigrationTargetsUseCaseTest {
         )
 
         coEvery {
-            sourceRepository.searchManga("1", "One Piece", 1)
+            sourceRepository.searchManga(TARGET_SOURCE_ID, "One Piece", 1)
         } returns Result.success(MangaPage(listOf(targetManga1, targetManga2), false))
 
         // When
-        val result = useCase(sourceManga, 1L)
+        val result = useCase(sourceManga, TARGET_SOURCE_KEY)
 
         // Then
         assertTrue(result.isSuccess)
@@ -157,11 +173,11 @@ class SearchMigrationTargetsUseCaseTest {
         val targetManga = createTestSourceManga(title = "Seven Deadly Sins")
 
         coEvery {
-            sourceRepository.searchManga("1", "The Seven Deadly Sins", 1)
+            sourceRepository.searchManga(TARGET_SOURCE_ID, "The Seven Deadly Sins", 1)
         } returns Result.success(MangaPage(listOf(targetManga), false))
 
         // When
-        val result = useCase(sourceManga, 1L)
+        val result = useCase(sourceManga, TARGET_SOURCE_KEY)
 
         // Then
         assertTrue(result.isSuccess)
@@ -198,11 +214,11 @@ class SearchMigrationTargetsUseCaseTest {
         )
 
         coEvery {
-            sourceRepository.searchManga("1", "One Piece", 1)
+            sourceRepository.searchManga(TARGET_SOURCE_ID, "One Piece", 1)
         } returns Result.success(MangaPage(listOf(poorMatch, perfectMatch, goodMatch), false))
 
         // When
-        val result = useCase(sourceManga, 1L)
+        val result = useCase(sourceManga, TARGET_SOURCE_KEY)
 
         // Then
         assertTrue(result.isSuccess)
@@ -224,11 +240,11 @@ class SearchMigrationTargetsUseCaseTest {
         val sourceManga = createTestManga(title = "Nonexistent Manga")
 
         coEvery {
-            sourceRepository.searchManga("1", "Nonexistent Manga", 1)
+            sourceRepository.searchManga(TARGET_SOURCE_ID, "Nonexistent Manga", 1)
         } returns Result.success(MangaPage(emptyList(), false))
 
         // When
-        val result = useCase(sourceManga, 1L)
+        val result = useCase(sourceManga, TARGET_SOURCE_KEY)
 
         // Then
         assertTrue(result.isSuccess)
@@ -242,11 +258,11 @@ class SearchMigrationTargetsUseCaseTest {
         val exception = Exception("Network error")
 
         coEvery {
-            sourceRepository.searchManga("1", "Some Manga", 1)
+            sourceRepository.searchManga(TARGET_SOURCE_ID, "Some Manga", 1)
         } returns Result.failure(exception)
 
         // When
-        val result = useCase(sourceManga, 1L)
+        val result = useCase(sourceManga, TARGET_SOURCE_KEY)
 
         // Then
         assertTrue(result.isFailure)
@@ -259,11 +275,11 @@ class SearchMigrationTargetsUseCaseTest {
         val targetManga = createTestSourceManga(title = "Hunter x Hunter")
 
         coEvery {
-            sourceRepository.searchManga("1", "Hunter×Hunter", 1)
+            sourceRepository.searchManga(TARGET_SOURCE_ID, "Hunter×Hunter", 1)
         } returns Result.success(MangaPage(listOf(targetManga), false))
 
         // When
-        val result = useCase(sourceManga, 1L)
+        val result = useCase(sourceManga, TARGET_SOURCE_KEY)
 
         // Then
         assertTrue(result.isSuccess)
@@ -300,4 +316,9 @@ class SearchMigrationTargetsUseCaseTest {
         author = author,
         genre = genre
     )
+
+    private companion object {
+        const val TARGET_SOURCE_KEY = 1L
+        const val TARGET_SOURCE_ID = "2499283573021220255"
+    }
 }

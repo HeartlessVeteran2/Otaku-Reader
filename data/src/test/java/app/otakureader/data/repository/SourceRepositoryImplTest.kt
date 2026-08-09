@@ -15,6 +15,8 @@ import app.otakureader.domain.repository.ExtensionManagementRepository
 import app.otakureader.sourceapi.MangaPage
 import app.otakureader.sourceapi.MangaSource
 import app.otakureader.sourceapi.SourceManga
+import app.otakureader.domain.repository.associateBySourceKey
+import app.otakureader.sourceapi.toSourceId
 import eu.kanade.tachiyomi.source.CatalogueSource
 import eu.kanade.tachiyomi.source.online.HttpSource
 import io.mockk.coEvery
@@ -492,6 +494,97 @@ class SourceRepositoryImplTest {
     }
 
     // ──────────────────────────────────────────────────────────────────────
+    // getSourceByKey – reversing the hashed key stored on manga rows
+    // ──────────────────────────────────────────────────────────────────────
+
+    /**
+     * The bug this guards: a manga row stores `source.id.toSourceId()`, and every read-back used
+     * to do `getSource(manga.sourceId.toString())` — comparing the hash's decimal against the
+     * source's real id, which never matches. Reading, updating and recommending all failed with
+     * "Source not found" for every library entry.
+     *
+     * The source id used here is the numeric form an APK extension actually has, because that is
+     * the case where stringifying *looks* plausible.
+     */
+    @Test
+    fun getSourceByKey_findsTheSourceThatProducedTheKey() = runTest {
+        val source = makeFakeSource(id = APK_SOURCE_ID, name = "MangaDex")
+        repository.injectSourcesForTesting(listOf(source))
+
+        assertEquals(source, repository.getSourceByKey(APK_SOURCE_ID.toSourceId()))
+        // The value the old code passed. It has to miss, or the test above proves nothing.
+        assertNull(repository.getSource(APK_SOURCE_ID.toSourceId().toString()))
+    }
+
+    @Test
+    fun getSourceByKey_findsSourcesWhoseIdIsNotNumeric() = runTest {
+        val local = makeFakeSource(id = "local", name = "Local")
+        val js = makeFakeSource(id = "en.somejssource", name = "Some JS Source")
+        repository.injectSourcesForTesting(listOf(local, js))
+
+        assertEquals(local, repository.getSourceByKey("local".toSourceId()))
+        assertEquals(js, repository.getSourceByKey("en.somejssource".toSourceId()))
+    }
+
+    /**
+     * Rows written before the key convention was uniform hold `id.toLongOrNull()` instead. They
+     * are indistinguishable from hashed rows on disk, so the only way to keep those libraries
+     * working is to match them here too.
+     */
+    @Test
+    fun getSourceByKey_alsoMatchesLegacyRowsThatStoredTheParsedId() = runTest {
+        val source = makeFakeSource(id = APK_SOURCE_ID, name = "MangaDex")
+        repository.injectSourcesForTesting(listOf(source))
+
+        assertEquals(source, repository.getSourceByKey(APK_SOURCE_ID.toLong()))
+    }
+
+    /**
+     * A genuine `String.hashCode()` collision, not a contrived one: `"Aa"` and `"BB"` both hash
+     * to 2112. Two installed sources whose ids collide therefore claim the same canonical key,
+     * and something has to decide which one wins.
+     *
+     * The value asserted here is not that a particular source wins — either would be defensible —
+     * but that `getSourceByKey` and `associateBySourceKey` agree. They used to be written out
+     * separately and disagreed exactly here: a linear `find` returns the first match in list
+     * order while a map built with `put` keeps the last. Same key, two different sources,
+     * depending on which path asked.
+     */
+    @Test
+    fun getSourceByKey_agreesWithTheKeyIndexOnAGenuinelyCollidingKey() = runTest {
+        val first = makeFakeSource(id = "Aa", name = "First")
+        val second = makeFakeSource(id = "BB", name = "Second")
+        val key = "Aa".toSourceId()
+        assertEquals(key, "BB".toSourceId())
+        repository.injectSourcesForTesting(listOf(first, second))
+
+        val viaIndex = listOf(first, second).associateBySourceKey { it.id }[key]
+        assertEquals(viaIndex, repository.getSourceByKey(key))
+    }
+
+    /**
+     * With both rules in play two different sources can claim one key. The canonical rule has to
+     * win, otherwise a legacy match could shadow a source that genuinely owns the key today.
+     */
+    @Test
+    fun getSourceByKey_prefersTheCanonicalRuleWhenBothMatch() = runTest {
+        val canonical = makeFakeSource(id = "en.canonical", name = "Canonical")
+        val key = "en.canonical".toSourceId()
+        val legacy = makeFakeSource(id = key.toString(), name = "Legacy")
+        // Legacy first in the list, so ordering cannot be what decides it.
+        repository.injectSourcesForTesting(listOf(legacy, canonical))
+
+        assertEquals(canonical, repository.getSourceByKey(key))
+    }
+
+    @Test
+    fun getSourceByKey_returnsNullWhenNoSourceOwnsTheKey() = runTest {
+        repository.injectSourcesForTesting(listOf(makeFakeSource(id = "en.one", name = "One")))
+
+        assertNull(repository.getSourceByKey("en.two".toSourceId()))
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
     // getPopularManga / getLatestUpdates / searchManga – error propagation
     // ──────────────────────────────────────────────────────────────────────
 
@@ -712,5 +805,10 @@ class SourceRepositoryImplTest {
         // Here we mock the preference flows to return safe defaults.
         every { localSourcePreferences.localSourceDirectory } returns kotlinx.coroutines.flow.flowOf("/tmp/local")
         every { localSourcePreferences.allowLocalSourceHiddenFolders } returns kotlinx.coroutines.flow.flowOf(false)
+    }
+
+    private companion object {
+        /** The shape an APK extension's id actually has: a Tachiyomi Long, stringified. */
+        const val APK_SOURCE_ID = "2499283573021220255"
     }
 }

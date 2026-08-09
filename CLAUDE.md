@@ -187,6 +187,36 @@ LibraryViewModel.kt — @HiltViewModel, produces StateFlow<LibraryState>
 LibraryScreen.kt    — stateless composable consuming state
 ```
 
+### Source Identity — Two Ids, One Direction
+
+A source has a **string id** (`MangaSource.id`) and every manga row stores a **`Long` key**
+(`Manga.sourceId`). The key is `id.toSourceId()`, which is `id.hashCode().toLong()`.
+
+**Hashing is one-way.** `manga.sourceId.toString()` is the decimal of a hash and matches no
+source's id — it is *not* a way back. To go from a key to a source, search the loaded sources:
+
+```kotlin
+sourceRepository.getSourceByKey(manga.sourceId)          // the MangaSource
+sourceRepository.resolveSourceId(manga.sourceId)         // its string id, for a source call
+```
+
+Getting this wrong is the highest-impact bug the project has had. `getSource(manga.sourceId.toString())`
+was in reading, library update, recommendations, migration, the details screen, prefetch and
+download-ahead; all of them failed with "Source not found" for every library entry, and the
+details header's source name was permanently blank. Three *different* wrong conventions were in
+use at once (`toSourceId()`, `toLongOrNull()`, and the raw `ExtensionSource.id`), which is why
+some manga worked and others didn't depending on which screen added them. Fixed across the repo;
+`getSourceByKey` also matches the legacy `toLongOrNull()` rows, because a `Long` on disk carries
+no record of which convention wrote it and so no migration can tell them apart.
+
+Two things are deliberately *not* this key:
+
+- **`resolveDownloadFolderName`** returns the numeric key as a string and consults no source. Every
+  download on disk is already filed under the number, so resolving a display name would orphan
+  them. Changing it is a data migration — see #1256.
+- **`Route.SourceListing.sourceId`** is already the string id. Browse never went through the key,
+  which is why browsing worked while reading from the library did not.
+
 ### Clean Architecture Layer Rules
 
 | Layer | Contains | Rules |
@@ -472,12 +502,13 @@ A claim about a library's published versions was taken from a search API that on
 2. **Room DAO not connected** — DAO not injected into repo, repo not injected into UseCase. Trace the chain.
 3. **MVI state not updating UI** — `StateFlow` not collected in Compose, or reducer emitting same reference. Use `copy()`.
 4. **Extension loader failures** — ClassLoader issue, missing permission, or interface mismatch with Tachiyomi API.
-5. **Gradle dependency conflicts** — Version mismatches between Compose BOM, Kotlin, Hilt, or KSP. Check `libs.versions.toml` first.
-6. **Navigation crashes** — Missing destination, wrong argument type in NavGraph, or missing `@Serializable` on route class.
-7. **Coroutine scope leaks** — `GlobalScope` used instead of `viewModelScope` or `lifecycleScope`. Always use structured concurrency.
-8. **Stale undo from concurrent batches** — Guard the undo handler: `if (pendingBatchIds != incomingIds) return`.
-9. **Flow recreated on recomposition** — Wrap with `remember(key) { flow }` when derived from a `@Singleton` injected dependency.
-10. **Room migration FK violations** — Recreating a table (to DROP a column) while child tables have FK references to it causes `SQLITE_CONSTRAINT_FOREIGNKEY`. Wrap the CREATE/INSERT/DROP/RENAME block with `PRAGMA foreign_keys = OFF` before and `PRAGMA foreign_keys = ON` after.
+5. **"Source not found" for a library manga** — someone passed `manga.sourceId.toString()` where a source id was wanted. Use `getSourceByKey` / `resolveSourceId`. See *Source Identity* above.
+6. **Gradle dependency conflicts** — Version mismatches between Compose BOM, Kotlin, Hilt, or KSP. Check `libs.versions.toml` first.
+7. **Navigation crashes** — Missing destination, wrong argument type in NavGraph, or missing `@Serializable` on route class.
+8. **Coroutine scope leaks** — `GlobalScope` used instead of `viewModelScope` or `lifecycleScope`. Always use structured concurrency.
+9. **Stale undo from concurrent batches** — Guard the undo handler: `if (pendingBatchIds != incomingIds) return`.
+10. **Flow recreated on recomposition** — Wrap with `remember(key) { flow }` when derived from a `@Singleton` injected dependency.
+11. **Room migration FK violations** — Recreating a table (to DROP a column) while child tables have FK references to it causes `SQLITE_CONSTRAINT_FOREIGNKEY`. Wrap the CREATE/INSERT/DROP/RENAME block with `PRAGMA foreign_keys = OFF` before and `PRAGMA foreign_keys = ON` after.
 
 ---
 

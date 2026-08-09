@@ -7,6 +7,7 @@ import app.otakureader.core.preferences.ReadingGoalPreferences
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.ContinueReadingItem
 import app.otakureader.domain.model.Manga
+import app.otakureader.sourceapi.toSourceId
 import app.otakureader.domain.model.ReadingGoal
 import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.model.ReadingList
@@ -235,7 +236,16 @@ class LibraryViewModelTest {
 
     @Test
     fun loadLibrary_populatesSourceIconUrl_fromInstalledExtensions() = runTest {
-        every { getLibraryManga() } returns flowOf(sampleMangas)
+        // A manga row stores the *canonical* key — the extension's source id stringified and
+        // hashed, matching what `TachiyomiSourceAdapter` exposes. Keying the icon map by the raw
+        // `ExtensionSource.id` instead meant no row ever matched and no icons were shown.
+        val installedKey = INSTALLED_SOURCE_ID.toString().toSourceId()
+        val uninstalledKey = "99".toSourceId()
+        every { getLibraryManga() } returns flowOf(
+            sampleMangas.mapIndexed { index, manga ->
+                manga.copy(sourceId = if (index == 1) uninstalledKey else installedKey)
+            }
+        )
         val testIconUrl = "https://test.icon/source10.png"
         val fakeExtension = app.otakureader.core.extension.domain.model.Extension(
             id = 1L,
@@ -245,7 +255,7 @@ class LibraryViewModelTest {
             versionName = "1.0",
             sources = listOf(
                 app.otakureader.core.extension.domain.model.ExtensionSource(
-                    id = 10L,
+                    id = INSTALLED_SOURCE_ID,
                     name = "Test Source",
                     lang = "en",
                     baseUrl = "https://example.com",
@@ -264,14 +274,13 @@ class LibraryViewModelTest {
         val viewModel = createViewModel()
         testDispatcher.scheduler.advanceUntilIdle()
 
-        // sourceId 10 → icon URL from the extension
-        viewModel.state.value.mangaList
-            .filter { it.sourceId == 10L }
-            .forEach { assertEquals(testIconUrl, it.sourceIconUrl) }
-        // sourceId 20 → no matching extension, so null
-        viewModel.state.value.mangaList
-            .filter { it.sourceId == 20L }
-            .forEach { assertNull(it.sourceIconUrl) }
+        val matched = viewModel.state.value.mangaList.filter { it.sourceId == installedKey }
+        val unmatched = viewModel.state.value.mangaList.filter { it.sourceId == uninstalledKey }
+        // Both non-empty, or "every entry has the right icon" would hold vacuously.
+        assertTrue(matched.isNotEmpty())
+        assertTrue(unmatched.isNotEmpty())
+        matched.forEach { assertEquals(testIconUrl, it.sourceIconUrl) }
+        unmatched.forEach { assertNull(it.sourceIconUrl) }
     }
 
     @Test
@@ -1055,5 +1064,10 @@ class LibraryViewModelTest {
         // Falls back to alphabetical: Bleach, Naruto, One Piece
         val titles = viewModel.state.value.mangaList.map { it.title }
         assertEquals(listOf("Bleach", "Naruto", "One Piece"), titles)
+    }
+
+    private companion object {
+        /** Matches the raw Tachiyomi id an installed extension reports. */
+        const val INSTALLED_SOURCE_ID = 10L
     }
 }

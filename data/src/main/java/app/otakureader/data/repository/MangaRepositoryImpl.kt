@@ -11,8 +11,7 @@ import app.otakureader.domain.model.ContentRating
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.repository.MangaRepository
-import app.otakureader.domain.repository.SourceRepository
-import app.otakureader.domain.repository.resolveDownloadFolderName
+import app.otakureader.domain.repository.downloadFolderNameFor
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import kotlinx.coroutines.Dispatchers
@@ -33,7 +32,6 @@ class MangaRepositoryImpl @Inject constructor(
     private val mangaCategoryDao: MangaCategoryDao,
     private val altSourceDao: MangaAlternativeSourceDao,
     private val downloadRepository: dagger.Lazy<app.otakureader.domain.repository.DownloadRepository>,
-    private val sourceRepository: SourceRepository,
 ) : MangaRepository {
 
     override fun getLibraryManga(): Flow<List<Manga>> {
@@ -164,7 +162,7 @@ class MangaRepositoryImpl @Inject constructor(
         val chapters = chapterDao.getChaptersByMangaId(mangaId).first()
 
         // Delete downloads for each chapter
-        val sourceName = sourceRepository.resolveDownloadFolderName(manga.sourceId)
+        val sourceName = downloadFolderNameFor(manga.sourceId)
         val mangaTitle = manga.title
 
         chapters.forEach { chapterEntity ->

@@ -3,6 +3,7 @@ package app.otakureader.domain.repository
 import app.otakureader.sourceapi.FilterList
 import app.otakureader.sourceapi.MangaPage
 import app.otakureader.sourceapi.MangaSource
+import app.otakureader.sourceapi.toSourceId
 import app.otakureader.sourceapi.SourceChapter
 import app.otakureader.sourceapi.SourceManga
 import kotlinx.coroutines.flow.Flow
@@ -21,6 +22,17 @@ interface SourceRepository {
      * Get a source by its ID
      */
     suspend fun getSource(sourceId: String): MangaSource?
+
+    /**
+     * Get a source by the `Long` key that manga rows store in `Manga.sourceId`.
+     *
+     * That key is produced by [app.otakureader.sourceapi.toSourceId], which hashes the source's
+     * string id — so it cannot be turned back into an id by stringifying it. The reverse has to
+     * be a search over the loaded sources, which is what this does.
+     *
+     * Use this, never `getSource(manga.sourceId.toString())`.
+     */
+    suspend fun getSourceByKey(key: Long): MangaSource?
 
     /**
      * Get popular manga from a source
@@ -69,11 +81,48 @@ interface SourceRepository {
 }
 
 /**
- * Resolves the on-disk folder name used for a manga's downloads: the source's actual display
- * name (e.g. "MangaDex") when the source can be looked up, falling back to the numeric
- * [sourceId] string when it can't (e.g. its extension was uninstalled). Every download
- * enqueue/read/delete call site must resolve through this so they all agree on the same
- * folder — never build a download path from a raw sourceId directly.
+ * Resolves the string id a source call needs from the `Long` key stored on a manga row, or null
+ * when no loaded source owns that key (its extension is uninstalled, or it hasn't loaded yet).
+ *
+ * Every source call takes the string id; every manga row holds the `Long`. This is the only
+ * correct bridge between them — see [SourceRepository.getSourceByKey] for why stringifying the
+ * key does not work.
  */
-suspend fun SourceRepository.resolveDownloadFolderName(sourceId: Long): String =
-    getSource(sourceId.toString())?.name ?: sourceId.toString()
+suspend fun SourceRepository.resolveSourceId(key: Long): String? = getSourceByKey(key)?.id
+
+/**
+ * Indexes [this] by every `Long` key a manga row might hold for it.
+ *
+ * The rule has to match [SourceRepository.getSourceByKey], including its precedence: legacy
+ * parsed keys are written first so the canonical hashed key overwrites them on a collision. A
+ * map built from the canonical key alone would leave legacy rows unmatched here while
+ * `getSourceByKey` still resolved them — the same source reachable one way and not the other.
+ *
+ * [id] extracts the source's string id, because callers index different types: `MangaSource`
+ * holds it directly, `ExtensionSource` holds the raw Tachiyomi `Long` that has to be stringified
+ * first.
+ */
+fun <T> Iterable<T>.associateBySourceKey(id: (T) -> String): Map<Long, T> {
+    val items = this
+    return buildMap {
+        // Named receiver: inside buildMap a bare `forEach` binds to the map being built, not to
+        // the iterable being indexed.
+        items.forEach { item -> id(item).toLongOrNull()?.let { key -> put(key, item) } }
+        items.forEach { item -> put(id(item).toSourceId(), item) }
+    }
+}
+
+/**
+ * The on-disk folder name used for a manga's downloads: the numeric source key, as a string.
+ *
+ * Not a [SourceRepository] extension, because it consults no source and pretending otherwise
+ * implied a dependency that does not exist. It used to be one — `getSource(sourceId.toString())
+ * ?.name` — but that lookup compared a hashed key's decimal against a source's real id and so
+ * could never match. Every download on every device is already filed under the number, so making
+ * the name resolve now would point every read at a folder that does not exist, orphaning
+ * downloaded chapters. Switching to display names is a migration, not an edit; see #1256.
+ *
+ * Every download enqueue/read/delete call site must resolve through this so they all agree on
+ * the same folder — never build a download path from a raw sourceId directly.
+ */
+fun downloadFolderNameFor(sourceId: Long): String = sourceId.toString()

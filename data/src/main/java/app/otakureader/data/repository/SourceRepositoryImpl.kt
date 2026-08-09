@@ -12,6 +12,7 @@ import app.otakureader.core.tachiyomi.health.SourceHealthMonitor
 import app.otakureader.core.tachiyomi.local.LocalSource
 import app.otakureader.domain.repository.ExtensionManagementRepository
 import app.otakureader.domain.repository.SourceRepository
+import app.otakureader.domain.repository.associateBySourceKey
 import app.otakureader.sourceapi.FilterList
 import app.otakureader.sourceapi.MangaPage
 import app.otakureader.sourceapi.MangaSource
@@ -166,6 +167,19 @@ class SourceRepositoryImpl @Inject constructor(
     override suspend fun getSource(sourceId: String): MangaSource? {
         return _sources.value.find { it.id == sourceId }
     }
+
+    /**
+     * Reverses [toSourceId] by searching the loaded sources, because hashing is one-way.
+     *
+     * Delegates to [associateBySourceKey] rather than restating the rule. That rule has two parts
+     * — the canonical [toSourceId] hash, plus a legacy `toLongOrNull()` parse that
+     * `SourceMangaDetailViewModel` once wrote, indistinguishable from a hash on disk and so
+     * unrepairable by migration — and it is also used to index sources by key elsewhere. Written
+     * out twice, the two copies agreed on every key owned by one source but disagreed on which
+     * source won a collision, and nothing would have caught them drifting further apart.
+     */
+    override suspend fun getSourceByKey(key: Long): MangaSource? =
+        _sources.value.associateBySourceKey { it.id }[key]
 
     /**
      * Helper to perform a source health check and return a failure Result when unhealthy.

@@ -5,6 +5,7 @@ import android.util.Log
 import app.otakureader.core.common.network.NetworkMonitor
 import app.otakureader.core.common.network.NetworkType
 import app.otakureader.core.database.dao.DownloadQueueDao
+import app.otakureader.core.database.dao.MangaDao
 import app.otakureader.core.database.entity.DownloadQueueEntity
 import app.otakureader.core.preferences.CbzEncryptionStore
 import app.otakureader.core.preferences.DownloadPreferences
@@ -14,6 +15,7 @@ import app.otakureader.domain.model.DownloadPriority
 import app.otakureader.domain.model.DownloadStatus
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.SourceRepository
+import app.otakureader.domain.repository.resolveSourceId
 import app.otakureader.sourceapi.SourceChapter
 import app.otakureader.core.common.di.ApplicationScope
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -77,6 +79,11 @@ class DownloadManager @Inject constructor(
     private val downloadQueueDao: DownloadQueueDao,
     private val chapterRepository: ChapterRepository,
     private val sourceRepository: SourceRepository,
+    // The DAO rather than MangaRepository: DownloadRepositoryImpl injects this class and
+    // MangaRepositoryImpl injects DownloadRepository, so going through the repository would
+    // close a cycle that only compiles because of a `dagger.Lazy` on the far side of it. The
+    // DAO has no such edges, and this class already takes DownloadQueueDao directly.
+    private val mangaDao: MangaDao,
     @param:ApplicationScope private val scope: CoroutineScope
 ) {
     private val mutex = Mutex()
@@ -721,7 +728,24 @@ class DownloadManager @Inject constructor(
             chapterNumber = chapter.chapterNumber,
             scanlator = chapter.scanlator ?: "",
         )
-        return sourceRepository.getPageList(request.sourceName, sourceChapter)
+        // `request.sourceName` is the download *folder* name, not a source id — passing it here
+        // meant this lookup never found a source, so any download enqueued without page URLs
+        // resolved to an empty list and went straight to FAILED. The source is a property of the
+        // manga, so it is resolved from the manga's key.
+        val manga = try {
+            mangaDao.getMangaById(request.mangaId)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "resolvePageUrls: manga lookup failed", e)
+            null
+        }
+        val sourceId = manga?.let { sourceRepository.resolveSourceId(it.sourceId) }
+        if (sourceId == null) {
+            Log.w(TAG, "resolvePageUrls: no source for manga ${request.mangaId}")
+            return emptyList()
+        }
+        return sourceRepository.getPageList(sourceId, sourceChapter)
             .onFailure { e ->
                 Log.w(TAG, "resolvePageUrls: source failed for chapter ${request.chapterId}", e)
             }

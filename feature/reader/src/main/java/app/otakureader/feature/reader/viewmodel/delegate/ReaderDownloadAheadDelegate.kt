@@ -9,7 +9,8 @@ import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.domain.repository.SourceRepository
-import app.otakureader.domain.repository.resolveDownloadFolderName
+import app.otakureader.domain.repository.downloadFolderNameFor
+import app.otakureader.domain.repository.resolveSourceId
 import app.otakureader.core.preferences.DownloadPreferences
 import app.otakureader.sourceapi.Page
 import app.otakureader.sourceapi.SourceChapter
@@ -28,8 +29,8 @@ class ReaderDownloadAheadDelegate @Inject constructor(
     private val mangaRepository: MangaRepository,
 ) {
     suspend fun enqueueCurrentChapter(manga: Manga, chapter: Chapter): Boolean {
-        val sourceIdString = manga.sourceId.toString()
-        val downloadFolderName = sourceRepository.resolveDownloadFolderName(manga.sourceId)
+        val sourceIdString = sourceRepository.resolveSourceId(manga.sourceId) ?: return false
+        val downloadFolderName = downloadFolderNameFor(manga.sourceId)
         val existingDownloads = downloadRepository.observeDownloads().first()
         if (existingDownloads.any { it.chapterId == chapter.id }) return false
         if (downloadRepository.isChapterDownloaded(downloadFolderName, manga.title, chapter.name)) return false
@@ -38,7 +39,7 @@ class ReaderDownloadAheadDelegate @Inject constructor(
 
     suspend fun isChapterDownloaded(manga: Manga, chapter: Chapter): Boolean =
         downloadRepository.isChapterDownloaded(
-            sourceRepository.resolveDownloadFolderName(manga.sourceId),
+            downloadFolderNameFor(manga.sourceId),
             manga.title,
             chapter.name,
         )
@@ -67,8 +68,8 @@ class ReaderDownloadAheadDelegate @Inject constructor(
             if (currentIndex == -1 || currentIndex >= chapters.size - 1) return@launch
 
             val manga = getCurrentManga() ?: mangaRepository.getMangaById(mangaId) ?: return@launch
-            val sourceIdString = manga.sourceId.toString()
-            val downloadFolderName = sourceRepository.resolveDownloadFolderName(manga.sourceId)
+            val sourceIdString = sourceRepository.resolveSourceId(manga.sourceId) ?: return@launch
+            val downloadFolderName = downloadFolderNameFor(manga.sourceId)
             val existingDownloads = downloadRepository.observeDownloads().first()
 
             val endIndex = minOf(currentIndex + downloadAheadChapters, chapters.size - 1)

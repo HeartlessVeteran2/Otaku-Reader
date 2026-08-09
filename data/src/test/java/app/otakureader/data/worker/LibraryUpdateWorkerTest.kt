@@ -231,7 +231,7 @@ class LibraryUpdateWorkerTest {
     fun `new chapters are recorded in the feed`() = runTest {
         coEvery { getLibraryManga() } returns flowOf(listOf(testManga1))
         coEvery { updateLibraryManga(testManga1) } returns Result.success(newChapters(2))
-        coEvery { sourceRepository.getSource(testManga1.sourceId.toString()) } returns
+        coEvery { sourceRepository.getSourceByKey(testManga1.sourceId) } returns
             mockk { every { name } returns "MangaDex" }
 
         worker.doWork()
@@ -264,7 +264,7 @@ class LibraryUpdateWorkerTest {
     fun `a chapter from an uninstalled source still reaches the feed`() = runTest {
         coEvery { getLibraryManga() } returns flowOf(listOf(testManga1))
         coEvery { updateLibraryManga(testManga1) } returns Result.success(newChapters(1))
-        coEvery { sourceRepository.getSource(any()) } returns null
+        coEvery { sourceRepository.getSourceByKey(any()) } returns null
 
         worker.doWork()
 
