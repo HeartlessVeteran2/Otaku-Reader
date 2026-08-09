@@ -61,6 +61,9 @@ class LibraryUpdateWorkerTest {
     // fresh test instance per method, so this is still isolated between tests.
     private val feedRepository: FeedRepository = mockk(relaxed = true)
 
+    /** How far either side of "now" a freshly-stamped feed timestamp may land. */
+    private val timestampToleranceSeconds = 60L
+
     /**
      * [count] chapters that stand in for whatever the update found.
      *
@@ -68,8 +71,6 @@ class LibraryUpdateWorkerTest {
      * arrived. These tests only care how many, so the contents are placeholders — but they have to
      * be real [Chapter]s, since a size is no longer enough to express the result.
      */
-    private val timestampToleranceSeconds = 60L
-
     private fun newChapters(count: Int): List<Chapter> = List(count) { index ->
         Chapter(
             id = index + 1L,

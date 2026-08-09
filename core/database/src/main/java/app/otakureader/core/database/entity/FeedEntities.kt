@@ -6,10 +6,7 @@ import androidx.room.PrimaryKey
 import java.time.Instant
 
 /**
- * Entity for feed items - latest chapters from various sources.
- */
-/**
- * A chapter that has arrived, for the Feed tab.
+ * A chapter that has arrived, for the Feed tab — the latest chapters from the user's sources.
  *
  * ### `(mangaId, chapterId)` is unique
  *
