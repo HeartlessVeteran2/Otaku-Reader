@@ -6,7 +6,7 @@ target-sdk = "36"
 min-sdk = "26"
 
 # Core
-kotlin = "2.3.21"
+kotlin = "2.4.10"
 agp = "9.1.1"
 # D-3: KSP uses standalone versioning since 2.3.x. 2.3.7 is the latest patch release for the 2.3.x series.
 ksp = "2.3.7"
