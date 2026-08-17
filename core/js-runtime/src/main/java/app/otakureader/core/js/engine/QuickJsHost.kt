@@ -112,6 +112,15 @@ internal class QuickJsHost(
 
             installGlobals(engine)
 
+            // Order matters in both directions. The prelude captures the host namespaces
+            // installed above and then shadows their names with the class-shaped API extensions
+            // expect, so it cannot run before `installGlobals`. It defines `MProvider`, which
+            // every extension names in its `extends` clause, so it must run before the script is
+            // evaluated — a class declaration resolves its base at definition time, not at call
+            // time, and a missing base fails the whole script rather than one method.
+            engine.evaluate<Any?>(sourceConfigGlobal())
+            engine.evaluate<Any?>(JsPrelude.source)
+
             // The result is pushed out through a binding rather than taken from the
             // evaluation's return value.
             //
@@ -172,7 +181,17 @@ internal class QuickJsHost(
             ?.entries
             ?.mapNotNull { (k, v) ->
                 val key = k as? String ?: return@mapNotNull null
-                key to v.toString()
+                // Drop the header rather than stringifying a null into it.
+                //
+                // Sources build header maps from preferences that frequently have no value yet —
+                // `{"user-agent": this.getPreference("custom_user_agent")}` is the common shape,
+                // and on a fresh install that preference is unset. `Any?.toString()` renders that
+                // as the four characters `null`, so the request goes out claiming a User-Agent of
+                // "null": worse than sending none, because it defeats the default the shared
+                // OkHttp client would otherwise have supplied and it is a value some sites
+                // fingerprint on.
+                val value = v ?: return@mapNotNull null
+                key to value.toString()
             }
             ?.toMap()
             .orEmpty()
@@ -263,6 +282,25 @@ internal class QuickJsHost(
                 null
             }
         }
+    }
+
+    /**
+     * Publish this source's own manifest as a JSON literal for the prelude to read.
+     *
+     * Extensions reach for `this.source.baseUrl`, `this.source.apiUrl` and `this.source.lang`
+     * throughout — an API-backed source builds essentially every request from `apiUrl`. Handing
+     * the config over as text rather than as a binding keeps the rule that only primitives cross
+     * the boundary, and encoding it with the serializer rather than by concatenation means a
+     * quote or backslash in a source name cannot terminate the literal and change the program
+     * being evaluated, which is the same reasoning [buildInvocation] applies to call arguments.
+     *
+     * Preferences are deliberately excluded: they are reachable through `SharedPreferences`,
+     * which routes writes back to the main process, whereas a copy pasted into this object would
+     * be a snapshot that silently stopped matching after the first write.
+     */
+    private fun sourceConfigGlobal(): String {
+        val manifest = JsProtocol.json.encodeToString(config.copy(preferences = emptyMap()))
+        return "globalThis.__otakuSourceConfig = ${JsProtocol.json.encodeToString(manifest)};"
     }
 
     /**

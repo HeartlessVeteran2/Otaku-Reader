@@ -7,8 +7,16 @@ import app.otakureader.core.extension.domain.model.InstallStatus
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonDecoder
+import kotlinx.serialization.json.JsonPrimitive
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.ResponseBody
@@ -17,36 +25,132 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
+ * Renders whatever JSON primitive appears in a field as its string form.
+ *
+ * The published indexes disagree on the type of two fields that matter. Mangayomi's writes `id`
+ * and `itemType` as **numbers**; the Sora-style indexes write them as **strings**. Both are
+ * legitimate and neither is going to change, so the reader has to accept either.
+ *
+ * Done with a serializer rather than by switching the parser to `isLenient` because leniency is
+ * global: it would also start accepting unquoted keys and values everywhere else in the document,
+ * which is a much larger promise to make about a file fetched from an arbitrary remote host. This
+ * widens exactly the two fields that need widening.
+ */
+private object FlexibleStringSerializer : KSerializer<String> {
+    override val descriptor: SerialDescriptor =
+        PrimitiveSerialDescriptor("FlexibleString", PrimitiveKind.STRING)
+
+    override fun deserialize(decoder: Decoder): String {
+        val element = (decoder as JsonDecoder).decodeJsonElement()
+        // `content` is the primitive's text regardless of whether it was quoted, so a numeric id
+        // arrives as its decimal — which is stable, and is what the string-typed indexes publish
+        // for the same source anyway.
+        return (element as? JsonPrimitive)?.content.orEmpty()
+    }
+
+    override fun serialize(encoder: Encoder, value: String) = encoder.encodeString(value)
+}
+
+/**
  * One entry in a repository's JavaScript source index.
  *
- * Mirrors the Mangayomi/Sora index shape, which is what the existing community JavaScript
- * sources are published against. Following it rather than inventing a format means those sources
- * work here unmodified — the same reasoning that keeps the Tachiyomi APK contract intact.
+ * Mirrors the Mangayomi/Sora index shape, which is what the existing community JavaScript sources
+ * are published against.
+ *
+ * **This claim was previously wider than the code.** The field *names* matched, but three of the
+ * types did not, and each failure was silent in a different way against the real Mangayomi index:
+ * `id` and `itemType` are numbers there, so every entry either failed to decode or survived
+ * decoding and was then dropped by an `itemType == "manga"` comparison that a numeric `0` can
+ * never satisfy; and nothing read `sourceCodeLanguage`, so the 249 Dart entries that share the
+ * index with the 114 JavaScript ones would have been downloaded and handed to the JS engine.
  */
 @Serializable
 internal data class JsExtensionDto(
+    @Serializable(with = FlexibleStringSerializer::class)
     val id: String,
     val name: String,
     val baseUrl: String,
     val lang: String,
-    /** Where the `.js` itself lives. Relative paths resolve against the repository base. */
-    val sourceCodeUrl: String,
+    /**
+     * The source's API host, when it keeps one separate from [baseUrl].
+     *
+     * Blank for scraping sources, which is most of them, and set for roughly a quarter of the
+     * index. Sources that set it build nearly every request from it, so dropping the field on the
+     * floor makes those sources fail as ordinary HTTP errors against `undefined/...`.
+     */
+    val apiUrl: String = "",
+    /** Where the source code lives. Relative paths resolve against the repository base. */
+    val sourceCodeUrl: String = "",
     val version: String = "1.0.0",
-    /** Monotonic build number, used for update detection. */
-    val versionCode: Int = 1,
+    /**
+     * Monotonic build number.
+     *
+     * Absent from every entry of the Mangayomi index — use [effectiveVersionCode], never this
+     * field directly. Kept because the Sora-style indexes do publish it.
+     */
+    val versionCode: Int = 0,
     val iconUrl: String? = null,
     val isNsfw: Boolean = false,
     val hasCloudflare: Boolean = false,
     /**
-     * `manga`, `novel`, or `anime` in the wild.
+     * Which language the source is written in: `0` Dart, `1` JavaScript.
      *
-     * Only `manga` entries are surfaced today — see the filter in `fetchIndex`. Absent means
-     * manga, which is what the overwhelming majority of index entries omit it for.
+     * Defaults to JavaScript because a repository that serves *only* JavaScript omits the field
+     * entirely — that is the shape this reader was originally written against — and defaulting to
+     * Dart would silently empty every such repository.
      */
+    val sourceCodeLanguage: Int = LANGUAGE_JAVASCRIPT,
+    /**
+     * `manga`, `novel` or `anime` — as a name in some indexes, as an ordinal in others.
+     *
+     * Only manga entries are surfaced today; see the filter in `fetchIndex`. Absent means manga,
+     * which is what the overwhelming majority of index entries omit it for.
+     */
+    @Serializable(with = FlexibleStringSerializer::class)
     val itemType: String = ITEM_TYPE_MANGA,
 ) {
+    /** True when this entry is a manga source, under either spelling of the field. */
+    val isManga: Boolean
+        get() = itemType.equals(ITEM_TYPE_MANGA, ignoreCase = true) ||
+            itemType == ITEM_TYPE_MANGA_ORDINAL
+
+    val isJavaScript: Boolean
+        get() = sourceCodeLanguage == LANGUAGE_JAVASCRIPT
+
+    /**
+     * A comparable build number, derived from [version] when the index omits [versionCode].
+     *
+     * Update detection and the duplicate-entry tiebreak both order by this. With the raw field the
+     * Mangayomi index pins every source at the same number, which does not fail loudly — it just
+     * means an installed source is never seen to have a newer release, and the user quietly stays
+     * on whatever version they first installed forever.
+     *
+     * Segments are packed rather than summed so that ordering follows precedence: 1.0.0 must beat
+     * 0.9.9, which a sum gets wrong. Three segments of two digits covers the published range;
+     * anything wider saturates rather than wrapping into a lower-looking number.
+     */
+    val effectiveVersionCode: Int
+        get() {
+            if (versionCode > 0) return versionCode
+            val parts = version.split('.', '-', '+')
+            var packed = 0
+            for (index in 0 until VERSION_SEGMENTS) {
+                val segment = parts.getOrNull(index)?.takeWhile(Char::isDigit)?.toIntOrNull() ?: 0
+                packed = packed * VERSION_SEGMENT_RADIX + segment.coerceIn(0, VERSION_SEGMENT_RADIX - 1)
+            }
+            return packed
+        }
+
     internal companion object {
         const val ITEM_TYPE_MANGA = "manga"
+
+        /** Mangayomi writes the item type as an ordinal, where manga is 0. */
+        const val ITEM_TYPE_MANGA_ORDINAL = "0"
+
+        const val LANGUAGE_JAVASCRIPT = 1
+
+        private const val VERSION_SEGMENTS = 3
+        private const val VERSION_SEGMENT_RADIX = 100
     }
 }
 
@@ -103,7 +207,30 @@ class JsExtensionRemoteDataSource @Inject constructor(
     }
 
     internal companion object {
-        const val INDEX_PATH = "/js/index.json"
+        /**
+         * The dedicated JavaScript index.
+         *
+         * A repository serving this path means JavaScript unambiguously, so anything that goes
+         * wrong after a successful fetch — a malformed document, a truncated body — is a real
+         * fault worth reporting to the user.
+         */
+        const val DEDICATED_INDEX_PATH = "/js/index.json"
+
+        /**
+         * The combined index, tried only when [DEDICATED_INDEX_PATH] is not served.
+         *
+         * The Mangayomi repository — the ecosystem this backend exists to consume — publishes one
+         * index here covering both its Dart and its JavaScript sources, and serves nothing at the
+         * dedicated path. Without this fallback the single largest supplier of JavaScript sources
+         * reports itself as a repository with no sources.
+         *
+         * **Failures here are swallowed, unlike the dedicated path.** This is the same filename
+         * the APK backend reads, so a Keiyoushi-style repository answers it with an index of a
+         * completely different shape. That is not a fault: it is the ordinary, expected answer
+         * from a repository that serves only APKs, and reporting it would put an error in front
+         * of every user about a backend they are using correctly.
+         */
+        const val COMBINED_INDEX_PATH = "/index.json"
 
         /**
          * Ceiling on a downloaded script.
@@ -166,11 +293,58 @@ class JsExtensionRemoteDataSource @Inject constructor(
         )
     }
 
+    /**
+     * The repository's JavaScript sources, from whichever index it publishes.
+     *
+     * The two paths are handled asymmetrically on purpose — see the notes on the constants.
+     * Precisely:
+     *
+     * - dedicated path **not served** → fall through, silently;
+     * - dedicated path served but **unreadable** → throws, because a repository publishing that
+     *   path has declared itself a JavaScript repository and a broken index there is a real fault;
+     * - combined path **not served** → throws, because a repository answering neither path
+     *   publishes no index at all;
+     * - combined path served but **unreadable** → empty, because that filename is shared with the
+     *   APK backend and an index of a foreign shape is the expected answer from an APK-only
+     *   repository.
+     */
     private fun fetchIndex(baseUrl: String): List<Extension> {
-        val indexUrl = baseUrl + INDEX_PATH
+        val dedicated = try {
+            fetchIndexBody(baseUrl + DEDICATED_INDEX_PATH)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            // Not served. Deliberately not chained into anything reported later: for every
+            // repository that reaches the next line this is the same uninformative 404 about a
+            // path the repository never claimed to have.
+            null
+        }
+
+        // Served, so its content is authoritative — a malformed document here is a real fault and
+        // this parse is allowed to throw.
+        if (dedicated != null) return parseIndex(dedicated, baseUrl)
+
+        // Not served, so try the combined index. Failing to *fetch* one still propagates: a
+        // repository that answers neither path serves no index at all, which is what the caller
+        // records as this repository's failure.
+        val combined = fetchIndexBody(baseUrl + COMBINED_INDEX_PATH)
+
+        return try {
+            parseIndex(combined, baseUrl)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            // Fetched but unreadable. This filename is shared with the APK backend, so an index
+            // of a shape this reader does not understand is the ordinary answer from an APK-only
+            // repository — not a fault, and not something to put in front of the user.
+            emptyList()
+        }
+    }
+
+    private fun fetchIndexBody(indexUrl: String): String {
         requireHttps(indexUrl)
 
-        val body = httpClient.newCall(Request.Builder().url(indexUrl).build()).execute().use { response ->
+        return httpClient.newCall(Request.Builder().url(indexUrl).build()).execute().use { response ->
             if (!response.isSuccessful) {
                 throw JsExtensionFetchException("HTTP ${response.code} fetching $indexUrl")
             }
@@ -181,7 +355,9 @@ class JsExtensionRemoteDataSource @Inject constructor(
             // during source discovery, before a single script had been downloaded.
             responseBody.readBounded(MAX_INDEX_BYTES, "Index at $indexUrl")
         }
+    }
 
+    private fun parseIndex(body: String, baseUrl: String): List<Extension> {
         return json.decodeFromString<List<JsExtensionDto>>(body)
             // Only manga sources are surfaced. `JsSource` implements the manga contract, so a
             // novel or anime entry would install cleanly and then fail on every read — an entry
@@ -192,7 +368,22 @@ class JsExtensionRemoteDataSource @Inject constructor(
             // explain, and nothing is lost, because these sources could not work anyway. Stage 7
             // adds the novel runtime and relaxes this filter in the same change that makes the
             // entries usable.
-            .filter { it.itemType.equals(JsExtensionDto.ITEM_TYPE_MANGA, ignoreCase = true) }
+            .filter { it.isManga }
+            // Only JavaScript. The Mangayomi index lists Dart and JavaScript sources together —
+            // Dart is in fact the majority — and a Dart file handed to QuickJS does not fail at
+            // install time. It downloads, stores and registers exactly like a working source, and
+            // then throws a syntax error on the user's first browse, naming the script rather
+            // than the reason it could never have run.
+            //
+            // This does mean reading a field to decide what an entry is, which the note on the
+            // index paths argues against for whole *indexes*. The reasoning does not carry over:
+            // that argument is about guessing which backend a file belongs to, and this is the
+            // index's own explicit, documented discriminator for its own entries.
+            .filter { it.isJavaScript }
+            // A blank URL is an entry there is nothing to download for. It reaches here when a
+            // repository serves an index of a different shape whose other fields happen to
+            // overlap, which decodes into mostly-default DTOs rather than failing outright.
+            .filter { it.sourceCodeUrl.isNotBlank() }
             .map { it.toDomain(baseUrl) }
     }
 
@@ -264,7 +455,9 @@ private fun JsExtensionDto.toDomain(repoUrl: String): Extension = Extension(
     id = id.toStableId(),
     pkgName = id,
     name = name,
-    versionCode = versionCode,
+    // Derived, not the raw field — the Mangayomi index publishes no versionCode at all, and the
+    // raw default would make every source look permanently up to date.
+    versionCode = effectiveVersionCode,
     versionName = version,
     sources = listOf(
         ExtensionSource(
@@ -273,6 +466,7 @@ private fun JsExtensionDto.toDomain(repoUrl: String): Extension = Extension(
             lang = lang,
             // The site the source scrapes — NOT the repository it was listed in.
             baseUrl = baseUrl,
+            apiUrl = apiUrl,
         )
     ),
     status = InstallStatus.AVAILABLE,

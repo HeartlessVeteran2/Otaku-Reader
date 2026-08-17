@@ -146,19 +146,29 @@ class JsExtensionRemoteDataSourceTest {
     }
 
     @Test
-    fun `a repository with no javascript index contributes nothing without failing`() = runTest {
+    fun `a repository serving neither index path contributes nothing`() = runTest {
+        // Both paths are tried, so both have to be answered. Enqueuing only one would leave the
+        // second request waiting on an empty dispatcher until the client's read timeout, which
+        // makes the test slow and — worse — pass for a reason unrelated to what it claims.
+        server.enqueue(MockResponse().setResponseCode(404))
         server.enqueue(MockResponse().setResponseCode(404))
 
-        val extensions = dataSource.fetchAvailable(listOf(baseUrl())).extensions
+        val result = dataSource.fetchAvailable(listOf(baseUrl()))
 
-        // Most repositories serve only APKs. That is a normal answer, not an error — throwing
-        // here would turn the common case into a user-visible failure.
-        assertTrue(extensions.isEmpty())
+        assertTrue(result.extensions.isEmpty())
+        // Answering neither path means the repository publishes no index at all, which is a real
+        // failure. The APK-only case — a foreign index served at the shared path — is the one that
+        // stays silent, and is covered separately below.
+        assertNotNull(result.firstFailure)
     }
 
     @Test
     fun `one unreachable repository does not suppress another`() = runTest {
-        // Two repos, first 404s. Both are read in order, so the enqueue order matches.
+        // The first repository answers neither path, so it consumes two responses before the
+        // second repository is reached. Getting this wrong is not a visible failure: the second
+        // repository would silently receive the first one's index and the assertion would still
+        // hold, which is precisely the kind of green-but-meaningless test worth avoiding.
+        server.enqueue(MockResponse().setResponseCode(500))
         server.enqueue(MockResponse().setResponseCode(500))
         server.enqueue(MockResponse().setBody(indexBody("survivor", "Survivor")))
 
@@ -247,5 +257,156 @@ class JsExtensionRemoteDataSourceTest {
         // whole and then fails somewhere inside the engine, far from its cause.
         assertNotNull(error)
         assertTrue("expected a fetch failure, got $error", error is JsExtensionFetchException)
+    }
+
+    // -----------------------------------------------------------------------------------------
+    // The real Mangayomi index shape
+    //
+    // Every entry below is copied from https://kodjodevf.github.io/mangayomi-extensions/index.json
+    // with only the URLs pointed at the test server. The types are the point: `id` and `itemType`
+    // are JSON *numbers* there, and `sourceCodeLanguage` distinguishes the Dart majority from the
+    // JavaScript sources this backend can actually run.
+    // -----------------------------------------------------------------------------------------
+
+    /** One JavaScript manga source and one Dart one, exactly as the live index writes them. */
+    private fun mangayomiIndexBody() = """
+        [
+          {
+            "name": "JavaScript Source",
+            "id": 652112892,
+            "baseUrl": "https://js.example.test",
+            "lang": "en",
+            "iconUrl": "https://icons.example.test/js.png",
+            "isNsfw": false,
+            "hasCloudflare": false,
+            "sourceCodeUrl": "js/real.js",
+            "apiUrl": "https://api.example.test",
+            "version": "0.0.35",
+            "isManga": true,
+            "itemType": 0,
+            "sourceCodeLanguage": 1
+          },
+          {
+            "name": "Dart Source",
+            "id": 638504049,
+            "baseUrl": "https://dart.example.test",
+            "lang": "en",
+            "isNsfw": false,
+            "hasCloudflare": false,
+            "sourceCodeUrl": "dart/manga/multisrc/madara/madara.dart",
+            "apiUrl": "",
+            "version": "0.1.3",
+            "isManga": true,
+            "itemType": 0,
+            "sourceCodeLanguage": 0
+          }
+        ]
+    """.trimIndent()
+
+    @Test
+    fun `the live Mangayomi index decodes despite numeric id and itemType`() = runTest {
+        server.enqueue(MockResponse().setBody(mangayomiIndexBody()))
+
+        val result = dataSource.fetchAvailable(listOf(baseUrl()))
+
+        // Before this was fixed the decode threw on `id` and, had it not, the numeric `itemType`
+        // could never equal "manga" and the whole index would have filtered down to nothing. Both
+        // failures look identical from outside — a repository that reports no sources — so assert
+        // on the surviving entry rather than merely on the absence of an exception.
+        assertNull(result.firstFailure)
+        val extension = result.extensions.single()
+        assertEquals("652112892", extension.pkgName)
+        assertEquals("JavaScript Source", extension.name)
+    }
+
+    @Test
+    fun `Dart entries sharing the index are dropped`() = runTest {
+        server.enqueue(MockResponse().setBody(mangayomiIndexBody()))
+
+        val result = dataSource.fetchAvailable(listOf(baseUrl()))
+
+        // The rule that actually bites: both entries are manga, both are `itemType` 0, and they
+        // differ only by `sourceCodeLanguage`. A test with one entry would pass with the filter
+        // deleted. A Dart file that survived here would download, install and register exactly
+        // like a working source, and fail only when the user first browsed it.
+        assertEquals(1, result.extensions.size)
+        assertTrue(
+            "a Dart source reached the installable list: ${result.extensions.map { it.name }}",
+            result.extensions.none { it.name == "Dart Source" },
+        )
+    }
+
+    @Test
+    fun `apiUrl survives onto the source so API-backed extensions can build requests`() = runTest {
+        server.enqueue(MockResponse().setBody(mangayomiIndexBody()))
+
+        val source = dataSource.fetchAvailable(listOf(baseUrl())).extensions.single().sources.single()
+
+        // Sources that set apiUrl build essentially every request from it. Dropping the field
+        // produces requests against "undefined/..." that fail as ordinary HTTP errors, which
+        // gives no hint that the manifest was the problem.
+        assertEquals("https://api.example.test", source.apiUrl)
+        assertEquals("https://js.example.test", source.baseUrl)
+    }
+
+    @Test
+    fun `a version is ordered by precedence when the index publishes no versionCode`() = runTest {
+        // The Mangayomi index carries no versionCode at all. Falling back to a constant would
+        // leave every installed source looking permanently up to date, so it is derived from the
+        // version string — and the derivation has to order by segment precedence, not by sum.
+        // 1.0.0 against 0.9.9 is the case that tells those two rules apart: they sum identically.
+        val older = JsExtensionDto(id = "a", name = "a", baseUrl = "u", lang = "en", version = "0.9.9")
+        val newer = JsExtensionDto(id = "a", name = "a", baseUrl = "u", lang = "en", version = "1.0.0")
+
+        assertTrue(
+            "1.0.0 (${newer.effectiveVersionCode}) must outrank 0.9.9 (${older.effectiveVersionCode})",
+            newer.effectiveVersionCode > older.effectiveVersionCode,
+        )
+    }
+
+    @Test
+    fun `an explicit versionCode still wins over the derived one`() = runTest {
+        val explicit = JsExtensionDto(
+            id = "a", name = "a", baseUrl = "u", lang = "en", version = "0.0.1", versionCode = 77,
+        )
+
+        assertEquals(77, explicit.effectiveVersionCode)
+    }
+
+    @Test
+    fun `a repository serving only an APK index contributes nothing without reporting a failure`() = runTest {
+        // No /js/index.json...
+        server.enqueue(MockResponse().setResponseCode(404))
+        // ...and an /index.json in the APK backend's shape, which this reader cannot read.
+        server.enqueue(
+            MockResponse().setBody(
+                """[{"name":"Some APK","pkg":"eu.kanade.tachiyomi.en.some","apk":"some.apk","lang":"en","code":14}]""",
+            ),
+        )
+
+        val result = dataSource.fetchAvailable(listOf(baseUrl()))
+
+        // The state that matters is the *absence* of a reported failure. That filename is shared
+        // with the APK backend, so a foreign index there is the ordinary answer from an APK-only
+        // repository — surfacing it would put an error in front of every user who has Keiyoushi
+        // configured and is using it correctly.
+        assertEquals(emptyList<String>(), result.extensions.map { it.name })
+        assertNull(result.firstFailure)
+    }
+
+    @Test
+    fun `the combined index is only consulted when the dedicated one is absent`() = runTest {
+        server.enqueue(MockResponse().setBody(mangayomiIndexBody()))
+
+        dataSource.fetchAvailable(listOf(baseUrl()))
+
+        // One request, to the dedicated path. Asserting the request count is what stops this from
+        // silently becoming "always fetch both", which would double the traffic of every refresh
+        // against every configured repository.
+        assertEquals(1, server.requestCount)
+        assertEquals(
+            JsExtensionRemoteDataSource.DEDICATED_INDEX_PATH,
+            server.takeRequest().path,
+        )
     }
 }

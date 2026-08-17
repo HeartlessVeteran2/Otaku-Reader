@@ -1,0 +1,8 @@
+{
+  "name": "js-prelude-harness",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "cheerio": "^1.0.0"
+  }
+}
