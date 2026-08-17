@@ -45,7 +45,11 @@ for (const e of picked) {
         const msg = (err.stderr || err.stdout || String(err)).toString().toString().split('\n').find(l=>l.includes('FAILED'));
         results.push({ name: e.name, status: 'FAIL', error: msg?.slice(0, 130) });
     } finally {
-        for (const f of [scriptPath, configPath]) { try { fs.unlinkSync(f); } catch {} }
+        for (const f of [scriptPath, configPath]) {
+            // rmSync with force ignores a missing file, so the cleanup needs no empty catch —
+            // the temp files legitimately may not exist when the download itself failed.
+            fs.rmSync(f, { force: true });
+        }
     }
 }
 
