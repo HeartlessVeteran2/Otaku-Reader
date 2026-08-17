@@ -287,8 +287,20 @@ Mangayomi publishes its sources in **both JavaScript and Dart** (`/javascript` a
 |---|---|
 | `core/js-runtime/` | **The backend going forward.** QuickJS in a sidecar process, behind the `JsProtocol` JSON wire format. |
 | `source-api/` | **Keep.** The `MangaSource` seam. |
-| `core/extension/` | Retiring — APK loader, classloader, signature verifier, trust store, install receiver (~4,200 LOC). Still holds the shared `Extension`/`ExtensionSource` models the JS path uses; those move before the module goes. |
-| `core/tachiyomi-compat/` | Retiring — RxJava 1.x stubs (~3,450 LOC). Nothing but the APK path uses these. |
+| `core/extension/` | **Partly** retiring — the APK loader, classloader, signature verifier, trust store, installer and install receiver go. It also holds the `Extension`/`ExtensionSource`/`InstallStatus` models, the `ExtensionRepository`/`ExtensionRepoRepository` contracts, the blocklist and the `JsExtensionBackend` interface — **all of which the JavaScript path and the browse UI use**. Those stay; gut the module rather than deleting it. |
+| `core/tachiyomi-compat/` | **Partly** retiring. The `eu.kanade.tachiyomi.source.*` surface (the Tachiyomi `Source`/`CatalogueSource`/`HttpSource` API and its RxJava-facing models) and the `compat/Tachiyomi*Adapter` classes go with the APK loader. **Three things in it must survive and be extracted first** — see below. |
+
+#### What must be extracted before either module is deleted
+
+An earlier version of this table said "nothing but the APK path uses these". That was wrong, and deleting on that basis would have removed a shipped feature:
+
+| Survivor | Currently at | Why it stays |
+|---|---|---|
+| `LocalSource` | `core/tachiyomi/local/` | **Local manga folders — a shipped feature.** Wired into `feature/settings` (`LocalSourceBrowserScreen`), `core/navigation` (`Route`), `core/preferences` (`LocalSourcePreferences`) and the app's NavHost. Nothing to do with APKs. |
+| `SourceHealthMonitor` | `core/tachiyomi/health/` | `SourceRepositoryImpl` routes **every** source call through it, JavaScript included — `JsSource`'s own comment relies on this for hung or broken scripts. |
+| `eu.kanade.tachiyomi.network.*` | `NetworkHelper`, `RateLimitInterceptor`, `AndroidCookieJar`, progress bodies | `OtakuReaderApplication` initialises `NetworkHelper` at startup. Check each class for live use before assuming it goes with the APK path. |
+
+So the sequence is **extract, then delete** — never delete first. Verify with `grep -rn "import eu\.kanade\.tachiyomi" --include=*.kt .` and confirm the only remaining consumers are inside the two retiring modules.
 
 ### Rules for the JavaScript backend
 

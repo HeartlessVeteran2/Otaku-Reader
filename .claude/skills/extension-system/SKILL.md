@@ -67,9 +67,16 @@ JsSource : MangaSource
 
 The prelude cannot be unit-tested from the JVM — QuickJS is an Android artifact. `JsPreludeTest` guards packaging and global names only. Behaviour is covered by `tools/js-prelude-harness/`, a Node harness reproducing `QuickJsHost.call`. Check a failing site with `curl` before suspecting the code.
 
-## APK extensions (`core/extension/`, `core/tachiyomi-compat/`) — retiring
+## APK extensions (`core/extension/`, `core/tachiyomi-compat/`) — partly retiring
 
-Still present, still loading; not where new work goes. `core/extension` also holds the shared `Extension`/`ExtensionSource` models the JavaScript path currently reuses, so those move before the module is deleted.
+Still present, still loading; not where new work goes.
+
+**Neither module can simply be deleted.** Both mix APK-only machinery with things the rest of the app depends on:
+
+- `core/extension` holds the `Extension`/`ExtensionSource`/`InstallStatus` models, the repository contracts, the blocklist and `JsExtensionBackend` — used by the JavaScript path and the browse UI.
+- `core/tachiyomi-compat` holds **`LocalSource`** (local manga folders — a shipped feature, wired into settings, navigation and preferences) and **`SourceHealthMonitor`** (which wraps *every* source call, JavaScript included), plus the `eu.kanade.tachiyomi.network` classes that `OtakuReaderApplication` initialises at startup.
+
+Extract those first, then delete the Tachiyomi `Source`/`CatalogueSource`/`HttpSource` surface and the loader. Confirm with `grep -rn "import eu\.kanade\.tachiyomi" --include=*.kt .` that the only remaining consumers live inside the retiring modules.
 
 The security properties that applied here still apply to the JavaScript path and are worth carrying forward:
 
