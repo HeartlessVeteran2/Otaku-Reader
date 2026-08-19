@@ -29,6 +29,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -110,6 +111,13 @@ fun MigrationEntryContent(
                     )
                 }
                 else -> LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    // Only when something is actually broken. A permanent banner would train the
+                    // user to ignore it, which is exactly when it needs to be read.
+                    if (state.strandedCount > 0) {
+                        item(key = "stranded-banner") {
+                            StrandedBanner(state = state, onEvent = onEvent)
+                        }
+                    }
                     items(filtered, key = { it.id }) { manga ->
                         MigrationEntryMangaRow(
                             manga = manga,
@@ -220,6 +228,52 @@ fun MigrationEntryScreen(
     }
 }
 
+/**
+ * Surfaces entries no loaded source can serve, with the two actions that resolve them.
+ *
+ * Selecting is offered separately from filtering because they answer different questions — "fix
+ * these" versus "let me look at these" — and a user who only wants the first should not have to
+ * change what the list shows to get it.
+ */
+@Composable
+private fun StrandedBanner(
+    state: MigrationEntryState,
+    onEvent: (MigrationEntryEvent) -> Unit,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.errorContainer,
+        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Text(
+                text = androidx.compose.ui.res.pluralStringResource(
+                    R.plurals.migration_entry_stranded_banner,
+                    state.strandedCount,
+                    state.strandedCount,
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = { onEvent(MigrationEntryEvent.SelectAllStranded) }) {
+                    Text(stringResource(R.string.migration_entry_select_stranded))
+                }
+                TextButton(onClick = { onEvent(MigrationEntryEvent.ToggleStrandedFilter) }) {
+                    Text(
+                        stringResource(
+                            if (state.showOnlyStranded) {
+                                R.string.migration_entry_show_all_entries
+                            } else {
+                                R.string.migration_entry_show_stranded_only
+                            }
+                        )
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun MigrationEntryMangaRow(
     manga: MigrationEntryItem,
@@ -248,13 +302,29 @@ private fun MigrationEntryMangaRow(
                 .aspectRatio(3f / 4f)
         )
 
-        Text(
-            text = manga.title,
-            style = MaterialTheme.typography.bodyLarge,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = manga.title,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            // The source line is the whole point of showing this screen before a migration: an
+            // entry whose source cannot be resolved is unreadable, and nothing else in the app
+            // says so. Rendered in the error colour rather than as a separate icon so the state
+            // survives being skimmed.
+            Text(
+                text = manga.sourceName ?: stringResource(R.string.migration_entry_source_missing),
+                style = MaterialTheme.typography.bodySmall,
+                color = if (manga.isStranded) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
 
         Checkbox(
             checked = isSelected,

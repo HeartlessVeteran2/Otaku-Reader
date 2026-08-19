@@ -82,4 +82,14 @@
     <string name="migration_entry_retry">Retry</string>
     <string name="migration_entry_library_empty">Your library is empty</string>
     <string name="migration_entry_no_results">No manga match your search</string>
+    <!-- Entries whose source no longer resolves: the extension was uninstalled, or the backend
+         that provided it is gone. Every read of such a manga fails until it is migrated. -->
+    <string name="migration_entry_source_missing">Source not installed</string>
+    <string name="migration_entry_select_stranded">Select them</string>
+    <string name="migration_entry_show_stranded_only">Show only these</string>
+    <string name="migration_entry_show_all_entries">Show all</string>
+    <plurals name="migration_entry_stranded_banner">
+        <item quantity="one">%d entry has no working source</item>
+        <item quantity="other">%d entries have no working source</item>
+    </plurals>
 </resources>

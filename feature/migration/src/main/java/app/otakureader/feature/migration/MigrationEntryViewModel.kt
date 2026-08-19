@@ -2,6 +2,8 @@ package app.otakureader.feature.migration
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.otakureader.domain.repository.SourceRepository
+import app.otakureader.domain.repository.associateBySourceKey
 import app.otakureader.domain.usecase.GetLibraryMangaUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -12,6 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
@@ -20,7 +23,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class MigrationEntryViewModel @Inject constructor(
-    private val getLibraryManga: GetLibraryMangaUseCase
+    private val getLibraryManga: GetLibraryMangaUseCase,
+    private val sourceRepository: SourceRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(MigrationEntryState())
@@ -41,6 +45,8 @@ class MigrationEntryViewModel @Inject constructor(
             is MigrationEntryEvent.OnSearchQueryChange -> onSearchQueryChange(event.query)
             is MigrationEntryEvent.OnMangaToggle -> toggleManga(event.mangaId)
             MigrationEntryEvent.SelectAll -> selectAll()
+            MigrationEntryEvent.SelectAllStranded -> selectAllStranded()
+            MigrationEntryEvent.ToggleStrandedFilter -> toggleStrandedFilter()
             MigrationEntryEvent.ClearSelection -> clearSelection()
             MigrationEntryEvent.OnStartMigration -> startMigration()
             MigrationEntryEvent.NavigateBack -> navigateBack()
@@ -54,20 +60,27 @@ class MigrationEntryViewModel @Inject constructor(
         // concurrent collectors racing to update _state. Hold the Job and cancel before relaunch.
         loadJob?.cancel()
         _state.update { it.copy(isLoading = true, error = null) }
-        loadJob = getLibraryManga()
-            .onEach { manga ->
+        // Combined rather than read once, because both sides change while this screen is open:
+        // the library updates as entries are migrated, and the source list is populated
+        // asynchronously at startup and again after a refresh. Resolving against a snapshot taken
+        // before sources finished loading would mark the entire library as stranded.
+        loadJob = combine(getLibraryManga(), sourceRepository.getSources()) { manga, sources ->
+            // The one correct key -> source bridge. `associateBySourceKey` is the same index
+            // `getSourceByKey` uses, legacy-key precedence included; matching on
+            // `sourceId.toString()` compares a hash's decimal against a real id and never hits.
+            val byKey = sources.associateBySourceKey { it.id }
+            manga.map { m ->
+                MigrationEntryItem(
+                    id = m.id,
+                    title = m.title,
+                    thumbnailUrl = m.thumbnailUrl,
+                    sourceName = byKey[m.sourceId]?.name
+                )
+            }
+        }
+            .onEach { items ->
                 _state.update { state ->
-                    state.copy(
-                        isLoading = false,
-                        error = null,
-                        mangaList = manga.map { m ->
-                            MigrationEntryItem(
-                                id = m.id,
-                                title = m.title,
-                                thumbnailUrl = m.thumbnailUrl
-                            )
-                        }
-                    )
+                    state.copy(isLoading = false, error = null, mangaList = items)
                 }
             }
             .catch { e ->
@@ -100,6 +113,24 @@ class MigrationEntryViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Select exactly the entries no loaded source can serve.
+     *
+     * Deliberately ignores the search query and the stranded filter, unlike [selectAll]. This is
+     * the "fix what is broken" action, and its value is that the user does not have to have found
+     * the broken entries first — narrowing it by whatever happens to be typed in the search box
+     * would silently select a subset and leave the rest behind.
+     */
+    private fun selectAllStranded() {
+        _state.update { state ->
+            state.copy(selectedIds = state.mangaList.filter { it.isStranded }.map { it.id }.toSet())
+        }
+    }
+
+    private fun toggleStrandedFilter() {
+        _state.update { it.copy(showOnlyStranded = !it.showOnlyStranded) }
+    }
+
     private fun clearSelection() {
         _state.update { it.copy(selectedIds = emptySet()) }
     }
@@ -118,10 +149,11 @@ class MigrationEntryViewModel @Inject constructor(
         }
     }
 
-    /** Returns the manga list filtered by the current search query. */
+    /** The manga list as the screen shows it: narrowed by the stranded filter, then the query. */
     fun filteredList(state: MigrationEntryState = _state.value): List<MigrationEntryItem> {
         val query = state.searchQuery.trim()
-        return if (query.isBlank()) state.mangaList
-        else state.mangaList.filter { it.title.contains(query, ignoreCase = true) }
+        val bySource = if (state.showOnlyStranded) state.mangaList.filter { it.isStranded } else state.mangaList
+        return if (query.isBlank()) bySource
+        else bySource.filter { it.title.contains(query, ignoreCase = true) }
     }
 }
