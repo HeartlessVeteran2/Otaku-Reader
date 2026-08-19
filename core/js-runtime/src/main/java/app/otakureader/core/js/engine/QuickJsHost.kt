@@ -299,6 +299,18 @@ internal class QuickJsHost(
      * be a snapshot that silently stopped matching after the first write.
      */
     private fun sourceConfigGlobal(): String {
+        // Two encodings, one runtime JSON layer — they are not the same kind of step, and reading
+        // them as two semantic layers is the obvious misreading.
+        //
+        //   1. the config object  -> JSON text            `{"id":"x","baseUrl":"https://…"}`
+        //   2. that JSON text     -> a JS string literal  `"{\"id\":\"x\",…}"`
+        //
+        // Step 2 is source-code quoting, not data. The JavaScript parser undoes it while
+        // evaluating the assignment, so at runtime the global holds a *string* of JSON and the
+        // prelude's single `JSON.parse` yields the object. Parsing twice would throw on the
+        // resulting object; emitting the manifest bare would drop the quoting that keeps a quote
+        // or backslash in a source's name from terminating the literal and changing the program —
+        // the same reasoning [buildInvocation] applies to call arguments.
         val manifest = JsProtocol.json.encodeToString(config.copy(preferences = emptyMap()))
         return "globalThis.__otakuSourceConfig = ${JsProtocol.json.encodeToString(manifest)};"
     }

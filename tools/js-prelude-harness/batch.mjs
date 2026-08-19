@@ -61,3 +61,17 @@ for (const r of results) {
 const pass = results.filter((r) => r.status === 'OK').length;
 console.log(`\n${pass}/${results.length} returned a populated list; ` +
     `${results.filter(r => r.status === 'FAIL').length} hard failures`);
+
+// A leaked document handle is the one failure this harness must never merely report.
+//
+// Most rows here go red for reasons outside the repository — a Cloudflare interstitial, a site
+// that moved domain — so a non-zero exit on those would make the harness useless. A leak is the
+// opposite: it is always ours, and it stays invisible until a page carries enough rows to exhaust
+// the 32-handle pool, which is exactly the size of input nobody tests with. Fail the run on it so
+// the invariant is asserted rather than left for a reader to notice in a column of numbers.
+const leaked = results.filter((r) => r.liveLeaked > 0);
+if (leaked.length > 0) {
+    console.error(`\nLEAKED DOCUMENT HANDLES in ${leaked.length} source(s):`);
+    for (const r of leaked) console.error(`  ${r.name}: ${r.liveLeaked} handle(s) still live`);
+    process.exit(1);
+}

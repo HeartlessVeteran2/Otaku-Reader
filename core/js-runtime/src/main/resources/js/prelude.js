@@ -37,9 +37,12 @@
     var hostDocument = global.Document;
     var hostPreferences = global.SharedPreferences;
 
-    // Injected by QuickJsHost as a JSON literal. Extensions read `this.source.baseUrl`,
-    // `this.source.apiUrl` and `this.source.lang` constantly, so an absent config is a broken
-    // source rather than a degraded one.
+    // Injected by QuickJsHost as a JS string literal holding JSON, so exactly one parse is
+    // correct: the JavaScript parser already removed the source-level quoting while evaluating
+    // the assignment. Parsing twice throws.
+    //
+    // Extensions read `this.source.baseUrl`, `this.source.apiUrl` and `this.source.lang`
+    // constantly, so an absent config is a broken source rather than a degraded one.
     var sourceConfig = global.__otakuSourceConfig
         ? JSON.parse(global.__otakuSourceConfig)
         : {};
