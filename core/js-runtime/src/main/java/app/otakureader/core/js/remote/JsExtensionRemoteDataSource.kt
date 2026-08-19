@@ -368,12 +368,17 @@ class JsExtensionRemoteDataSource @Inject constructor(
 
         return httpClient.newCall(Request.Builder().url(indexUrl).build()).execute().use { response ->
             // 404 is the one status that means "this repository does not offer this path", which
-            // is an answer rather than a fault. Every other status is a fault.
-            if (response.code == HTTP_NOT_FOUND) {
-                throw JsExtensionNotFoundException("No index at $indexUrl")
-            }
+            // is an answer rather than a fault. Every other unsuccessful status is a fault.
+            //
+            // Selected then thrown, rather than thrown from two branches, to stay within detekt's
+            // ThrowsCount limit — and it reads better as one decision about what an unsuccessful
+            // response means.
             if (!response.isSuccessful) {
-                throw JsExtensionFetchException("HTTP ${response.code} fetching $indexUrl")
+                throw if (response.code == HTTP_NOT_FOUND) {
+                    JsExtensionNotFoundException("No index at $indexUrl")
+                } else {
+                    JsExtensionFetchException("HTTP ${response.code} fetching $indexUrl")
+                }
             }
             val responseBody = response.body
                 ?: throw JsExtensionFetchException("Empty index body from $indexUrl")
