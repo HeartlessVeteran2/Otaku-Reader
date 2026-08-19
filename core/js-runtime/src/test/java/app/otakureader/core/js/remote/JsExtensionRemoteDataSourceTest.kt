@@ -180,11 +180,14 @@ class JsExtensionRemoteDataSourceTest {
 
     @Test
     fun `one unreachable repository does not suppress another`() = runTest {
-        // The first repository answers neither path, so it consumes two responses before the
-        // second repository is reached. Getting this wrong is not a visible failure: the second
-        // repository would silently receive the first one's index and the assertion would still
-        // hold, which is precisely the kind of green-but-meaningless test worth avoiding.
-        server.enqueue(MockResponse().setResponseCode(500))
+        // One response each. A 500 on the dedicated path is a fault, not an absence, so it stops
+        // there rather than falling through to the combined path — the first repository consumes
+        // exactly one response and the second gets its own index.
+        //
+        // This is worth stating because the count is invisible until it is wrong: an earlier
+        // version of this test enqueued two responses for the first repository, and once the
+        // fallthrough narrowed to 404 only, the second repository silently received the leftover
+        // 500 instead of its index. The assertion below is what caught it.
         server.enqueue(MockResponse().setResponseCode(500))
         server.enqueue(MockResponse().setBody(indexBody("survivor", "Survivor")))
 
