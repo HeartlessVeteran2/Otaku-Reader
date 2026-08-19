@@ -146,7 +146,7 @@ class JsExtensionRemoteDataSourceTest {
     }
 
     @Test
-    fun `a repository serving neither index path contributes nothing`() = runTest {
+    fun `a repository serving neither index path stays silent`() = runTest {
         // Both paths are tried, so both have to be answered. Enqueuing only one would leave the
         // second request waiting on an empty dispatcher until the client's read timeout, which
         // makes the test slow and — worse — pass for a reason unrelated to what it claims.
@@ -156,10 +156,26 @@ class JsExtensionRemoteDataSourceTest {
         val result = dataSource.fetchAvailable(listOf(baseUrl()))
 
         assertTrue(result.extensions.isEmpty())
-        // Answering neither path means the repository publishes no index at all, which is a real
-        // failure. The APK-only case — a foreign index served at the shared path — is the one that
-        // stays silent, and is covered separately below.
+        // This is the *common* case, not a fault: the APK backend reads `index.min.json` first and
+        // documents it as the usual third-party format, so a min-only repository answers neither
+        // path this reader asks for. Reporting it would put an error in front of every user with
+        // such a repository configured, about a backend they are using correctly.
+        assertNull(result.firstFailure)
+    }
+
+    @Test
+    fun `a broken dedicated index is reported rather than hidden by the combined one`() = runTest {
+        // 500, not 404 — the distinction is the whole point. A repository publishing
+        // /js/index.json has declared itself a JavaScript repository, so its index being
+        // unreachable is a real fault; falling through to the combined path would let a
+        // successfully-parsed APK index there bury it and report the refresh as fine.
+        server.enqueue(MockResponse().setResponseCode(500))
+
+        val result = dataSource.fetchAvailable(listOf(baseUrl()))
+
         assertNotNull(result.firstFailure)
+        // And the combined path must never have been asked: one request, to the dedicated path.
+        assertEquals(1, server.requestCount)
     }
 
     @Test
@@ -354,7 +370,8 @@ class JsExtensionRemoteDataSourceTest {
         // The Mangayomi index carries no versionCode at all. Falling back to a constant would
         // leave every installed source looking permanently up to date, so it is derived from the
         // version string — and the derivation has to order by segment precedence, not by sum.
-        // 1.0.0 against 0.9.9 is the case that tells those two rules apart: they sum identically.
+        // 1.0.0 against 0.9.9 tells those two rules apart: summing the segments gives 1 and 18, so
+        // a sum ranks the older build higher, while packing gives 1_000_000 and 9_009 — correct.
         val older = JsExtensionDto(id = "a", name = "a", baseUrl = "u", lang = "en", version = "0.9.9")
         val newer = JsExtensionDto(id = "a", name = "a", baseUrl = "u", lang = "en", version = "1.0.0")
 

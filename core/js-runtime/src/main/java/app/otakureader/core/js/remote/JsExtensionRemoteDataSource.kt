@@ -126,19 +126,24 @@ internal data class JsExtensionDto(
      * on whatever version they first installed forever.
      *
      * Segments are packed rather than summed so that ordering follows precedence: 1.0.0 must beat
-     * 0.9.9, which a sum gets wrong. Three segments of two digits covers the published range;
-     * anything wider saturates rather than wrapping into a lower-looking number.
+     * 0.9.9, which a sum gets wrong.
+     *
+     * The radix is 1000, not 100, and the arithmetic runs in `Long`. A two-digit radix looks
+     * sufficient against today's published versions but fails quietly the first time a segment
+     * reaches 100: 0.100.0 and 0.99.0 would clamp to the same number, so a real update would never
+     * be offered. Saturating the final value rather than each segment keeps ordering monotonic all
+     * the way up to the clamp instead of flattening at every position.
      */
     val effectiveVersionCode: Int
         get() {
             if (versionCode > 0) return versionCode
             val parts = version.split('.', '-', '+')
-            var packed = 0
+            var packed = 0L
             for (index in 0 until VERSION_SEGMENTS) {
-                val segment = parts.getOrNull(index)?.takeWhile(Char::isDigit)?.toIntOrNull() ?: 0
-                packed = packed * VERSION_SEGMENT_RADIX + segment.coerceIn(0, VERSION_SEGMENT_RADIX - 1)
+                val segment = parts.getOrNull(index)?.takeWhile(Char::isDigit)?.toLongOrNull() ?: 0L
+                packed = packed * VERSION_SEGMENT_RADIX + segment.coerceAtMost(VERSION_SEGMENT_RADIX - 1)
             }
-            return packed
+            return packed.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
         }
 
     internal companion object {
@@ -150,7 +155,7 @@ internal data class JsExtensionDto(
         const val LANGUAGE_JAVASCRIPT = 1
 
         private const val VERSION_SEGMENTS = 3
-        private const val VERSION_SEGMENT_RADIX = 100
+        private const val VERSION_SEGMENT_RADIX = 1000L
     }
 }
 
@@ -252,6 +257,8 @@ class JsExtensionRemoteDataSource @Inject constructor(
 
         /** Only https:// is accepted, matching the guard `ExtensionInstaller` applies to APKs. */
         const val HTTPS_PREFIX = "https://"
+
+        const val HTTP_NOT_FOUND = 404
     }
 
     /**
@@ -269,7 +276,10 @@ class JsExtensionRemoteDataSource @Inject constructor(
         val extensions = repoUrls.flatMap { rawUrl ->
             val baseUrl = rawUrl.trimEnd('/')
             runCatching { fetchIndex(baseUrl) }
-                .onSuccess { servedAnyIndex = true }
+                // Only a repository that actually served a JavaScript index counts. An APK-only
+                // repository succeeds here with an empty result, and flagging that as "served"
+                // would let one such repository mask every other repository's genuine failure.
+                .onSuccess { if (it.servedJsIndex) servedAnyIndex = true }
                 .onFailure { error ->
                     if (error is CancellationException) throw error
                     android.util.Log.w("JsExtensionRemoteDS", "No JS index at $baseUrl: ${error.message}")
@@ -278,7 +288,7 @@ class JsExtensionRemoteDataSource @Inject constructor(
                     // backend the user is not using and cannot act on.
                     if (firstFailure == null) firstFailure = error
                 }
-                .getOrDefault(emptyList())
+                .getOrNull()?.extensions.orEmpty()
         }
 
         JsExtensionFetch(
@@ -294,57 +304,74 @@ class JsExtensionRemoteDataSource @Inject constructor(
     }
 
     /**
-     * The repository's JavaScript sources, from whichever index it publishes.
+     * The repository's JavaScript sources, and whether it actually served a JavaScript index.
      *
-     * The two paths are handled asymmetrically on purpose — see the notes on the constants.
-     * Precisely:
+     * Both halves matter and they are not interchangeable. `JsExtensionBackend` already documents
+     * why `servedAnyIndex` is carried rather than inferred from `extensions.isEmpty()`: a
+     * repository that served an index listing no manga sources and one that served nothing are
+     * different answers, and `ExtensionRemoteDataSource` uses the distinction to decide whether a
+     * round of failures is worth reporting. Returning a bare empty list for an APK-only
+     * repository collapsed them, which would report a failed refresh as a successful empty one.
      *
-     * - dedicated path **not served** → fall through, silently;
-     * - dedicated path served but **unreadable** → throws, because a repository publishing that
-     *   path has declared itself a JavaScript repository and a broken index there is a real fault;
-     * - combined path **not served** → throws, because a repository answering neither path
-     *   publishes no index at all;
-     * - combined path served but **unreadable** → empty, because that filename is shared with the
-     *   APK backend and an index of a foreign shape is the expected answer from an APK-only
-     *   repository.
+     * The paths are handled asymmetrically on purpose — see the notes on the constants. Precisely:
+     *
+     * - dedicated path **absent** (404) → fall through to the combined path, silently;
+     * - dedicated path **broken** (any other transport or body failure) → throws, because a
+     *   repository publishing that path has declared itself a JavaScript repository and its index
+     *   being unreachable is a real fault that the combined endpoint must not paper over;
+     * - dedicated path served but **unreadable** → throws, same reasoning;
+     * - combined path **absent** (404) → empty and not counted as served. A repository answering
+     *   neither path is almost always an APK-only one publishing `index.min.json` and nothing
+     *   else, which is not a fault and must not be reported;
+     * - combined path **broken** (any other failure) → throws;
+     * - combined path served but **unreadable** → empty *and not counted as served*, because that
+     *   filename is shared with the APK backend and a foreign index is the expected answer from an
+     *   APK-only repository.
      */
-    private fun fetchIndex(baseUrl: String): List<Extension> {
-        val dedicated = try {
-            fetchIndexBody(baseUrl + DEDICATED_INDEX_PATH)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            // Not served. Deliberately not chained into anything reported later: for every
-            // repository that reaches the next line this is the same uninformative 404 about a
-            // path the repository never claimed to have.
-            null
-        }
+    private fun fetchIndex(baseUrl: String): IndexResult {
+        // Null only for a genuine 404. Anything else — a 500, a timeout, an oversized body —
+        // propagates, so a broken JavaScript index cannot be hidden behind the combined endpoint.
+        val dedicated = fetchIndexBodyOrNull(baseUrl + DEDICATED_INDEX_PATH)
 
-        // Served, so its content is authoritative — a malformed document here is a real fault and
-        // this parse is allowed to throw.
-        if (dedicated != null) return parseIndex(dedicated, baseUrl)
+        // Served, so its content is authoritative and this parse is allowed to throw.
+        if (dedicated != null) return IndexResult(parseIndex(dedicated, baseUrl), servedJsIndex = true)
 
-        // Not served, so try the combined index. Failing to *fetch* one still propagates: a
-        // repository that answers neither path serves no index at all, which is what the caller
-        // records as this repository's failure.
-        val combined = fetchIndexBody(baseUrl + COMBINED_INDEX_PATH)
+        // A 404 here too is an answer, not a fault: the APK backend documents `index.min.json` as
+        // the common third-party format with `index.json` only as its fallback, so a repository
+        // serving min-only answers neither path this reader asks for. Reporting that would put an
+        // error in front of every user with such a repository configured. Any other failure — a
+        // 500, a timeout, an oversized body — still propagates.
+        val combined = fetchIndexBodyOrNull(baseUrl + COMBINED_INDEX_PATH)
+            ?: return IndexResult(emptyList(), servedJsIndex = false)
 
         return try {
-            parseIndex(combined, baseUrl)
+            IndexResult(parseIndex(combined, baseUrl), servedJsIndex = true)
         } catch (e: CancellationException) {
             throw e
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-            // Fetched but unreadable. This filename is shared with the APK backend, so an index
-            // of a shape this reader does not understand is the ordinary answer from an APK-only
-            // repository — not a fault, and not something to put in front of the user.
-            emptyList()
+            // Fetched but unreadable: the ordinary answer from an APK-only repository. Not a
+            // fault, and deliberately not counted as having served a JavaScript index.
+            IndexResult(emptyList(), servedJsIndex = false)
         }
     }
+
+    /** The body, or null when the path is genuinely absent. Every other failure propagates. */
+    private fun fetchIndexBodyOrNull(indexUrl: String): String? =
+        try {
+            fetchIndexBody(indexUrl)
+        } catch (e: JsExtensionNotFoundException) {
+            null
+        }
 
     private fun fetchIndexBody(indexUrl: String): String {
         requireHttps(indexUrl)
 
         return httpClient.newCall(Request.Builder().url(indexUrl).build()).execute().use { response ->
+            // 404 is the one status that means "this repository does not offer this path", which
+            // is an answer rather than a fault. Every other status is a fault.
+            if (response.code == HTTP_NOT_FOUND) {
+                throw JsExtensionNotFoundException("No index at $indexUrl")
+            }
             if (!response.isSuccessful) {
                 throw JsExtensionFetchException("HTTP ${response.code} fetching $indexUrl")
             }
@@ -380,10 +407,17 @@ class JsExtensionRemoteDataSource @Inject constructor(
             // that argument is about guessing which backend a file belongs to, and this is the
             // index's own explicit, documented discriminator for its own entries.
             .filter { it.isJavaScript }
-            // A blank URL is an entry there is nothing to download for. It reaches here when a
-            // repository serves an index of a different shape whose other fields happen to
-            // overlap, which decodes into mostly-default DTOs rather than failing outright.
-            .filter { it.sourceCodeUrl.isNotBlank() }
+            // A blank URL is an entry there is nothing to download for, and a blank id is one
+            // that cannot own its stored preferences or be uninstalled by name. Both reach here
+            // when a repository serves an index of a different shape whose other fields happen to
+            // overlap, which decodes into mostly-default DTOs rather than failing outright — and
+            // when `id` arrives as an object or array, which the flexible serializer renders as
+            // empty rather than throwing.
+            //
+            // Dropped here rather than rejected in the serializer on purpose: throwing mid-decode
+            // fails the entire document, so one malformed entry would cost the user every source
+            // that repository offers.
+            .filter { it.sourceCodeUrl.isNotBlank() && it.id.isNotBlank() }
             .map { it.toDomain(baseUrl) }
     }
 
@@ -424,6 +458,25 @@ class JsExtensionRemoteDataSource @Inject constructor(
 
 /** Thrown when a repository index or script cannot be fetched or parsed. */
 class JsExtensionFetchException(message: String) : RuntimeException(message)
+
+/**
+ * The repository does not offer this path at all — a 404, not a fault.
+ *
+ * A distinct type rather than a status check at the call site, so that "absent" and "broken" can
+ * never be collapsed by a `catch (Exception)` that was only meant to handle the first.
+ */
+class JsExtensionNotFoundException(message: String) : RuntimeException(message)
+
+/**
+ * What one repository yielded, and whether it served a JavaScript index at all.
+ *
+ * The flag is not derivable from `extensions.isEmpty()` — an index listing no manga sources and a
+ * foreign index this reader cannot read both produce an empty list and mean opposite things.
+ */
+private data class IndexResult(
+    val extensions: List<Extension>,
+    val servedJsIndex: Boolean,
+)
 
 /**
  * Read a body, refusing it if it exceeds [limit].

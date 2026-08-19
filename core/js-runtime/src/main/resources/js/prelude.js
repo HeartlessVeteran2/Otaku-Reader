@@ -84,7 +84,13 @@
     };
 
     MClient.prototype.post = function (url, headers, body) {
-        return hostClient.post(url, headers || {}, body === undefined ? null : body).then(decodeResponse);
+        // Serialise object bodies. The host binding reads the body with `as? String`, so a JS
+        // object arrives as a Map, fails the cast, and becomes null — the request then goes out
+        // with no payload at all and the source sees an unexplained empty response. Sources that
+        // already encoded their body pass a string, which is forwarded untouched.
+        var payload = body === undefined || body === null ? null
+            : (typeof body === 'string' ? body : JSON.stringify(body));
+        return hostClient.post(url, headers || {}, payload).then(decodeResponse);
     };
 
     /** Some sources build a request descriptor instead of calling get/post directly. */
@@ -144,14 +150,29 @@
         var found = withHandle(this.html, function (handle) {
             return hostDocument.selectFirst(handle, selector);
         });
-        // Null rather than an empty element: extensions write `el.selectFirst(s)?.text`, and the
-        // optional chain is the only thing standing between a missing node and a thrown error.
-        // Returning an empty MElement would make every miss look like an empty string instead.
-        return found === null || found === undefined ? null : new MElement(found);
+        // An empty element on a miss, never null.
+        //
+        // An earlier version returned null, reasoning that sources guard with
+        // `el.selectFirst(s)?.text`. Measured against the published sources, that is the minority:
+        // 38 call sites read a property straight off the result with no optional chain, against 17
+        // that guard. Returning null makes a missed selector throw and take the whole source down,
+        // where an empty element degrades to an empty string — and a source that fails to find one
+        // optional field should not stop returning the other twenty.
+        //
+        // The cost is that `?? fallback` after a miss now sees "" rather than nullish and keeps
+        // the empty string. That is the lesser failure, and it matches what sources are written
+        // against.
+        return new MElement(found === null || found === undefined ? '' : found);
     };
 
     MElement.prototype.attr = function (name) {
+        // Raw, as written. Mangayomi's `attr` is not URL-aware; `getHref`/`getSrc` are.
         return hostDocument.attr(this.html, name);
+    };
+
+    /** The attribute resolved against the source's base URL. */
+    MElement.prototype.absAttr = function (name) {
+        return hostDocument.absAttr(this.html, name);
     };
 
     MElement.prototype.getAttribute = function (name) {
@@ -190,12 +211,12 @@
         // a real host binding rather than approximating it here.
         getHref: {
             get: function () {
-                return this.attr('href');
+                return this.absAttr('href');
             }
         },
         getSrc: {
             get: function () {
-                return this.attr('src');
+                return this.absAttr('src');
             }
         },
         /**
@@ -338,10 +359,14 @@
     };
 
     MSharedPreferences.prototype.set = function (key, value) {
-        hostPreferences.set(
-            key,
-            value !== null && typeof value === 'object' ? JSON.stringify(value) : String(value)
-        );
+        // Nullish writes store an empty string, mirroring the Kotlin binding's
+        // `?.toString().orEmpty()`. `String(null)` would persist the four characters "null", which
+        // then reads back as a set value and permanently shadows both the extension's declared
+        // default and the caller's — a source writing a not-yet-computed value would poison that
+        // preference for good.
+        var stored = value === null || value === undefined ? ''
+            : (typeof value === 'object' ? JSON.stringify(value) : String(value));
+        hostPreferences.set(key, stored);
     };
 
     MSharedPreferences.prototype.getString = function (key, defaultValue) {

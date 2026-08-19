@@ -111,9 +111,12 @@ fun MigrationEntryContent(
                     )
                 }
                 else -> LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    // Only when something is actually broken. A permanent banner would train the
-                    // user to ignore it, which is exactly when it needs to be read.
-                    if (state.strandedCount > 0) {
+                    // Shown when something is broken — a permanent banner would train the user to
+                    // ignore it, which is exactly when it needs to be read — and also whenever the
+                    // filter is on, even at zero. The toggle lives here and nowhere else, so
+                    // hiding the banner the moment the last stranded entry is migrated would strand
+                    // the user in an empty filtered list with no way back out of it.
+                    if (state.strandedCount > 0 || state.showOnlyStranded) {
                         item(key = "stranded-banner") {
                             StrandedBanner(state = state, onEvent = onEvent)
                         }

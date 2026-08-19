@@ -237,11 +237,26 @@ internal class QuickJsHost(
                 val html = args.getOrNull(0) as? String ?: return@function ""
                 Jsoup.parse(html).text()
             }
+            /**
+             * The attribute exactly as written.
+             *
+             * This used to resolve every attribute through `absUrl`, with a comment explaining
+             * that relative hrefs want resolving — true of an href, and applied to *all* names.
+             * Jsoup's `absUrl` resolves any string against the base URI, so a title read with
+             * `attr("title")` came back as `https://site/…` with the title as its path. Sources
+             * read titles, alt text and data-* fields this way constantly, so they were being
+             * handed URLs where they expected text. Use [absAttr] when a URL is what is wanted.
+             */
             function("attr") { args ->
                 val html = args.getOrNull(0) as? String ?: return@function ""
                 val name = args.getOrNull(1) as? String ?: return@function ""
-                // absUrl resolves relative hrefs against the source's baseUrl, which is what
-                // essentially every extension actually wants from an href or src.
+                Jsoup.parse(html, config.baseUrl).body().children().firstOrNull()
+                    ?.attr(name).orEmpty()
+            }
+            /** The attribute resolved against the source's base URL, for href/src and the like. */
+            function("absAttr") { args ->
+                val html = args.getOrNull(0) as? String ?: return@function ""
+                val name = args.getOrNull(1) as? String ?: return@function ""
                 val element = Jsoup.parse(html, config.baseUrl).body().children().firstOrNull()
                 element?.absUrl(name).takeUnless { it.isNullOrEmpty() }
                     ?: element?.attr(name).orEmpty()

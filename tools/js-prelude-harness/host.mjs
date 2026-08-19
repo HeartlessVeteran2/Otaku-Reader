@@ -16,13 +16,31 @@ export function installHost(global, { baseUrl, preferences = {}, onRequest }) {
     let peakLiveDocuments = 0;
     const prefs = { ...preferences };
 
+    /**
+     * Mirror QuickJsHost's header handling: drop null/undefined entries, stringify the rest.
+     *
+     * Not cosmetic. Sources build header maps from preferences that are frequently unset —
+     * `{"user-agent": this.getPreference("custom_user_agent")}` is the common shape — and passing
+     * the null through would send a literal `User-Agent: null` here while Android sends no header
+     * at all. The entire value of this harness is that a source behaves the same in both, so any
+     * divergence makes a green run meaningless.
+     */
+    const normalizeHeaders = (headers) => {
+        const out = {};
+        for (const [k, v] of Object.entries(headers || {})) {
+            if (v === null || v === undefined) continue;
+            out[k] = String(v);
+        }
+        return out;
+    };
+
     // --- Client: engine.define("Client") { asyncFunction("get"/"post") } ---
     global.Client = {
         async get(url, headers) {
-            return JSON.stringify(await onRequest({ url, method: 'GET', headers: headers || {}, body: null }));
+            return JSON.stringify(await onRequest({ url, method: 'GET', headers: normalizeHeaders(headers), body: null }));
         },
         async post(url, headers, body) {
-            return JSON.stringify(await onRequest({ url, method: 'POST', headers: headers || {}, body }));
+            return JSON.stringify(await onRequest({ url, method: 'POST', headers: normalizeHeaders(headers), body }));
         },
     };
 
@@ -54,16 +72,36 @@ export function installHost(global, { baseUrl, preferences = {}, onRequest }) {
             return found.length ? $.html(found) : null;
         },
         text(html) {
-            return cheerio.load(html ?? '').root().text();
+            // Jsoup's Element.text() collapses whitespace runs, trims, and puts a boundary between
+            // block-level elements; cheerio's .text() concatenates raw text nodes, so
+            // `<p>a</p><p>b</p>` yields "ab" there and "a b" on Android. Insert a separator at
+            // block boundaries and collapse, which covers the cases sources actually depend on
+            // (multi-line titles, chapter names split across tags).
+            //
+            // This is an approximation of Jsoup, not a reimplementation — exotic inline/block
+            // nesting can still differ. It is close enough that a source parsing correctly here is
+            // strong evidence, and the Android run remains the authority.
+            const $ = cheerio.load(html ?? '');
+            $('br').replaceWith(' ');
+            $('p,div,li,tr,h1,h2,h3,h4,h5,h6,section,article,blockquote').each((_, el) => {
+                $(el).after(' ');
+            });
+            return $.root().text().replace(/\s+/g, ' ').trim();
         },
         attr(html, name) {
             const $ = cheerio.load(html ?? '');
             const el = $('body').children().first();
             if (!el.length) return '';
+            // Raw, matching the Kotlin `attr` binding. Resolution lives in absAttr.
+            return el.attr(name) ?? '';
+        },
+        absAttr(html, name) {
+            const $ = cheerio.load(html ?? '');
+            const el = $('body').children().first();
+            if (!el.length) return '';
             const raw = el.attr(name);
             if (raw === undefined) return '';
-            // Kotlin prefers absUrl and falls back to the raw attribute.
-            return (name === 'href' || name === 'src') ? absUrl(raw) : raw;
+            return absUrl(raw) || raw;
         },
         release(handle) {
             documents.delete(handle);
@@ -77,7 +115,9 @@ export function installHost(global, { baseUrl, preferences = {}, onRequest }) {
             return Object.prototype.hasOwnProperty.call(prefs, key) ? prefs[key] : null;
         },
         set(key, value) {
-            prefs[key] = String(value);
+            // Mirrors the Kotlin binding's `?.toString().orEmpty()`: a nullish write stores an
+            // empty string, not the literal "null".
+            prefs[key] = value === null || value === undefined ? '' : String(value);
             return null;
         },
     };

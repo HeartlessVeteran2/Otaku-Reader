@@ -2,4 +2,3 @@ node_modules/
 idx.json
 tmp_*.js
 tmp_*.json
-package-lock.json

@@ -44,7 +44,10 @@ async function onRequest({ url, method: verb, headers, body }) {
     }
 }
 
-const sandbox = { console, URL, TextEncoder, TextDecoder, setTimeout, clearTimeout, fetch };
+// No `fetch` in the sandbox. The Android QuickJS context provides none, so a source reaching for
+// it must fail here too — otherwise the harness reports an extension as compatible that cannot run
+// on the device, which is the one verdict it must never give.
+const sandbox = { console, URL, TextEncoder, TextDecoder, setTimeout, clearTimeout };
 sandbox.globalThis = sandbox;
 const context = vm.createContext(sandbox);
 
@@ -62,13 +65,23 @@ try {
 }
 
 // The invocation buildInvocation() emits.
+// Mirrors QuickJsHost.buildInvocation exactly — every method it dispatches, with the same
+// argument order. An entry missing here silently invokes `provider.undefined`.
 const call = {
-    getPopular: `getPopular(${argRaw || 1})`,
-    getLatestUpdates: `getLatestUpdates(${argRaw || 1})`,
+    getPopular: `getPopular(${Number(argRaw) || 1})`,
+    getLatestUpdates: `getLatestUpdates(${Number(argRaw) || 1})`,
+    search: `search(${JSON.stringify(argRaw || '')}, 1, [])`,
     getDetail: `getDetail(${JSON.stringify(argRaw || '')})`,
     getPageList: `getPageList(${JSON.stringify(argRaw || '')})`,
+    getHtmlContent: `getHtmlContent(${JSON.stringify(argRaw || '')})`,
     getFilterList: `getFilterList()`,
 }[method];
+
+if (!call) {
+    console.error(`Unknown method "${method}". Supported: getPopular, getLatestUpdates, search, ` +
+        `getDetail, getPageList, getHtmlContent, getFilterList`);
+    process.exit(4);
+}
 
 const invocation = `
     (async () => {

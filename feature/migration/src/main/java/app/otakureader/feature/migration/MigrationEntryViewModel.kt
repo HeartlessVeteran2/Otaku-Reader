@@ -62,14 +62,24 @@ class MigrationEntryViewModel @Inject constructor(
         _state.update { it.copy(isLoading = true, error = null) }
         // Combined rather than read once, because both sides change while this screen is open:
         // the library updates as entries are migrated, and the source list is populated
-        // asynchronously at startup and again after a refresh. Resolving against a snapshot taken
-        // before sources finished loading would mark the entire library as stranded.
+        // asynchronously at startup and again after a refresh.
+        //
+        // Combining alone is NOT enough to make the stranded status trustworthy, which an earlier
+        // version of this comment claimed. `getSources()` is backed by a StateFlow seeded with an
+        // empty list, so the first emission arrives before any source has loaded and resolves
+        // every key to nothing — the screen would show the entire library as stranded, and offer
+        // to migrate all of it, until the real list arrived a moment later. Combining only means
+        // that mistake corrects itself; it does not stop it being shown.
+        //
+        // An empty source list is therefore treated as "not loaded yet" rather than "nothing is
+        // installed". That is sound because `refreshSources()` always publishes the built-in local
+        // source alongside whatever else it found, so a loaded list is never empty.
         loadJob = combine(getLibraryManga(), sourceRepository.getSources()) { manga, sources ->
             // The one correct key -> source bridge. `associateBySourceKey` is the same index
             // `getSourceByKey` uses, legacy-key precedence included; matching on
             // `sourceId.toString()` compares a hash's decimal against a real id and never hits.
             val byKey = sources.associateBySourceKey { it.id }
-            manga.map { m ->
+            val items = manga.map { m ->
                 MigrationEntryItem(
                     id = m.id,
                     title = m.title,
@@ -77,10 +87,15 @@ class MigrationEntryViewModel @Inject constructor(
                     sourceName = byKey[m.sourceId]?.name
                 )
             }
+            LoadedLibrary(items = items, sourcesReady = sources.isNotEmpty())
         }
-            .onEach { items ->
+            .onEach { loaded ->
+                // Hold the screen on its spinner until sources are ready. Publishing the entries
+                // early would be worse than slow: every row would read "Source not installed" and
+                // the banner would invite the user to migrate their whole library.
+                if (!loaded.sourcesReady) return@onEach
                 _state.update { state ->
-                    state.copy(isLoading = false, error = null, mangaList = items)
+                    state.copy(isLoading = false, error = null, mangaList = loaded.items)
                 }
             }
             .catch { e ->
@@ -157,3 +172,15 @@ class MigrationEntryViewModel @Inject constructor(
         else bySource.filter { it.title.contains(query, ignoreCase = true) }
     }
 }
+
+/**
+ * One resolved snapshot of the library, plus whether the source list backing it had loaded.
+ *
+ * Carried rather than inferred from `mangaList.all { it.isStranded }`, because a library where
+ * every entry genuinely is stranded and one resolved before sources arrived look identical from
+ * the items alone — and they want opposite treatment.
+ */
+private data class LoadedLibrary(
+    val items: List<MigrationEntryItem>,
+    val sourcesReady: Boolean,
+)

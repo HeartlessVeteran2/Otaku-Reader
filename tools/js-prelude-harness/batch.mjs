@@ -32,7 +32,9 @@ for (const e of picked) {
     const scriptPath = path.join(HARNESS_DIR, `tmp_${slug}.js`);
     const configPath = path.join(HARNESS_DIR, `tmp_${slug}.json`);
     try {
-        const res = await fetch(e.sourceCodeUrl);
+        // Bounded: the child-process timeout does not start until the download finishes, so a
+        // server that accepts the connection and then stalls would hang the whole sweep.
+        const res = await fetch(e.sourceCodeUrl, { signal: AbortSignal.timeout(60_000) });
         if (!res.ok) { results.push({ name: e.name, status: `script ${res.status}` }); continue; }
         const body = await res.text();
         if (body.length < 200) { results.push({ name: e.name, status: 'script too small' }); continue; }

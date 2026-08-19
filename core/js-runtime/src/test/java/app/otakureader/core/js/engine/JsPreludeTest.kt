@@ -56,9 +56,17 @@ class JsPreludeTest {
             .substringAfter("function withHandle(")
             .substringBefore("MElement.prototype.select")
 
+        // Position, not mere presence. Asserting only that both tokens appear would still pass if
+        // the release were moved out of the `finally` into the normal path — which is exactly the
+        // regression this test exists to catch, since the happy path releases either way and only
+        // the throwing path leaks.
+        val finallyAt = withHandle.indexOf("finally {")
+        val releaseAt = withHandle.indexOf("hostDocument.release(handle)")
+
+        assertTrue("withHandle no longer has a finally block", finallyAt >= 0)
         assertTrue(
-            "withHandle must release its handle in a finally block",
-            withHandle.contains("finally") && withHandle.contains("hostDocument.release(handle)"),
+            "hostDocument.release(handle) must sit inside the finally block",
+            releaseAt > finallyAt,
         )
     }
 }
