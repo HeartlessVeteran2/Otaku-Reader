@@ -6,10 +6,17 @@
  * buildInvocation() produces.
  */
 import fs from 'node:fs';
+import path from 'node:path';
 import vm from 'node:vm';
+import { fileURLToPath } from 'node:url';
 import { installHost } from './host.mjs';
 
-const PRELUDE = '/home/user/Otaku-Reader/core/js-runtime/src/main/resources/js/prelude.js';
+// Resolved from this file's own location, never from the working directory or an absolute path.
+// The harness is checked in for other people to run, so anything anchored to one machine's
+// checkout fails with ENOENT before a single extension is exercised.
+const HARNESS_DIR = path.dirname(fileURLToPath(import.meta.url));
+const PRELUDE = process.env.OTAKU_PRELUDE ??
+    path.resolve(HARNESS_DIR, '../../core/js-runtime/src/main/resources/js/prelude.js');
 
 const [, , scriptPath, configPath, method, argRaw] = process.argv;
 const script = fs.readFileSync(scriptPath, 'utf8');

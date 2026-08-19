@@ -1,8 +1,21 @@
 /* Run getPopular for many real JS extensions and report which survive the prelude. */
 import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 
-const index = JSON.parse(fs.readFileSync('../idx.json', 'utf8'));
+// Anchored to this file, so the harness works from any working directory and the path matches
+// what the README tells you to download.
+const HARNESS_DIR = path.dirname(fileURLToPath(import.meta.url));
+const INDEX_PATH = process.env.OTAKU_INDEX ?? path.join(HARNESS_DIR, 'idx.json');
+
+if (!fs.existsSync(INDEX_PATH)) {
+    console.error(`No index at ${INDEX_PATH}.\nFetch it first:\n` +
+        `  curl -s -o "${INDEX_PATH}" https://kodjodevf.github.io/mangayomi-extensions/index.json`);
+    process.exit(2);
+}
+
+const index = JSON.parse(fs.readFileSync(INDEX_PATH, 'utf8'));
 const candidates = index.filter((e) => e.sourceCodeLanguage === 1 && e.itemType === 0);
 
 const wanted = Number(process.argv[2] || 12);
@@ -16,8 +29,8 @@ for (const e of candidates) {
 const results = [];
 for (const e of picked) {
     const slug = String(e.id);
-    const scriptPath = `tmp_${slug}.js`;
-    const configPath = `tmp_${slug}.json`;
+    const scriptPath = path.join(HARNESS_DIR, `tmp_${slug}.js`);
+    const configPath = path.join(HARNESS_DIR, `tmp_${slug}.json`);
     try {
         const res = await fetch(e.sourceCodeUrl);
         if (!res.ok) { results.push({ name: e.name, status: `script ${res.status}` }); continue; }
@@ -29,7 +42,7 @@ for (const e of picked) {
             lang: e.lang, isNsfw: !!e.isNsfw, preferences: {},
         }));
 
-        const out = execFileSync('node', ['run.mjs', scriptPath, configPath, 'getPopular', '1'],
+        const out = execFileSync('node', [path.join(HARNESS_DIR, 'run.mjs'), scriptPath, configPath, 'getPopular', '1'],
             { timeout: 90000, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
         const parsed = JSON.parse(out);
         const list = parsed.result?.list ?? [];

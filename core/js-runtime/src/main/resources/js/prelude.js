@@ -182,11 +182,12 @@
                 return this.html;
             }
         },
-        innerHtml: {
-            get: function () {
-                return this.html;
-            }
-        },
+        // No `innerHtml`. An element here is represented by the outer HTML the host returned, so
+        // the obvious implementation returns the wrapping tag as well as its contents — an
+        // extension asking for a node's contents would silently receive malformed markup, which
+        // is worse than the property being absent, because absence throws where it is used.
+        // Nothing in the published sources sampled for this layer reads it. If one does, give it
+        // a real host binding rather than approximating it here.
         getHref: {
             get: function () {
                 return this.attr('href');
