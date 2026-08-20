@@ -115,12 +115,18 @@ fun MigrationEntryContent(
                     if (filtered.isEmpty()) {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text(
+                                // Order matters. "Nothing is stranded" is only true when the
+                                // stranded set is genuinely empty — with the filter on and a query
+                                // typed, an empty result usually means the query matched none of
+                                // several stranded entries, and saying nothing is stranded there
+                                // contradicts the banner sitting directly above it.
                                 text = when {
-                                    state.showOnlyStranded ->
+                                    state.showOnlyStranded && state.sourcesKnown &&
+                                        state.strandedCount == 0 ->
                                         stringResource(R.string.migration_entry_no_stranded)
-                                    state.searchQuery.isBlank() ->
-                                        stringResource(R.string.migration_entry_library_empty)
-                                    else -> stringResource(R.string.migration_entry_no_results)
+                                    state.searchQuery.isNotBlank() ->
+                                        stringResource(R.string.migration_entry_no_results)
+                                    else -> stringResource(R.string.migration_entry_library_empty)
                                 },
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
