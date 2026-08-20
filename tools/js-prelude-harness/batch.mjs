@@ -77,7 +77,16 @@ for (const e of picked) {
         const raw = (err.stderr || err.stdout || String(err)).toString();
         const lines = raw.split('\n').map((l) => l.trim()).filter(Boolean);
         const msg = lines.find((l) => l.includes('FAILED')) ?? lines[0] ?? String(err);
-        results.push({ name: e.name, status: 'FAIL', error: msg.slice(0, 130) });
+        // run.mjs prints its handle counts before any non-zero exit, so a source that leaks *and*
+        // throws still reaches the leak gate below. Without this the gate only ever saw sources
+        // that succeeded — and a leak severe enough to exhaust the pool always throws.
+        const stats = lines.find((l) => l.startsWith('DOCSTATS '));
+        let liveLeaked;
+        if (stats) {
+            try { liveLeaked = JSON.parse(stats.slice('DOCSTATS '.length)).liveDocuments; }
+            catch { liveLeaked = undefined; }
+        }
+        results.push({ name: e.name, status: 'FAIL', error: msg.slice(0, 130), liveLeaked });
     } finally {
         for (const f of [scriptPath, configPath]) {
             // rmSync with force ignores a missing file, so the cleanup needs no empty catch —

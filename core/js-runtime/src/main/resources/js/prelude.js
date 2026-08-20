@@ -350,6 +350,41 @@
      * yields the default rather than throwing: a corrupt preference should degrade the source to
      * its defaults, not make it unusable with no way for the user to reset it.
      */
+    /**
+     * Coerce a preference value to the type the caller's default implies.
+     *
+     * Applied to declared defaults as well as stored ones, and that is the point. The host stores
+     * strings, and an extension declares an `editTextPreference` default as a string too — so
+     * `getInt(key, 0)` against a declared "5" used to return the *string* "5" where the identical
+     * value, once the user had touched the setting, returned the number 5. A source doing
+     * arithmetic on it got "5" + 1 = "51", and only for users who had never opened the settings
+     * screen: the exact population the declared-default fallback exists to serve.
+     *
+     * Values that already carry a type are passed through. A `multiSelectListPreference` declares
+     * an array and a switch declares a boolean; re-parsing those would be a second guess at
+     * something already known.
+     */
+    function coerce(value, defaultValue) {
+        if (typeof value !== 'string') {
+            return value;
+        }
+        if (defaultValue !== null && typeof defaultValue === 'object') {
+            try {
+                return JSON.parse(value);
+            } catch (e) {
+                return defaultValue;
+            }
+        }
+        if (typeof defaultValue === 'boolean') {
+            return value === 'true';
+        }
+        if (typeof defaultValue === 'number') {
+            var parsed = Number(value);
+            return isNaN(parsed) ? defaultValue : parsed;
+        }
+        return value;
+    }
+
     MSharedPreferences.prototype.get = function (key, defaultValue) {
         var stored = hostPreferences.get(key);
         if (stored === null || stored === undefined) {
@@ -359,25 +394,11 @@
             // just a type hint written at the call site.
             var declared = defaultFor(key);
             if (declared !== undefined) {
-                return declared;
+                return coerce(declared, defaultValue);
             }
             return defaultValue === undefined ? null : defaultValue;
         }
-        if (defaultValue !== null && typeof defaultValue === 'object') {
-            try {
-                return JSON.parse(stored);
-            } catch (e) {
-                return defaultValue;
-            }
-        }
-        if (typeof defaultValue === 'boolean') {
-            return stored === 'true';
-        }
-        if (typeof defaultValue === 'number') {
-            var parsed = Number(stored);
-            return isNaN(parsed) ? defaultValue : parsed;
-        }
-        return stored;
+        return coerce(stored, defaultValue);
     };
 
     MSharedPreferences.prototype.set = function (key, value) {

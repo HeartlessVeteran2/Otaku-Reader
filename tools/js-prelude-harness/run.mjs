@@ -97,11 +97,20 @@ const probe = installHost(sandbox, { baseUrl: config.baseUrl, preferences: confi
 vm.runInContext(`globalThis.__otakuSourceConfig = ${JSON.stringify(JSON.stringify(config))};`, context);
 vm.runInContext(fs.readFileSync(PRELUDE, 'utf8'), context, { filename: 'prelude.js' });
 
+// A leak in a source that *also* throws was invisible: both exits below fired before the stats
+// were printed, so batch.mjs recorded a plain FAIL with no handle count and its leak gate — which
+// exists precisely to fail the run on a leak — never saw one. Exhausting the 32-handle pool is
+// itself a throwing failure, so that was the single case the gate most needed to catch.
+function bail(message, code) {
+    console.error(message);
+    console.error(`DOCSTATS ${JSON.stringify(probe.stats())}`);
+    process.exit(code);
+}
+
 try {
     vm.runInContext(script, context, { filename: scriptPath });
 } catch (e) {
-    console.error(`SCRIPT EVALUATION FAILED: ${e}`);
-    process.exit(2);
+    bail(`SCRIPT EVALUATION FAILED: ${e}`, 2);
 }
 
 // The invocation buildInvocation() emits.
@@ -137,8 +146,7 @@ sandbox.__otakuEmitResult = (json) => { captured = json; };
 try {
     await vm.runInContext(invocation, context, { filename: 'invocation' });
 } catch (e) {
-    console.error(`INVOCATION FAILED: ${e && e.stack ? e.stack : e}`);
-    process.exit(3);
+    bail(`INVOCATION FAILED: ${e && e.stack ? e.stack : e}`, 3);
 }
 
 console.log(JSON.stringify({
