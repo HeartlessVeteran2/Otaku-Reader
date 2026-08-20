@@ -10,6 +10,14 @@ import * as cheerio from 'cheerio';
 
 const MAX_LIVE_DOCUMENTS = 32;
 
+// Jsoup's block set, used to reproduce the whitespace boundary its Element.text() inserts.
+const BLOCK_TAGS = [
+    'address', 'article', 'aside', 'blockquote', 'dd', 'div', 'dl', 'dt', 'fieldset',
+    'figcaption', 'figure', 'footer', 'form', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'header',
+    'hr', 'li', 'main', 'nav', 'ol', 'p', 'pre', 'section', 'table', 'tbody', 'td', 'tfoot',
+    'th', 'thead', 'tr', 'ul',
+].join(',');
+
 export function installHost(global, { baseUrl, preferences = {}, onRequest }) {
     const documents = new Map();
     let nextHandle = 1;
@@ -83,7 +91,11 @@ export function installHost(global, { baseUrl, preferences = {}, onRequest }) {
             // strong evidence, and the Android run remains the authority.
             const $ = cheerio.load(html ?? '');
             $('br').replaceWith(' ');
-            $('p,div,li,tr,td,th,h1,h2,h3,h4,h5,h6,section,article,blockquote').each((_, el) => {
+            // Jsoup decides a boundary from the tag's own block/inline classification, so this
+            // list tracks its block set rather than the handful of tags that happened to come up.
+            // `br` is not in it — it is replaced above, and replacing then also appending would
+            // double the space.
+            $(BLOCK_TAGS).each((_, el) => {
                 $(el).after(' ');
             });
             return $.root().text().replace(/\s+/g, ' ').trim();

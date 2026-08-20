@@ -34,13 +34,25 @@ let requestCount = 0;
 async function onRequest({ url, method: verb, headers, body }) {
     requestCount++;
     try {
-        const res = await fetch(url, {
+        // `fetch` throws "Request with GET/HEAD method cannot have body" for a GET carrying a
+        // real body; `body: undefined` on a GET is accepted, which is why the previous uniform
+        // `body: body ?? undefined` never actually misfired — MClient.get passes null.
+        //
+        // Structuring it this way anyway, because the alternative rests on a promise made
+        // somewhere else: the day a source builds a GET with a payload, or the prelude's request()
+        // helper routes a verb differently, the throw lands in the catch below and is reported as
+        // an unreachable site. That is the most misleading verdict this harness can give — it
+        // blames the source's server for the harness's own malformed request.
+        const init = {
             method: verb,
             headers,
-            body: body ?? undefined,
             redirect: 'follow',
             signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-        });
+        };
+        if (body !== null && body !== undefined && verb !== 'GET' && verb !== 'HEAD') {
+            init.body = body;
+        }
+        const res = await fetch(url, init);
         // Read incrementally rather than via res.text(): the cap has to be enforced while the body
         // is arriving, since by the time text() resolves the whole thing is already in memory.
         const chunks = [];

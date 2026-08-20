@@ -279,38 +279,60 @@
      * updated default — a moved mirror domain, say — reach a user who never touched the setting,
      * while still never overriding a choice the user did make.
      */
+    /**
+     * The value one declaration entry carries, or `undefined` if it declares none.
+     *
+     * Split out from the cache below so each half stays readable on its own: this is the part that
+     * knows the four shapes Mangayomi's preference declarations take, and it is where a fifth one
+     * would be added.
+     */
+    function declaredValueOf(entry) {
+        if (entry.editTextPreference) {
+            return entry.editTextPreference.value;
+        }
+        if (entry.listPreference) {
+            // A list declares its default as an index into entryValues, not as a value — except
+            // when it also carries an explicit `value`, which wins.
+            var list = entry.listPreference;
+            if (list.value !== undefined) {
+                return list.value;
+            }
+            var values = list.entryValues || [];
+            return values[typeof list.valueIndex === 'number' ? list.valueIndex : 0];
+        }
+        if (entry.multiSelectListPreference) {
+            return entry.multiSelectListPreference.values || [];
+        }
+        var toggle = entry.switchPreferenceCompat || entry.checkBoxPreference;
+        return toggle ? toggle.value : undefined;
+    }
+
+    function loadDeclaredDefaults() {
+        var out = {};
+        try {
+            var declared = currentProvider && typeof currentProvider.getSourcePreferences === 'function'
+                ? currentProvider.getSourcePreferences()
+                : [];
+            for (var i = 0; i < declared.length; i++) {
+                var entry = declared[i];
+                if (!entry || !entry.key) { continue; }
+                var value = declaredValueOf(entry);
+                if (value !== undefined) {
+                    out[entry.key] = value;
+                }
+            }
+        } catch (e) {
+            // A source whose preference declaration throws still has to be usable for everything
+            // that does not depend on a preference. Discard the partial map rather than keeping
+            // it: a half-read declaration would answer some keys and silently not others.
+            return {};
+        }
+        return out;
+    }
+
     function defaultFor(key) {
         if (declaredDefaults === null) {
-            declaredDefaults = {};
-            try {
-                var declared = currentProvider && typeof currentProvider.getSourcePreferences === 'function'
-                    ? currentProvider.getSourcePreferences()
-                    : [];
-                for (var i = 0; i < declared.length; i++) {
-                    var entry = declared[i];
-                    if (!entry || !entry.key) { continue; }
-                    var edit = entry.editTextPreference;
-                    var list = entry.listPreference;
-                    var multi = entry.multiSelectListPreference;
-                    var toggle = entry.switchPreferenceCompat || entry.checkBoxPreference;
-                    if (edit) {
-                        declaredDefaults[entry.key] = edit.value;
-                    } else if (list) {
-                        // The default is an index into entryValues, not a value itself.
-                        var values = list.entryValues || [];
-                        var chosen = typeof list.valueIndex === 'number' ? list.valueIndex : 0;
-                        declaredDefaults[entry.key] = list.value !== undefined ? list.value : values[chosen];
-                    } else if (multi) {
-                        declaredDefaults[entry.key] = multi.values || [];
-                    } else if (toggle) {
-                        declaredDefaults[entry.key] = toggle.value;
-                    }
-                }
-            } catch (e) {
-                // A source whose preference declaration throws still has to be usable for
-                // everything that does not depend on a preference.
-                declaredDefaults = {};
-            }
+            declaredDefaults = loadDeclaredDefaults();
         }
         return Object.prototype.hasOwnProperty.call(declaredDefaults, key)
             ? declaredDefaults[key]
