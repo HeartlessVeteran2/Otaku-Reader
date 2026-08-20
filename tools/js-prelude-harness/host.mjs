@@ -83,7 +83,7 @@ export function installHost(global, { baseUrl, preferences = {}, onRequest }) {
             // strong evidence, and the Android run remains the authority.
             const $ = cheerio.load(html ?? '');
             $('br').replaceWith(' ');
-            $('p,div,li,tr,h1,h2,h3,h4,h5,h6,section,article,blockquote').each((_, el) => {
+            $('p,div,li,tr,td,th,h1,h2,h3,h4,h5,h6,section,article,blockquote').each((_, el) => {
                 $(el).after(' ');
             });
             return $.root().text().replace(/\s+/g, ' ').trim();
@@ -117,6 +117,11 @@ export function installHost(global, { baseUrl, preferences = {}, onRequest }) {
         set(key, value) {
             // Mirrors the Kotlin binding's `?.toString().orEmpty()`: a nullish write stores an
             // empty string, not the literal "null".
+            //
+            // The prelude never sends one — it drops nullish writes before they reach here, and
+            // says why. This stays as the binding's own floor, and keeping it identical to the
+            // Kotlin is the point of the file: the harness must not be the reason a behaviour
+            // looks correct.
             prefs[key] = value === null || value === undefined ? '' : String(value);
             return null;
         },

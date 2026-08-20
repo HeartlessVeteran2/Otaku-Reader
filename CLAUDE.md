@@ -296,9 +296,9 @@ An earlier version of this table said "nothing but the APK path uses these". Tha
 
 | Survivor | Currently at | Why it stays |
 |---|---|---|
-| `LocalSource` | `core/tachiyomi/local/` | **Local manga folders — a shipped feature.** Wired into `feature/settings` (`LocalSourceBrowserScreen`), `core/navigation` (`Route`), `core/preferences` (`LocalSourcePreferences`) and the app's NavHost. Nothing to do with APKs. |
-| `SourceHealthMonitor` | `core/tachiyomi/health/` | `SourceRepositoryImpl` routes **every** source call through it, JavaScript included — `JsSource`'s own comment relies on this for hung or broken scripts. |
-| `eu.kanade.tachiyomi.network.*` | `NetworkHelper`, `RateLimitInterceptor`, `AndroidCookieJar`, progress bodies | `OtakuReaderApplication` initialises `NetworkHelper` at startup. Check each class for live use before assuming it goes with the APK path. |
+| `LocalSource` | `core/tachiyomi-compat/src/main/java/app/otakureader/core/tachiyomi/local/` | **Local manga folders — a shipped feature.** Wired into `feature/settings` (`LocalSourceBrowserScreen`), `core/navigation` (`Route`), `core/preferences` (`LocalSourcePreferences`) and the app's NavHost. Nothing to do with APKs. |
+| `SourceHealthMonitor` | `core/tachiyomi-compat/src/main/java/app/otakureader/core/tachiyomi/health/` | `SourceRepositoryImpl` routes **every** source call through it, JavaScript included — `JsSource`'s own comment relies on this for hung or broken scripts. |
+| `eu.kanade.tachiyomi.network.*` | `core/tachiyomi-compat/src/main/java/eu/kanade/tachiyomi/network/` — `NetworkHelper`, `RateLimitInterceptor`, `AndroidCookieJar`, progress bodies | `OtakuReaderApplication` initialises `NetworkHelper` at startup. Check each class for live use before assuming it goes with the APK path. |
 
 So the sequence is **extract, then delete** — never delete first. Verify with `grep -rn "import eu\.kanade\.tachiyomi" --include=*.kt .` and confirm the only remaining consumers are inside the two retiring modules.
 

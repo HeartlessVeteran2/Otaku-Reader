@@ -226,9 +226,9 @@
          * one name at a time and adding a bulk binding would mean a Kotlin change for something
          * the published sources use almost exclusively on JSON payloads rather than on DOM nodes.
          *
-         * Values are returned raw. Unlike `attr()`, which resolves against the source base URL,
-         * a relative href read from here stays relative — use `attr('href')` when an absolute URL
-         * is what is wanted.
+         * Values are returned exactly as the tag spells them, which is also what `attr()` does —
+         * neither resolves a relative URL. `getHref`/`getSrc` (and `absAttr`) are the resolving
+         * accessors; reach for one of those when an absolute URL is what is wanted.
          */
         attributes: {
             get: function () {
@@ -359,14 +359,22 @@
     };
 
     MSharedPreferences.prototype.set = function (key, value) {
-        // Nullish writes store an empty string, mirroring the Kotlin binding's
-        // `?.toString().orEmpty()`. `String(null)` would persist the four characters "null", which
-        // then reads back as a set value and permanently shadows both the extension's declared
-        // default and the caller's — a source writing a not-yet-computed value would poison that
-        // preference for good.
-        var stored = value === null || value === undefined ? ''
-            : (typeof value === 'object' ? JSON.stringify(value) : String(value));
-        hostPreferences.set(key, stored);
+        // A nullish write is dropped rather than stored.
+        //
+        // The host has no `remove`, so every write is a write of *something*: `String(null)`
+        // persists the four characters "null", and the empty string the Kotlin binding's
+        // `?.toString().orEmpty()` produces is no better — both read back as a value that is set,
+        // which permanently shadows the extension's declared default with no way for a user to
+        // undo it short of reinstalling the source. Sources reach this path by accident, writing a
+        // value they have not computed yet, not by deciding the preference should be blank; a
+        // source that means blank passes `''` and that still stores.
+        //
+        // This is a deliberate divergence from the host binding, and the only one in this file.
+        // The binding keeps its own coercion as a floor for any caller that is not the prelude.
+        if (value === null || value === undefined) {
+            return;
+        }
+        hostPreferences.set(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
     };
 
     MSharedPreferences.prototype.getString = function (key, defaultValue) {

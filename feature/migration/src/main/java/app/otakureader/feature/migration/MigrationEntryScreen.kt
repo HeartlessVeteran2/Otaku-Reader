@@ -99,34 +99,44 @@ fun MigrationEntryContent(
                         }
                     }
                 }
-                filtered.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        text = if (state.searchQuery.isBlank()) {
-                            stringResource(R.string.migration_entry_library_empty)
-                        } else {
-                            stringResource(R.string.migration_entry_no_results)
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                else -> LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    // Shown when something is broken — a permanent banner would train the user to
-                    // ignore it, which is exactly when it needs to be read — and also whenever the
-                    // filter is on, even at zero. The toggle lives here and nowhere else, so
-                    // hiding the banner the moment the last stranded entry is migrated would strand
-                    // the user in an empty filtered list with no way back out of it.
+                else -> Column(modifier = Modifier.fillMaxSize()) {
+                    // Outside the empty-state branch on purpose. The filter's only toggle lives in
+                    // this banner, and the filter can legitimately produce no rows — the user
+                    // migrates the last stranded entry, or turns it on when none are stranded. Kept
+                    // inside the list, that empty result rendered the "your library is empty"
+                    // message with no way to switch the filter back off.
+                    //
+                    // Shown only when something is broken or the filter is on: a banner that is
+                    // always present is one the user learns to skip past.
                     if (state.strandedCount > 0 || state.showOnlyStranded) {
-                        item(key = "stranded-banner") {
-                            StrandedBanner(state = state, onEvent = onEvent)
-                        }
+                        StrandedBanner(state = state, onEvent = onEvent)
                     }
-                    items(filtered, key = { it.id }) { manga ->
-                        MigrationEntryMangaRow(
-                            manga = manga,
-                            isSelected = manga.id in state.selectedIds,
-                            onToggle = { onEvent(MigrationEntryEvent.OnMangaToggle(manga.id)) },
-                        )
+
+                    if (filtered.isEmpty()) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(
+                                text = when {
+                                    state.showOnlyStranded ->
+                                        stringResource(R.string.migration_entry_no_stranded)
+                                    state.searchQuery.isBlank() ->
+                                        stringResource(R.string.migration_entry_library_empty)
+                                    else -> stringResource(R.string.migration_entry_no_results)
+                                },
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    } else {
+                        LazyColumn(modifier = Modifier.fillMaxSize()) {
+                            items(filtered, key = { it.id }) { manga ->
+                                MigrationEntryMangaRow(
+                                    manga = manga,
+                                    isSelected = manga.id in state.selectedIds,
+                                    sourcesKnown = state.sourcesKnown,
+                                    onToggle = { onEvent(MigrationEntryEvent.OnMangaToggle(manga.id)) },
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -286,6 +296,7 @@ private fun StrandedBanner(
 private fun MigrationEntryMangaRow(
     manga: MigrationEntryItem,
     isSelected: Boolean,
+    sourcesKnown: Boolean,
     onToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -321,10 +332,17 @@ private fun MigrationEntryMangaRow(
             // entry whose source cannot be resolved is unreadable, and nothing else in the app
             // says so. Rendered in the error colour rather than as a separate icon so the state
             // survives being skimmed.
+            // Blank rather than "Source not installed" while the inventory is still loading:
+            // an unresolved key means nothing yet, and saying otherwise accuses every row.
+            val unresolvedLabel = if (sourcesKnown) {
+                stringResource(R.string.migration_entry_source_missing)
+            } else {
+                ""
+            }
             Text(
-                text = manga.sourceName ?: stringResource(R.string.migration_entry_source_missing),
+                text = manga.sourceName ?: unresolvedLabel,
                 style = MaterialTheme.typography.bodySmall,
-                color = if (manga.isStranded) {
+                color = if (sourcesKnown && manga.isStranded) {
                     MaterialTheme.colorScheme.error
                 } else {
                     MaterialTheme.colorScheme.onSurfaceVariant

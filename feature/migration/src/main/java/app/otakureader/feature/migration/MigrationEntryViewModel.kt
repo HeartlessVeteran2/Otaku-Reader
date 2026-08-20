@@ -72,8 +72,13 @@ class MigrationEntryViewModel @Inject constructor(
         // that mistake corrects itself; it does not stop it being shown.
         //
         // An empty source list is therefore treated as "not loaded yet" rather than "nothing is
-        // installed". That is sound because `refreshSources()` always publishes the built-in local
-        // source alongside whatever else it found, so a loaded list is never empty.
+        // installed" — sound because `refreshSources()` always publishes the built-in local source
+        // alongside whatever else it found, so a loaded list is never empty.
+        //
+        // That readiness is carried on the state, NOT used to withhold the library. Withholding it
+        // was the first attempt and it was worse: a genuinely empty source list left the screen on
+        // its spinner for good, and Retry re-collected the same flow to the same effect. The rows
+        // appear immediately; only the stranded verdict waits.
         loadJob = combine(getLibraryManga(), sourceRepository.getSources()) { manga, sources ->
             // The one correct key -> source bridge. `associateBySourceKey` is the same index
             // `getSourceByKey` uses, legacy-key precedence included; matching on
@@ -90,12 +95,13 @@ class MigrationEntryViewModel @Inject constructor(
             LoadedLibrary(items = items, sourcesReady = sources.isNotEmpty())
         }
             .onEach { loaded ->
-                // Hold the screen on its spinner until sources are ready. Publishing the entries
-                // early would be worse than slow: every row would read "Source not installed" and
-                // the banner would invite the user to migrate their whole library.
-                if (!loaded.sourcesReady) return@onEach
                 _state.update { state ->
-                    state.copy(isLoading = false, error = null, mangaList = loaded.items)
+                    state.copy(
+                        isLoading = false,
+                        error = null,
+                        mangaList = loaded.items,
+                        sourcesKnown = loaded.sourcesReady,
+                    )
                 }
             }
             .catch { e ->
@@ -138,6 +144,8 @@ class MigrationEntryViewModel @Inject constructor(
      */
     private fun selectAllStranded() {
         _state.update { state ->
+            // No-op until the inventory is known — selecting here would pick the entire library.
+            if (!state.sourcesKnown) return@update state
             state.copy(selectedIds = state.mangaList.filter { it.isStranded }.map { it.id }.toSet())
         }
     }
@@ -167,7 +175,11 @@ class MigrationEntryViewModel @Inject constructor(
     /** The manga list as the screen shows it: narrowed by the stranded filter, then the query. */
     fun filteredList(state: MigrationEntryState = _state.value): List<MigrationEntryItem> {
         val query = state.searchQuery.trim()
-        val bySource = if (state.showOnlyStranded) state.mangaList.filter { it.isStranded } else state.mangaList
+        val bySource = if (state.showOnlyStranded && state.sourcesKnown) {
+            state.mangaList.filter { it.isStranded }
+        } else {
+            state.mangaList
+        }
         return if (query.isBlank()) bySource
         else bySource.filter { it.title.contains(query, ignoreCase = true) }
     }

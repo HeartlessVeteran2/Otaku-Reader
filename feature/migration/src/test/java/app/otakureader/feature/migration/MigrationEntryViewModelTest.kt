@@ -305,7 +305,9 @@ class MigrationEntryViewModelTest {
                 Manga(id = 2L, sourceId = 222L, url = "/m/2", title = "Bleach", favorite = true),
             )
         )
-        every { sourceRepository.getSources() } returns flowOf(emptyList())
+        // Loaded, but owning neither key: both entries are genuinely stranded. An empty list would
+        // mean "not loaded yet" instead, and nothing would be classified at all.
+        every { sourceRepository.getSources() } returns flowOf(listOf(source("other", "Other")))
 
         val viewModel = createViewModel()
         testDispatcher.scheduler.advanceUntilIdle()
@@ -338,5 +340,28 @@ class MigrationEntryViewModelTest {
         // cannot leave.
         viewModel.onEvent(MigrationEntryEvent.ToggleStrandedFilter)
         assertEquals(2, viewModel.filteredList().size)
+    }
+
+    @Test
+    fun nothingIsStrandedUntilSourcesLoad() = runTest {
+        every { getLibraryManga() } returns flowOf(
+            listOf(Manga(id = 1L, sourceId = 999L, url = "/m/1", title = "Orphan", favorite = true))
+        )
+        // The repository's source list is a StateFlow seeded empty; this is that first emission.
+        every { sourceRepository.getSources() } returns flowOf(emptyList())
+
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // The row is published — withholding it hung the screen on its spinner forever — but no
+        // verdict is reached, so the banner stays away and nothing invites migrating the library.
+        assertEquals(1, viewModel.state.value.mangaList.size)
+        assertFalse(viewModel.state.value.isLoading)
+        assertFalse(viewModel.state.value.sourcesKnown)
+        assertEquals(0, viewModel.state.value.strandedCount)
+
+        // And the action is inert rather than selecting everything.
+        viewModel.onEvent(MigrationEntryEvent.SelectAllStranded)
+        assertTrue(viewModel.state.value.selectedIds.isEmpty())
     }
 }

@@ -56,17 +56,44 @@ class JsPreludeTest {
             .substringAfter("function withHandle(")
             .substringBefore("MElement.prototype.select")
 
-        // Position, not mere presence. Asserting only that both tokens appear would still pass if
-        // the release were moved out of the `finally` into the normal path — which is exactly the
-        // regression this test exists to catch, since the happy path releases either way and only
-        // the throwing path leaks.
-        val finallyAt = withHandle.indexOf("finally {")
-        val releaseAt = withHandle.indexOf("hostDocument.release(handle)")
-
+        val finallyAt = withHandle.indexOf(FINALLY)
         assertTrue("withHandle no longer has a finally block", finallyAt >= 0)
+
+        // The release must sit inside the finally *body*, not merely somewhere after the keyword.
+        // An earlier version of this test compared raw indices, which would have passed with the
+        // release moved below the closing brace — and that is precisely the regression it exists
+        // to catch, since the happy path releases either way and only the throwing path leaks.
+        val body = blockBodyAt(withHandle, finallyAt + FINALLY.length - 1)
+
         assertTrue(
             "hostDocument.release(handle) must sit inside the finally block",
-            releaseAt > finallyAt,
+            body.contains(RELEASE),
         )
+    }
+
+    /**
+     * The text between the brace at [openBraceIndex] and its match.
+     *
+     * Brace counting, not `substringBefore("}")`: the finally body is one statement today, and a
+     * naive scan to the first `}` would keep passing while quietly stopping at the wrong place the
+     * moment anyone wraps the release in a guard.
+     */
+    private fun blockBodyAt(source: String, openBraceIndex: Int): String {
+        var depth = 0
+        for (index in openBraceIndex until source.length) {
+            when (source[index]) {
+                '{' -> depth++
+                '}' -> {
+                    depth--
+                    if (depth == 0) return source.substring(openBraceIndex + 1, index)
+                }
+            }
+        }
+        return ""
+    }
+
+    private companion object {
+        const val FINALLY = "finally {"
+        const val RELEASE = "hostDocument.release(handle)"
     }
 }

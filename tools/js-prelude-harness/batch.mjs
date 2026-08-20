@@ -18,11 +18,24 @@ if (!fs.existsSync(INDEX_PATH)) {
 const index = JSON.parse(fs.readFileSync(INDEX_PATH, 'utf8'));
 const candidates = index.filter((e) => e.sourceCodeLanguage === 1 && e.itemType === 0);
 
-const wanted = Number(process.argv[2] || 12);
+const wanted = Number.parseInt(process.argv[2] ?? '12', 10);
+if (!Number.isInteger(wanted) || wanted < 1) {
+    console.error(`Sample size must be a positive integer; got "${process.argv[2]}".`);
+    process.exit(2);
+}
+
+// Deduped by id, not by name. The index publishes the same display name for a source that exists
+// in several languages ("MangaDex" appears once per language), and those are genuinely different
+// entries with different base URLs — collapsing them by name silently shrinks a sweep of 12 to
+// whatever handful of distinct names happened to sort first, which reads as a smaller ecosystem
+// than there is.
 const picked = [];
+const seen = new Set();
 for (const e of candidates) {
     if (picked.length >= wanted) break;
-    if (picked.some((p) => p.name === e.name)) continue;
+    const key = String(e.id);
+    if (seen.has(key)) continue;
+    seen.add(key);
     picked.push(e);
 }
 
@@ -57,8 +70,14 @@ for (const e of picked) {
             sample: list[0]?.name?.slice(0, 34),
         });
     } catch (err) {
-        const msg = (err.stderr || err.stdout || String(err)).toString().toString().split('\n').find(l=>l.includes('FAILED'));
-        results.push({ name: e.name, status: 'FAIL', error: msg?.slice(0, 130) });
+        // run.mjs prints a line tagged FAILED for the two failures it recognises. Anything else —
+        // a timeout kill, an ENOENT, a crash before that point — has no such line, and reporting
+        // an empty error column there is how a real regression gets read as noise. Fall back to
+        // the first non-empty line of whatever the child did say.
+        const raw = (err.stderr || err.stdout || String(err)).toString();
+        const lines = raw.split('\n').map((l) => l.trim()).filter(Boolean);
+        const msg = lines.find((l) => l.includes('FAILED')) ?? lines[0] ?? String(err);
+        results.push({ name: e.name, status: 'FAIL', error: msg.slice(0, 130) });
     } finally {
         for (const f of [scriptPath, configPath]) {
             // rmSync with force ignores a missing file, so the cleanup needs no empty catch —

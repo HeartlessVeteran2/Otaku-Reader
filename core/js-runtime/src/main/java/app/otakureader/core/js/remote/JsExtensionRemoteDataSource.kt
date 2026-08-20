@@ -130,9 +130,18 @@ internal data class JsExtensionDto(
      *
      * The radix is 1000, not 100, and the arithmetic runs in `Long`. A two-digit radix looks
      * sufficient against today's published versions but fails quietly the first time a segment
-     * reaches 100: 0.100.0 and 0.99.0 would clamp to the same number, so a real update would never
-     * be offered. Saturating the final value rather than each segment keeps ordering monotonic all
-     * the way up to the clamp instead of flattening at every position.
+     * reaches 100: 0.100.0 and 0.99.0 would collapse to the same number, so a real update would
+     * never be offered.
+     *
+     * Each segment is clamped to the radix rather than allowed to carry, and that is the deliberate
+     * half of the trade: a carry would let a large minor outrank a major bump — 0.1000.0 beating
+     * 1.0.0 — and precedence is the whole property this ordering exists to preserve. The cost is
+     * that two versions differing only past `.999` in one position stop being distinguishable,
+     * three orders of magnitude beyond anything the index publishes.
+     *
+     * Three clamped segments cannot exceed 999_999_999, so the final `coerceAtMost` never fires as
+     * this is configured. It is there so that widening [VERSION_SEGMENTS] or the radix later cannot
+     * silently start handing back negative version codes on the `Int` narrowing.
      */
     val effectiveVersionCode: Int
         get() {

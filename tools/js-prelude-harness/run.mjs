@@ -22,6 +22,14 @@ const [, , scriptPath, configPath, method, argRaw] = process.argv;
 const script = fs.readFileSync(scriptPath, 'utf8');
 const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
 
+// Bounds on a single source request. Neither exists to be tuned — they exist so that one
+// misbehaving site cannot stall or exhaust a sweep of dozens of sources. A server that accepts the
+// connection and then dribbles bytes forever would otherwise hang the run with no output at all,
+// and a source pointed at a video or a multi-gigabyte file would be read entirely into a string
+// before anything noticed.
+const REQUEST_TIMEOUT_MS = 30_000;
+const MAX_RESPONSE_BYTES = 32 * 1024 * 1024;
+
 let requestCount = 0;
 async function onRequest({ url, method: verb, headers, body }) {
     requestCount++;
@@ -31,23 +39,43 @@ async function onRequest({ url, method: verb, headers, body }) {
             headers,
             body: body ?? undefined,
             redirect: 'follow',
+            signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         });
-        const text = await res.text();
+        // Read incrementally rather than via res.text(): the cap has to be enforced while the body
+        // is arriving, since by the time text() resolves the whole thing is already in memory.
+        const chunks = [];
+        let total = 0;
+        for await (const chunk of res.body ?? []) {
+            total += chunk.length;
+            if (total > MAX_RESPONSE_BYTES) {
+                return {
+                    ok: false,
+                    code: res.status,
+                    headers: Object.fromEntries(res.headers.entries()),
+                    body: '',
+                    error: `response exceeded ${MAX_RESPONSE_BYTES} bytes`,
+                };
+            }
+            chunks.push(chunk);
+        }
         return {
             ok: res.ok,
             code: res.status,
             headers: Object.fromEntries(res.headers.entries()),
-            body: text,
+            body: Buffer.concat(chunks).toString('utf8'),
         };
     } catch (e) {
         return { ok: false, code: 0, headers: {}, body: '', error: String(e) };
     }
 }
 
-// No `fetch` in the sandbox. The Android QuickJS context provides none, so a source reaching for
-// it must fail here too — otherwise the harness reports an extension as compatible that cannot run
-// on the device, which is the one verdict it must never give.
-const sandbox = { console, URL, TextEncoder, TextDecoder, setTimeout, clearTimeout };
+// Deliberately spare. QuickJsHost's own header states that "capability arrives solely through the
+// globals installed below", and it installs exactly three: Client, Document, SharedPreferences.
+// Anything handed out here that Android does not have — `fetch`, and timers, which a source would
+// reach for to throttle or retry — makes the harness report an extension as compatible when it
+// cannot run on the device, and that is the one verdict this tool must never give. Being stricter
+// than the device is the safe direction: it costs a false failure, which a human then checks.
+const sandbox = { console, URL, TextEncoder, TextDecoder };
 sandbox.globalThis = sandbox;
 const context = vm.createContext(sandbox);
 
