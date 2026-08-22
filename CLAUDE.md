@@ -650,14 +650,14 @@ CI uses JDK 21. Gradle setup/caching is handled by `gradle/actions/setup-gradle`
 
   Milestone 1 is verified against real sources but is not the same as "the ecosystem works". That open question — *source coverage relative to the current APK set* — has now been measured against the live index, and the answer is the reason milestone 2 is not simply "start deleting".
 
-  **The JavaScript half of Mangayomi is 18 sources, not 114.** The index holds 363 entries; 114 carry `sourceCodeLanguage == 1` (JavaScript) and 249 carry `0` (Dart) — confirmed against the artifact, where every language-1 `sourceCodeUrl` ends `.js` and every language-0 one ends `.dart`. But entries are published *per language*, and collapsing them by name gives:
+  **The JavaScript half of Mangayomi is 18 sources, not 114.** The index holds 363 entries; 114 carry `sourceCodeLanguage == 1` (JavaScript) and 249 carry `0` (Dart) — confirmed against the artifact, where every language-1 `sourceCodeUrl` ends `.js` and every language-0 one ends `.dart`. But entries are published *per language*, all pointing at the same script: all 45 MangaDex entries share one `baseUrl`, one `apiUrl` and one `sourceCodeUrl`. Across the 114 JavaScript entries there are 114 distinct ids but only **18 distinct `sourceCodeUrl`s and 18 distinct `baseUrl`s** — so collapsing by name, by script and by site all give the same number, and 18 is a count of real extensions rather than of brands:
 
   | | index entries | distinct sources |
   |---|---|---|
   | JavaScript | 114 | **18** |
   | Dart | 249 | 247 |
 
-  Four sources supply 100 of the 114 JavaScript entries — MangaDex (45 languages), Comick (41), Mangafire (7), Webtoons (7). The other 14 entries are 14 one-off sources, of which 5 are Chinese, 2 Arabic, and 6 English-facing (ReadComicOnline, Asura Scans, ManhwaZ, Weeb Central, Mangapill, plus Mangalib in Russian). So a user who ends up on the JavaScript backend alone gets roughly **ten English sources**.
+  Four sources supply 100 of the 114 JavaScript entries — MangaDex (45 languages), Comick (41), Mangafire (7), Webtoons (7). (`tools/js-prelude-harness/batch.mjs` used to dedupe its sweep by id on the opposite assumption; that is fixed in the same commit as this note.) The other 14 entries are 14 one-off sources, of which 5 are Chinese, 2 Arabic, and 6 English-facing (ReadComicOnline, Asura Scans, ManhwaZ, Weeb Central, Mangapill, plus Mangalib in Russian). So a user who ends up on the JavaScript backend alone gets roughly **ten English sources**.
 
   This does not invalidate milestone 1 — the runtime works, and it is what any Mangayomi-shaped backend needs. It does mean **deleting the APK backend is a source-count cliff, not a migration**, and the decision of whether to take it is the developer's, not an implementation detail of milestone 2. The plan's premise ("Mangayomi publishes its sources in both JavaScript and Dart") is true about the repository layout and misleading about the ecosystem: the Dart half is the ecosystem. This is checklist item 4 — the `/javascript` folder existing was read as evidence of a parallel catalogue, and the authoritative index says otherwise.
 

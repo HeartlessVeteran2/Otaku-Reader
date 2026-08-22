@@ -24,16 +24,23 @@ if (!Number.isInteger(wanted) || wanted < 1) {
     process.exit(2);
 }
 
-// Deduped by id, not by name. The index publishes the same display name for a source that exists
-// in several languages ("MangaDex" appears once per language), and those are genuinely different
-// entries with different base URLs — collapsing them by name silently shrinks a sweep of 12 to
-// whatever handful of distinct names happened to sort first, which reads as a smaller ecosystem
-// than there is.
+// Deduped by sourceCodeUrl — the script this harness actually downloads and runs.
+//
+// This used to dedupe by id, on the stated grounds that same-named entries are "genuinely
+// different entries with different base URLs". Measured against the live index, they are not:
+// all 45 MangaDex entries share one baseUrl, one apiUrl and one sourceCodeUrl, and across all
+// 114 JavaScript entries there are 114 distinct ids but only 18 distinct scripts. The index
+// publishes one entry per language, all pointing at the same file.
+//
+// So deduping by id defeated the sweep it was meant to widen: because ids are all distinct,
+// nothing was ever skipped, and the default run of 12 fetched mangadex.js five times while
+// covering 8 distinct scripts. Keying on sourceCodeUrl covers 12, reaching Mangafire, Webtoons,
+// Comick and MangaWorld, which the id-keyed sweep never got to.
 const picked = [];
 const seen = new Set();
 for (const e of candidates) {
     if (picked.length >= wanted) break;
-    const key = String(e.id);
+    const key = e.sourceCodeUrl;
     if (seen.has(key)) continue;
     seen.add(key);
     picked.push(e);
