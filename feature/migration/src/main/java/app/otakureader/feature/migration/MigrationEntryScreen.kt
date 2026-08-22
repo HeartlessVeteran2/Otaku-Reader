@@ -185,11 +185,12 @@ fun MigrationEntryScreen(
     viewModel: MigrationEntryViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-        // Keyed on the whole state, not on the fields filteredList happens to read today.
-        // Mirroring individual fields here is a standing trap: it silently broke the moment
-        // showOnlyStranded was added, flipping the button's label while the list kept rendering
-        // the previous cached rows. Re-deriving is a filter over the library — cheap next to a
-        // wrong list the user then migrates from.
+
+    // Keyed on the whole state, not on the fields filteredList happens to read today.
+    // Mirroring individual fields here is a standing trap: it silently broke the moment
+    // showOnlyStranded was added, flipping the button's label while the list kept rendering
+    // the previous cached rows. Re-deriving is a filter over the library — cheap next to a
+    // wrong list the user then migrates from.
     val filtered = remember(state) {
         viewModel.filteredList(state)
     }
