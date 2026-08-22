@@ -298,7 +298,7 @@ An earlier version of this table said "nothing but the APK path uses these". Tha
 |---|---|---|
 | `LocalSource` | `core/tachiyomi-compat/src/main/java/app/otakureader/core/tachiyomi/local/` | **Local manga folders — a shipped feature.** Wired into `feature/settings` (`LocalSourceBrowserScreen`), `core/navigation` (`Route`), `core/preferences` (`LocalSourcePreferences`) and the app's NavHost. Nothing to do with APKs. |
 | `SourceHealthMonitor` | `core/tachiyomi-compat/src/main/java/app/otakureader/core/tachiyomi/health/` | `SourceRepositoryImpl` routes **every** source call through it, JavaScript included — `JsSource`'s own comment relies on this for hung or broken scripts. |
-| `eu.kanade.tachiyomi.network.*` | `core/tachiyomi-compat/src/main/java/eu/kanade/tachiyomi/network/` — `NetworkHelper`, `RateLimitInterceptor`, `AndroidCookieJar`, progress bodies | `OtakuReaderApplication` initialises `NetworkHelper` at startup. Check each class for live use before assuming it goes with the APK path. |
+| `eu.kanade.tachiyomi.network.*` | `core/tachiyomi-compat/src/main/java/eu/kanade/tachiyomi/network/` — `NetworkHelper`, `RateLimitInterceptor`, `AndroidCookieJar`, progress bodies | **Measured: this row was wrong — these go with the APK path.** It used to say `OtakuReaderApplication` initialises `NetworkHelper` at startup, which is true and is *not* evidence of survival: that line is `Injekt.addSingletonFactory<NetworkHelper>`, and Injekt exists in this app solely so loaded extension APKs can resolve host dependencies (the surrounding comment says so). JavaScript sources never touch Injekt — they go through `JsHttpBridge`. Outside the two retiring modules the only textual hits are two *comments* in `core/network`, and `core/network` declares no dependency on `core/tachiyomi-compat`, so nothing there links against it. Remaining real consumers: the Injekt bootstrap (APK-serving) and `HttpSource` (retiring). `SpecificHostRateLimitInterceptor` and `RxCoroutineBridge` are already unreferenced anywhere. Delete the package with the APK loader; extract a class only if a *compiling* consumer survives. |
 
 So the sequence is **extract, then delete** — never delete first. Verify with `grep -rn "import eu\.kanade\.tachiyomi" --include=*.kt .` and confirm the only remaining consumers are inside the two retiring modules.
 
@@ -645,10 +645,30 @@ CI uses JDK 21. Gradle setup/caching is handled by `gradle/actions/setup-gradle`
   | Milestone | State |
   |---|---|
   | 1. Run Mangayomi JS extensions unmodified | Shipped — PR #1262 (`prelude.js`, `MProvider`, real-index decoding, declared preference defaults) |
-  | 2. Retire `core/extension` + `core/tachiyomi-compat` | Not started (~7,700 LOC to remove) |
+  | 2. Retire `core/extension` + `core/tachiyomi-compat` | Not started. ~7,700 LOC sits in the two modules, but that is not the removal size — see the measured split below. |
   | 3. Library migration + the downloads decision (#1256) | Not started — **must ship with milestone 2**, see *Source Identity* |
 
-  Milestone 1 is verified against real sources but is not the same as "the ecosystem works": only ~114 of the 363 entries in the Mangayomi index are JavaScript. Source coverage relative to the current APK set is an open question and should be measured before milestone 2 commits.
+  Milestone 1 is verified against real sources but is not the same as "the ecosystem works". That open question — *source coverage relative to the current APK set* — has now been measured against the live index, and the answer is the reason milestone 2 is not simply "start deleting".
+
+  **The JavaScript half of Mangayomi is 18 sources, not 114.** The index holds 363 entries; 114 carry `sourceCodeLanguage == 1` (JavaScript) and 249 carry `0` (Dart) — confirmed against the artifact, where every language-1 `sourceCodeUrl` ends `.js` and every language-0 one ends `.dart`. But entries are published *per language*, and collapsing them by name gives:
+
+  | | index entries | distinct sources |
+  |---|---|---|
+  | JavaScript | 114 | **18** |
+  | Dart | 249 | 247 |
+
+  Four sources supply 100 of the 114 JavaScript entries — MangaDex (45 languages), Comick (41), Mangafire (7), Webtoons (7). The other 14 entries are 14 one-off sources, of which 5 are Chinese, 2 Arabic, and 6 English-facing (ReadComicOnline, Asura Scans, ManhwaZ, Weeb Central, Mangapill, plus Mangalib in Russian). So a user who ends up on the JavaScript backend alone gets roughly **ten English sources**.
+
+  This does not invalidate milestone 1 — the runtime works, and it is what any Mangayomi-shaped backend needs. It does mean **deleting the APK backend is a source-count cliff, not a migration**, and the decision of whether to take it is the developer's, not an implementation detail of milestone 2. The plan's premise ("Mangayomi publishes its sources in both JavaScript and Dart") is true about the repository layout and misleading about the ecosystem: the Dart half is the ecosystem. This is checklist item 4 — the `/javascript` folder existing was read as evidence of a parallel catalogue, and the authoritative index says otherwise.
+
+  **The removal is also not ~7,700 LOC of deletion.** Measured across the two modules (main sources, tests excluded):
+
+  | | delete outright | gut to the JS path | extract and keep |
+  |---|---|---|---|
+  | `core/extension` (4,224) | 1,495 — loader, classloader, APK parser, signature verifier, trust store, install receiver | 1,893 — `ExtensionInstaller`, `ExtensionRemoteDataSource`, `ExtensionRepositoryImpl`, `ExtensionModule` all route *both* backends | 836 — `Extension`/`InstallStatus`, both repository contracts, blocklist, `JsExtensionBackend`, the Room store |
+  | `core/tachiyomi-compat` (3,453) | 2,439 — the whole `eu.kanade.tachiyomi.*` surface, `compat/Tachiyomi*Adapter`, `JsoupExtensions` | — | 1,014 — `LocalSource` (732), `SourceHealthMonitor` (170), `TachiyomiModule` (112) |
+
+  So ~3,900 LOC is a straight delete, ~1,900 is a rewrite of dual-backend routers down to one backend, and ~1,850 must be moved to a surviving module *before* anything is deleted. `TachiyomiModule` is in that last column despite its name: alongside `SourceHealthMonitor` it provides eight ordinary domain use-cases — `GetSources`, `GetPopularManga`, `GetLatestUpdates`, `SearchManga`, `GetMangaDetails`, `GlobalSearch`, `GetSourceFilters`, `AddMangaToLibrary` — so deleting it with the module takes the Hilt graph with it. `feature/browse/ExtensionsViewModel` injects `ExtensionInstaller` directly and has to be re-pointed at the JS install path in the same change. Two comments — in `JsExtensionRemoteDataSource` and `JsSourceStore` — cite `ExtensionInstaller` by name and would become dangling references.
 
 ---
 
