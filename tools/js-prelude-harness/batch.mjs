@@ -16,7 +16,17 @@ if (!fs.existsSync(INDEX_PATH)) {
 }
 
 const index = JSON.parse(fs.readFileSync(INDEX_PATH, 'utf8'));
-const candidates = index.filter((e) => e.sourceCodeLanguage === 1 && e.itemType === 0);
+// An entry with no script URL cannot be run at all — there is nothing to download. Today's
+// Mangayomi index has none, but OTAKU_INDEX can point this harness at any repository, so drop
+// them here and say how many, rather than letting them reach the dedupe below where they would
+// share one empty key and vanish without a word. `!e.sourceCodeUrl` covers both the missing
+// field and the empty string the DTO defaults to; `??` would only catch the former.
+const jsCandidates = index.filter((e) => e.sourceCodeLanguage === 1 && e.itemType === 0);
+const candidates = jsCandidates.filter((e) => e.sourceCodeUrl);
+if (candidates.length < jsCandidates.length) {
+    console.error(`Skipping ${jsCandidates.length - candidates.length} entr` +
+        `${jsCandidates.length - candidates.length === 1 ? 'y' : 'ies'} with no sourceCodeUrl.`);
+}
 
 const wanted = Number.parseInt(process.argv[2] ?? '12', 10);
 if (!Number.isInteger(wanted) || wanted < 1) {
