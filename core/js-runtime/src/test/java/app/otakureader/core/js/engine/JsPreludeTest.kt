@@ -99,6 +99,28 @@ class JsPreludeTest {
         )
     }
 
+    @Test
+    fun `both client methods hand the request context to the decoder`() {
+        // The guard's message is only as good as its wiring. `decodeResponse` reads method and
+        // URL from its own parameters, so a call site reverted to the bare `.then(decodeResponse)`
+        // still throws — but with "GET <unknown url>", which is the diagnosis this change exists
+        // to provide. Asserting the guard alone would not notice that.
+        for (method in listOf("get", "post")) {
+            val body = JsPrelude.source
+                .substringAfter("MClient.prototype.$method = function (")
+                .substringBefore("};")
+
+            assertTrue(
+                "MClient.$method no longer routes through decodeResponse",
+                body.contains("decodeResponse("),
+            )
+            assertTrue(
+                "MClient.$method must pass the method and url into decodeResponse",
+                body.contains("'${method.uppercase()}', url)"),
+            )
+        }
+    }
+
     /**
      * The text between the brace at [openBraceIndex] and its match.
      *
