@@ -71,14 +71,21 @@
         // itself failed, which is not something a source can handle, so let the parse throw.
         var raw = JSON.parse(payload);
 
-        // No HTTP response was obtained at all — throw instead of handing back an empty body.
+        // No usable HTTP response — throw instead of handing back an empty body.
         //
-        // `code` is the discriminator, and it is exact: every JsHttpBridge path that never
-        // reached a server (transport exception, malformed URL, refused non-HTTPS, refused
-        // private address, too many redirects, unsupported method) leaves `code` at its default
-        // 0, while every path that did get a response carries the real status — including the
-        // ones that then reject it, like a refused redirect or an oversized body. So a source
-        // branching on `statusCode` for a genuine 404 or 403 is unaffected by this.
+        // `code` is the discriminator: every JsHttpBridge path that produced no *completed*
+        // response leaves it at its default 0, while every path that has a status to report
+        // carries the real one — including the ones that then reject the response, like a
+        // refused redirect or an oversized body. So a source branching on `statusCode` for a
+        // genuine 404 or 403 is unaffected by this.
+        //
+        // "No completed response" is not the same as "never reached a server", and the
+        // difference is worth stating because one path crosses it: the redirect limit. Most
+        // code-0 paths genuinely never got a reply (transport exception, malformed URL, refused
+        // non-HTTPS, refused private address, unsupported method), but "Too many redirects"
+        // fires *after* MAX_REDIRECTS servers each answered — it is code 0 because no response
+        // in the chain was ever the final one, not because nothing responded. Throwing is still
+        // right there: the request never completed, so there is no body worth handing over.
         //
         // Without it the failure surfaces as whatever the source does with `body === ''`, which
         // is almost always `JSON.parse('')` -> "Unexpected end of JSON input". That names

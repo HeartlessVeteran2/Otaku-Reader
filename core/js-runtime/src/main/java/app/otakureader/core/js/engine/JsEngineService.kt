@@ -139,10 +139,12 @@ class JsEngineService : Service() {
      * than thrown, because extensions routinely probe URLs that 404 and are written to handle
      * that; turning it into an exception would break sources that are behaving correctly.
      *
-     * The no-response case is the exception, and `prelude.js` turns it into a throw rather than
-     * a response. This function's own failure paths land there too: both "No HTTP bridge
-     * installed" and "HTTP bridge failed" leave `code` at its default 0, which is precisely the
-     * discriminator the prelude keys on.
+     * A request that never *completed* is the exception, and `prelude.js` turns it into a throw
+     * rather than a response. This function's own failure paths land there too: both "No HTTP
+     * bridge installed" and "HTTP bridge failed" leave `code` at its default 0, which is
+     * precisely the discriminator the prelude keys on. Note that code 0 means "no completed
+     * response" rather than "no server answered" — the bridge's redirect limit also reports 0,
+     * after MAX_REDIRECTS servers have each replied without the chain ever terminating.
      *
      * That split is measured, not assumed. Across the 16 published JavaScript sources in the
      * Mangayomi index, none inspect `response.ok`, and exactly one inspects an HTTP status

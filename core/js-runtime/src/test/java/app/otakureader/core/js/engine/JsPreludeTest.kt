@@ -98,10 +98,19 @@ class JsPreludeTest {
         // the slice at `if ((raw.ok === false)` and silently stop exercising the real condition,
         // which is the one thing this assertion exists to do.
         val condition = decode.substring(guardAt, decode.indexOf('{', guardAt))
+        // `raw.code === 0`, not merely the token `raw.code`: asserting the token alone would
+        // still pass for something like `raw.ok === false || raw.code`, which is not a
+        // narrowing at all.
         assertTrue(
-            "the guard must narrow on `code`, or a real 404 stops reaching the source: $condition",
-            condition.contains("raw.code"),
+            "the guard must narrow on `code === 0`, or a real 404 stops reaching the source: " +
+                condition,
+            condition.contains("raw.code === 0"),
         )
+
+        // Residual gap, stated so a green run is not mistaken for behavioural proof: these are
+        // source-text assertions, because a JVM unit test has no engine to evaluate the prelude
+        // in. They pin the guard's shape, not its effect. The effect is covered by
+        // tools/js-prelude-harness against real extensions.
     }
 
     @Test
