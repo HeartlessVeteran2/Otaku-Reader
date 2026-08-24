@@ -92,7 +92,12 @@ class JsPreludeTest {
         // unsuccessful response is the tempting simplification and it breaks the sources that
         // branch on `statusCode` for a genuine 404 or 403 — they would never see the status,
         // because the throw would fire first.
-        val condition = decode.substring(guardAt, decode.indexOf(')', guardAt) + 1)
+        // To the opening brace, not to the first `)`. Slicing at the first `)` happens to
+        // capture the whole condition today only because the inner group opens before anything
+        // closes; re-parenthesising it as `if ((raw.ok === false) && raw.code === 0)` would cut
+        // the slice at `if ((raw.ok === false)` and silently stop exercising the real condition,
+        // which is the one thing this assertion exists to do.
+        val condition = decode.substring(guardAt, decode.indexOf('{', guardAt))
         assertTrue(
             "the guard must narrow on `code`, or a real 404 stops reaching the source: $condition",
             condition.contains("raw.code"),
