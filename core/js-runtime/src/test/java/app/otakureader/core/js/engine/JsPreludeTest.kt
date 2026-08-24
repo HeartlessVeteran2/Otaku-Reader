@@ -71,6 +71,34 @@ class JsPreludeTest {
         )
     }
 
+    @Test
+    fun `a request that never reached a server throws instead of yielding an empty body`() {
+        // JsHttpBridge leaves `code` at 0 only when no HTTP response was obtained at all, and
+        // carries the real status on every path that did get one. The prelude keys on that,
+        // because handing such a response to a source means `body === ''`, which becomes
+        // `JSON.parse('')` and an "Unexpected end of JSON input" naming neither the URL nor the
+        // cause the bridge already knew.
+        val decode = JsPrelude.source
+            .substringAfter("function decodeResponse(")
+            .substringBefore("function MClient(")
+
+        val guardAt = decode.indexOf("if (raw.ok === false")
+        assertTrue("decodeResponse no longer guards the no-response case", guardAt >= 0)
+
+        val guard = blockBodyAt(decode, decode.indexOf('{', guardAt))
+        assertTrue("the no-response guard must throw", guard.contains("throw new Error("))
+
+        // The condition must narrow on `code`, not on `ok` alone. Widening it to every
+        // unsuccessful response is the tempting simplification and it breaks the sources that
+        // branch on `statusCode` for a genuine 404 or 403 — they would never see the status,
+        // because the throw would fire first.
+        val condition = decode.substring(guardAt, decode.indexOf(')', guardAt) + 1)
+        assertTrue(
+            "the guard must narrow on `code`, or a real 404 stops reaching the source: $condition",
+            condition.contains("raw.code"),
+        )
+    }
+
     /**
      * The text between the brace at [openBraceIndex] and its match.
      *
