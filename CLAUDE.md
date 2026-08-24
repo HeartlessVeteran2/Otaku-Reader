@@ -317,6 +317,34 @@ The prelude **cannot be unit-tested from the JVM** — QuickJS ships as an Andro
 
 Behaviour is covered by **`tools/js-prelude-harness/`**, a Node harness that reproduces `QuickJsHost.call` exactly (same binding signatures, same handle discipline, same 32-document cap, cheerio in place of Jsoup) and runs real extensions off the live index. It is deliberately not a Gradle module and never gates a PR, because it needs live network and third-party sites.
 
+**Measured state of the backend (2026-08-24), sweeping all three legs.** The harness chains
+`getPopular → getDetail → getPageList`; it previously ran only `getPopular`, which is how a source
+could score a pass while producing entries that lead nowhere. Against the live index — 18 entries,
+16 distinct scripts, 2 of which are 404 from a third-party repo:
+
+| | |
+|---|---|
+| Return a populated list | 8 |
+| Complete all three legs | **1** (MangaWorld: 16 entries → 1193 chapters → 15 pages) |
+| Hard failures | 3 — all external here (hosts unreachable from the sandbox) |
+| Empty lists | 5 — hosts blocked or serving a Cloudflare 403 |
+
+So "the runtime works" is established end-to-end for the first time, on one source. Two real gaps
+sit between that and the rest:
+
+- **No DOM traversal.** The prelude has no `nextElementSibling`, `parent` or `children`, and this
+  is a boundary limitation rather than an omission: `Document.select`/`selectFirst` return
+  `outerHtml()` **strings**, so an element arrives detached from its document and its siblings are
+  simply not in the data. `children` could be derived from the element's own markup; `nextElementSibling`
+  and `parent` cannot, and need the host to hand out element handles instead of strings — a change
+  to the isolation boundary, so it wants a deliberate decision rather than a drive-by fix.
+  Asura Scans reads its entire detail page (author, artist, status, genres) through
+  `nextElementSibling` and therefore cannot load a manga at all; Mangafire uses `children`.
+- **Chapters come back empty for several sources** (MangaDex, Webtoons, Weeb Central, 漫画柜, TeamX).
+  Only MangaDex was chased down, and there it is external: its own API answers `total: 0` for that
+  title under the content ratings the source requests. The others are **not** yet diagnosed — do
+  not assume they share that cause.
+
 When a source misbehaves, **check the site with `curl` before suspecting this code.** In the sweep that validated the layer, every hard failure was external: a Cloudflare interstitial, a site that had moved domain since its extension was published, an upstream error, and a proxy block.
 
 ---
