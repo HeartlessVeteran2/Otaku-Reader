@@ -41,6 +41,7 @@ class JsExtensionBackendImpl @Inject constructor(
                 id = extension.pkgName,
                 name = extension.name,
                 baseUrl = extension.sources.firstOrNull()?.baseUrl ?: extension.repoUrl.orEmpty(),
+                apiUrl = extension.sources.firstOrNull()?.apiUrl.orEmpty(),
                 lang = extension.lang,
                 isNsfw = extension.isNsfw,
             ),

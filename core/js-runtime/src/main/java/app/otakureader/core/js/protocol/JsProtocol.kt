@@ -47,6 +47,16 @@ data class JsSourceConfig(
     val name: String,
     val baseUrl: String,
     val lang: String,
+    /**
+     * The source's API host, when it has one distinct from [baseUrl].
+     *
+     * Defaulted to empty rather than made non-null because the index leaves it blank for every
+     * scraping source, which is most of them. Sources that *do* set it build essentially every
+     * request from `this.source.apiUrl`, so an omitted value here is not a cosmetic gap — it
+     * produces requests to `undefined/manga?...` that fail as ordinary HTTP errors and give no
+     * hint that the manifest was the problem.
+     */
+    val apiUrl: String = "",
     val isNsfw: Boolean = false,
     /** Persisted source preferences, exposed to the script as the `SharedPreferences` global. */
     val preferences: Map<String, String> = emptyMap(),

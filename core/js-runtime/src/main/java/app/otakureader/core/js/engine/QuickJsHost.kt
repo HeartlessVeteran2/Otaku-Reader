@@ -112,6 +112,15 @@ internal class QuickJsHost(
 
             installGlobals(engine)
 
+            // Order matters in both directions. The prelude captures the host namespaces
+            // installed above and then shadows their names with the class-shaped API extensions
+            // expect, so it cannot run before `installGlobals`. It defines `MProvider`, which
+            // every extension names in its `extends` clause, so it must run before the script is
+            // evaluated — a class declaration resolves its base at definition time, not at call
+            // time, and a missing base fails the whole script rather than one method.
+            engine.evaluate<Any?>(sourceConfigGlobal())
+            engine.evaluate<Any?>(JsPrelude.source)
+
             // The result is pushed out through a binding rather than taken from the
             // evaluation's return value.
             //
@@ -172,7 +181,17 @@ internal class QuickJsHost(
             ?.entries
             ?.mapNotNull { (k, v) ->
                 val key = k as? String ?: return@mapNotNull null
-                key to v.toString()
+                // Drop the header rather than stringifying a null into it.
+                //
+                // Sources build header maps from preferences that frequently have no value yet —
+                // `{"user-agent": this.getPreference("custom_user_agent")}` is the common shape,
+                // and on a fresh install that preference is unset. `Any?.toString()` renders that
+                // as the four characters `null`, so the request goes out claiming a User-Agent of
+                // "null": worse than sending none, because it defeats the default the shared
+                // OkHttp client would otherwise have supplied and it is a value some sites
+                // fingerprint on.
+                val value = v ?: return@mapNotNull null
+                key to value.toString()
             }
             ?.toMap()
             .orEmpty()
@@ -218,11 +237,26 @@ internal class QuickJsHost(
                 val html = args.getOrNull(0) as? String ?: return@function ""
                 Jsoup.parse(html).text()
             }
+            /**
+             * The attribute exactly as written.
+             *
+             * This used to resolve every attribute through `absUrl`, with a comment explaining
+             * that relative hrefs want resolving — true of an href, and applied to *all* names.
+             * Jsoup's `absUrl` resolves any string against the base URI, so a title read with
+             * `attr("title")` came back as `https://site/…` with the title as its path. Sources
+             * read titles, alt text and data-* fields this way constantly, so they were being
+             * handed URLs where they expected text. Use [absAttr] when a URL is what is wanted.
+             */
             function("attr") { args ->
                 val html = args.getOrNull(0) as? String ?: return@function ""
                 val name = args.getOrNull(1) as? String ?: return@function ""
-                // absUrl resolves relative hrefs against the source's baseUrl, which is what
-                // essentially every extension actually wants from an href or src.
+                Jsoup.parse(html, config.baseUrl).body().children().firstOrNull()
+                    ?.attr(name).orEmpty()
+            }
+            /** The attribute resolved against the source's base URL, for href/src and the like. */
+            function("absAttr") { args ->
+                val html = args.getOrNull(0) as? String ?: return@function ""
+                val name = args.getOrNull(1) as? String ?: return@function ""
                 val element = Jsoup.parse(html, config.baseUrl).body().children().firstOrNull()
                 element?.absUrl(name).takeUnless { it.isNullOrEmpty() }
                     ?: element?.attr(name).orEmpty()
@@ -263,6 +297,37 @@ internal class QuickJsHost(
                 null
             }
         }
+    }
+
+    /**
+     * Publish this source's own manifest as a JSON literal for the prelude to read.
+     *
+     * Extensions reach for `this.source.baseUrl`, `this.source.apiUrl` and `this.source.lang`
+     * throughout — an API-backed source builds essentially every request from `apiUrl`. Handing
+     * the config over as text rather than as a binding keeps the rule that only primitives cross
+     * the boundary, and encoding it with the serializer rather than by concatenation means a
+     * quote or backslash in a source name cannot terminate the literal and change the program
+     * being evaluated, which is the same reasoning [buildInvocation] applies to call arguments.
+     *
+     * Preferences are deliberately excluded: they are reachable through `SharedPreferences`,
+     * which routes writes back to the main process, whereas a copy pasted into this object would
+     * be a snapshot that silently stopped matching after the first write.
+     */
+    private fun sourceConfigGlobal(): String {
+        // Two encodings, one runtime JSON layer — they are not the same kind of step, and reading
+        // them as two semantic layers is the obvious misreading.
+        //
+        //   1. the config object  -> JSON text            `{"id":"x","baseUrl":"https://…"}`
+        //   2. that JSON text     -> a JS string literal  `"{\"id\":\"x\",…}"`
+        //
+        // Step 2 is source-code quoting, not data. The JavaScript parser undoes it while
+        // evaluating the assignment, so at runtime the global holds a *string* of JSON and the
+        // prelude's single `JSON.parse` yields the object. Parsing twice would throw on the
+        // resulting object; emitting the manifest bare would drop the quoting that keeps a quote
+        // or backslash in a source's name from terminating the literal and changing the program —
+        // the same reasoning [buildInvocation] applies to call arguments.
+        val manifest = JsProtocol.json.encodeToString(config.copy(preferences = emptyMap()))
+        return "globalThis.__otakuSourceConfig = ${JsProtocol.json.encodeToString(manifest)};"
     }
 
     /**

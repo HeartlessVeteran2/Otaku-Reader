@@ -29,6 +29,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -98,24 +99,50 @@ fun MigrationEntryContent(
                         }
                     }
                 }
-                filtered.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        text = if (state.searchQuery.isBlank()) {
-                            stringResource(R.string.migration_entry_library_empty)
-                        } else {
-                            stringResource(R.string.migration_entry_no_results)
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                else -> LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    items(filtered, key = { it.id }) { manga ->
-                        MigrationEntryMangaRow(
-                            manga = manga,
-                            isSelected = manga.id in state.selectedIds,
-                            onToggle = { onEvent(MigrationEntryEvent.OnMangaToggle(manga.id)) },
-                        )
+                else -> Column(modifier = Modifier.fillMaxSize()) {
+                    // Outside the empty-state branch on purpose. The filter's only toggle lives in
+                    // this banner, and the filter can legitimately produce no rows — the user
+                    // migrates the last stranded entry, or turns it on when none are stranded. Kept
+                    // inside the list, that empty result rendered the "your library is empty"
+                    // message with no way to switch the filter back off.
+                    //
+                    // Shown only when something is broken or the filter is on: a banner that is
+                    // always present is one the user learns to skip past.
+                    if (state.strandedCount > 0 || state.showOnlyStranded) {
+                        StrandedBanner(state = state, onEvent = onEvent)
+                    }
+
+                    if (filtered.isEmpty()) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(
+                                // Order matters. "Nothing is stranded" is only true when the
+                                // stranded set is genuinely empty — with the filter on and a query
+                                // typed, an empty result usually means the query matched none of
+                                // several stranded entries, and saying nothing is stranded there
+                                // contradicts the banner sitting directly above it.
+                                text = when {
+                                    state.showOnlyStranded && state.sourcesKnown &&
+                                        state.strandedCount == 0 ->
+                                        stringResource(R.string.migration_entry_no_stranded)
+                                    state.searchQuery.isNotBlank() ->
+                                        stringResource(R.string.migration_entry_no_results)
+                                    else -> stringResource(R.string.migration_entry_library_empty)
+                                },
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    } else {
+                        LazyColumn(modifier = Modifier.fillMaxSize()) {
+                            items(filtered, key = { it.id }) { manga ->
+                                MigrationEntryMangaRow(
+                                    manga = manga,
+                                    isSelected = manga.id in state.selectedIds,
+                                    sourcesKnown = state.sourcesKnown,
+                                    onToggle = { onEvent(MigrationEntryEvent.OnMangaToggle(manga.id)) },
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -158,7 +185,13 @@ fun MigrationEntryScreen(
     viewModel: MigrationEntryViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val filtered = remember(state.mangaList, state.searchQuery) {
+
+    // Keyed on the whole state, not on the fields filteredList happens to read today.
+    // Mirroring individual fields here is a standing trap: it silently broke the moment
+    // showOnlyStranded was added, flipping the button's label while the list kept rendering
+    // the previous cached rows. Re-deriving is a filter over the library — cheap next to a
+    // wrong list the user then migrates from.
+    val filtered = remember(state) {
         viewModel.filteredList(state)
     }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -220,10 +253,57 @@ fun MigrationEntryScreen(
     }
 }
 
+/**
+ * Surfaces entries no loaded source can serve, with the two actions that resolve them.
+ *
+ * Selecting is offered separately from filtering because they answer different questions — "fix
+ * these" versus "let me look at these" — and a user who only wants the first should not have to
+ * change what the list shows to get it.
+ */
+@Composable
+private fun StrandedBanner(
+    state: MigrationEntryState,
+    onEvent: (MigrationEntryEvent) -> Unit,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.errorContainer,
+        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Text(
+                text = androidx.compose.ui.res.pluralStringResource(
+                    R.plurals.migration_entry_stranded_banner,
+                    state.strandedCount,
+                    state.strandedCount,
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = { onEvent(MigrationEntryEvent.SelectAllStranded) }) {
+                    Text(stringResource(R.string.migration_entry_select_stranded))
+                }
+                TextButton(onClick = { onEvent(MigrationEntryEvent.ToggleStrandedFilter) }) {
+                    Text(
+                        stringResource(
+                            if (state.showOnlyStranded) {
+                                R.string.migration_entry_show_all_entries
+                            } else {
+                                R.string.migration_entry_show_stranded_only
+                            }
+                        )
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun MigrationEntryMangaRow(
     manga: MigrationEntryItem,
     isSelected: Boolean,
+    sourcesKnown: Boolean,
     onToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -248,13 +328,36 @@ private fun MigrationEntryMangaRow(
                 .aspectRatio(3f / 4f)
         )
 
-        Text(
-            text = manga.title,
-            style = MaterialTheme.typography.bodyLarge,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = manga.title,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            // The source line is the whole point of showing this screen before a migration: an
+            // entry whose source cannot be resolved is unreadable, and nothing else in the app
+            // says so. Rendered in the error colour rather than as a separate icon so the state
+            // survives being skimmed.
+            // Blank rather than "Source not installed" while the inventory is still loading:
+            // an unresolved key means nothing yet, and saying otherwise accuses every row.
+            val unresolvedLabel = if (sourcesKnown) {
+                stringResource(R.string.migration_entry_source_missing)
+            } else {
+                ""
+            }
+            Text(
+                text = manga.sourceName ?: unresolvedLabel,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (sourcesKnown && manga.isStranded) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
 
         Checkbox(
             checked = isSelected,

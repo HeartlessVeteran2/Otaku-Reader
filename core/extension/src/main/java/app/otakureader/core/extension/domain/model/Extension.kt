@@ -128,7 +128,15 @@ data class ExtensionSource(
     
     /** Base URL for the source */
     val baseUrl: String,
-    
+
+    /**
+     * API host, when the source has one distinct from [baseUrl]. Empty for scraping sources.
+     *
+     * Only JavaScript sources populate this — an APK extension builds its own requests in Kotlin
+     * and never exposes such a URL to the app.
+     */
+    val apiUrl: String = "",
+
     /** Whether this source supports search */
     val supportsSearch: Boolean = true,
     

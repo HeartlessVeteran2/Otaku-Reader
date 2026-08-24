@@ -340,7 +340,9 @@ fun BrowseScreen(
                     BrowseTab.MIGRATE -> {
                         val migVm: MigrationEntryViewModel = hiltViewModel()
                         val migState by migVm.state.collectAsStateWithLifecycle()
-                        val migFiltered = remember(migState.mangaList, migState.searchQuery) {
+                        // Keyed on the whole state — see the note in MigrationEntryScreen. Keying
+                        // on individual fields broke here too when showOnlyStranded was added.
+                        val migFiltered = remember(migState) {
                             migVm.filteredList(migState)
                         }
                         LaunchedEffect(migVm) {
