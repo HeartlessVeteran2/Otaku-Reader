@@ -66,10 +66,32 @@
         this.error = raw.error === undefined ? null : raw.error;
     }
 
-    function decodeResponse(payload) {
+    function decodeResponse(payload, method, url) {
         // The host returns the serialized JsHttpResponse. A non-JSON body would mean the bridge
         // itself failed, which is not something a source can handle, so let the parse throw.
-        return new MResponse(JSON.parse(payload));
+        var raw = JSON.parse(payload);
+
+        // No HTTP response was obtained at all — throw instead of handing back an empty body.
+        //
+        // `code` is the discriminator, and it is exact: every JsHttpBridge path that never
+        // reached a server (transport exception, malformed URL, refused non-HTTPS, refused
+        // private address, too many redirects, unsupported method) leaves `code` at its default
+        // 0, while every path that did get a response carries the real status — including the
+        // ones that then reject it, like a refused redirect or an oversized body. So a source
+        // branching on `statusCode` for a genuine 404 or 403 is unaffected by this.
+        //
+        // Without it the failure surfaces as whatever the source does with `body === ''`, which
+        // is almost always `JSON.parse('')` -> "Unexpected end of JSON input". That names
+        // neither the URL nor the cause, and the bridge's `error` string — "Refused request to
+        // private address", "Request failed" — is discarded on the floor. Throwing keeps it, and
+        // a source that already guards its requests can still catch it.
+        if (raw.ok === false && (raw.code === 0 || raw.code === undefined)) {
+            throw new Error(
+                (method || 'GET') + ' ' + (url || '<unknown url>') + ' failed: ' +
+                    (raw.error || 'no response')
+            );
+        }
+        return new MResponse(raw);
     }
 
     function MClient() {
@@ -80,7 +102,9 @@
     }
 
     MClient.prototype.get = function (url, headers) {
-        return hostClient.get(url, headers || {}).then(decodeResponse);
+        return hostClient.get(url, headers || {}).then(function (payload) {
+            return decodeResponse(payload, 'GET', url);
+        });
     };
 
     MClient.prototype.post = function (url, headers, body) {
@@ -90,7 +114,9 @@
         // already encoded their body pass a string, which is forwarded untouched.
         var payload = body === undefined || body === null ? null
             : (typeof body === 'string' ? body : JSON.stringify(body));
-        return hostClient.post(url, headers || {}, payload).then(decodeResponse);
+        return hostClient.post(url, headers || {}, payload).then(function (raw) {
+            return decodeResponse(raw, 'POST', url);
+        });
     };
 
     /** Some sources build a request descriptor instead of calling get/post directly. */
