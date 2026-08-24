@@ -135,6 +135,31 @@ class JsPreludeTest {
         }
     }
 
+    @Test
+    fun `the url accessors read the markup rather than the node's own attribute`() {
+        // Upstream (`dom_extensions.dart` -> `reg_exp_matcher.dart`) implements these as a regex
+        // over the element's outer HTML, so a wrapper div answers its child anchor's href. This
+        // layer originally used `absAttr`, which reads only the node's own tag and returned '' for
+        // exactly that shape -- TeamX's listing built every card link from `element.getHref` on a
+        // wrapping div, so entries rendered and led nowhere.
+        //
+        // Reverting any of these to `absAttr` restores that bug, and it would look like a tidy-up.
+        for (accessor in listOf("getHref", "getSrc", "getImg", "getDataSrc")) {
+            val body = JsPrelude.source
+                .substringAfter("$accessor: {")
+                .substringBefore("},")
+
+            assertTrue(
+                "$accessor must read the markup, not the node's own attribute",
+                body.contains("firstAttributeInMarkup(this.html,"),
+            )
+            assertTrue(
+                "$accessor must not resolve through absAttr -- upstream returns the raw value",
+                !body.contains("absAttr"),
+            )
+        }
+    }
+
     /**
      * The text between the brace at [openBraceIndex] and its match.
      *

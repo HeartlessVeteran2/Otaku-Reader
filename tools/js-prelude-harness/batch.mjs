@@ -1,4 +1,4 @@
-/* Run getPopular for many real JS extensions and report which survive the prelude. */
+/* Run real JS extensions through popular -> detail -> pageList and report what survives. */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -74,17 +74,70 @@ for (const e of picked) {
             lang: e.lang, isNsfw: !!e.isNsfw, preferences: {},
         }));
 
-        const out = execFileSync('node', [path.join(HARNESS_DIR, 'run.mjs'), scriptPath, configPath, 'getPopular', '1'],
-            { timeout: 90000, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
-        const parsed = JSON.parse(out);
-        const list = parsed.result?.list ?? [];
+        // popular -> detail -> pageList, because that is the journey a reader actually makes
+        // and only the first leg was ever swept. getPageList is the leg that matters most: it is
+        // where a chapter's images come from, and where the 32-handle document pool is pushed
+        // hardest, so a leak or a selector fault there is invisible to a getPopular-only sweep.
+        const invoke = (method, arg) => {
+            const out = execFileSync(
+                'node',
+                [path.join(HARNESS_DIR, 'run.mjs'), scriptPath, configPath, method, String(arg)],
+                { timeout: 90000, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+            );
+            return JSON.parse(out);
+        };
+        // Sources disagree on which field carries the URL: the Mangayomi shape is `link`, but
+        // several emit `url`. Taking either is the harness's job, not the source's.
+        const refOf = (item) => item?.link ?? item?.url ?? null;
+
+        const popular = invoke('getPopular', 1);
+        const list = popular.result?.list ?? [];
+        let peakDocs = popular.documentStats.peakLiveDocuments;
+        let liveLeaked = popular.documentStats.liveDocuments;
+
+        let detailStatus = '-';
+        let pagesStatus = '-';
+        let pages = 0;
+
+        // Each later leg is attempted only if the previous produced something to feed it, and a
+        // throw in one leg is recorded rather than failing the row outright — a source can list
+        // fine and still break on chapters, which is exactly the split worth seeing.
+        const firstRef = refOf(list[0]);
+        if (firstRef) {
+            try {
+                const detail = invoke('getDetail', firstRef);
+                peakDocs = Math.max(peakDocs, detail.documentStats.peakLiveDocuments);
+                liveLeaked += detail.documentStats.liveDocuments;
+                const chapters = detail.result?.chapters ?? [];
+                detailStatus = chapters.length > 0 ? `${chapters.length}ch` : 'no chapters';
+
+                const chapterRef = refOf(chapters[0]);
+                if (chapterRef) {
+                    try {
+                        const pageList = invoke('getPageList', chapterRef);
+                        peakDocs = Math.max(peakDocs, pageList.documentStats.peakLiveDocuments);
+                        liveLeaked += pageList.documentStats.liveDocuments;
+                        const p = pageList.result;
+                        pages = Array.isArray(p) ? p.length : (p?.length ?? 0);
+                        pagesStatus = pages > 0 ? `${pages}pg` : 'no pages';
+                    } catch (pageErr) {
+                        pagesStatus = 'THREW';
+                    }
+                }
+            } catch (detailErr) {
+                detailStatus = 'THREW';
+            }
+        }
+
         results.push({
             name: e.name,
             status: list.length > 0 ? 'OK' : 'empty list',
             items: list.length,
-            peakDocs: parsed.documentStats.peakLiveDocuments,
-            liveLeaked: parsed.documentStats.liveDocuments,
-            sample: list[0]?.name?.slice(0, 34),
+            peakDocs,
+            liveLeaked,
+            detail: detailStatus,
+            pages: pagesStatus,
+            sample: list[0]?.name?.slice(0, 24),
         });
     } catch (err) {
         // run.mjs prints a line tagged FAILED for the two failures it recognises. Anything else —
@@ -115,8 +168,11 @@ for (const e of picked) {
 
 for (const r of results) {
     const tag = r.status === 'OK' ? 'PASS' : (r.status === 'FAIL' ? 'FAIL' : 'WARN');
-    console.log(`[${tag}] ${r.name.slice(0, 26).padEnd(26)} ${String(r.status).padEnd(13)}` +
-        (r.items !== undefined ? ` items=${String(r.items).padEnd(3)} peakDocs=${r.peakDocs} leaked=${r.liveLeaked} ${r.sample ?? ''}` : ` ${r.error ?? ''}`));
+    console.log(`[${tag}] ${r.name.slice(0, 22).padEnd(22)} ${String(r.status).padEnd(11)}` +
+        (r.items !== undefined
+            ? ` items=${String(r.items).padEnd(3)} detail=${String(r.detail).padEnd(11)}` +
+              ` pages=${String(r.pages).padEnd(7)} peak=${r.peakDocs} leaked=${r.liveLeaked} ${r.sample ?? ''}`
+            : ` ${r.error ?? ''}`));
 }
 const pass = results.filter((r) => r.status === 'OK').length;
 console.log(`\n${pass}/${results.length} returned a populated list; ` +

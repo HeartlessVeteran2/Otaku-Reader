@@ -198,8 +198,37 @@
         return new MElement(found === null || found === undefined ? '' : found);
     };
 
+    /**
+     * The first `name="value"` in this node's markup, or '' — matching Mangayomi exactly.
+     *
+     * Read from `dom_extensions.dart` and `reg_exp_matcher.dart` upstream, not inferred:
+     * `getHref` there is `regHrefMatcher(outerHtml)`, and that matcher is
+     * `RegExp(r'href="([^"]+)"')` taking the first match over the element's **outer HTML**.
+     *
+     * Two consequences, and this layer previously had both wrong:
+     *
+     *  - **Descendants count.** These accessors are not attribute lookups on the node's own tag.
+     *    A wrapper like `<div class="bsx"><a href="/series/x">` answers `/series/x`, which is how
+     *    sources such as TeamX read a card's link — `link: element.getHref` on the wrapping div.
+     *    Reading only the node's own tag returned '' and produced entries that render but lead
+     *    nowhere, a failure invisible to any sweep that stops at the listing.
+     *  - **No URL resolution.** Upstream returns the attribute exactly as written, so a relative
+     *    href stays relative. Sources expect that and resolve it themselves — MangaDex's listing
+     *    returns `/manga/<id>` and its own getDetail prepends `apiUrl`. `absAttr` is still here
+     *    for a source that asks for resolution by name.
+     *
+     * Double quotes only, first match wins, no case folding: the same shape as upstream, because
+     * matching it is the whole point. A source that works there has to work here unchanged.
+     */
+    function firstAttributeInMarkup(markup, name) {
+        var pattern = new RegExp(name + '="([^"]+)"');
+        var match = pattern.exec(markup);
+        return match ? match[1] : '';
+    }
+
     MElement.prototype.attr = function (name) {
-        // Raw, as written. Mangayomi's `attr` is not URL-aware; `getHref`/`getSrc` are.
+        // Raw, as written — and so are `getHref`/`getSrc`, which upstream implements as a regex
+        // over outer HTML rather than as a resolving lookup. `absAttr` is the only resolver.
         return hostDocument.attr(this.html, name);
     };
 
@@ -244,12 +273,22 @@
         // a real host binding rather than approximating it here.
         getHref: {
             get: function () {
-                return this.absAttr('href');
+                return firstAttributeInMarkup(this.html, 'href');
             }
         },
         getSrc: {
             get: function () {
-                return this.absAttr('src');
+                return firstAttributeInMarkup(this.html, 'src');
+            }
+        },
+        getImg: {
+            get: function () {
+                return firstAttributeInMarkup(this.html, 'img');
+            }
+        },
+        getDataSrc: {
+            get: function () {
+                return firstAttributeInMarkup(this.html, 'data-src');
             }
         },
         /**
@@ -259,9 +298,9 @@
          * one name at a time and adding a bulk binding would mean a Kotlin change for something
          * the published sources use almost exclusively on JSON payloads rather than on DOM nodes.
          *
-         * Values are returned exactly as the tag spells them, which is also what `attr()` does —
-         * neither resolves a relative URL. `getHref`/`getSrc` (and `absAttr`) are the resolving
-         * accessors; reach for one of those when an absolute URL is what is wanted.
+         * Values are returned exactly as the tag spells them, which is also what `attr()` and the
+         * `getHref`/`getSrc` family do — none of them resolves a relative URL. `absAttr` is the
+         * resolving accessor; reach for it when an absolute URL is what is wanted.
          */
         attributes: {
             get: function () {
