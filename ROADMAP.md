@@ -1,7 +1,7 @@
 # ROADMAP.md — Otaku Reader
 
-**Status:** All pre-release phases complete | **Current Phase:** v1.0.0 release preparation
-**Updated:** 2026-07-06
+**Status:** All pre-release phases complete | **Current Phase:** v1.0.0 release preparation — no blockers remain
+**Updated:** 2026-08-25
 **Website:** https://heartless-veteran.github.io/Otaku-Reader/
 
 ---
@@ -14,7 +14,8 @@
 | Beta | ✅ **FEATURE PARITY COMPLETE** | All 35 parity issues (#926–#958) plus the QoL/extension-system audit batches shipped 2026-06-06 → 2026-06-10. |
 | Beta hardening | ✅ **DONE 2026-06-13** | EH sync + pagination (#1090/#1092), custom covers + onboarding (#1093), extension repo fixes (#1094), bulk download fix (#1095), full-app bug sweep (#1097), reader comments (#1098), project website (#1099). |
 | P3 post-beta polish | ✅ **DONE 2026-06-20** | Page-level bookmark system + collections (PR #1130, schema v39). Last stub removed; share is fully wired. Category timestamp encoding fixed. |
-| v1.0.0 | 📋 **NEXT** | Push `v1.0.0` tag → `release.yml` builds signed APK → GitHub Release. |
+| JavaScript source backend | ✅ **DONE 2026-08-25** | Mangayomi JS sources run unmodified (#1262, #1264). Added **alongside** the APK backend — the planned APK retirement is cancelled, see below. |
+| v1.0.0 | 📋 **NEXT — unblocked** | Push `v1.0.0` tag → `release.yml` builds signed APK → GitHub Release. The tag was held back only while the APK backend was slated for removal; that plan is cancelled, so nothing gates it. |
 
 ---
 
@@ -224,6 +225,28 @@ Issue #1192 tracked gaps deliberately deferred during the Komikku parity audit (
 | #1207 | Selective backup/restore — per-category `BackupOptions` toggles, checkbox-list UI on both pre-backup and pre-restore dialogs |
 
 **Spun out to #1208** (not part of this batch): the Advanced settings screen (needs cookie-jar/DoH/user-agent network infrastructure Otaku doesn't have yet) and a reading-history-migration follow-up found while building #1206 (blocked on `ChapterRepository` needing a per-manga-scoped history read method).
+
+---
+
+## ✅ JavaScript Source Backend (2026-08-17 → 2026-08-25)
+
+| PR | Change |
+|----|--------|
+| #1262 | Run published Mangayomi JavaScript extensions unmodified — `prelude.js` compatibility layer, `MProvider`, real-index decoding, declared preference defaults |
+| #1264 | Honest transport errors (a request that never completed throws instead of decoding as an empty response) + Mangayomi's actual url-accessor semantics |
+| #1265 | Decision record: keep both backends |
+
+**The APK backend is not being retired.** The original plan was to replace it. Measured against the
+live Mangayomi index, the JavaScript half is **18 distinct sources (16 usable)** against the several
+hundred the APK path reaches — the 363 index entries are published per *language*, all pointing at
+the same scripts. Removing the APK backend would also have re-pointed every library row at a source
+that no longer exists (`Manga.sourceId` is a one-way hash) and orphaned every downloaded chapter on
+disk (#1256). Both backends now ship side by side behind the `MangaSource` seam. Full rationale in
+`CLAUDE.md` → *Extension System*.
+
+**Still open, no longer blocking:** #1256 (download folders are named by the numeric source key), and
+DOM traversal in the prelude — deferred as a deliberate isolation-boundary decision, costing two
+sources (Asura Scans, Mangafire).
 
 ---
 
