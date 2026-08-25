@@ -220,9 +220,9 @@ no record of which convention wrote it and so no migration can tell them apart.
 
 Two things are deliberately *not* this key:
 
-- **`resolveDownloadFolderName`** returns the numeric key as a string and consults no source. Every
-  download on disk is already filed under the number, so resolving a display name would orphan
-  them. Changing it is a data migration — see #1256.
+- **`downloadFolderNameFor(sourceId: Long)`** (`domain/repository/SourceRepository.kt`) returns the
+  numeric key as a string and consults no source. Every download on disk is already filed under the
+  number, so resolving a display name would orphan them. Changing it is a data migration — see #1256.
 - **`Route.SourceListing.sourceId`** is already the string id. Browse never went through the key,
   which is why browsing worked while reading from the library did not.
 
