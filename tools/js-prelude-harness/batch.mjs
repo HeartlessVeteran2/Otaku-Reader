@@ -56,6 +56,24 @@ for (const e of candidates) {
     picked.push(e);
 }
 
+/**
+ * The live-handle count a failed leg reported before it died, or 0.
+ *
+ * run.mjs prints DOCSTATS before any non-zero exit precisely so a throwing source still reaches
+ * the leak gate — a leak bad enough to exhaust the 32-handle pool always throws, so a gate that
+ * only reads succeeding runs is a gate that never fires on the case it exists for.
+ */
+function leakedFrom(err) {
+    const raw = (err?.stderr || err?.stdout || String(err)).toString();
+    const line = raw.split('\n').map((l) => l.trim()).find((l) => l.startsWith('DOCSTATS '));
+    if (!line) return 0;
+    try {
+        return JSON.parse(line.slice('DOCSTATS '.length)).liveDocuments ?? 0;
+    } catch {
+        return 0;
+    }
+}
+
 const results = [];
 for (const e of picked) {
     const slug = String(e.id);
@@ -84,7 +102,18 @@ for (const e of picked) {
                 [path.join(HARNESS_DIR, 'run.mjs'), scriptPath, configPath, method, String(arg)],
                 { timeout: 90000, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
             );
-            return JSON.parse(out);
+            const parsed = JSON.parse(out);
+            // Carry preference writes into the next leg. Each leg is its own process, so without
+            // this the run loses them at the process boundary — and the app does not: the sidecar
+            // hands `changedPreferences` back and they are persisted. Sources routinely resolve a
+            // mirror or base URL during the listing and read it back when fetching chapters, so a
+            // harness that drops the write exercises a path the app never takes.
+            if (parsed.preferencesAfter && Object.keys(parsed.preferencesAfter).length > 0) {
+                const current = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+                current.preferences = parsed.preferencesAfter;
+                fs.writeFileSync(configPath, JSON.stringify(current));
+            }
+            return parsed;
         };
         // Sources disagree on which field carries the URL: the Mangayomi shape is `link`, but
         // several emit `url`. Taking either is the harness's job, not the source's.
@@ -122,10 +151,12 @@ for (const e of picked) {
                         pagesStatus = pages > 0 ? `${pages}pg` : 'no pages';
                     } catch (pageErr) {
                         pagesStatus = 'THREW';
+                        liveLeaked += leakedFrom(pageErr);
                     }
                 }
             } catch (detailErr) {
                 detailStatus = 'THREW';
+                liveLeaked += leakedFrom(detailErr);
             }
         }
 
@@ -150,12 +181,7 @@ for (const e of picked) {
         // run.mjs prints its handle counts before any non-zero exit, so a source that leaks *and*
         // throws still reaches the leak gate below. Without this the gate only ever saw sources
         // that succeeded — and a leak severe enough to exhaust the pool always throws.
-        const stats = lines.find((l) => l.startsWith('DOCSTATS '));
-        let liveLeaked;
-        if (stats) {
-            try { liveLeaked = JSON.parse(stats.slice('DOCSTATS '.length)).liveDocuments; }
-            catch { liveLeaked = undefined; }
-        }
+        const liveLeaked = leakedFrom(err);
         results.push({ name: e.name, status: 'FAIL', error: msg.slice(0, 130), liveLeaked });
     } finally {
         for (const f of [scriptPath, configPath]) {
