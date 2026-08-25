@@ -66,10 +66,39 @@
         this.error = raw.error === undefined ? null : raw.error;
     }
 
-    function decodeResponse(payload) {
+    function decodeResponse(payload, method, url) {
         // The host returns the serialized JsHttpResponse. A non-JSON body would mean the bridge
         // itself failed, which is not something a source can handle, so let the parse throw.
-        return new MResponse(JSON.parse(payload));
+        var raw = JSON.parse(payload);
+
+        // No usable HTTP response — throw instead of handing back an empty body.
+        //
+        // `code` is the discriminator: every JsHttpBridge path that produced no *completed*
+        // response leaves it at its default 0, while every path that has a status to report
+        // carries the real one — including the ones that then reject the response, like a
+        // refused redirect or an oversized body. So a source branching on `statusCode` for a
+        // genuine 404 or 403 is unaffected by this.
+        //
+        // "No completed response" is not the same as "never reached a server", and the
+        // difference is worth stating because one path crosses it: the redirect limit. Most
+        // code-0 paths genuinely never got a reply (transport exception, malformed URL, refused
+        // non-HTTPS, refused private address, unsupported method), but "Too many redirects"
+        // fires *after* MAX_REDIRECTS servers each answered — it is code 0 because no response
+        // in the chain was ever the final one, not because nothing responded. Throwing is still
+        // right there: the request never completed, so there is no body worth handing over.
+        //
+        // Without it the failure surfaces as whatever the source does with `body === ''`, which
+        // is almost always `JSON.parse('')` -> "Unexpected end of JSON input". That names
+        // neither the URL nor the cause, and the bridge's `error` string — "Refused request to
+        // private address", "Request failed" — is discarded on the floor. Throwing keeps it, and
+        // a source that already guards its requests can still catch it.
+        if (raw.ok === false && (raw.code === 0 || raw.code === undefined)) {
+            throw new Error(
+                (method || 'GET') + ' ' + (url || '<unknown url>') + ' failed: ' +
+                    (raw.error || 'no response')
+            );
+        }
+        return new MResponse(raw);
     }
 
     function MClient() {
@@ -80,7 +109,9 @@
     }
 
     MClient.prototype.get = function (url, headers) {
-        return hostClient.get(url, headers || {}).then(decodeResponse);
+        return hostClient.get(url, headers || {}).then(function (payload) {
+            return decodeResponse(payload, 'GET', url);
+        });
     };
 
     MClient.prototype.post = function (url, headers, body) {
@@ -90,7 +121,9 @@
         // already encoded their body pass a string, which is forwarded untouched.
         var payload = body === undefined || body === null ? null
             : (typeof body === 'string' ? body : JSON.stringify(body));
-        return hostClient.post(url, headers || {}, payload).then(decodeResponse);
+        return hostClient.post(url, headers || {}, payload).then(function (raw) {
+            return decodeResponse(raw, 'POST', url);
+        });
     };
 
     /** Some sources build a request descriptor instead of calling get/post directly. */
@@ -165,8 +198,37 @@
         return new MElement(found === null || found === undefined ? '' : found);
     };
 
+    /**
+     * The first `name="value"` in this node's markup, or '' — matching Mangayomi exactly.
+     *
+     * Read from `dom_extensions.dart` and `reg_exp_matcher.dart` upstream, not inferred:
+     * `getHref` there is `regHrefMatcher(outerHtml)`, and that matcher is
+     * `RegExp(r'href="([^"]+)"')` taking the first match over the element's **outer HTML**.
+     *
+     * Two consequences, and this layer previously had both wrong:
+     *
+     *  - **Descendants count.** These accessors are not attribute lookups on the node's own tag.
+     *    A wrapper like `<div class="bsx"><a href="/series/x">` answers `/series/x`, which is how
+     *    sources such as TeamX read a card's link — `link: element.getHref` on the wrapping div.
+     *    Reading only the node's own tag returned '' and produced entries that render but lead
+     *    nowhere, a failure invisible to any sweep that stops at the listing.
+     *  - **No URL resolution.** Upstream returns the attribute exactly as written, so a relative
+     *    href stays relative. Sources expect that and resolve it themselves — MangaDex's listing
+     *    returns `/manga/<id>` and its own getDetail prepends `apiUrl`. `absAttr` is still here
+     *    for a source that asks for resolution by name.
+     *
+     * Double quotes only, first match wins, no case folding: the same shape as upstream, because
+     * matching it is the whole point. A source that works there has to work here unchanged.
+     */
+    function firstAttributeInMarkup(markup, name) {
+        var pattern = new RegExp(name + '="([^"]+)"');
+        var match = pattern.exec(markup);
+        return match ? match[1] : '';
+    }
+
     MElement.prototype.attr = function (name) {
-        // Raw, as written. Mangayomi's `attr` is not URL-aware; `getHref`/`getSrc` are.
+        // Raw, as written — and so are `getHref`/`getSrc`, which upstream implements as a regex
+        // over outer HTML rather than as a resolving lookup. `absAttr` is the only resolver.
         return hostDocument.attr(this.html, name);
     };
 
@@ -211,12 +273,22 @@
         // a real host binding rather than approximating it here.
         getHref: {
             get: function () {
-                return this.absAttr('href');
+                return firstAttributeInMarkup(this.html, 'href');
             }
         },
         getSrc: {
             get: function () {
-                return this.absAttr('src');
+                return firstAttributeInMarkup(this.html, 'src');
+            }
+        },
+        getImg: {
+            get: function () {
+                return firstAttributeInMarkup(this.html, 'img');
+            }
+        },
+        getDataSrc: {
+            get: function () {
+                return firstAttributeInMarkup(this.html, 'data-src');
             }
         },
         /**
@@ -226,9 +298,9 @@
          * one name at a time and adding a bulk binding would mean a Kotlin change for something
          * the published sources use almost exclusively on JSON payloads rather than on DOM nodes.
          *
-         * Values are returned exactly as the tag spells them, which is also what `attr()` does —
-         * neither resolves a relative URL. `getHref`/`getSrc` (and `absAttr`) are the resolving
-         * accessors; reach for one of those when an absolute URL is what is wanted.
+         * Values are returned exactly as the tag spells them, which is also what `attr()` and the
+         * `getHref`/`getSrc` family do — none of them resolves a relative URL. `absAttr` is the
+         * resolving accessor; reach for it when an absolute URL is what is wanted.
          */
         attributes: {
             get: function () {

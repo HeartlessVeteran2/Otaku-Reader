@@ -71,6 +71,95 @@ class JsPreludeTest {
         )
     }
 
+    @Test
+    fun `a request that never reached a server throws instead of yielding an empty body`() {
+        // JsHttpBridge leaves `code` at 0 only when no HTTP response was obtained at all, and
+        // carries the real status on every path that did get one. The prelude keys on that,
+        // because handing such a response to a source means `body === ''`, which becomes
+        // `JSON.parse('')` and an "Unexpected end of JSON input" naming neither the URL nor the
+        // cause the bridge already knew.
+        val decode = JsPrelude.source
+            .substringAfter("function decodeResponse(")
+            .substringBefore("function MClient(")
+
+        val guardAt = decode.indexOf("if (raw.ok === false")
+        assertTrue("decodeResponse no longer guards the no-response case", guardAt >= 0)
+
+        val guard = blockBodyAt(decode, decode.indexOf('{', guardAt))
+        assertTrue("the no-response guard must throw", guard.contains("throw new Error("))
+
+        // The condition must narrow on `code`, not on `ok` alone. Widening it to every
+        // unsuccessful response is the tempting simplification and it breaks the sources that
+        // branch on `statusCode` for a genuine 404 or 403 — they would never see the status,
+        // because the throw would fire first.
+        // To the opening brace, not to the first `)`. Slicing at the first `)` happens to
+        // capture the whole condition today only because the inner group opens before anything
+        // closes; re-parenthesising it as `if ((raw.ok === false) && raw.code === 0)` would cut
+        // the slice at `if ((raw.ok === false)` and silently stop exercising the real condition,
+        // which is the one thing this assertion exists to do.
+        val condition = decode.substring(guardAt, decode.indexOf('{', guardAt))
+        // `raw.code === 0`, not merely the token `raw.code`: asserting the token alone would
+        // still pass for something like `raw.ok === false || raw.code`, which is not a
+        // narrowing at all.
+        assertTrue(
+            "the guard must narrow on `code === 0`, or a real 404 stops reaching the source: " +
+                condition,
+            condition.contains("raw.code === 0"),
+        )
+
+        // Residual gap, stated so a green run is not mistaken for behavioural proof: these are
+        // source-text assertions, because a JVM unit test has no engine to evaluate the prelude
+        // in. They pin the guard's shape, not its effect. The effect is covered by
+        // tools/js-prelude-harness against real extensions.
+    }
+
+    @Test
+    fun `both client methods hand the request context to the decoder`() {
+        // The guard's message is only as good as its wiring. `decodeResponse` reads method and
+        // URL from its own parameters, so a call site reverted to the bare `.then(decodeResponse)`
+        // still throws — but with "GET <unknown url>", which is the diagnosis this change exists
+        // to provide. Asserting the guard alone would not notice that.
+        for (method in listOf("get", "post")) {
+            val body = JsPrelude.source
+                .substringAfter("MClient.prototype.$method = function (")
+                .substringBefore("};")
+
+            assertTrue(
+                "MClient.$method no longer routes through decodeResponse",
+                body.contains("decodeResponse("),
+            )
+            assertTrue(
+                "MClient.$method must pass the method and url into decodeResponse",
+                body.contains("'${method.uppercase()}', url)"),
+            )
+        }
+    }
+
+    @Test
+    fun `the url accessors read the markup rather than the node's own attribute`() {
+        // Upstream (`dom_extensions.dart` -> `reg_exp_matcher.dart`) implements these as a regex
+        // over the element's outer HTML, so a wrapper div answers its child anchor's href. This
+        // layer originally used `absAttr`, which reads only the node's own tag and returned '' for
+        // exactly that shape -- TeamX's listing built every card link from `element.getHref` on a
+        // wrapping div, so entries rendered and led nowhere.
+        //
+        // Reverting any of these to `absAttr` restores that bug, and it would look like a tidy-up.
+        for (accessor in listOf("getHref", "getSrc", "getImg", "getDataSrc")) {
+            val body = JsPrelude.source
+                .substringAfter("$accessor: {")
+                .substringBefore("},")
+
+            assertTrue(
+                "$accessor must read the markup, not the node's own attribute",
+                body.contains("firstAttributeInMarkup(this.html,"),
+            )
+            assertTrue(
+                "$accessor must not resolve through absAttr -- upstream returns the raw value",
+                !body.contains("absAttr"),
+            )
+        }
+    }
+
     /**
      * The text between the brace at [openBraceIndex] and its match.
      *

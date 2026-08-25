@@ -135,9 +135,23 @@ class JsEngineService : Service() {
     /**
      * Forward an HTTP request to the main process.
      *
-     * A failure here is returned to the script as a normal response rather than thrown, because
-     * extensions routinely probe URLs that 404 and are written to handle that; turning it into
-     * an exception would break sources that are behaving correctly.
+     * A failure that *reached a server* is returned to the script as a normal response rather
+     * than thrown, because extensions routinely probe URLs that 404 and are written to handle
+     * that; turning it into an exception would break sources that are behaving correctly.
+     *
+     * A request that never *completed* is the exception, and `prelude.js` turns it into a throw
+     * rather than a response. This function's own failure paths land there too: both "No HTTP
+     * bridge installed" and "HTTP bridge failed" leave `code` at its default 0, which is
+     * precisely the discriminator the prelude keys on. Note that code 0 means "no completed
+     * response" rather than "no server answered" — the bridge's redirect limit also reports 0,
+     * after MAX_REDIRECTS servers have each replied without the chain ever terminating.
+     *
+     * That split is measured, not assumed. Across the 16 published JavaScript sources in the
+     * Mangayomi index, none inspect `response.ok`, and exactly one inspects an HTTP status
+     * (Mangafire, retrying and then throwing its own error) — which still sees real codes,
+     * because only `code == 0` throws. The remaining sources hand the body straight to
+     * `JSON.parse`, so returning them a bodyless response produced "Unexpected end of JSON
+     * input" and discarded the reason this layer already knew.
      */
     private fun performHttp(request: JsHttpRequest): JsHttpResponse {
         val bridge = httpBridge

@@ -1,4 +1,4 @@
-/* Run getPopular for many real JS extensions and report which survive the prelude. */
+/* Run real JS extensions through popular -> detail -> pageList and report what survives. */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -56,6 +56,24 @@ for (const e of candidates) {
     picked.push(e);
 }
 
+/**
+ * The live-handle count a failed leg reported before it died, or 0.
+ *
+ * run.mjs prints DOCSTATS before any non-zero exit precisely so a throwing source still reaches
+ * the leak gate — a leak bad enough to exhaust the 32-handle pool always throws, so a gate that
+ * only reads succeeding runs is a gate that never fires on the case it exists for.
+ */
+function leakedFrom(err) {
+    const raw = (err?.stderr || err?.stdout || String(err)).toString();
+    const line = raw.split('\n').map((l) => l.trim()).find((l) => l.startsWith('DOCSTATS '));
+    if (!line) return 0;
+    try {
+        return JSON.parse(line.slice('DOCSTATS '.length)).liveDocuments ?? 0;
+    } catch {
+        return 0;
+    }
+}
+
 const results = [];
 for (const e of picked) {
     const slug = String(e.id);
@@ -74,17 +92,83 @@ for (const e of picked) {
             lang: e.lang, isNsfw: !!e.isNsfw, preferences: {},
         }));
 
-        const out = execFileSync('node', [path.join(HARNESS_DIR, 'run.mjs'), scriptPath, configPath, 'getPopular', '1'],
-            { timeout: 90000, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
-        const parsed = JSON.parse(out);
-        const list = parsed.result?.list ?? [];
+        // popular -> detail -> pageList, because that is the journey a reader actually makes
+        // and only the first leg was ever swept. getPageList is the leg that matters most: it is
+        // where a chapter's images come from, and where the 32-handle document pool is pushed
+        // hardest, so a leak or a selector fault there is invisible to a getPopular-only sweep.
+        const invoke = (method, arg) => {
+            const out = execFileSync(
+                'node',
+                [path.join(HARNESS_DIR, 'run.mjs'), scriptPath, configPath, method, String(arg)],
+                { timeout: 90000, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+            );
+            const parsed = JSON.parse(out);
+            // Carry preference writes into the next leg. Each leg is its own process, so without
+            // this the run loses them at the process boundary — and the app does not: the sidecar
+            // hands `changedPreferences` back and they are persisted. Sources routinely resolve a
+            // mirror or base URL during the listing and read it back when fetching chapters, so a
+            // harness that drops the write exercises a path the app never takes.
+            if (parsed.preferencesAfter && Object.keys(parsed.preferencesAfter).length > 0) {
+                const current = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+                current.preferences = parsed.preferencesAfter;
+                fs.writeFileSync(configPath, JSON.stringify(current));
+            }
+            return parsed;
+        };
+        // Sources disagree on which field carries the URL: the Mangayomi shape is `link`, but
+        // several emit `url`. Taking either is the harness's job, not the source's.
+        const refOf = (item) => item?.link ?? item?.url ?? null;
+
+        const popular = invoke('getPopular', 1);
+        const list = popular.result?.list ?? [];
+        let peakDocs = popular.documentStats.peakLiveDocuments;
+        let liveLeaked = popular.documentStats.liveDocuments;
+
+        let detailStatus = '-';
+        let pagesStatus = '-';
+        let pages = 0;
+
+        // Each later leg is attempted only if the previous produced something to feed it, and a
+        // throw in one leg is recorded rather than failing the row outright — a source can list
+        // fine and still break on chapters, which is exactly the split worth seeing.
+        const firstRef = refOf(list[0]);
+        if (firstRef) {
+            try {
+                const detail = invoke('getDetail', firstRef);
+                peakDocs = Math.max(peakDocs, detail.documentStats.peakLiveDocuments);
+                liveLeaked += detail.documentStats.liveDocuments;
+                const chapters = detail.result?.chapters ?? [];
+                detailStatus = chapters.length > 0 ? `${chapters.length}ch` : 'no chapters';
+
+                const chapterRef = refOf(chapters[0]);
+                if (chapterRef) {
+                    try {
+                        const pageList = invoke('getPageList', chapterRef);
+                        peakDocs = Math.max(peakDocs, pageList.documentStats.peakLiveDocuments);
+                        liveLeaked += pageList.documentStats.liveDocuments;
+                        const p = pageList.result;
+                        pages = Array.isArray(p) ? p.length : (p?.length ?? 0);
+                        pagesStatus = pages > 0 ? `${pages}pg` : 'no pages';
+                    } catch (pageErr) {
+                        pagesStatus = 'THREW';
+                        liveLeaked += leakedFrom(pageErr);
+                    }
+                }
+            } catch (detailErr) {
+                detailStatus = 'THREW';
+                liveLeaked += leakedFrom(detailErr);
+            }
+        }
+
         results.push({
             name: e.name,
             status: list.length > 0 ? 'OK' : 'empty list',
             items: list.length,
-            peakDocs: parsed.documentStats.peakLiveDocuments,
-            liveLeaked: parsed.documentStats.liveDocuments,
-            sample: list[0]?.name?.slice(0, 34),
+            peakDocs,
+            liveLeaked,
+            detail: detailStatus,
+            pages: pagesStatus,
+            sample: list[0]?.name?.slice(0, 24),
         });
     } catch (err) {
         // run.mjs prints a line tagged FAILED for the two failures it recognises. Anything else —
@@ -97,12 +181,7 @@ for (const e of picked) {
         // run.mjs prints its handle counts before any non-zero exit, so a source that leaks *and*
         // throws still reaches the leak gate below. Without this the gate only ever saw sources
         // that succeeded — and a leak severe enough to exhaust the pool always throws.
-        const stats = lines.find((l) => l.startsWith('DOCSTATS '));
-        let liveLeaked;
-        if (stats) {
-            try { liveLeaked = JSON.parse(stats.slice('DOCSTATS '.length)).liveDocuments; }
-            catch { liveLeaked = undefined; }
-        }
+        const liveLeaked = leakedFrom(err);
         results.push({ name: e.name, status: 'FAIL', error: msg.slice(0, 130), liveLeaked });
     } finally {
         for (const f of [scriptPath, configPath]) {
@@ -115,8 +194,11 @@ for (const e of picked) {
 
 for (const r of results) {
     const tag = r.status === 'OK' ? 'PASS' : (r.status === 'FAIL' ? 'FAIL' : 'WARN');
-    console.log(`[${tag}] ${r.name.slice(0, 26).padEnd(26)} ${String(r.status).padEnd(13)}` +
-        (r.items !== undefined ? ` items=${String(r.items).padEnd(3)} peakDocs=${r.peakDocs} leaked=${r.liveLeaked} ${r.sample ?? ''}` : ` ${r.error ?? ''}`));
+    console.log(`[${tag}] ${r.name.slice(0, 22).padEnd(22)} ${String(r.status).padEnd(11)}` +
+        (r.items !== undefined
+            ? ` items=${String(r.items).padEnd(3)} detail=${String(r.detail).padEnd(11)}` +
+              ` pages=${String(r.pages).padEnd(7)} peak=${r.peakDocs} leaked=${r.liveLeaked} ${r.sample ?? ''}`
+            : ` ${r.error ?? ''}`));
 }
 const pass = results.filter((r) => r.status === 'OK').length;
 console.log(`\n${pass}/${results.length} returned a populated list; ` +
