@@ -1,6 +1,7 @@
 package app.otakureader.feature.about.developer
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
@@ -14,6 +15,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import app.otakureader.feature.about.R
@@ -48,6 +50,11 @@ fun DeveloperPromptDialog(
                         label = { Text(stringResource(R.string.about_developer_prompt_label)) },
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
+                        // Masking alone only hides the glyphs. Without the password keyboard type
+                        // the IME still treats this as ordinary prose: it offers suggestions and
+                        // can learn the passphrase into the user's personal dictionary, where it
+                        // then surfaces in unrelated text fields.
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         isError = state.error == AboutDeveloperError.WrongPassphrase,
                     )
                 }

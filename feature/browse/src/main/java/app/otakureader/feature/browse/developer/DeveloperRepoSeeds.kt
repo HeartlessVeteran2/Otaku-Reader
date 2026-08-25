@@ -3,6 +3,7 @@ package app.otakureader.feature.browse.developer
 import android.content.Context
 import app.otakureader.core.common.dispatchers.Dispatcher
 import app.otakureader.core.common.dispatchers.OtakuReaderDispatcher
+import app.otakureader.core.extension.data.remote.ExtensionRemoteDataSourceImpl
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.IOException
 import java.net.URI
@@ -35,6 +36,11 @@ import kotlinx.coroutines.withContext
  * `ExtensionRepositoriesViewModel` validates typed input: a malformed entry that reaches
  * `addRepository` becomes a stored row that fails on every refresh afterwards, and the file it
  * came from is not on screen to correct.
+ *
+ * Deduplication runs on the **normalized** URL rather than the raw text. `ExtensionRepoRepositoryImpl`
+ * normalizes on write, so a file naming both `https://host/repo` and `https://host/repo/index.min.json`
+ * describes one repository. Deduplicating raw strings would render it as two rows and report two
+ * additions for the single entry that actually gets stored.
  */
 @Singleton
 class DeveloperRepoSeeds @Inject constructor(
@@ -60,7 +66,7 @@ class DeveloperRepoSeeds @Inject constructor(
             .map { it.substringBefore('#').trim() }
             .filter { it.isNotEmpty() }
             .filter(::isUsableUrl)
-            .distinct()
+            .distinctBy(ExtensionRemoteDataSourceImpl::normalizeRepoUrl)
             .toList()
     }
 
@@ -78,7 +84,9 @@ class DeveloperRepoSeeds @Inject constructor(
      */
     private fun isUsableUrl(candidate: String): Boolean = try {
         val uri = URI(candidate)
-        uri.scheme?.lowercase() in ALLOWED_SCHEMES && !uri.host.isNullOrBlank()
+        uri.scheme?.lowercase() in ALLOWED_SCHEMES &&
+            !uri.host.isNullOrBlank() &&
+            uri.port in VALID_PORTS
     } catch (_: URISyntaxException) {
         false
     }
@@ -87,5 +95,14 @@ class DeveloperRepoSeeds @Inject constructor(
         const val ASSET_NAME = "dev-repos.txt"
 
         private val ALLOWED_SCHEMES = setOf("http", "https")
+
+        /**
+         * `-1` is "no port given", which is the usual case; the rest is TCP's actual range.
+         *
+         * `URI` parses `https://host:99999/` without complaint and reports port 99999, so without
+         * this an out-of-range port would pass here and be rejected later by OkHttp — storing a
+         * repository that can never be fetched, from a file the user cannot see from inside the app.
+         */
+        private val VALID_PORTS = -1..65535
     }
 }

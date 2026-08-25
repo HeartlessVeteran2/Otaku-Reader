@@ -95,6 +95,11 @@ fun DeveloperScreen(
     ) { paddingValues ->
         when {
             state.isLoading -> LoadingState(Modifier.padding(paddingValues))
+            state.hasLoadError -> MessageState(
+                title = stringResource(R.string.developer_load_error_title),
+                body = stringResource(R.string.developer_load_error_body),
+                modifier = Modifier.padding(paddingValues),
+            )
             state.hasNoSeeds -> EmptyState(Modifier.padding(paddingValues))
             else -> SeedList(
                 state = state,
@@ -125,6 +130,19 @@ private fun LoadingState(modifier: Modifier = Modifier) {
  */
 @Composable
 private fun EmptyState(modifier: Modifier = Modifier) {
+    MessageState(
+        title = stringResource(R.string.developer_no_seeds_title),
+        body = stringResource(R.string.developer_no_seeds_body, DeveloperRepoSeeds.ASSET_NAME),
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun MessageState(
+    title: String,
+    body: String,
+    modifier: Modifier = Modifier,
+) {
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -132,12 +150,9 @@ private fun EmptyState(modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        Text(text = title, style = MaterialTheme.typography.titleMedium)
         Text(
-            text = stringResource(R.string.developer_no_seeds_title),
-            style = MaterialTheme.typography.titleMedium,
-        )
-        Text(
-            text = stringResource(R.string.developer_no_seeds_body, DeveloperRepoSeeds.ASSET_NAME),
+            text = body,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 8.dp),

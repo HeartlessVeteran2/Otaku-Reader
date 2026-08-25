@@ -6,6 +6,7 @@ import app.otakureader.core.common.developer.DeveloperUnlock
 import app.otakureader.core.preferences.DeveloperPreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -59,6 +60,9 @@ class AboutDeveloperViewModel @Inject constructor(
 
     private var tapCount = 0
 
+    /** Non-null while an unlock is being persisted; see [submit]. */
+    private var unlockJob: Job? = null
+
     fun onEvent(event: AboutDeveloperEvent) {
         when (event) {
             is AboutDeveloperEvent.VersionTapped -> onVersionTapped()
@@ -87,14 +91,28 @@ class AboutDeveloperViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Verifies the passphrase and, on a match, unlocks and navigates.
+     *
+     * Two things guard against a double submit, because the button stays composed until the state
+     * change lands and a second tap in that window would otherwise unlock twice and enqueue two
+     * [AboutDeveloperEffect.NavigateToDeveloper] effects — pushing the developer route onto the
+     * back stack twice, so leaving it once would appear to do nothing.
+     *
+     * The prompt is hidden **synchronously**, before the coroutine starts, so the window closes on
+     * the same frame as the tap rather than after a DataStore write. [unlockJob] then covers the
+     * case the synchronous update cannot: recomposition is not instantaneous, so two taps
+     * dispatched close together can both reach this function before either state change is applied.
+     */
     private fun submit(input: String) {
+        if (unlockJob?.isActive == true) return
         if (!DeveloperUnlock.matches(input)) {
             _state.update { it.copy(error = AboutDeveloperError.WrongPassphrase) }
             return
         }
-        viewModelScope.launch {
+        _state.update { it.copy(isPromptVisible = false, error = null) }
+        unlockJob = viewModelScope.launch {
             developerPreferences.setUnlocked(true)
-            _state.update { it.copy(isPromptVisible = false, error = null) }
             _effect.send(AboutDeveloperEffect.NavigateToDeveloper)
         }
     }

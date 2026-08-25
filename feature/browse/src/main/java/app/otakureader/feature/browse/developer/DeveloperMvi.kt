@@ -23,9 +23,17 @@ data class DeveloperState(
      * itself during the first frame every time it opens.
      */
     val isUnlocked: Boolean? = null,
+    /**
+     * Set when the seed file or the repository store could not be read.
+     *
+     * Kept distinct from an empty [seeds] list on purpose: "no seeds configured" is a setup
+     * instruction and "storage failed" is a fault, and reporting the second as the first would
+     * send the user off to check a file that is already correct.
+     */
+    val hasLoadError: Boolean = false,
 ) {
     /** True when the build carries no `dev-repos.txt` — the normal state for a public build. */
-    val hasNoSeeds: Boolean get() = !isLoading && seeds.isEmpty()
+    val hasNoSeeds: Boolean get() = !isLoading && !hasLoadError && seeds.isEmpty()
 
     val pendingCount: Int get() = seeds.count { !it.isAlreadyAdded }
 }

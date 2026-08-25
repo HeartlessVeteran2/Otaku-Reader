@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -62,9 +63,24 @@ class DeveloperViewModel @Inject constructor(
             .launchIn(viewModelScope)
 
         viewModelScope.launch {
-            loadedSeeds = seeds.load()
+            // Both halves can fail, and neither failure may leave the spinner up forever: the
+            // screen has no retry, so an indefinite progress indicator is a dead end. `isLoading`
+            // is cleared on every path below.
+            loadedSeeds = runCatching { seeds.load() }
+                .getOrElse {
+                    _state.update { current -> current.copy(hasLoadError = true) }
+                    emptyList()
+                }
+
             extensionRepoRepository.getRepositories()
                 .onEach(::project)
+                .catch {
+                    // An upstream failure before the first emission would otherwise skip `project`
+                    // entirely. `catch` also terminates the flow, so this is the last word.
+                    _state.update { current ->
+                        current.copy(isLoading = false, hasLoadError = true)
+                    }
+                }
                 .launchIn(viewModelScope)
         }
     }

@@ -246,4 +246,6 @@
     <string name="developer_gate_note">These repositories are read from a file baked into this build. Adding one here is identical to pasting it into Browse &gt; Extensions &gt; Repositories by hand.</string>
     <string name="developer_no_seeds_title">No seeds configured</string>
     <string name="developer_no_seeds_body">This build has no %1$s in its assets. Copy dev-repos.txt.example next to it, add your repository URLs, and rebuild.</string>
+    <string name="developer_load_error_title">Could not read repositories</string>
+    <string name="developer_load_error_body">The seed file or the stored repository list could not be read. Reopen this screen to try again.</string>
 </resources>
