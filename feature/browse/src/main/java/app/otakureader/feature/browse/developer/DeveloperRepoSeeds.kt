@@ -5,11 +5,12 @@ import app.otakureader.core.common.dispatchers.Dispatcher
 import app.otakureader.core.common.dispatchers.OtakuReaderDispatcher
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.IOException
+import java.net.URI
+import java.net.URISyntaxException
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
-import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 /**
  * Reads the developer's own extension-repository list out of an optional assets file.
@@ -58,12 +59,33 @@ class DeveloperRepoSeeds @Inject constructor(
         raw.lineSequence()
             .map { it.substringBefore('#').trim() }
             .filter { it.isNotEmpty() }
-            .filter { it.toHttpUrlOrNull() != null }
+            .filter(::isUsableUrl)
             .distinct()
             .toList()
     }
 
+    /**
+     * Whether [candidate] is an http/https URL with a host.
+     *
+     * Uses `java.net.URI` rather than OkHttp's `toHttpUrlOrNull`, which would be the more natural
+     * choice but is not available here: `core:extension` declares OkHttp as `implementation`, so
+     * it is absent from this module's compile classpath.
+     *
+     * The scheme check is the part that matters. `URI` happily parses `example.com/repo` as a
+     * relative reference with a null scheme and null host, so accepting anything that merely
+     * parses would let a bare hostname through — and it would then fail on every refresh, from a
+     * file the user cannot see from inside the app.
+     */
+    private fun isUsableUrl(candidate: String): Boolean = try {
+        val uri = URI(candidate)
+        uri.scheme?.lowercase() in ALLOWED_SCHEMES && !uri.host.isNullOrBlank()
+    } catch (_: URISyntaxException) {
+        false
+    }
+
     companion object {
         const val ASSET_NAME = "dev-repos.txt"
+
+        private val ALLOWED_SCHEMES = setOf("http", "https")
     }
 }
