@@ -62,4 +62,11 @@
     <string name="privacy_biometric_body">The app lock uses Android\'s biometric prompt. Your biometric data never reaches the app — Android only reports success or failure.</string>
     <string name="privacy_contact_title">Questions</string>
     <string name="privacy_contact_body">The full policy lives in PRIVACY.md in the GitHub repository. Open an issue there if anything is unclear.</string>
+    <!-- Hidden developer unlock, triggered from the version line -->
+    <string name="about_developer_prompt_title">Developer access</string>
+    <string name="about_developer_prompt_label">Passphrase</string>
+    <string name="about_developer_prompt_unlock">Unlock</string>
+    <string name="about_developer_prompt_cancel">Cancel</string>
+    <string name="about_developer_wrong">Incorrect passphrase</string>
+    <string name="about_developer_unavailable">No passphrase is configured in this build</string>
 </resources>

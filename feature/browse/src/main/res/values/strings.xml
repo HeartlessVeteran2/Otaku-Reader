@@ -236,4 +236,14 @@
     <string name="browse_in_library_badge">Already in library</string>
     <string name="browse_show_popular">Popular</string>
     <string name="browse_manage_sources">Manage sources</string>
+    <!-- Hidden developer screen (see DeveloperUnlock.kt) -->
+    <string name="developer_screen_title">Developer</string>
+    <string name="developer_back">Back</string>
+    <string name="developer_lock">Hide developer screen</string>
+    <string name="developer_add">Add repository</string>
+    <string name="developer_already_added">Already added</string>
+    <string name="developer_add_all">Add all (%1$d)</string>
+    <string name="developer_gate_note">These repositories are read from a file baked into this build. Adding one here is identical to pasting it into Browse &gt; Extensions &gt; Repositories by hand.</string>
+    <string name="developer_no_seeds_title">No seeds configured</string>
+    <string name="developer_no_seeds_body">This build has no %1$s in its assets. Copy dev-repos.txt.example next to it, add your repository URLs, and rebuild.</string>
 </resources>

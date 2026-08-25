@@ -9,6 +9,7 @@ import android.os.Build
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -44,6 +45,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,7 +60,14 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.otakureader.core.ui.R as CoreUiR
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.otakureader.feature.about.R
+import app.otakureader.feature.about.developer.AboutDeveloperEffect
+import app.otakureader.feature.about.developer.AboutDeveloperEvent
+import app.otakureader.feature.about.developer.AboutDeveloperViewModel
+import app.otakureader.feature.about.developer.DeveloperPromptDialog
+import kotlinx.coroutines.flow.collectLatest
 
 /**
  * About screen showing app information, help, FAQ, licenses, and credits.
@@ -67,9 +77,26 @@ import app.otakureader.feature.about.R
 fun AboutScreen(
     onNavigateBack: () -> Unit,
     onNavigateToPrivacyPolicy: () -> Unit = {},
-    modifier: Modifier = Modifier
+    onNavigateToDeveloper: () -> Unit = {},
+    modifier: Modifier = Modifier,
+    developerViewModel: AboutDeveloperViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
+    val developerState by developerViewModel.state.collectAsStateWithLifecycle()
+
+    LaunchedEffect(developerViewModel.effect) {
+        developerViewModel.effect.collectLatest { effect ->
+            when (effect) {
+                is AboutDeveloperEffect.NavigateToDeveloper -> onNavigateToDeveloper()
+            }
+        }
+    }
+
+    DeveloperPromptDialog(
+        state = developerState,
+        onSubmit = { developerViewModel.onEvent(AboutDeveloperEvent.SubmitPassphrase(it)) },
+        onDismiss = { developerViewModel.onEvent(AboutDeveloperEvent.DismissPrompt) },
+    )
     val versionName = remember {
         try {
             val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -110,7 +137,10 @@ fun AboutScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             // App Info Header
-            AppInfoHeader(versionName = versionName)
+            AppInfoHeader(
+                versionName = versionName,
+                onVersionClick = { developerViewModel.onEvent(AboutDeveloperEvent.VersionTapped) },
+            )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
@@ -205,7 +235,10 @@ fun AboutScreen(
 }
 
 @Composable
-private fun AppInfoHeader(versionName: String) {
+private fun AppInfoHeader(
+    versionName: String,
+    onVersionClick: () -> Unit,
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -239,7 +272,16 @@ private fun AppInfoHeader(versionName: String) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 4.dp)
+            // Deliberately no ripple and no content description: this is the reveal gesture for
+            // the developer screen, and an accessible affordance would advertise a control that
+            // is meant to stay unremarkable. It changes nothing for anyone not counting taps.
+            modifier = Modifier
+                .padding(top = 4.dp)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onVersionClick,
+                )
         )
 
         Text(
