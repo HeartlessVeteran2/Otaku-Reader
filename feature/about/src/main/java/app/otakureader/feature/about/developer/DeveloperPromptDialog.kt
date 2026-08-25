@@ -61,6 +61,7 @@ fun DeveloperPromptDialog(
                 val message = when (state.error) {
                     AboutDeveloperError.WrongPassphrase -> stringResource(R.string.about_developer_wrong)
                     AboutDeveloperError.NotConfigured -> stringResource(R.string.about_developer_unavailable)
+                    AboutDeveloperError.PersistFailed -> stringResource(R.string.about_developer_persist_failed)
                     null -> null
                 }
                 if (message != null) {

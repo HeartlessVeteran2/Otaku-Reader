@@ -6,6 +6,7 @@ import app.otakureader.core.common.developer.DeveloperUnlock
 import app.otakureader.core.preferences.DeveloperPreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -16,7 +17,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-enum class AboutDeveloperError { WrongPassphrase, NotConfigured }
+enum class AboutDeveloperError { WrongPassphrase, NotConfigured, PersistFailed }
 
 data class AboutDeveloperState(
     val isPromptVisible: Boolean = false,
@@ -94,15 +95,15 @@ class AboutDeveloperViewModel @Inject constructor(
     /**
      * Verifies the passphrase and, on a match, unlocks and navigates.
      *
-     * Two things guard against a double submit, because the button stays composed until the state
-     * change lands and a second tap in that window would otherwise unlock twice and enqueue two
+     * [unlockJob] is what prevents a double submit. The button stays composed until the state
+     * change lands, and two taps inside that window would otherwise unlock twice and enqueue two
      * [AboutDeveloperEffect.NavigateToDeveloper] effects — pushing the developer route onto the
-     * back stack twice, so leaving it once would appear to do nothing.
+     * back stack twice, so leaving it once would appear to do nothing. Both taps run on the main
+     * thread and `setUnlocked` suspends, so the job is live by the time the second one asks.
      *
-     * The prompt is hidden **synchronously**, before the coroutine starts, so the window closes on
-     * the same frame as the tap rather than after a DataStore write. [unlockJob] then covers the
-     * case the synchronous update cannot: recomposition is not instantaneous, so two taps
-     * dispatched close together can both reach this function before either state change is applied.
+     * The prompt is dismissed **only after the write succeeds**. Dismissing it up front would be a
+     * silent failure: a DataStore error would leave the dialog gone, no navigation, and nothing to
+     * indicate why. Instead the dialog stays up and reports the failure, so the tap can be retried.
      */
     private fun submit(input: String) {
         if (unlockJob?.isActive == true) return
@@ -110,9 +111,17 @@ class AboutDeveloperViewModel @Inject constructor(
             _state.update { it.copy(error = AboutDeveloperError.WrongPassphrase) }
             return
         }
-        _state.update { it.copy(isPromptVisible = false, error = null) }
         unlockJob = viewModelScope.launch {
-            developerPreferences.setUnlocked(true)
+            try {
+                developerPreferences.setUnlocked(true)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // Uncaught, this would reach viewModelScope's handler and take the app down.
+                _state.update { it.copy(error = AboutDeveloperError.PersistFailed) }
+                return@launch
+            }
+            _state.update { it.copy(isPromptVisible = false, error = null) }
             _effect.send(AboutDeveloperEffect.NavigateToDeveloper)
         }
     }

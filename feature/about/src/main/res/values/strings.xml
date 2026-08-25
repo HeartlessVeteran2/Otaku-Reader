@@ -69,4 +69,5 @@
     <string name="about_developer_prompt_cancel">Cancel</string>
     <string name="about_developer_wrong">Incorrect passphrase</string>
     <string name="about_developer_unavailable">No passphrase is configured in this build</string>
+    <string name="about_developer_persist_failed">Could not save the unlock. Try again.</string>
 </resources>

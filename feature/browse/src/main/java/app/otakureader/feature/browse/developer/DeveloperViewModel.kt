@@ -67,7 +67,12 @@ class DeveloperViewModel @Inject constructor(
             // screen has no retry, so an indefinite progress indicator is a dead end. `isLoading`
             // is cleared on every path below.
             loadedSeeds = runCatching { seeds.load() }
-                .getOrElse {
+                .getOrElse { error ->
+                    // runCatching catches Throwable, cancellation included. Reporting a cancelled
+                    // load as a load *error* would both lie about what happened and carry on
+                    // initializing inside a scope that is already dead, so rethrow it — the same
+                    // rule `add()` follows below.
+                    if (error is CancellationException) throw error
                     _state.update { current -> current.copy(hasLoadError = true) }
                     emptyList()
                 }
