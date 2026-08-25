@@ -39,5 +39,5 @@ HASH=$(printf '%s' "${SALT}${PASSPHRASE}" | sha256sum | cut -d' ' -f1)
 echo
 echo "Paste this into DeveloperUnlock.passphraseSha256:"
 echo
-echo "    private val passphraseSha256: String = \"${HASH}\""
+echo "    private const val passphraseSha256: String = \"${HASH}\""
 echo

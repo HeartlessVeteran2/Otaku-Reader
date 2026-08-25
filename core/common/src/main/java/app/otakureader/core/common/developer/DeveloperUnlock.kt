@@ -39,13 +39,13 @@ object DeveloperUnlock {
     private const val SALT = "otaku-reader/developer/v1:"
 
     /**
-     * Hex SHA-256 of [SALT] + passphrase, or blank when unconfigured.
+     * Hex SHA-256 of [SALT] + passphrase. Blank means unconfigured, which is what ships.
      *
-     * Declared as `val` rather than `const val` on purpose: a `const` blank string lets the
-     * compiler fold `isConfigured` to a constant `false` and warn on every call site as dead code,
-     * which would be noise in a file whose blank state is the intended shipping default.
+     * Being `const` changes nothing about how reachable this value is. A string literal lives in
+     * the class file's constant pool either way, so `strings` on the APK finds it regardless —
+     * which is fine, and is the whole point of the class note above.
      */
-    private val passphraseSha256: String = ""
+    private const val passphraseSha256: String = ""
 
     /** Taps on the About screen's version line that reveal the passphrase prompt. */
     const val REVEAL_TAP_COUNT = 7
