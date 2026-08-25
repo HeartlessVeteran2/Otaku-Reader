@@ -2,9 +2,9 @@
 
 ## Direction
 
-**The APK backend is being retired. JavaScript sources from the Mangayomi ecosystem are the future.**
+**Two backends ship side by side: Tachiyomi APK extensions, and JavaScript sources from the Mangayomi ecosystem.**
 
-This file previously documented only the Tachiyomi APK path and stated that its compatibility must never be broken. That rule is no longer in force — see the *Extension System* section of `CLAUDE.md`, which is the authority. Do not treat removal of APK code as a regression.
+This file said before that the APK backend was being retired. That plan was **cancelled on 2026-08-25**: the JavaScript half of the Mangayomi ecosystem is 16 usable sources against the hundreds the APK path serves, and removing it would also force a repo-wide library migration and orphan every downloaded chapter. See the *Extension System* section of `CLAUDE.md`, which is the authority. **Do not delete APK code**, and do not treat the JavaScript backend as a replacement — it is additive.
 
 It also described a `Source` interface that never existed in this repository. The real contract is `MangaSource`, below. Anything you remember from the old version of this file should be re-checked against the code.
 
@@ -67,16 +67,14 @@ JsSource : MangaSource
 
 The prelude cannot be unit-tested from the JVM — QuickJS is an Android artifact. `JsPreludeTest` guards packaging and global names only. Behaviour is covered by `tools/js-prelude-harness/`, a Node harness reproducing `QuickJsHost.call`. Check a failing site with `curl` before suspecting the code.
 
-## APK extensions (`core/extension/`, `core/tachiyomi-compat/`) — partly retiring
+## APK extensions (`core/extension/`, `core/tachiyomi-compat/`)
 
-Still present, still loading; not where new work goes.
+A live backend, carrying the large majority of the catalogue.
 
-**Neither module can simply be deleted.** Both mix APK-only machinery with things the rest of the app depends on:
+**Neither module is APK-only anyway.** Both mix APK machinery with things the rest of the app depends on, which is worth knowing before touching either:
 
 - `core/extension` holds the `Extension`/`ExtensionSource`/`InstallStatus` models, the repository contracts, the blocklist and `JsExtensionBackend` — used by the JavaScript path and the browse UI.
-- `core/tachiyomi-compat` holds **`LocalSource`** (local manga folders — a shipped feature, wired into settings, navigation and preferences) and **`SourceHealthMonitor`** (which wraps *every* source call, JavaScript included), plus the `eu.kanade.tachiyomi.network` classes that `OtakuReaderApplication` initialises at startup.
-
-Extract those first, then delete the Tachiyomi `Source`/`CatalogueSource`/`HttpSource` surface and the loader. Confirm with `grep -rn "import eu\.kanade\.tachiyomi" --include=*.kt .` that the only remaining consumers live inside the retiring modules.
+- `core/tachiyomi-compat` holds **`LocalSource`** (local manga folders — a shipped feature, wired into settings, navigation and preferences) and **`SourceHealthMonitor`** (which wraps *every* source call, JavaScript included). Its `eu.kanade.tachiyomi.network` package and the `Injekt` bootstrap in `OtakuReaderApplication`, by contrast, exist only so loaded APKs can resolve host dependencies — JavaScript sources go through `JsHttpBridge` instead.
 
 The security properties that applied here still apply to the JavaScript path and are worth carrying forward:
 
@@ -84,6 +82,6 @@ The security properties that applied here still apply to the JavaScript path and
 - Source network calls go through the app's shared OkHttp client, so certificate pinning, the cookie jar, rate limiting and the user's proxy/VPN all apply.
 - Sources cannot reach app data. For JavaScript this is stronger than it was for APKs: a QuickJS context starts with no I/O at all, capability arrives only through the globals `QuickJsHost` installs, and the sidecar process runs under a permission-less UID.
 
-## Before removing the APK path
+## Before any change that re-points a library row at a different source
 
-Read *Source Identity → The backend switch runs straight into this* in `CLAUDE.md`. Mangayomi ids are not Tachiyomi ids and `Manga.sourceId` is a one-way hash, so every library row would point at a source that no longer exists. A guided migration (reusing `feature/migration/`) and a resolution for orphaned downloads (#1256) must ship with the removal, not after it.
+Read *Source Identity → Why removing a backend runs straight into this* in `CLAUDE.md`. `Manga.sourceId` is `id.hashCode().toLong()` — one-way — so an entry whose source id changes points at a source that no longer exists, and `downloadFolderNameFor(sourceId)` files its downloads under the old numeric key. A guided migration (reusing `feature/migration/`) and an answer for the orphaned downloads (#1256) must ship *with* such a change, not after it. Removing a backend was the extreme case; a Tachiyomi backup import lands entries the same way.

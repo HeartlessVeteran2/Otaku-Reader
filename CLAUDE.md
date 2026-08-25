@@ -8,9 +8,9 @@ This file is the AI assistant reference for the Otaku Reader codebase. Read it b
 
 Otaku Reader is a production-grade Android manga reader built entirely in Kotlin and Jetpack Compose by a solo developer. It is a clean-architecture alternative to Mihon/Tachiyomi. The feature set is complete: all 35 parity issues, the hardening batch, and the post-beta polish pass have shipped.
 
-**The source system is mid-rebuild.** The app is moving off dynamically-loaded Tachiyomi APK extensions and onto **JavaScript sources from the Mangayomi ecosystem**, run by QuickJS in an isolated sidecar process. This is the single largest active change in the codebase and it reverses a rule this file previously called non-negotiable — read *Extension System* before touching anything source-related.
+**The source system has two backends.** Dynamically-loaded Tachiyomi APK extensions, and **JavaScript sources from the Mangayomi ecosystem** run by QuickJS in an isolated sidecar process. The JavaScript backend was added in 2026-08 as a *replacement* for the APK one; that replacement was measured and **cancelled** — both now ship side by side. Read *Extension System* before touching anything source-related, and do not treat either backend as dead code.
 
-**Status:** All phases shipped. Alpha (2026-05-25) → Beta parity (#926–#958) → Hardening (#1090–#1099) → P3 polish (#1114) → Post-P3 additions: QR library sharing (#1110/#1125), update-errors screen (#1119), stats improvements (#1122), in-chapter download button (#1127), page bookmarks + collections (PR #1130, merged 2026-06-20) → Komikku-parity deferred-gaps batch (issue #1192, 7 PRs #1197/#1202–#1207, merged 2026-07-05 → 2026-07-06 — statistics Trackers card, settings wiring batch, keep-last-N delete-after-read, onboarding storage step, dedicated Update Errors screen, configurable migration options + custom-cover migration, selective backup/restore; remaining deferred items spun out to #1208). **Current phase: the JavaScript source-system rebuild (see *Extension System*). The v1.0.0 tag waits on it** — cutting a 1.0 on the APK backend that is about to be removed would ship a release whose sources stop working on the next update. Project website: https://heartless-veteran.github.io/Otaku-Reader/ — VitePress landing page, download with live version lookup, docs, FAQ, auto-synced changelog. Deployed from `website/` via `pages.yml`.
+**Status:** All phases shipped. Alpha (2026-05-25) → Beta parity (#926–#958) → Hardening (#1090–#1099) → P3 polish (#1114) → Post-P3 additions: QR library sharing (#1110/#1125), update-errors screen (#1119), stats improvements (#1122), in-chapter download button (#1127), page bookmarks + collections (PR #1130, merged 2026-06-20) → Komikku-parity deferred-gaps batch (issue #1192, 7 PRs #1197/#1202–#1207, merged 2026-07-05 → 2026-07-06 — statistics Trackers card, settings wiring batch, keep-last-N delete-after-read, onboarding storage step, dedicated Update Errors screen, configurable migration options + custom-cover migration, selective backup/restore; remaining deferred items spun out to #1208). **Current phase: both source backends ship side by side (see *Extension System*). The v1.0.0 tag is no longer blocked.** It was blocked only because cutting a 1.0 on a backend about to be removed would ship a release whose sources stop working on the next update — and that removal is cancelled, so the reason is gone. Project website: https://heartless-veteran.github.io/Otaku-Reader/ — VitePress landing page, download with live version lookup, docs, FAQ, auto-synced changelog. Deployed from `website/` via `pages.yml`.
 
 **The developer is newer to Kotlin. Always explain what was wrong and why a fix works — never drop solutions without context.**
 
@@ -37,10 +37,10 @@ Otaku-Reader/
 │   ├── preferences/        # DataStore preferences, encrypted credential storage
 │   ├── ui/                 # Shared Compose components, Material 3 theme, Coil integration
 │   ├── navigation/         # Type-safe Compose Navigation routing
-│   ├── js-runtime/         # JavaScript sources: QuickJS sidecar, JsProtocol, prelude.js  ← the future
+│   ├── js-runtime/         # JavaScript sources: QuickJS sidecar, JsProtocol, prelude.js
 │   ├── webview/            # WebView host (Cloudflare challenges, OAuth flows)
-│   ├── extension/          # APK classloading — RETIRING, see Extension System
-│   ├── tachiyomi-compat/   # RxJava 1.x stubs — RETIRING, see Extension System
+│   ├── extension/          # APK extension loading — one of two source backends
+│   ├── tachiyomi-compat/   # Tachiyomi source API + LocalSource + SourceHealthMonitor
 │   └── discord/            # Discord Rich Presence (native, no external library)
 └── feature/
     ├── library/            # Main manga collection, categories, filtering
@@ -226,14 +226,11 @@ Two things are deliberately *not* this key:
 - **`Route.SourceListing.sourceId`** is already the string id. Browse never went through the key,
   which is why browsing worked while reading from the library did not.
 
-#### The backend switch runs straight into this
+#### Why removing a backend runs straight into this
 
-Retiring the APK backend is **not** a code-only change, and this is the section that says why. A Mangayomi source's id is not its Tachiyomi equivalent, and `Manga.sourceId` is `id.hashCode().toLong()` — one-way. So on the day the APK sources go, **every existing library row points at a source that no longer exists**, which reproduces the exact "Source not found" failure described above, across the entire library at once, for every user.
+This is the section that killed the plan to retire the APK backend, so it is worth keeping even though that plan is cancelled. A Mangayomi source's id is not its Tachiyomi equivalent, and `Manga.sourceId` is `id.hashCode().toLong()` — one-way. So on the day the APK sources go, **every existing library row points at a source that no longer exists**, reproducing the exact "Source not found" failure described above, across the entire library at once, for every user. `downloadFolderNameFor(sourceId)` files every downloaded chapter under the numeric key, so re-pointing an entry at a new source also orphans its files on disk (#1256).
 
-Two things must ship *with* the removal, not after it:
-
-- **A guided library migration.** Reuse `feature/migration/` — the wizard already does source-to-source entry migration. This is the recourse; do not write a new one.
-- **A decision on downloads.** `downloadFolderNameFor(sourceId)` files every downloaded chapter under the numeric key, so re-pointing an entry at a new source orphans its files on disk. Tracked as #1256; it has to be resolved as part of this work.
+Both backends now ship side by side, so nothing re-points anything and neither consequence is live. **The rule this leaves behind is general:** any change that alters which source a library row resolves to must ship with a guided migration through `feature/migration/` (the wizard already does source-to-source entry migration — do not write a new one) *and* an answer for the download folders. That applies to a Tachiyomi backup import landing entries on absent sources just as much as it would have to a backend removal.
 
 ### Clean Architecture Layer Rules
 
@@ -267,15 +264,26 @@ Two things must ship *with* the removal, not after it:
 
 ---
 
-## Extension System — Being Rebuilt on JavaScript
+## Extension System — Two Backends
 
-**The APK backend is being retired. JavaScript sources are the future of this app, and the target ecosystem is Mangayomi.**
+**Both backends ship. The APK path stays; JavaScript sources are added alongside it.**
 
-This reverses what this file said until 2026-08-17. The old rule — *"Tachiyomi extension compatibility must never be broken"* — is **no longer in force**. It was removed deliberately, not by accident. Do not reinstate it, and do not treat the removal of APK code as a regression to revert.
+This file said twice before that the APK backend was being retired, and that is now **cancelled** — decided 2026-08-25 on measured evidence, not preference. The short version: the JavaScript half of the Mangayomi ecosystem is **16 usable sources**, roughly ten of them English-facing, against the hundreds the APK path already serves. Removing a working backend that carries the overwhelming majority of the catalogue, in order to standardise on one that carries a fraction of it, trades away the thing the app is for. A manga reader's value is its sources.
 
-### Why the direction changed
+So the JavaScript backend is **additive**. It is real, it works end to end, and it costs nothing to run beside the APK path — that code already exists and is paid for.
 
-Mangayomi publishes its sources in **both JavaScript and Dart** (`/javascript` and `/dart` in `kodjodevf/mangayomi-extensions`, with separate contributing guides). The JavaScript half needs no Dart runtime, so Kotlin can consume it directly — no Flutter port, no `d4rt`, no platform channel. That makes a single cross-backend source model reachable without giving up the language the app is written in.
+Two consequences fall straight out of this, and both are reasons the decision is worth the dual-backend maintenance cost:
+
+- **No forced library migration.** Retiring the APK backend would have re-pointed every existing library row at a source that no longer exists, reproducing repo-wide the "Source not found" failure this file calls its highest-impact bug ever. Keeping the backend means nothing to migrate.
+- **Downloads stay put.** `downloadFolderNameFor(sourceId)` files every chapter under the numeric source key, so a forced source swap would have orphaned every downloaded chapter on disk. #1256 still stands on its own merits, but it is no longer blocking anything.
+
+What does *not* change: `source-api`'s `MangaSource` is still the only contract the rest of the app knows, and a backend is still one implementation of one interface. That seam is what makes running two backends cheap.
+
+### Why JavaScript sources at all
+
+Mangayomi publishes its sources in **both JavaScript and Dart** (`/javascript` and `/dart` in `kodjodevf/mangayomi-extensions`, with separate contributing guides). The JavaScript half needs no Dart runtime, so Kotlin can consume it directly — no Flutter port, no `d4rt`, no platform channel. That is why this backend was reachable at all without rewriting the app.
+
+What that folder is **not** is a parallel catalogue. It is 18 distinct scripts (16 that resolve), while the Dart half is 247 — the numbers and how they were measured are under *Developer Context*. Reading the folder's existence as "Mangayomi's sources, in JavaScript" is the mistake that produced the retirement plan, and it is checklist item 4: the authoritative `index.json` says otherwise.
 
 ### The seam
 
@@ -285,22 +293,21 @@ Mangayomi publishes its sources in **both JavaScript and Dart** (`/javascript` a
 
 | Module | Status |
 |---|---|
-| `core/js-runtime/` | **The backend going forward.** QuickJS in a sidecar process, behind the `JsProtocol` JSON wire format. |
-| `source-api/` | **Keep.** The `MangaSource` seam. |
-| `core/extension/` | **Partly** retiring — the APK loader, classloader, signature verifier, trust store, installer and install receiver go. It also holds the `Extension`/`ExtensionSource`/`InstallStatus` models, the `ExtensionRepository`/`ExtensionRepoRepository` contracts, the blocklist and the `JsExtensionBackend` interface — **all of which the JavaScript path and the browse UI use**. Those stay; gut the module rather than deleting it. |
-| `core/tachiyomi-compat/` | **Partly** retiring. The `eu.kanade.tachiyomi.source.*` surface (the Tachiyomi `Source`/`CatalogueSource`/`HttpSource` API and its RxJava-facing models) and the `compat/Tachiyomi*Adapter` classes go with the APK loader. **Three things in it must survive and be extracted first** — see below. |
+| `core/js-runtime/` | **Live backend.** QuickJS in a sidecar process, behind the `JsProtocol` JSON wire format. Runs published Mangayomi JavaScript sources unmodified. |
+| `source-api/` | **The seam.** `MangaSource`, the one contract both backends implement. Not "the Tachiyomi API" — this app's own. |
+| `core/extension/` | **Live backend.** APK loading, plus the shared `Extension`/`ExtensionSource`/`InstallStatus` models, the `ExtensionRepository`/`ExtensionRepoRepository` contracts, the blocklist and the `JsExtensionBackend` interface — the last group serves **both** backends and the browse UI. |
+| `core/tachiyomi-compat/` | **Keep.** The `eu.kanade.tachiyomi.source.*` surface serves the APK backend; it also holds `LocalSource` (a shipped feature) and `SourceHealthMonitor` (which every source call routes through, JavaScript included). |
 
-#### What must be extracted before either module is deleted
+#### Two things in `core/tachiyomi-compat` are not APK-specific
 
-An earlier version of this table said "nothing but the APK path uses these". That was wrong, and deleting on that basis would have removed a shipped feature:
+Recorded because an earlier version of this file claimed "nothing but the APK path uses these", and acting on that would have deleted a shipped feature. It is still the right map of the module even now that nothing is being deleted — the name says Tachiyomi, the contents are not all Tachiyomi:
 
-| Survivor | Currently at | Why it stays |
+| Not APK-specific | Currently at | Why |
 |---|---|---|
 | `LocalSource` | `core/tachiyomi-compat/src/main/java/app/otakureader/core/tachiyomi/local/` | **Local manga folders — a shipped feature.** Wired into `feature/settings` (`LocalSourceBrowserScreen`), `core/navigation` (`Route`), `core/preferences` (`LocalSourcePreferences`) and the app's NavHost. Nothing to do with APKs. |
 | `SourceHealthMonitor` | `core/tachiyomi-compat/src/main/java/app/otakureader/core/tachiyomi/health/` | `SourceRepositoryImpl` routes **every** source call through it, JavaScript included — `JsSource`'s own comment relies on this for hung or broken scripts. |
-| `eu.kanade.tachiyomi.network.*` | `core/tachiyomi-compat/src/main/java/eu/kanade/tachiyomi/network/` — `NetworkHelper`, `RateLimitInterceptor`, `AndroidCookieJar`, progress bodies | **Measured: this row was wrong — these go with the APK path.** It used to say `OtakuReaderApplication` initialises `NetworkHelper` at startup, which is true and is *not* evidence of survival: that line is `Injekt.addSingletonFactory<NetworkHelper>`, and Injekt exists in this app solely so loaded extension APKs can resolve host dependencies (the surrounding comment says so). JavaScript sources never touch Injekt — they go through `JsHttpBridge`. Outside the two retiring modules the only textual hits are two *comments* in `core/network`, and `core/network` declares no dependency on `core/tachiyomi-compat`, so nothing there links against it. Remaining real consumers: the Injekt bootstrap (APK-serving) and `HttpSource` (retiring). `SpecificHostRateLimitInterceptor` and `RxCoroutineBridge` are already unreferenced anywhere. Delete the package with the APK loader; extract a class only if a *compiling* consumer survives. |
 
-So the sequence is **extract, then delete** — never delete first. Verify with `grep -rn "import eu\.kanade\.tachiyomi" --include=*.kt .` and confirm the only remaining consumers are inside the two retiring modules.
+`eu.kanade.tachiyomi.network.*` (`NetworkHelper`, `RateLimitInterceptor`, `AndroidCookieJar`, progress bodies) is **not** in that list, despite an earlier version of this file claiming it was on the grounds that `OtakuReaderApplication` initialises `NetworkHelper` at startup. That is true and is not evidence of anything: the line is `Injekt.addSingletonFactory<NetworkHelper>`, and Injekt exists in this app **solely so loaded extension APKs can resolve host dependencies** (the surrounding comment says so). JavaScript sources never touch Injekt — they go through `JsHttpBridge`. Outside `core/tachiyomi-compat` the only textual hits are two *comments* in `core/network`, which declares no dependency on the module and so links against none of it. `SpecificHostRateLimitInterceptor` and `RxCoroutineBridge` are unreferenced anywhere. So that package belongs to the APK backend, and lives or dies with it.
 
 ### Rules for the JavaScript backend
 
@@ -340,6 +347,10 @@ sit between that and the rest:
   to the isolation boundary, so it wants a deliberate decision rather than a drive-by fix.
   Asura Scans reads its entire detail page (author, artist, status, genres) through
   `nextElementSibling` and therefore cannot load a manga at all; Mangafire uses `children`.
+  **Decided 2026-08-25: deferred.** The cost is two sources, neither reachable from this sandbox,
+  so a fix could not be verified end to end even if written — and the price is the property the
+  handle design exists to protect. Revisit only as a deliberate boundary decision. See
+  *Developer Context*.
 - **Chapters come back empty for several sources** (MangaDex, Webtoons, Weeb Central, 漫画柜, TeamX).
   Only MangaDex was chased down, and there it is external: its own API answers `total: 0` for that
   title under the content ratings the source requests. The others are **not** yet diagnosed — do
@@ -593,7 +604,7 @@ A claim about a library's published versions was taken from a search API that on
 1. **Hilt binding errors** — Missing `@Provides`, wrong scope, missing `@InstallIn`. Check the DI module before assuming the ViewModel is wrong.
 2. **Room DAO not connected** — DAO not injected into repo, repo not injected into UseCase. Trace the chain.
 3. **MVI state not updating UI** — `StateFlow` not collected in Compose, or reducer emitting same reference. Use `copy()`.
-4. **JavaScript source failures** — check the site with `curl` first; most are Cloudflare, a moved domain, or the site being down. Then check, in order: is `MProvider` defined (a missing global fails the whole script, not one method); is the source reading a preference nobody set (declared defaults come from `getSourcePreferences()`); did a selector path leak a document handle. Reproduce with `tools/js-prelude-harness/`. *(APK loader failures — ClassLoader, permissions, interface mismatch — still exist while `core/extension` does, but that path is being removed and is not where new work goes.)*
+4. **JavaScript source failures** — check the site with `curl` first; most are Cloudflare, a moved domain, or the site being down. Then check, in order: is `MProvider` defined (a missing global fails the whole script, not one method); is the source reading a preference nobody set (declared defaults come from `getSourcePreferences()`); did a selector path leak a document handle. Reproduce with `tools/js-prelude-harness/`. *(APK loader failures — ClassLoader, permissions, interface mismatch — are a separate diagnosis path in `core/extension`; both backends are live, so identify which one the source came from before debugging.)*
 5. **"Source not found" for a library manga** — someone passed `manga.sourceId.toString()` where a source id was wanted. Use `getSourceByKey` / `resolveSourceId`. See *Source Identity* above.
 6. **Gradle dependency conflicts** — Version mismatches between Compose BOM, Kotlin, Hilt, or KSP. Check `libs.versions.toml` first.
 7. **Navigation crashes** — Missing destination, wrong argument type in NavGraph, or missing `@Serializable` on route class.
@@ -619,7 +630,7 @@ A claim about a library's published versions was taken from a search API that on
 
 ## What NOT To Do
 
-- **Do not reinstate the Tachiyomi APK backend.** This used to be the most critical constraint in this file and is now the opposite: the APK path is being retired in favour of JavaScript sources. See *Extension System*.
+- **Do not delete the Tachiyomi APK backend.** This file twice said it was being retired; that is cancelled. The JavaScript ecosystem is 16 usable sources against the APK path's hundreds, so removing it would gut the catalogue and force a library migration for no gain. See *Extension System*.
 - **Do not edit an extension to make it work.** Published sources run unmodified; a failure is the runtime's to fix.
 - **Do not let the Kotlin JS bindings hand host objects to JavaScript** — the compatibility layer belongs in `prelude.js`, which is what keeps the boundary primitives-only.
 - **Do not implement AI features in core** — AI features belong in the separate Otaku-Reader-AI repo.
@@ -666,17 +677,18 @@ CI uses JDK 21. Gradle setup/caching is handled by `gradle/actions/setup-gradle`
 
 - Solo developer, veteran background, newer to Kotlin — explain fixes, don't just drop code.
 - Multi-agent workflow: Claude (architecture + debugging), Copilot (day-to-day), Gemini Code Assist, Kimi Claw (bulk GitHub tasks).
-- **Current priority: the JavaScript source-system rebuild.** The AniList metadata backbone is done — Stage 5a shipped in #1232/#1234/#1235/#1236, and the details-screen metadata layer in #1238–#1250. The v1.0.0 tag waits on the source rebuild.
+- **Current priority: none blocking — the source work is closed out and v1.0.0 is tagged from `main` whenever the developer chooses.** The AniList metadata backbone is done — Stage 5a shipped in #1232/#1234/#1235/#1236, and the details-screen metadata layer in #1238–#1250. The JavaScript backend shipped in #1262/#1264 and runs alongside the APK backend rather than replacing it.
 
   Where it stands:
 
   | Milestone | State |
   |---|---|
   | 1. Run Mangayomi JS extensions unmodified | Shipped — PR #1262 (`prelude.js`, `MProvider`, real-index decoding, declared preference defaults) |
-  | 2. Retire `core/extension` + `core/tachiyomi-compat` | Not started. ~7,700 LOC sits in the two modules, but that is not the removal size — see the measured split below. |
-  | 3. Library migration + the downloads decision (#1256) | Not started — **must ship with milestone 2**, see *Source Identity* |
+  | 1b. Honest transport errors + Mangayomi url-accessor semantics | Shipped — PR #1264 |
+  | 2. Retire `core/extension` + `core/tachiyomi-compat` | **Cancelled** (2026-08-25). The measurement below is the reason: it trades hundreds of working sources for 16. The two modules stay. |
+  | 3. Library migration + the downloads decision (#1256) | **No longer forced.** Nothing re-points an existing library row, so no repo-wide "Source not found" and no orphaned downloads. #1256 stays open on its own merits (the folder name is still a numeric key), not as a release blocker. |
 
-  Milestone 1 is verified against real sources but is not the same as "the ecosystem works". That open question — *source coverage relative to the current APK set* — has now been measured against the live index, and the answer is the reason milestone 2 is not simply "start deleting".
+  Milestone 1 is verified against real sources but is not the same as "the ecosystem works". That open question — *source coverage relative to the current APK set* — was measured against the live index, and the answer is what killed milestone 2.
 
   **The JavaScript half of Mangayomi is 18 sources, not 114.** The index holds 363 entries; 114 carry `sourceCodeLanguage == 1` (JavaScript) and 249 carry `0` (Dart) — confirmed against the artifact, where every language-1 `sourceCodeUrl` ends `.js` and every language-0 one ends `.dart`. But entries are published *per language*, all pointing at the same script: all 45 MangaDex entries share one `baseUrl`, one `apiUrl` and one `sourceCodeUrl`. Across the 114 JavaScript entries there are 114 distinct ids but only **18 distinct `sourceCodeUrl`s and 18 distinct `baseUrl`s** — so collapsing by name, by script and by site all give the same number, and 18 is a count of real extensions rather than of brands:
 
@@ -687,9 +699,17 @@ CI uses JDK 21. Gradle setup/caching is handled by `gradle/actions/setup-gradle`
 
   Four sources supply 100 of the 114 JavaScript entries — MangaDex (45 languages), Comick (41), Mangafire (7), Webtoons (7). (`tools/js-prelude-harness/batch.mjs` used to dedupe its sweep by id on the opposite assumption; that is fixed in the same commit as this note.) The other 14 entries are 14 one-off sources, of which 5 are Chinese, 2 Arabic, and 6 English-facing (ReadComicOnline, Asura Scans, ManhwaZ, Weeb Central, Mangapill, plus Mangalib in Russian). So a user who ends up on the JavaScript backend alone gets roughly **ten English sources**.
 
-  This does not invalidate milestone 1 — the runtime works, and it is what any Mangayomi-shaped backend needs. It does mean **deleting the APK backend is a source-count cliff, not a migration**, and the decision of whether to take it is the developer's, not an implementation detail of milestone 2. The plan's premise ("Mangayomi publishes its sources in both JavaScript and Dart") is true about the repository layout and misleading about the ecosystem: the Dart half is the ecosystem. This is checklist item 4 — the `/javascript` folder existing was read as evidence of a parallel catalogue, and the authoritative index says otherwise.
+  This does not invalidate milestone 1 — the runtime works, and it is what any Mangayomi-shaped backend needs. It does mean **deleting the APK backend would have been a source-count cliff, not a migration**. The plan's premise ("Mangayomi publishes its sources in both JavaScript and Dart") is true about the repository layout and misleading about the ecosystem: the Dart half *is* the ecosystem. This is checklist item 4 — the `/javascript` folder existing was read as evidence of a parallel catalogue, and the authoritative index says otherwise.
 
-  **The removal is also not ~7,700 LOC of deletion.** Measured across the two modules (main sources, tests excluded):
+  **The decision taken (2026-08-25): keep both backends.** Three facts decided it, and they are recorded here so the next agent does not re-open the question without new evidence:
+
+  1. 16 usable JavaScript sources (18 distinct scripts, 2 of them 404) against the several hundred the APK path reaches. Removal is a downgrade for every user.
+  2. The removal cannot be shipped alone — *Source Identity* explains why it detonates every library row at once, and #1256 orphans every downloaded chapter on disk. The recourse (a guided migration through `feature/migration/`) is real work whose only purpose is to undo damage the removal itself causes.
+  3. Nothing forces the choice. `MangaSource` is the seam; two implementations of one interface cost nothing structurally, and the JS backend is additive. The dual-backend isolation bug CLAUDE.md records ("an APK failure silently dropped every JS source") is a bug to keep fixed, not an argument for deleting a backend.
+
+  **Also deferred: DOM traversal in the prelude** (`nextElementSibling`, `parent`, `children`). This is a change to the isolation boundary, not a missing function — `select`/`selectFirst` hand back `outerHtml()` **strings**, so an element arrives detached and its siblings are not in the data. Supporting it means the host handing out element handles instead of strings, which is exactly the property the handle design exists to protect. It costs two sources (Asura Scans, Mangafire), neither reachable from the CI sandbox, so a fix could not be verified end-to-end even if written. Revisit only with a deliberate decision about the boundary — not as a drive-by fix.
+
+  **Had the removal gone ahead, it would not have been ~7,700 LOC of deletion.** Kept here because it is measured, and because anyone re-opening the question needs it: Measured across the two modules (main sources, tests excluded):
 
   | | delete outright | gut to the JS path | extract and keep |
   |---|---|---|---|
