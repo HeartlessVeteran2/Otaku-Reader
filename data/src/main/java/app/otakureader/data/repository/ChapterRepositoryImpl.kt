@@ -73,7 +73,9 @@ class ChapterRepositoryImpl @Inject constructor(
     }
     
     override suspend fun insertChapters(chapters: List<Chapter>) {
-        chapterDao.insertAll(chapters.map { it.toEntity() })
+        // upsertAll, not a REPLACE insert: re-inserting an existing chapter must keep its id, or
+        // every table storing one breaks. See ChapterDao.upsert and #1254.
+        chapterDao.upsertAll(chapters.map { it.toEntity() })
     }
     
     override fun getUnreadCountByMangaId(mangaId: Long): Flow<Int> {

@@ -43,7 +43,7 @@ class ChapterDaoTest {
         mangaDao.insert(MangaEntity(id = mangaId, title = "Test Manga", sourceId = 1L, url = "url", favorite = true))
 
         val chapter = ChapterEntity(id = 1L, mangaId = mangaId, url = "url_1", name = "Chapter 1", read = false, chapterNumber = 1f)
-        chapterDao.insert(chapter)
+        chapterDao.upsert(chapter)
 
         chapterDao.updateChapterProgress(1L, read = true, lastPageRead = 5)
 
@@ -60,7 +60,7 @@ class ChapterDaoTest {
         val chapters = (1..10).map { i ->
             ChapterEntity(id = i.toLong() + 100, mangaId = mangaId, url = "url_$i", name = "Chapter $i", read = false, chapterNumber = i.toFloat())
         }
-        chapterDao.insertAll(chapters)
+        chapterDao.upsertAll(chapters)
 
         val chapterIds = chapters.map { it.id }
         chapterDao.updateChapterProgress(chapterIds, read = true, lastPageRead = 0)
@@ -80,7 +80,7 @@ class ChapterDaoTest {
         val chapters = (1..5).map { i ->
             ChapterEntity(id = i.toLong() + 200, mangaId = mangaId, url = "url_$i", name = "Chapter $i", read = false, chapterNumber = i.toFloat())
         }
-        chapterDao.insertAll(chapters)
+        chapterDao.upsertAll(chapters)
 
         // Only update the first 3
         val idsToUpdate = chapters.take(3).map { it.id }
@@ -110,7 +110,7 @@ class ChapterDaoTest {
         val nonFavoriteChapters = (1..7).map { i ->
             ChapterEntity(id = i.toLong() + 400, mangaId = nonFavoriteMangaId, url = "url_$i", name = "Chapter $i", read = false, chapterNumber = i.toFloat())
         }
-        chapterDao.insertAll(favoriteChapters + nonFavoriteChapters)
+        chapterDao.upsertAll(favoriteChapters + nonFavoriteChapters)
 
         val totalChapterCount = chapterDao.getTotalChapterCountForLibrary().first()
         assertEquals(3, totalChapterCount)

@@ -154,7 +154,7 @@ class BackupRestorer @Inject constructor(
                 } else {
                     // Insert new chapter and remember it, so a duplicate URL later in the
                     // same backup updates this row instead of inserting a second copy.
-                    val newId = chapterDao.insert(backupChapter.toChapterEntity(mangaId))
+                    val newId = chapterDao.upsert(backupChapter.toChapterEntity(mangaId))
                     existingByUrl[backupChapter.url] = backupChapter.toChapterEntity(mangaId).copy(id = newId)
                     newId
                 }

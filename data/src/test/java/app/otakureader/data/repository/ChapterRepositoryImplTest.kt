@@ -166,7 +166,7 @@ class ChapterRepositoryImplTest {
 
     @Test
     fun insertChapters_insertsAllConvertedEntities() = runTest {
-        coEvery { chapterDao.insertAll(any()) } returns Unit
+        coEvery { chapterDao.upsertAll(any()) } returns Unit
 
         val chapters = listOf(
             Chapter(id = 1L, mangaId = 10L, url = "/c/1", name = "Ch 1"),
@@ -176,7 +176,7 @@ class ChapterRepositoryImplTest {
         repository.insertChapters(chapters)
 
         coVerify {
-            chapterDao.insertAll(match { entities ->
+            chapterDao.upsertAll(match { entities ->
                 entities.size == 2 &&
                     entities[0].id == 1L &&
                     entities[1].id == 2L

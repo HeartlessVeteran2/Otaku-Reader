@@ -89,7 +89,7 @@ class BackupCreatorTest {
         val mangaId = database.mangaDao().insert(
             MangaEntity(sourceId = 1L, url = "/m/1", title = "Test Manga", favorite = true)
         )
-        database.chapterDao().insert(
+        database.chapterDao().upsert(
             ChapterEntity(mangaId = mangaId, url = "/c/1", name = "Chapter 1", chapterNumber = 1f)
         )
         database.categoryDao().insert(CategoryEntity(id = 1L, name = "Reading", order = 0))
