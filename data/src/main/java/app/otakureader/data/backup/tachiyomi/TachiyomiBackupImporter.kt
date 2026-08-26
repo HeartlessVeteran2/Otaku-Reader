@@ -139,10 +139,18 @@ class TachiyomiBackupImporter @Inject constructor(
 
     private suspend fun restoreChapters(mangaId: Long, chapters: List<ParsedChapter>): Int {
         if (chapters.isEmpty()) return 0
-        val existingChapters = chapterDao.getChaptersByMangaId(mangaId).first()
+        // Mutable, and updated as rows are inserted, so a URL repeated later in the same backup
+        // updates the row this loop just created instead of being treated as new again. The
+        // snapshot alone is stale the moment the first insert lands: the duplicate would take the
+        // upsert path, which by design refreshes only source metadata, and the backup's own `read`,
+        // `lastPageRead`, `sourceOrder` and `dateFetch` would be silently dropped — while `inserted`
+        // counted the same chapter twice. BackupRestorer already does this for the same reason.
+        val existingByUrl = chapterDao.getChaptersByMangaId(mangaId).first()
+            .associateBy { it.url }
+            .toMutableMap()
         var inserted = 0
         chapters.forEach { chapter ->
-            val existing = existingChapters.find { it.url == chapter.url }
+            val existing = existingByUrl[chapter.url]
             val entity = ChapterEntity(
                 id = existing?.id ?: 0,
                 mangaId = mangaId,
@@ -159,7 +167,8 @@ class TachiyomiBackupImporter @Inject constructor(
             if (existing != null) {
                 chapterDao.update(entity)
             } else {
-                chapterDao.upsert(entity)
+                val newId = chapterDao.upsert(entity)
+                existingByUrl[chapter.url] = entity.copy(id = newId)
                 inserted++
             }
         }

@@ -75,11 +75,17 @@ class LibraryUpdateWorker @AssistedInject constructor(
         // permanent no-op against the always-pending periodic chain, and REPLACE would cancel the
         // periodic schedule outright. Both worse than the overlap.
         //
-        // tryLock rather than lock: if an update is already running, a second one has nothing to add,
-        // and returning immediately is better than queueing a redundant pass behind it.
+        // tryLock rather than lock: blocking would hold a JobScheduler slot and burn this worker's
+        // ten-minute budget waiting, then run a second full network sweep anyway.
+        //
+        // Retry rather than success, because the two flows have different unique names: a manual
+        // refresh arriving while the periodic run holds the lock is *not* de-duplicated by KEEP
+        // (that only guards `library_update` against itself), so returning success here would drop
+        // the user's request outright while the pull-to-refresh UI implied it had been serviced.
+        // Retry re-enqueues it with backoff, so it runs once the in-flight update releases the lock.
         if (!updateMutex.tryLock()) {
-            Log.d(TAG, "Skipping library update - another update is already running")
-            return Result.success()
+            Log.d(TAG, "Deferring library update - another update is already running")
+            return Result.retry()
         }
         try {
             return runUpdate()
