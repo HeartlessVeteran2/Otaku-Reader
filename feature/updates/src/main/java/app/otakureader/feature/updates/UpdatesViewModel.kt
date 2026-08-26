@@ -8,7 +8,6 @@ import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.model.DownloadBlockedException
 import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.UpdateErrorRepository
-import app.otakureader.domain.repository.downloadFolderNameFor
 import app.otakureader.domain.scheduler.LibraryUpdateScheduler
 import app.otakureader.domain.usecase.GetLastUpdateRunSummaryUseCase
 import app.otakureader.domain.usecase.GetLibraryMangaUseCase
@@ -181,7 +180,7 @@ class UpdatesViewModel @Inject constructor(
                     chapterId = chapterId,
                     mangaTitle = update.manga.title,
                     chapterTitle = update.chapter.name,
-                    sourceName = downloadFolderNameFor(update.manga.sourceId)
+                    sourceName = downloadRepository.downloadFolderNameFor(update.manga.sourceId)
                 )
             }.onSuccess {
                 _effect.send(UpdatesEffect.ShowSnackbar(
@@ -213,7 +212,7 @@ class UpdatesViewModel @Inject constructor(
                         chapterId = update.chapter.id,
                         mangaTitle = update.manga.title,
                         chapterTitle = update.chapter.name,
-                        sourceName = downloadFolderNameFor(update.manga.sourceId)
+                        sourceName = downloadRepository.downloadFolderNameFor(update.manga.sourceId)
                     )
                 }.onSuccess { successCount++ }.onFailure { e ->
                     if (e is DownloadBlockedException) blockedByDataSaver = true
@@ -392,7 +391,7 @@ class UpdatesViewModel @Inject constructor(
                         mangaId = manga.id,
                         title = manga.title,
                         thumbnailUrl = manga.thumbnailUrl,
-                        sourceName = downloadFolderNameFor(manga.sourceId),
+                        sourceName = downloadRepository.downloadFolderNameFor(manga.sourceId),
                         lastChecked = 0L
                     )
                 }

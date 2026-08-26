@@ -12,14 +12,16 @@ import app.otakureader.domain.model.DownloadItem
 import app.otakureader.domain.model.OrphanScanResult
 import app.otakureader.domain.model.ReindexResult
 import app.otakureader.domain.repository.DownloadRepository
-import app.otakureader.domain.repository.downloadFolderNameFor
+import app.otakureader.domain.repository.SourceRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.withContext
@@ -30,6 +32,7 @@ class DownloadRepositoryImpl @Inject constructor(
     private val downloadManager: DownloadManager,
     private val mangaDao: MangaDao,
     private val chapterDao: ChapterDao,
+    private val sourceRepository: SourceRepository,
     @param:ApplicationScope private val scope: CoroutineScope
 ) : DownloadRepository {
 
@@ -313,9 +316,82 @@ class DownloadRepositoryImpl @Inject constructor(
         val candidateIds = rootDir.listFiles { f -> f.isDirectory }
             ?.mapNotNull { it.name.toLongOrNull() }
             ?: return@withContext 0
-        val resolvedNames = candidateIds.associate { id ->
-            id.toString() to downloadFolderNameFor(id)
+        // The *display* name, deliberately not downloadFolderNameFor(): that answers "where do
+        // this source's chapters live right now", which for an unmigrated source is the number
+        // this loop is trying to rename away from. Asking it here would build an identity map and
+        // rename nothing — which is exactly what this worker did before #1256, when the resolver
+        // was `sourceId.toString()`.
+        val resolvedNames = candidateIds.mapNotNull { id ->
+            displayNameFor(id)?.let { id.toString() to it }
+        }.toMap()
+        val renamed = DownloadProvider.migrateSourceFolderNames(rootDir, resolvedNames)
+        // The rename is what folderNames cached against. Drop it so reads pick up the new
+        // location on the next resolve instead of pointing at a directory that just moved.
+        folderNames.clear()
+        renamed
+    }
+
+    /**
+     * Cache for [downloadFolderNameFor].
+     *
+     * Not premature: `LibraryViewModel` resolves one folder name per library entry to build its
+     * download badges, so an uncached resolve would mean a source-list scan and two `isDirectory`
+     * calls per manga, every time the library is observed. The previous implementation was
+     * `sourceId.toString()`, so there was no cost to inherit.
+     *
+     * Cleared by [migrateSourceFolderNames], which is the one thing that moves a folder out from
+     * under a cached answer. An extension installed or uninstalled mid-session can also change a
+     * resolution; that self-corrects on the next launch and cannot lose files, because every
+     * branch below points at a directory that exists.
+     */
+    private val folderNames = ConcurrentHashMap<Long, String>()
+
+    override suspend fun downloadFolderNameFor(sourceId: Long): String {
+        folderNames[sourceId]?.let { return it }
+        val resolved = resolveFolderName(sourceId)
+        folderNames[sourceId] = resolved
+        return resolved
+    }
+
+    /**
+     * Picks between the source's display name and the numeric key, preferring whichever the
+     * chapters are actually under. See [DownloadRepository.downloadFolderNameFor] for why disk
+     * has the final say.
+     */
+    private suspend fun resolveFolderName(sourceId: Long): String {
+        val numeric = sourceId.toString()
+        val display = displayNameFor(sourceId) ?: return numeric
+        return withContext(Dispatchers.IO) {
+            val root = DownloadProvider.getRootDir(context)
+            when {
+                File(root, display).isDirectory -> display
+                // Chapters are still filed under the number: the migration has not run yet, or
+                // it could not claim the target name. Either way the number is where the files
+                // are, and answering anything else loses them.
+                File(root, numeric).isDirectory -> numeric
+                // Nothing on disk for this source yet, so there is nothing to lose and new
+                // downloads get the readable name.
+                else -> display
+            }
         }
-        DownloadProvider.migrateSourceFolderNames(rootDir, resolvedNames)
+    }
+
+    /**
+     * The sanitized display name for a source key, or null when no readable name may be used.
+     *
+     * Null covers two cases that must both keep the numeric key. The source may not be loaded at
+     * all — an uninstalled extension — and its downloads have to stay readable under the number.
+     * Or two loaded sources may share a display name, which both backends shipping a source of
+     * the same name makes realistic: filing both under one folder would interleave two catalogues
+     * in one tree. That collision is detectable from the loaded list without touching disk, so
+     * the migration and every read reach the same verdict by construction rather than by luck.
+     */
+    private suspend fun displayNameFor(sourceId: Long): String? {
+        val name = sourceRepository.getSourceByKey(sourceId)?.name ?: return null
+        val sanitized = DownloadProvider.sanitize(name)
+        if (sanitized.isBlank() || sanitized == sourceId.toString()) return null
+        val sharingName = sourceRepository.getSources().first()
+            .count { DownloadProvider.sanitize(it.name) == sanitized }
+        return if (sharingName > 1) null else sanitized
     }
 }

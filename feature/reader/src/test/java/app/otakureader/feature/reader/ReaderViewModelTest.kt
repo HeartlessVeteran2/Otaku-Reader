@@ -180,6 +180,9 @@ class ReaderViewModelTest {
         every { downloadRepository.observeDownloads() } returns flowOf(emptyList())
         coEvery { downloadRepository.enqueueChapter(any(), any(), any(), any(), any(), any(), any()) } just runs
         coEvery { downloadRepository.isChapterDownloaded(any(), any(), any()) } returns false
+        // #1256 moved folder-name resolution onto DownloadRepository; keep the numeric key these
+        // tests already assert on.
+        coEvery { downloadRepository.downloadFolderNameFor(any()) } answers { firstArg<Long>().toString() }
 
         // Missing settings for updated loadSettings() - added 2025-04-14
         every { settingsRepository.showContentInCutout } returns flowOf(false)
@@ -262,6 +265,7 @@ class ReaderViewModelTest {
                 mangaRepository = mangaRepository,
                 chapterRepository = chapterRepository,
                 sourceRepository = sourceRepository,
+                downloadRepository = downloadRepository,
                 pageLoader = pageLoader,
             ),
             historyDelegate = ReaderHistoryDelegate(

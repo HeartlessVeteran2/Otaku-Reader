@@ -84,6 +84,9 @@ class RecordReadingHistoryWorkerTest {
         coEvery { chapterRepository.updateChapterProgress(any<Long>(), any<Boolean>(), any<Int>()) } just runs
         coEvery { mangaRepository.getMangaById(mangaId) } returns testManga
         coEvery { chapterRepository.getChapterById(chapterId) } returns testChapter
+        // #1256 moved folder-name resolution onto DownloadRepository. These tests are about
+        // delete-after-read, not naming, so keep the numeric key they already assert on.
+        coEvery { downloadRepository.downloadFolderNameFor(any()) } answers { firstArg<Long>().toString() }
         coEvery { downloadRepository.isChapterDownloaded(any(), any(), any()) } returns true
         coEvery { downloadRepository.deleteChapterDownload(any(), any(), any(), any()) } just runs
         // Default: immediate delete-after-read (slots = 0).

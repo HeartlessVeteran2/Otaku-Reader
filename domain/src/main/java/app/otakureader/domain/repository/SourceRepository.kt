@@ -129,18 +129,3 @@ fun <T> Iterable<T>.associateBySourceKey(id: (T) -> String): Map<Long, T> {
         items.forEach { item -> put(id(item).toSourceId(), item) }
     }
 }
-
-/**
- * The on-disk folder name used for a manga's downloads: the numeric source key, as a string.
- *
- * Not a [SourceRepository] extension, because it consults no source and pretending otherwise
- * implied a dependency that does not exist. It used to be one — `getSource(sourceId.toString())
- * ?.name` — but that lookup compared a hashed key's decimal against a source's real id and so
- * could never match. Every download on every device is already filed under the number, so making
- * the name resolve now would point every read at a folder that does not exist, orphaning
- * downloaded chapters. Switching to display names is a migration, not an edit; see #1256.
- *
- * Every download enqueue/read/delete call site must resolve through this so they all agree on
- * the same folder — never build a download path from a raw sourceId directly.
- */
-fun downloadFolderNameFor(sourceId: Long): String = sourceId.toString()

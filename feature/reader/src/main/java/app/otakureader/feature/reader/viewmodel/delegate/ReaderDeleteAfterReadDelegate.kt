@@ -7,7 +7,6 @@ import app.otakureader.domain.download.selectChapterToDeleteAfterRead
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.MangaRepository
-import app.otakureader.domain.repository.downloadFolderNameFor
 import javax.inject.Inject
 import kotlinx.coroutines.flow.first
 
@@ -46,7 +45,7 @@ class ReaderDeleteAfterReadDelegate @Inject constructor(
                 slots = slots,
             )
         } ?: return
-        val downloadFolderName = downloadFolderNameFor(manga.sourceId)
+        val downloadFolderName = downloadRepository.downloadFolderNameFor(manga.sourceId)
         if (!downloadRepository.isChapterDownloaded(downloadFolderName, manga.title, chapter.name)) return
 
         downloadRepository.deleteChapterDownload(

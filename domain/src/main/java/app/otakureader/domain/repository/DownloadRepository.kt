@@ -181,4 +181,27 @@ interface DownloadRepository {
      * @return the number of directories renamed.
      */
     suspend fun migrateSourceFolderNames(): Int
+
+    /**
+     * The on-disk folder name used for a manga's downloads, for the `Long` key stored in
+     * `Manga.sourceId`.
+     *
+     * Every download enqueue, read and delete must resolve through this so they all agree on the
+     * same folder — never build a download path from a raw `sourceId`.
+     *
+     * It lives on this repository, rather than being a pure function of the key, because
+     * answering correctly needs two things a pure function does not have: the loaded sources (to
+     * turn a hashed key into a display name at all) and **the download directory itself**. The
+     * second is the important one. This used to be `sourceId.toString()` and every download on
+     * every device is filed under that number; a resolver that returned a display name without
+     * checking what is actually on disk would point every read at a folder that does not exist
+     * yet, and every already-downloaded chapter would silently vanish from the app — the worst
+     * outcome for offline reading, and the reason #1256 was a migration rather than an edit.
+     *
+     * Falls back to the numeric key whenever the display name is not safe to use: the source is
+     * not loaded (its extension is uninstalled), two loaded sources share the name, or the
+     * chapters are still filed under the number because the rename has not run or did not
+     * succeed.
+     */
+    suspend fun downloadFolderNameFor(sourceId: Long): String
 }
