@@ -36,6 +36,7 @@ import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.first
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.Mutex
 
 /**
  * Background worker that checks for new chapters in the library.
@@ -61,8 +62,34 @@ class LibraryUpdateWorker @AssistedInject constructor(
     private val feedRepository: FeedRepository,
 ) : CoroutineWorker(context, workerParams) {
 
-    @Suppress("LongMethod", "CyclomaticComplexMethod", "CognitiveComplexMethod")
     override suspend fun doWork(): Result {
+        // Refuse to run a second update alongside one already in flight.
+        //
+        // The manual and periodic flows use different WorkManager unique names (see [WORK_NAME] and
+        // [PERIODIC_WORK_NAME]), so WorkManager will happily run both at once. Overlapping runs read
+        // the stored chapter list before either writes, so both see the same chapters as new and
+        // both insert — and they duplicate update notifications and download enqueues besides.
+        //
+        // Giving the two flows one unique name looks like the tidier fix and is not: a unique name
+        // is shared between one-time and periodic work, so KEEP would make the manual refresh a
+        // permanent no-op against the always-pending periodic chain, and REPLACE would cancel the
+        // periodic schedule outright. Both worse than the overlap.
+        //
+        // tryLock rather than lock: if an update is already running, a second one has nothing to add,
+        // and returning immediately is better than queueing a redundant pass behind it.
+        if (!updateMutex.tryLock()) {
+            Log.d(TAG, "Skipping library update - another update is already running")
+            return Result.success()
+        }
+        try {
+            return runUpdate()
+        } finally {
+            updateMutex.unlock()
+        }
+    }
+
+    @Suppress("LongMethod", "CyclomaticComplexMethod", "CognitiveComplexMethod")
+    private suspend fun runUpdate(): Result {
         val startTime = System.currentTimeMillis()
         return try {
             // Check if update should only run on Wi-Fi
@@ -375,6 +402,15 @@ class LibraryUpdateWorker @AssistedInject constructor(
 
     companion object {
         private const val TAG = "LibraryUpdateWorker"
+
+        /**
+         * Serialises update runs across both work names.
+         *
+         * Process-wide because WorkManager runs both flows in the app process; if this app ever
+         * moves WorkManager to a second process, this guard stops holding and the overlap returns.
+         */
+        private val updateMutex = Mutex()
+
         const val WORK_NAME = "library_update"
         const val PERIODIC_WORK_NAME = "library_update_periodic"
 

@@ -50,7 +50,7 @@ class ReadingHistoryDaoTest {
                 favorite = true
             )
         )
-        val chapterId = chapterDao.insert(
+        val chapterId = chapterDao.upsert(
             ChapterEntity(
                 id = 1L,
                 mangaId = mangaId,
@@ -94,7 +94,7 @@ class ReadingHistoryDaoTest {
                 favorite = true
             )
         )
-        val chapterId = chapterDao.insert(
+        val chapterId = chapterDao.upsert(
             ChapterEntity(
                 id = 1L,
                 mangaId = mangaId,
@@ -136,7 +136,7 @@ class ReadingHistoryDaoTest {
                 favorite = true
             )
         )
-        val chapterId = chapterDao.insert(
+        val chapterId = chapterDao.upsert(
             ChapterEntity(
                 id = 1L,
                 mangaId = mangaId,
@@ -173,7 +173,7 @@ class ReadingHistoryDaoTest {
                 favorite = true
             )
         )
-        val chapterId = chapterDao.insert(
+        val chapterId = chapterDao.upsert(
             ChapterEntity(
                 id = 1L,
                 mangaId = mangaId,
@@ -214,7 +214,7 @@ class ReadingHistoryDaoTest {
                 favorite = true
             )
         )
-        val chapterId = chapterDao.insert(
+        val chapterId = chapterDao.upsert(
             ChapterEntity(
                 id = 1L,
                 mangaId = mangaId,
@@ -248,7 +248,7 @@ class ReadingHistoryDaoTest {
                 favorite = true
             )
         )
-        val chapterId = chapterDao.insert(
+        val chapterId = chapterDao.upsert(
             ChapterEntity(
                 id = 1L,
                 mangaId = mangaId,
@@ -290,7 +290,7 @@ class ReadingHistoryDaoTest {
             read = false,
             chapterNumber = 1f
         )
-        val chapterId = chapterDao.insert(chapter)
+        val chapterId = chapterDao.upsert(chapter)
 
         // Insert history
         readingHistoryDao.upsert(chapterId, readAt = 100L, readDurationMs = 1000L)

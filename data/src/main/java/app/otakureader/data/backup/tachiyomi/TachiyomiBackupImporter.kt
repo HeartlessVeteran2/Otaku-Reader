@@ -159,7 +159,7 @@ class TachiyomiBackupImporter @Inject constructor(
             if (existing != null) {
                 chapterDao.update(entity)
             } else {
-                chapterDao.insert(entity)
+                chapterDao.upsert(entity)
                 inserted++
             }
         }
