@@ -223,6 +223,16 @@ sealed interface Route {
     @Serializable
     data object PrivacyPolicy : Route
 
+    /**
+     * Hidden developer screen, reached from the About screen's version line.
+     *
+     * An ordinary route with no special handling: the screen itself watches the unlock flag and
+     * leaves when it is not set, which is what makes the flag — rather than reachability of this
+     * destination — the thing that decides whether the screen shows.
+     */
+    @Serializable
+    data object Developer : Route
+
     // ─── Feed ───
 
     @Serializable

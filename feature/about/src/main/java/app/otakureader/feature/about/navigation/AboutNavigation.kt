@@ -9,11 +9,13 @@ import app.otakureader.feature.about.PrivacyPolicyScreen
 fun NavGraphBuilder.aboutScreen(
     onNavigateBack: () -> Unit,
     onNavigateToPrivacyPolicy: () -> Unit = {},
+    onNavigateToDeveloper: () -> Unit = {},
 ) {
     composable<Route.About> {
         AboutScreen(
             onNavigateBack = onNavigateBack,
             onNavigateToPrivacyPolicy = onNavigateToPrivacyPolicy,
+            onNavigateToDeveloper = onNavigateToDeveloper,
         )
     }
 }

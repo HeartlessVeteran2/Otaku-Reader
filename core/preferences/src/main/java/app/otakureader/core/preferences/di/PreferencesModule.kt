@@ -14,6 +14,7 @@ import app.otakureader.core.preferences.CloudBackupCredentialsStore
 import app.otakureader.core.preferences.EncryptedOpdsCredentialStore
 import app.otakureader.core.preferences.PendingOAuthStore
 import app.otakureader.core.preferences.TrackerTokenStore
+import app.otakureader.core.preferences.DeveloperPreferences
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.LibraryPreferences
 import app.otakureader.core.preferences.LocalSourcePreferences
@@ -84,6 +85,11 @@ object PreferencesModule {
     @Singleton
     fun provideGeneralPreferences(dataStore: DataStore<Preferences>): GeneralPreferences =
         GeneralPreferences(dataStore)
+
+    @Provides
+    @Singleton
+    fun provideDeveloperPreferences(dataStore: DataStore<Preferences>): DeveloperPreferences =
+        DeveloperPreferences(dataStore)
 
     @Provides
     @Singleton

@@ -1,0 +1,18 @@
+# Developer extension-repository seeds.
+#
+# Copy this file to `dev-repos.txt` (same directory) and put your own repository URLs in it.
+# `dev-repos.txt` is gitignored, so your list is compiled into your builds without ever being
+# committed to this public repository.
+#
+# One URL per line. Blank lines are ignored, `#` starts a comment.
+# Each URL should point at the directory containing index.min.json or index.json — the same thing
+# you would paste into Browse -> Extensions -> Repositories by hand.
+#
+# The screen that reads this sits behind the passphrase gate described in DeveloperUnlock.kt.
+# That gate is obscurity, not security: it keeps the screen out of casual reach, nothing more.
+#
+# Format example. The URL below is the repository the app already adds by itself on first run
+# (ExtensionRepoRepository.DEFAULT_REPO_URL), so listing it achieves nothing — it is here only to
+# show the expected shape:
+#
+# https://raw.githubusercontent.com/keiyoushi/extensions/repo

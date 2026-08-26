@@ -55,3 +55,6 @@ server/.env
 ruvector.db
 .claude-flow/swarm/
 .claude/worktrees/
+
+# Developer extension-repository seeds (personal, never committed) — see DeveloperRepoSeeds.kt
+app/src/main/assets/dev-repos.txt
