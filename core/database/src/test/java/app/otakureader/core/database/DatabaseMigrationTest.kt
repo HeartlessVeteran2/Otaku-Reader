@@ -36,6 +36,7 @@ import app.otakureader.core.database.migrations.MIGRATION_41_42
 import app.otakureader.core.database.migrations.MIGRATION_42_43
 import app.otakureader.core.database.migrations.MIGRATION_43_44
 import app.otakureader.core.database.migrations.MIGRATION_44_45
+import app.otakureader.core.database.migrations.MIGRATION_45_46
 import app.otakureader.core.database.migrations.MIGRATION_9_10
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -53,7 +54,8 @@ private const val SCHEMA_V42 = 42
 private const val SCHEMA_V43 = 43
 private const val SCHEMA_V44 = 44
 private const val SCHEMA_V45 = 45
-private const val EXPECTED_MIGRATION_COUNT = 43
+private const val SCHEMA_V46 = 46
+private const val EXPECTED_MIGRATION_COUNT = 44
 
 @RunWith(AndroidJUnit4::class)
 // One test class per migration chain: it grows by design with every schema version.
@@ -72,7 +74,7 @@ class DatabaseMigrationTest {
     fun allMigrations_formsContiguousChain() {
         val sorted = ALL_MIGRATIONS.sortedBy { it.startVersion }
         assertEquals("Migration chain must start at version 2", 2, sorted.first().startVersion)
-        assertEquals("Migration chain must end at version 45", SCHEMA_V45, sorted.last().endVersion)
+        assertEquals("Migration chain must end at version 46", SCHEMA_V46, sorted.last().endVersion)
 
         for (i in 0 until sorted.size - 1) {
             val current = sorted[i]
@@ -99,7 +101,7 @@ class DatabaseMigrationTest {
 
     @Test
     fun allMigrations_count() {
-        assertEquals("Expected 43 migrations (v2→v45)", EXPECTED_MIGRATION_COUNT, ALL_MIGRATIONS.size)
+        assertEquals("Expected 44 migrations (v2→v46)", EXPECTED_MIGRATION_COUNT, ALL_MIGRATIONS.size)
     }
 
     // ── Migration 9 → 10 ────────────────────────────────────────────────────
@@ -1270,6 +1272,115 @@ class DatabaseMigrationTest {
         db.close()
     }
 
+    // ── Migration 45 → 46 ───────────────────────────────────────────────────
+    // Adds ON DELETE CASCADE foreign keys from track_entries and tracker_sync_state to manga, and
+    // clears the orphans that accumulated while they were missing (#1248).
+
+    @Test
+    fun migration45To46_dropsOrphanedTrackerRowsAndKeepsLiveOnes() {
+        val db = helper.createDatabase(TEST_DB, SCHEMA_V45)
+        db.insertManga(id = 1, title = "Live")
+        // One row for a manga that exists, one for a manga id that does not.
+        db.execSQL(
+            "INSERT INTO track_entries (id, manga_id, tracker_id, remote_id, remote_url, title, " +
+                "status, last_chapter_read, total_chapters, score, start_date, finish_date) " +
+                "VALUES (1, 1, 1, 100, '', 'Live', 0, 0, 0, 0, 0, 0)"
+        )
+        db.execSQL(
+            "INSERT INTO track_entries (id, manga_id, tracker_id, remote_id, remote_url, title, " +
+                "status, last_chapter_read, total_chapters, score, start_date, finish_date) " +
+                "VALUES (2, 999, 1, 200, '', 'Orphan', 0, 0, 0, 0, 0, 0)"
+        )
+        db.execSQL(
+            "INSERT INTO tracker_sync_state (id, mangaId, trackerId, remoteId, " +
+                "localLastChapterRead, localTotalChapters, localStatus, localLastModified, " +
+                "remoteLastChapterRead, remoteTotalChapters, remoteStatus, remoteLastModified, " +
+                "syncStatus, lastSyncAttempt, lastSuccessfulSync, syncError) " +
+                "VALUES (1, 1, 1, 'r1', 0, 0, 0, 0, 0, 0, 0, NULL, 0, NULL, NULL, NULL)"
+        )
+        db.execSQL(
+            "INSERT INTO tracker_sync_state (id, mangaId, trackerId, remoteId, " +
+                "localLastChapterRead, localTotalChapters, localStatus, localLastModified, " +
+                "remoteLastChapterRead, remoteTotalChapters, remoteStatus, remoteLastModified, " +
+                "syncStatus, lastSyncAttempt, lastSuccessfulSync, syncError) " +
+                "VALUES (2, 999, 1, 'r2', 0, 0, 0, 0, 0, 0, 0, NULL, 0, NULL, NULL, NULL)"
+        )
+        db.close()
+
+        val migrated = helper.runMigrationsAndValidate(TEST_DB, SCHEMA_V46, true, MIGRATION_45_46)
+
+        assertEquals(
+            "the track_entries row for a deleted manga must not survive the migration",
+            listOf(1L),
+            migrated.idsFrom("SELECT id FROM track_entries ORDER BY id"),
+        )
+        assertEquals(
+            "the tracker_sync_state row for a deleted manga must not survive the migration",
+            listOf(1L),
+            migrated.idsFrom("SELECT id FROM tracker_sync_state ORDER BY id"),
+        )
+        migrated.close()
+    }
+
+    /**
+     * Adding the foreign key is what stops *new* orphans. Asserted separately from the cleanup
+     * because the two failure modes are independent: a migration could delete the existing orphans
+     * and still forget the constraint, leaving the table free to accumulate them again.
+     */
+    @Test
+    fun migration45To46_declaresCascadingForeignKeysToManga() {
+        helper.createDatabase(TEST_DB, SCHEMA_V45).close()
+
+        val db = helper.runMigrationsAndValidate(TEST_DB, SCHEMA_V46, true, MIGRATION_45_46)
+
+        assertTrue(
+            "track_entries must cascade from manga after 45→46",
+            db.hasCascadingForeignKeyToManga("track_entries"),
+        )
+        assertTrue(
+            "tracker_sync_state must cascade from manga after 45→46",
+            db.hasCascadingForeignKeyToManga("tracker_sync_state"),
+        )
+        db.close()
+    }
+
+    /**
+     * The behaviour the foreign key exists for, exercised end to end: deleting a manga must take its
+     * tracker rows with it. Asserts the state left behind rather than that the delete returned.
+     */
+    @Test
+    fun migration45To46_deletingMangaRemovesItsTrackerRows() {
+        helper.createDatabase(TEST_DB, SCHEMA_V45).close()
+        val db = helper.runMigrationsAndValidate(TEST_DB, SCHEMA_V46, true, MIGRATION_45_46)
+
+        db.execSQL("PRAGMA foreign_keys = ON")
+        db.insertManga(id = 7, title = "Doomed")
+        db.execSQL(
+            "INSERT INTO track_entries (id, manga_id, tracker_id, remote_id, remote_url, title, " +
+                "status, last_chapter_read, total_chapters, score, start_date, finish_date) " +
+                "VALUES (1, 7, 1, 100, '', 'Doomed', 0, 0, 0, 0, 0, 0)"
+        )
+        db.execSQL(
+            "INSERT INTO tracker_sync_state (id, mangaId, trackerId, remoteId, " +
+                "localLastChapterRead, localTotalChapters, localStatus, localLastModified, " +
+                "remoteLastChapterRead, remoteTotalChapters, remoteStatus, remoteLastModified, " +
+                "syncStatus, lastSyncAttempt, lastSuccessfulSync, syncError) " +
+                "VALUES (1, 7, 1, 'r1', 0, 0, 0, 0, 0, 0, 0, NULL, 0, NULL, NULL, NULL)"
+        )
+
+        db.execSQL("DELETE FROM manga WHERE id = 7")
+
+        assertTrue(
+            "track_entries row outlived its manga",
+            db.idsFrom("SELECT id FROM track_entries").isEmpty(),
+        )
+        assertTrue(
+            "tracker_sync_state row outlived its manga",
+            db.idsFrom("SELECT id FROM tracker_sync_state").isEmpty(),
+        )
+        db.close()
+    }
+
     // ── Full chain v9 → v26 ─────────────────────────────────────────────────
     // Starts from v9 (oldest exported schema JSON). Runs all migrations v9→v26 via
     // runMigrationsAndValidate, which validates the final schema against 26.json.
@@ -1333,6 +1444,41 @@ private fun SupportSQLiteDatabase.columnNames(table: String): Set<String> {
         while (cursor.moveToNext()) names.add(cursor.getString(nameIdx))
     }
     return names
+}
+
+/**
+ * Inserts a minimal `manga` row. Every column below is NOT NULL with no default in the exported
+ * schema, so a shorter INSERT fails at runtime rather than at compile time.
+ */
+private fun SupportSQLiteDatabase.insertManga(id: Long, title: String) {
+    execSQL(
+        "INSERT INTO manga (id, sourceId, url, title, status, favorite, lastUpdate, initialized, " +
+            "viewerFlags, chapterFlags, coverLastModified, dateAdded, autoDownload, " +
+            "notifyNewChapters, contentRating, userCompleted, userDropped) " +
+            "VALUES ($id, 1, '/m$id', '$title', 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)",
+    )
+}
+
+private fun SupportSQLiteDatabase.idsFrom(sql: String): List<Long> {
+    val ids = mutableListOf<Long>()
+    query(sql).use { cursor ->
+        while (cursor.moveToNext()) ids.add(cursor.getLong(0))
+    }
+    return ids
+}
+
+/** True when [table] declares a foreign key to `manga` with `ON DELETE CASCADE`. */
+private fun SupportSQLiteDatabase.hasCascadingForeignKeyToManga(table: String): Boolean {
+    query("PRAGMA foreign_key_list(`$table`)").use { cursor ->
+        val tableIdx = cursor.getColumnIndex("table")
+        val onDeleteIdx = cursor.getColumnIndex("on_delete")
+        while (cursor.moveToNext()) {
+            if (cursor.getString(tableIdx) == "manga" && cursor.getString(onDeleteIdx) == "CASCADE") {
+                return true
+            }
+        }
+    }
+    return false
 }
 
 private fun SupportSQLiteDatabase.indexNames(table: String): Set<String> {

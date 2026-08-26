@@ -2,11 +2,28 @@ package app.otakureader.core.database.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
+/**
+ * A manga's entry on an external tracker.
+ *
+ * The foreign key matters as much as the columns. Without it, deleting a manga left this row behind
+ * forever, and an orphan here is not inert: it keeps a tracker linked to a manga that no longer
+ * exists, and re-adding the same manga reuses the stale row along with its old `remote_id`. See
+ * #1248.
+ */
 @Entity(
     tableName = "track_entries",
+    foreignKeys = [
+        ForeignKey(
+            entity = MangaEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["manga_id"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
     indices = [
         Index(value = ["manga_id"]),
         Index(value = ["tracker_id"]),
