@@ -86,18 +86,21 @@ jobs:
             if [ -n "$MATCHED" ]; then
               echo "✅ ${HOST} — a pinned key is present in the chain (sha256/${MATCHED})"
             else
-              FAILURES="${FAILURES}\n❌ ${HOST}: NO pinned key appears anywhere in the served chain — tracker sync is broken for installed users.\n   Expected leaf (in source): sha256/${EXPECTED_PIN}\n   Live leaf:                 sha256/${LEAF}"
+              FAILURES="${FAILURES}\n❌ ${HOST}: NO pinned key appears anywhere in the served chain — tracker sync is broken for installed users.\n   Expected issuer (in source): ${EXPECTED_PIN}\n   Live leaf:                   sha256/${LEAF}"
               echo "FAILED=true" >> "$GITHUB_OUTPUT"
             fi
             echo ""
           }
 
-          check_pin "myanimelist.net"       "efrF+PUxbl1xw8PF8f6KvRrel4/kWrRWFWuu6PQj2bo="
-          check_pin "api.myanimelist.net"   "JhaUbPsimbNLHKKcoc09+5qss1K+Hb8XpX2uthsDY4A="
-          check_pin "graphql.anilist.co"    "qvGMxVkebAxISqRUcDy3CljP+wieT8aKikYTCVu0PH4="
-          check_pin "kitsu.app"             "Hrs6IIkHfcrDYD7JZOmpHh/QXgq4ZfY7IKy+UnzF4bA="
-          check_pin "api.mangaupdates.com"  "02qttGMepJs9pxcSmAyDxfnjZv0EoAw8IkZSv+rzbu8="
-          check_pin "shikimori.one"         "1biKOxoipnu596Dxf12XU0Vu2EXlLUQnUj4p+ycBKSY="
+          # Second argument is only the value quoted back in a failure message. The pass/fail
+          # decision reads TrackerCertificatePinner.kt itself, so this cannot drift into asserting
+          # something the app does not actually ship.
+          check_pin "myanimelist.net"       "DigiCert Global G3 TLS ECC SHA384 2020 CA1"
+          check_pin "api.myanimelist.net"   "DigiCert Global G3 TLS ECC SHA384 2020 CA1"
+          check_pin "graphql.anilist.co"    "Google Trust Services WE1 / GTS Root R4"
+          check_pin "kitsu.app"             "Google Trust Services WE1 / GTS Root R4"
+          check_pin "api.mangaupdates.com"  "Let's Encrypt YR1 / ISRG Root YR"
+          check_pin "shikimori.one"         "Let's Encrypt YR1 / ISRG Root YR"
 
           if [ -n "$FAILURES" ]; then
             echo -e "$FAILURES"
