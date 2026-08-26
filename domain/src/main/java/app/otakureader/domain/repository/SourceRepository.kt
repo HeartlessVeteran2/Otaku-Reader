@@ -19,7 +19,22 @@ interface SourceRepository {
     fun getSources(): Flow<List<MangaSource>>
 
     /**
-     * Get a source by its ID
+     * Whether the initial source load is still in flight.
+     *
+     * An empty [getSources] list is a real answer only once this is false: a user with no
+     * extensions installed and a user whose extensions have not finished loading both see an
+     * empty list, and before this existed the UI showed the same "no sources" state for both.
+     *
+     * Only the *initial* load is reported. A later manual refresh republishes [getSources] when
+     * it lands and does not flip this back to true.
+     */
+    fun isLoadingSources(): Flow<Boolean>
+
+    /**
+     * Get a source by its ID.
+     *
+     * Suspends until the initial source load has finished (bounded by a timeout), so a caller
+     * that arrives during startup gets a real answer rather than a spurious null. See #1258.
      */
     suspend fun getSource(sourceId: String): MangaSource?
 
@@ -31,6 +46,9 @@ interface SourceRepository {
      * be a search over the loaded sources, which is what this does.
      *
      * Use this, never `getSource(manga.sourceId.toString())`.
+     *
+     * Like [getSource], suspends until the initial source load has finished (bounded by a
+     * timeout) so a startup-time caller does not read an empty snapshot. See #1258.
      */
     suspend fun getSourceByKey(key: Long): MangaSource?
 

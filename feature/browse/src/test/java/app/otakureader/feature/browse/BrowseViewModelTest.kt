@@ -86,6 +86,10 @@ class BrowseViewModelTest {
 
         // Default stubs — applied before ViewModel creation
         every { sourceRepository.getSources() } returns flowOf(emptyList())
+        // #1258: BrowseViewModel now also observes whether the initial load is still running, so
+        // it can tell "no sources installed" from "not loaded yet". These tests all describe the
+        // settled state, so loading is false throughout.
+        every { sourceRepository.isLoadingSources() } returns flowOf(false)
         every { generalPreferences.showNsfwContent } returns flowOf(false)
         every { generalPreferences.enabledSourceLanguages } returns flowOf(emptySet())
         every { generalPreferences.browseSearchHistory } returns flowOf(emptyList())

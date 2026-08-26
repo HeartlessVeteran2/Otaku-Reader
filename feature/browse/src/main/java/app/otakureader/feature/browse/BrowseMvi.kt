@@ -84,6 +84,17 @@ data class BrowseState(
     val availableLanguages: List<String> = emptyList(),
     /** Maps source numeric ID → extension iconUrl, for displaying actual source icons in the list. */
     val sourceIconUrls: Map<Long, String?> = emptyMap(),
+    /**
+     * Whether the initial source load is still running (#1258).
+     *
+     * Distinguishes "no sources installed" from "not loaded yet". Both leave [sources] empty, and
+     * the screen used to show the same "no sources" prompt for either — telling a user with a
+     * working library to go install an extension.
+     *
+     * Starts `true`, because at first composition the load genuinely has not finished; starting
+     * `false` would flash the empty state before the first emission arrives.
+     */
+    val sourcesLoading: Boolean = true,
 ) : UiState
 
 sealed interface BrowseEvent : UiEvent {

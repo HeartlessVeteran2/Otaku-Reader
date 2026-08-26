@@ -645,6 +645,10 @@ private fun SourcesTabContent(
                     }
                 }
             }
+            // Order matters: an empty list during the initial load is not an answer yet (#1258).
+            // Checking isEmpty() first is what told a user with installed extensions to go
+            // install one, every time Browse opened before the sources finished loading.
+            state.sources.isEmpty() && state.sourcesLoading -> LoadingSourcesContent()
             state.sources.isEmpty() -> EmptySourcesContent()
             else -> {
                 // Source browser: floating search + source list (search floats over the list)
@@ -1307,6 +1311,25 @@ private fun SearchResultsContent(
             onMangaLongClick = onMangaLongClick,
             favoritedMangaUrls = favoritedMangaUrls,
         )
+    }
+}
+
+/**
+ * Shown while the initial source load is still running, in place of [EmptySourcesContent].
+ *
+ * Both states have an empty source list; only this one is recoverable by waiting.
+ */
+@Composable
+private fun LoadingSourcesContent() {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            CircularProgressIndicator()
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = stringResource(R.string.browse_loading_sources),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
     }
 }
 
