@@ -250,6 +250,23 @@ sources (Asura Scans, Mangafire).
 
 ---
 
+## ✅ Developer Screen (2026-08-25)
+
+| PR | Change |
+|----|--------|
+| #1266 | Hidden developer screen for bulk-adding extension repository URLs |
+
+Reached by tapping the About screen's version line seven times and entering a passphrase. Ships
+**inert**: the passphrase is unset (and blank means refuse every input), and the URL list lives in a
+gitignored assets file that a fresh clone does not have. Setup is two steps, both local to the
+developer's machine — `tools/devcode/devcode.sh` for the digest, `app/src/main/assets/dev-repos.txt`
+for the list.
+
+The gate is obscurity rather than security, and the code says so; see *Shipped Feature Inventory →
+Developer screen* in `CLAUDE.md` for the properties that must not be traded away.
+
+---
+
 ## 🏗️ Architecture Maintenance
 
 Status as of 2026-06-10:
