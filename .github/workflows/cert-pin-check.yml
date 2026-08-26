@@ -19,11 +19,33 @@ jobs:
       - name: 📥 Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
+      # Resolves what the app actually ships into a flat "host<TAB>sha256/..." table.
+      #
+      # Done here, in Python, because the pins are named constants in Kotlin rather than literals
+      # on the .add() line. Grepping the host's line for a "sha256/..." string used to work and
+      # silently stopped finding anything the moment those constants were introduced — the check
+      # then reported every host as broken. Resolving the constants is the difference between
+      # reading the file and pattern-matching one shape of it.
+      - name: 🧾 Resolve the pins the app ships
+        run: |
+          python3 - <<'PY' > /tmp/shipped-pins.tsv
+          import re
+          src = open("core/network/src/main/java/app/otakureader/core/network/TrackerCertificatePinner.kt").read()
+          consts = dict(re.findall(r'val\s+(\w+)\s*=\s*"(sha256/[^"]+)"', src))
+          for host, value in re.findall(r'\.add\(\s*"([^"]+)"\s*,\s*([^)]+?)\s*\)', src):
+              value = value.strip()
+              pin = consts.get(value) if not value.startswith('"') else value.strip('"')
+              if pin:
+                  print(f"{host}\t{pin}")
+          PY
+          echo "Pins the app ships:"
+          cat /tmp/shipped-pins.tsv
+          test -s /tmp/shipped-pins.tsv || { echo "::error::resolved no pins at all — the parser no longer matches the file"; exit 1; }
+
       - name: 🔐 Verify certificate pins for tracker endpoints
         id: pin-check
         run: |
           set +e
-          PINNER=core/network/src/main/java/app/otakureader/core/network/TrackerCertificatePinner.kt
           FAILURES=""
 
           # Prints every SPKI pin in the served chain, not just the leaf's.
@@ -72,12 +94,11 @@ jobs:
             done
 
             # Would the app connect? True if ANY pin we ship for this host appears in the chain,
-            # which is exactly OkHttp's rule. Checked against the pins recorded for THIS host
-            # rather than by grepping the whole file: a file-wide grep passes when the live pin
-            # happens to match some other host's entry, which asserts nothing about this one.
+            # which is exactly OkHttp's rule. Compared against the pins resolved for THIS host, so
+            # a live pin that happens to match some other host's entry cannot pass this one.
             MATCHED=""
             while IFS='|' read -r PIN SUBJ; do
-              if grep -q "\"sha256/${PIN}\"" <(grep "\"${HOST}\"" "$PINNER"); then
+              if grep -qxF "${HOST}"$'\t'"sha256/${PIN}" /tmp/shipped-pins.tsv; then
                 MATCHED="$PIN"
               fi
             done <<< "$CHAIN"
