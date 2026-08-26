@@ -4,11 +4,9 @@ import android.content.ContentValues
 import android.content.Context
 import android.content.SharedPreferences
 import android.os.Build
-import android.os.Environment
 import android.provider.MediaStore
 import app.otakureader.core.preferences.EncryptedPrefsFactory
 import app.otakureader.core.preferences.CrashReportingStore
-import java.io.File
 
 /**
  * Custom [Thread.UncaughtExceptionHandler] that captures fatal crashes, writes the
@@ -69,30 +67,35 @@ object CrashHandler {
     }
 
     /**
-     * Writes the crash report to the device's public Downloads folder as a plaintext file
-     * so it can be opened with any file manager without a computer. Best-effort: any failure
-     * is swallowed because the crash handler must never throw.
+     * Writes the crash report to the device's Downloads folder as a plaintext file so it can be
+     * opened with any file manager without a computer. Best-effort: any failure is swallowed
+     * because the crash handler must never throw.
+     *
+     * **API 29+ only, and that is a privacy boundary rather than a compatibility shortcut.** Under
+     * scoped storage a Downloads entry this app inserts is visible to its owner and the user, not
+     * readable by every other app that holds a storage permission. The pre-Q path was
+     * `Environment.getExternalStoragePublicDirectory`, which is exactly that: world-readable, and
+     * a stack trace carries source names, URLs and whatever an exception message happened to
+     * contain. Older devices are not left without the report — it is still saved to the app's
+     * private [SharedPreferences] above and shown in-app on the next launch, which is the primary
+     * path on every version. This file only widens that to crashes that happen before any Activity
+     * can run.
      */
     private fun dumpToDownloads(context: Context, report: String) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
         val fileName = "otaku_crash_${System.currentTimeMillis()}.txt"
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val values = ContentValues().apply {
-                    put(MediaStore.Downloads.DISPLAY_NAME, fileName)
-                    put(MediaStore.Downloads.MIME_TYPE, "text/plain")
-                    put(MediaStore.Downloads.IS_PENDING, 1)
-                }
-                val resolver = context.contentResolver
-                val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values) ?: return
-                resolver.openOutputStream(uri)?.use { it.write(report.toByteArray()) }
-                values.clear()
-                values.put(MediaStore.Downloads.IS_PENDING, 0)
-                resolver.update(uri, values, null, null)
-            } else {
-                @Suppress("DEPRECATION")
-                val downloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-                File(downloads, fileName).writeText(report)
+            val values = ContentValues().apply {
+                put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+                put(MediaStore.Downloads.MIME_TYPE, "text/plain")
+                put(MediaStore.Downloads.IS_PENDING, 1)
             }
+            val resolver = context.contentResolver
+            val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values) ?: return
+            resolver.openOutputStream(uri)?.use { it.write(report.toByteArray()) }
+            values.clear()
+            values.put(MediaStore.Downloads.IS_PENDING, 0)
+            resolver.update(uri, values, null, null)
         } catch (_: Throwable) {
             // Swallow: a diagnostics write must never mask or replace the original crash.
         }

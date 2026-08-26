@@ -146,7 +146,7 @@ class DatabaseConverters(
  * The default [DatabaseConverters.onDecodeFailure]: a warning carrying the payload's *length*
  * rather than the payload.
  *
- * Warning and not debug, deliberately. `Logger.d` compiles out in release builds, and a diagnostic
+ * Warning and not debug, deliberately. `Log.d` is stripped from release builds by R8, and a diagnostic
  * that is absent exactly where the systemic failure would happen is not a diagnostic. This is rare
  * enough that it cannot become log spam — and if it is not rare, that is the thing worth knowing.
  *

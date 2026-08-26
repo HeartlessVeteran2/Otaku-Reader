@@ -166,7 +166,9 @@ The test is split for the same reason it exists: one case asserts what holds in 
 ### Security
 - Certificate pinning (`cert-pin-check.yml` CI gate)
 - Encrypted credential storage for tracker tokens (`AndroidX Security Crypto`)
-- No Firebase, no analytics SDK, no crash tooling
+- No Firebase and no analytics SDK. **There is crash tooling**, despite what this file claimed for a long time:
+  - `app/.../crash/CrashHandler.kt` installs unconditionally from `OtakuReaderApplication`, saves the trace to private `SharedPreferences`, and shows it in-app on the next launch. It also writes a plaintext copy to Downloads for crashes that happen before any Activity can run — **API 29+ only**, deliberately: under scoped storage that entry is not readable by every app holding a storage permission, whereas the old pre-Q `getExternalStoragePublicDirectory` path was world-readable, and a stack trace carries source names, URLs and whatever an exception message held.
+  - `app/.../crash/CrashReporter.kt` wraps Sentry (`io.sentry:sentry-android-core`). It is **opt-in**, off by default, and needs a user-supplied DSN entered in Settings — nothing leaves the device otherwise.
 
 ---
 
@@ -654,7 +656,7 @@ A claim about a library's published versions was taken from a search API that on
 - **Do not edit an extension to make it work.** Published sources run unmodified; a failure is the runtime's to fix.
 - **Do not let the Kotlin JS bindings hand host objects to JavaScript** — the compatibility layer belongs in `prelude.js`, which is what keeps the boundary primitives-only.
 - **Do not implement AI features in core** — AI features belong in the separate Otaku-Reader-AI repo.
-- **Do not add Firebase analytics or crash tooling** unless explicitly requested.
+- **Do not add Firebase or an analytics SDK** unless explicitly requested. Crash tooling already exists (see *Security*) — extend `CrashHandler`/`CrashReporter` rather than adding a second mechanism, and keep any reporting opt-in and off by default.
 - **Do not use `fallbackToDestructiveMigration()`** in Room database setup.
 - **Do not use `GlobalScope`** — use `viewModelScope`, `lifecycleScope`, or a provided `CoroutineScope`.
 - **Do not use `LiveData`** — StateFlow only.
