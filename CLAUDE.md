@@ -146,6 +146,18 @@ There is **no `server/` module** in this repository. It was listed here for a lo
 - Update Errors screen (PR #1119/#1205; dedicated screen with sticky-header grouping by error message, long-press multi-select, migrate-selected — replaces the original dialog) — reachable from the More tab entry or the badge icon on the Updates screen's top bar
 - QR Library Share / Scan (PR #1110/#1125)
 
+### Developer screen (`feature/browse/.../developer/`, PR #1266)
+
+**Hidden, and deliberately so — do not delete it as dead code, and do not surface it in navigation.** Reached only by tapping the About screen's version line seven times (`DeveloperUnlock.REVEAL_TAP_COUNT`) and entering a passphrase. It bulk-adds extension repository URLs, which is otherwise a repetitive one-at-a-time paste in Browse → Extensions → Repositories.
+
+Three properties are load-bearing, and each exists to stop a plausible "improvement" that would break it:
+
+- **The gate is obscurity, not security, and `DeveloperUnlock` says so in its own KDoc.** The salted SHA-256 ships inside the APK, which can be decompiled or patched. The rule that follows: **nothing behind this gate may be capability a user could not otherwise have.** Everything routes through `ExtensionRepoRepository.addRepository` exactly as a typed URL does — no separate loader, no trust bypass, no blocklist exemption — so a seeded repository is indistinguishable from a hand-added one and removable from the ordinary screen by someone who never saw this one. Do not add privileged actions here on the assumption the gate protects them.
+- **The passphrase ships blank and blank means refuse everything**, including the empty string. A placeholder that accepted some guessable default would be worse than no gate. `tools/devcode/devcode.sh` generates the digest; the plaintext is never committed. `DeveloperUnlockTest` pins the digest to the exact value that script prints — if the salt changes, that test fails and the script must change with it, because silent drift would make a correctly pasted hash never match and the failure would only appear on a device.
+- **The URL list is `app/src/main/assets/dev-repos.txt`, gitignored.** Hardcoding it in Kotlin would publish it to everyone reading this public repository — the screen would be hidden while the thing it reveals sat in the diff. A build without the file renders a *setup instruction*, not an error: absent is the correct state for a fresh clone. That state is kept distinct from the storage-failure state, because "no seeds configured" is something the user can act on and "storage failed" is not.
+
+The test is split for the same reason it exists: one case asserts what holds in every build, and the unconfigured-only case is guarded by `assumeFalse(isConfigured)`, so a build that pastes a real hash *skips* it. An earlier version asserted `isConfigured` was false unconditionally, which failed precisely when the feature was set up as its own documentation instructs.
+
 ### Home-Screen Widgets (`app/src/main/java/app/otakureader/widget/`)
 - 4 Glance-based Android home-screen widgets: `HomeWidget`, `NowReadingWidget`, `ContinueReadingWidget`, `RecentUpdatesWidget`
 - Configured via Settings → Widgets; placed via Android's native "Add Widget" home-screen flow
