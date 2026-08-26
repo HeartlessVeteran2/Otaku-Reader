@@ -13,9 +13,12 @@ import java.time.Instant
  * established that such an orphan is actively harmful rather than merely wasted space:
  * `recordLocalChange` still finds it and keeps marking it PENDING, so `syncAllPending` retries a
  * tracker for a manga that no longer exists — failing every pass, with an error that can never
- * clear. Worse, `syncManga` only auto-creates a row when it finds none, so re-adding the same manga
- * reuses the stale row with its old `remoteId` and chapter history, and the `maxOf` high-water mark
- * in `recordLocalChange` then pins the new entry to the old progress permanently.
+ * clear.
+ *
+ * The stale row is not, however, inherited by a re-added manga: ids are `AUTOINCREMENT`, so a
+ * re-add never reuses the deleted id. (That reuse is real on the *library remove* path, which only
+ * flips `favorite` and leaves both row and id in place — but nothing is deleted there, so this
+ * foreign key is not what governs it.)
  *
  * #1244 closed the unlink route to that state; this closes the manga-deletion route. See #1248.
  */

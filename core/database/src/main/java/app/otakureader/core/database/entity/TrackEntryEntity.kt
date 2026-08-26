@@ -10,9 +10,15 @@ import androidx.room.PrimaryKey
  * A manga's entry on an external tracker.
  *
  * The foreign key matters as much as the columns. Without it, deleting a manga left this row behind
- * forever, and an orphan here is not inert: it keeps a tracker linked to a manga that no longer
- * exists, and re-adding the same manga reuses the stale row along with its old `remote_id`. See
- * #1248.
+ * forever, and an orphan here is not inert: `syncAllPending` keeps finding it and retrying a
+ * tracker for a manga that no longer exists, failing every pass with an error that can never clear.
+ * Deleting the parent has to take this row with it. See #1248.
+ *
+ * Note what an orphan does *not* do, because an earlier version of this comment claimed it and it
+ * is wrong: it is not picked up again by a re-added manga. Manga ids are `AUTOINCREMENT`, so a
+ * re-add gets a fresh id and can never collide with the deleted one. (Removing a manga from the
+ * library is a different thing entirely — that only flips `favorite`, so the row and its id
+ * survive and nothing is orphaned.)
  */
 @Entity(
     tableName = "track_entries",

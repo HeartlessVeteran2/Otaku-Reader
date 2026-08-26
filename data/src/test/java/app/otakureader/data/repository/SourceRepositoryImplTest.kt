@@ -599,8 +599,11 @@ class SourceRepositoryImplTest {
         mockLocalSource(makeFakeSource(id = "local", name = "Local"))
         val repo = newRepository()
 
-        // The init refresh has been launched but has not published anything.
-        assertTrue("loading must start true, before the init refresh has run", repo.isLoadingSources().first())
+        // The flag's starting value. Deliberately not claiming this proves the refresh has not run
+        // yet — it reads a StateFlow's current value synchronously and would hold either way. What
+        // it does pin is the default: starting `false` would flash Browse's "no sources installed"
+        // prompt before the first load ever published, which is the bug this flag exists to fix.
+        assertTrue("loading must default to true", repo.isLoadingSources().first())
 
         // Awaited rather than advanced: refreshSources does its work in withContext(Dispatchers.IO),
         // so it is not on the test scheduler and advanceUntilIdle() would return long before it

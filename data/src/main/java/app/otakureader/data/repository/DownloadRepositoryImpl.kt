@@ -7,6 +7,7 @@ import app.otakureader.core.database.dao.MangaDao
 import app.otakureader.data.download.CbzCreator
 import app.otakureader.data.download.ChapterDownloadRequest
 import app.otakureader.data.download.DownloadManager
+import app.otakureader.core.preferences.DownloadPreferences
 import app.otakureader.data.download.DownloadProvider
 import app.otakureader.domain.model.DownloadItem
 import app.otakureader.domain.model.OrphanScanResult
@@ -16,6 +17,7 @@ import app.otakureader.domain.repository.SourceRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
@@ -33,6 +35,7 @@ class DownloadRepositoryImpl @Inject constructor(
     private val mangaDao: MangaDao,
     private val chapterDao: ChapterDao,
     private val sourceRepository: SourceRepository,
+    private val downloadPreferences: DownloadPreferences,
     @param:ApplicationScope private val scope: CoroutineScope
 ) : DownloadRepository {
 
@@ -325,8 +328,19 @@ class DownloadRepositoryImpl @Inject constructor(
             displayNameFor(id)?.let { id.toString() to it }
         }.toMap()
         val renamed = DownloadProvider.migrateSourceFolderNames(rootDir, resolvedNames)
-        // The rename is what folderNames cached against. Drop it so reads pick up the new
-        // location on the next resolve instead of pointing at a directory that just moved.
+        // Record where each source's downloads ended up, for every folder that actually moved.
+        // This is the part that makes the rename survivable: an uninstalled extension has no
+        // display name left to re-derive, so without a record its migrated downloads would become
+        // invisible to the app the moment the user removes the extension.
+        resolvedNames.forEach { (numeric, display) ->
+            val id = numeric.toLongOrNull() ?: return@forEach
+            if (File(rootDir, DownloadProvider.sanitize(display)).isDirectory) {
+                downloadPreferences.setSourceFolderName(id, DownloadProvider.sanitize(display))
+            }
+        }
+        // Bump first, clear second. A resolve already in flight captured the old generation, so
+        // its write is dropped rather than repopulating the cache with a pre-rename answer.
+        folderGeneration.incrementAndGet()
         folderNames.clear()
         renamed
     }
@@ -340,38 +354,53 @@ class DownloadRepositoryImpl @Inject constructor(
      * `sourceId.toString()`, so there was no cost to inherit.
      *
      * Cleared by [migrateSourceFolderNames], which is the one thing that moves a folder out from
-     * under a cached answer. An extension installed or uninstalled mid-session can also change a
-     * resolution; that self-corrects on the next launch and cannot lose files, because every
-     * branch below points at a directory that exists.
+     * under a cached answer. [folderGeneration] guards the window around that: a resolve that
+     * started before the rename must not write its pre-rename answer back into the cleared cache.
      */
     private val folderNames = ConcurrentHashMap<Long, String>()
 
+    /** Incremented whenever a rename invalidates [folderNames]; see [downloadFolderNameFor]. */
+    private val folderGeneration = AtomicInteger(0)
+
     override suspend fun downloadFolderNameFor(sourceId: Long): String {
         folderNames[sourceId]?.let { return it }
+        val generation = folderGeneration.get()
         val resolved = resolveFolderName(sourceId)
-        folderNames[sourceId] = resolved
+        // Only cache an answer computed against the layout that is still current. Without this a
+        // lookup that raced the migration could reinstate the numeric name after the folder moved.
+        if (folderGeneration.get() == generation) folderNames[sourceId] = resolved
         return resolved
     }
 
     /**
-     * Picks between the source's display name and the numeric key, preferring whichever the
-     * chapters are actually under. See [DownloadRepository.downloadFolderNameFor] for why disk
-     * has the final say.
+     * Decides where a source's chapters actually live. See [DownloadRepository.downloadFolderNameFor]
+     * for why disk, not the display name, has the final say.
+     *
+     * The order of the branches is the whole design, and each one is above the next because
+     * answering with the lower one in that state would hide files:
      */
     private suspend fun resolveFolderName(sourceId: Long): String {
         val numeric = sourceId.toString()
-        val display = displayNameFor(sourceId) ?: return numeric
+        val recorded = downloadPreferences.sourceFolderNames.first()[sourceId]
+        val display = displayNameFor(sourceId)
         return withContext(Dispatchers.IO) {
             val root = DownloadProvider.getRootDir(context)
             when {
-                File(root, display).isDirectory -> display
-                // Chapters are still filed under the number: the migration has not run yet, or
-                // it could not claim the target name. Either way the number is where the files
-                // are, and answering anything else loses them.
+                // 1. A folder this app renamed, and it is still there. Authoritative even when the
+                //    source is long uninstalled, which is the case no amount of re-derivation can
+                //    recover: there is no display name left to compute.
+                recorded != null && File(root, recorded).isDirectory -> recorded
+                // 2. Chapters still filed under the number — unmigrated, or the migration could
+                //    not claim its target name. Checked *before* the display name on purpose: when
+                //    both directories exist the display one is not necessarily ours (the migration
+                //    skips a target that already exists rather than merging into it), while the
+                //    numeric one can only ever be this source's.
                 File(root, numeric).isDirectory -> numeric
-                // Nothing on disk for this source yet, so there is nothing to lose and new
-                // downloads get the readable name.
-                else -> display
+                // 3. A display-name folder with nothing under the number: normal, post-migration.
+                display != null && File(root, display).isDirectory -> display
+                // 4. Nothing on disk yet, so nothing to lose; new downloads get the readable name
+                //    when one is available and the number otherwise.
+                else -> display ?: numeric
             }
         }
     }

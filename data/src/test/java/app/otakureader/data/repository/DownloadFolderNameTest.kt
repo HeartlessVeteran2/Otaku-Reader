@@ -5,6 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.otakureader.core.database.dao.ChapterDao
 import app.otakureader.core.database.dao.MangaDao
+import app.otakureader.core.preferences.DownloadPreferences
 import app.otakureader.data.download.DownloadManager
 import app.otakureader.data.download.DownloadProvider
 import app.otakureader.domain.model.DownloadItem
@@ -43,6 +44,8 @@ class DownloadFolderNameTest {
     private lateinit var context: Context
     private lateinit var sourceRepository: SourceRepository
     private lateinit var downloadManager: DownloadManager
+    private lateinit var downloadPreferences: DownloadPreferences
+    private var recorded = mutableMapOf<Long, String>()
 
     private val sourceId = "en.mangadex"
     private val key = sourceId.toSourceId()
@@ -54,6 +57,13 @@ class DownloadFolderNameTest {
             every { downloads } returns MutableStateFlow(emptyList<DownloadItem>())
         }
         sourceRepository = mockk(relaxed = true)
+        recorded = mutableMapOf()
+        downloadPreferences = mockk(relaxed = true) {
+            every { sourceFolderNames } answers { flowOf(recorded.toMap()) }
+            coEvery { setSourceFolderName(any(), any()) } answers {
+                recorded[firstArg()] = secondArg()
+            }
+        }
         DownloadProvider.getRootDir(context).deleteRecursively()
     }
 
@@ -63,6 +73,7 @@ class DownloadFolderNameTest {
         mangaDao = mockk<MangaDao>(relaxed = true),
         chapterDao = mockk<ChapterDao>(relaxed = true),
         sourceRepository = sourceRepository,
+        downloadPreferences = downloadPreferences,
         scope = TestScope(StandardTestDispatcher()).backgroundScope,
     )
 
@@ -198,5 +209,38 @@ class DownloadFolderNameTest {
         makeSourceDir("Manga_Dex")
 
         assertEquals("Manga_Dex", repository().downloadFolderNameFor("en.weird".toSourceId()))
+    }
+
+    /**
+     * The case that made a recorded mapping necessary rather than nice to have. Once the extension
+     * is gone there is no display name left to re-derive, so a resolver that only computes would
+     * answer with the number and every already-migrated download would vanish from the app.
+     */
+    @Test
+    fun findsMigratedDownloadsAfterTheExtensionIsUninstalled() = runTest {
+        withSources(source(sourceId, "MangaDex"))
+        makeSourceDir(key.toString())
+        val repo = repository()
+        repo.migrateSourceFolderNames()
+
+        // The extension goes away; nothing on disk changes.
+        withSources()
+
+        assertEquals("MangaDex", repo.downloadFolderNameFor(key))
+    }
+
+    /**
+     * Both directories present: the display one was claimed by something else (the migration skips
+     * a target that already exists rather than merging into it), so this source's chapters are
+     * still under the number. Answering with the display name would show another source's library
+     * and hide this one's.
+     */
+    @Test
+    fun prefersTheNumericFolderWhenBothExist() = runTest {
+        withSources(source(sourceId, "MangaDex"))
+        makeSourceDir(key.toString())
+        makeSourceDir("MangaDex")
+
+        assertEquals(key.toString(), repository().downloadFolderNameFor(key))
     }
 }

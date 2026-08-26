@@ -1368,15 +1368,34 @@ class DatabaseMigrationTest {
                 "VALUES (1, 7, 1, 'r1', 0, 0, 0, 0, 0, 0, 0, NULL, 0, NULL, NULL, NULL)"
         )
 
+        // A second, untouched manga with its own tracker rows. Without it this test would pass
+        // just as happily against a cascade that wiped every tracker row regardless of parent —
+        // asserting "the table is empty" proves the delete happened, not that it was targeted.
+        db.insertManga(id = 8, title = "Survivor")
+        db.execSQL(
+            "INSERT INTO track_entries (id, manga_id, tracker_id, remote_id, remote_url, title, " +
+                "status, last_chapter_read, total_chapters, score, start_date, finish_date) " +
+                "VALUES (2, 8, 1, 200, '', 'Survivor', 0, 0, 0, 0, 0, 0)"
+        )
+        db.execSQL(
+            "INSERT INTO tracker_sync_state (id, mangaId, trackerId, remoteId, " +
+                "localLastChapterRead, localTotalChapters, localStatus, localLastModified, " +
+                "remoteLastChapterRead, remoteTotalChapters, remoteStatus, remoteLastModified, " +
+                "syncStatus, lastSyncAttempt, lastSuccessfulSync, syncError) " +
+                "VALUES (2, 8, 1, 'r2', 0, 0, 0, 0, 0, 0, 0, NULL, 0, NULL, NULL, NULL)"
+        )
+
         db.execSQL("DELETE FROM manga WHERE id = 7")
 
-        assertTrue(
-            "track_entries row outlived its manga",
-            db.idsFrom("SELECT id FROM track_entries").isEmpty(),
+        assertEquals(
+            "only the deleted manga's track_entries row may go",
+            listOf(2L),
+            db.idsFrom("SELECT id FROM track_entries ORDER BY id"),
         )
-        assertTrue(
-            "tracker_sync_state row outlived its manga",
-            db.idsFrom("SELECT id FROM tracker_sync_state").isEmpty(),
+        assertEquals(
+            "only the deleted manga's tracker_sync_state row may go",
+            listOf(2L),
+            db.idsFrom("SELECT id FROM tracker_sync_state ORDER BY id"),
         )
         db.close()
     }

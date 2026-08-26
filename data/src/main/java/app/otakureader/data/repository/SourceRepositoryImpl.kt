@@ -230,7 +230,18 @@ class SourceRepositoryImpl @Inject constructor(
      */
     private suspend fun awaitInitialLoad() {
         if (initialLoadComplete.isCompleted) return
-        withTimeoutOrNull(INITIAL_LOAD_TIMEOUT_MS) { initialLoadComplete.await() }
+        if (withTimeoutOrNull(INITIAL_LOAD_TIMEOUT_MS) { initialLoadComplete.await() } != null) return
+        // Expiring is terminal, not a per-call reprieve. Completing the signal here is what stops
+        // a wedged load from charging every later lookup the full timeout again — the first caller
+        // pays it once and everyone after reads the snapshot immediately. Clearing the loading flag
+        // with it stops Browse spinning forever on a load that is never going to finish: an empty
+        // list after the timeout is the honest answer, and the user can retry from the UI.
+        //
+        // Safe against the load finishing later: `complete` returns false on an already-completed
+        // deferred, and refreshSources publishes into `_sources` regardless of who is waiting, so a
+        // late arrival still reaches every subsequent lookup.
+        _sourcesLoading.value = false
+        initialLoadComplete.complete(Unit)
     }
 
     override suspend fun getSource(sourceId: String): MangaSource? {
