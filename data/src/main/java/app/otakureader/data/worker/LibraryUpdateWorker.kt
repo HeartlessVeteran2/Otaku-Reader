@@ -88,7 +88,11 @@ class LibraryUpdateWorker @AssistedInject constructor(
         }
     }
 
-    @Suppress("LongMethod", "CyclomaticComplexMethod", "CognitiveComplexMethod")
+    // ThrowsCount: the four throws here are all `catch (e: CancellationException) { throw e }`
+    // rethrows — the required coroutines idiom for not swallowing cancellation, not a design smell.
+    // They pre-date this refactor and went unreported only because detekt's ThrowsCount skips
+    // overridden functions and they used to live in `doWork`.
+    @Suppress("LongMethod", "CyclomaticComplexMethod", "CognitiveComplexMethod", "ThrowsCount")
     private suspend fun runUpdate(): Result {
         val startTime = System.currentTimeMillis()
         return try {
