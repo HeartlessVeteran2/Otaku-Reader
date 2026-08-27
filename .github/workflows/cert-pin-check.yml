@@ -31,6 +31,12 @@ jobs:
           python3 - <<'PY' > /tmp/shipped-pins.tsv
           import re
           src = open("core/network/src/main/java/app/otakureader/core/network/TrackerCertificatePinner.kt").read()
+          # Strip comments before parsing. Commenting a pin out rather than deleting it is the
+          # natural thing to do mid-rotation, and counting it as shipped would let this check pass
+          # for a host OkHttp has no usable pin for — the one failure it exists to catch. Block
+          # comments go first so a `https://` inside KDoc is not mistaken for a line comment.
+          src = re.sub(r'/\*.*?\*/', '', src, flags=re.S)
+          src = re.sub(r'//[^\n]*', '', src)
           consts = dict(re.findall(r'val\s+(\w+)\s*=\s*"(sha256/[^"]+)"', src))
           for host, value in re.findall(r'\.add\(\s*"([^"]+)"\s*,\s*([^)]+?)\s*\)', src):
               value = value.strip()
@@ -74,8 +80,7 @@ jobs:
 
           check_pin() {
             local HOST="$1"
-            local EXPECTED_PIN="$2"
-            local CHAIN LEAF MATCHED
+            local CHAIN LEAF MATCHED SHIPPED
 
             CHAIN=$(chain_pins "$HOST")
 
@@ -107,21 +112,25 @@ jobs:
             if [ -n "$MATCHED" ]; then
               echo "✅ ${HOST} — a pinned key is present in the chain (sha256/${MATCHED})"
             else
-              FAILURES="${FAILURES}\n❌ ${HOST}: NO pinned key appears anywhere in the served chain — tracker sync is broken for installed users.\n   Expected issuer (in source): ${EXPECTED_PIN}\n   Live leaf:                   sha256/${LEAF}"
+              # Report what the app ships, read back from the resolved table rather than from a
+              # literal maintained here. A hand-kept "expected" string goes stale exactly when a
+              # rotation changes the pinned issuer — the moment this diagnostic is being read.
+              SHIPPED=$(awk -F'\t' -v h="$HOST" '$1 == h { printf "     %s\\n", $2 }' /tmp/shipped-pins.tsv)
+              FAILURES="${FAILURES}\n❌ ${HOST}: NO pinned key appears anywhere in the served chain — tracker sync is broken for installed users.\n   Pinned in TrackerCertificatePinner.kt:\n${SHIPPED}   Live leaf: sha256/${LEAF}"
               echo "FAILED=true" >> "$GITHUB_OUTPUT"
             fi
             echo ""
           }
 
-          # Second argument is only the value quoted back in a failure message. The pass/fail
-          # decision reads TrackerCertificatePinner.kt itself, so this cannot drift into asserting
-          # something the app does not actually ship.
-          check_pin "myanimelist.net"       "DigiCert Global G3 TLS ECC SHA384 2020 CA1"
-          check_pin "api.myanimelist.net"   "DigiCert Global G3 TLS ECC SHA384 2020 CA1"
-          check_pin "graphql.anilist.co"    "Google Trust Services WE1 / GTS Root R4"
-          check_pin "kitsu.app"             "Google Trust Services WE1 / GTS Root R4"
-          check_pin "api.mangaupdates.com"  "Let's Encrypt YR1 / ISRG Root YR"
-          check_pin "shikimori.one"         "Let's Encrypt YR1 / ISRG Root YR"
+          # Hosts only. Everything else — which pins count as shipped, and what a failure reports —
+          # is read from TrackerCertificatePinner.kt, so nothing here can drift out of step with
+          # what the app actually does.
+          check_pin "myanimelist.net"
+          check_pin "api.myanimelist.net"
+          check_pin "graphql.anilist.co"
+          check_pin "kitsu.app"
+          check_pin "api.mangaupdates.com"
+          check_pin "shikimori.one"
 
           if [ -n "$FAILURES" ]; then
             echo -e "$FAILURES"
