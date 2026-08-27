@@ -327,22 +327,27 @@ class DownloadRepositoryImpl @Inject constructor(
         val resolvedNames = candidateIds.mapNotNull { id ->
             displayNameFor(id)?.let { id.toString() to it }
         }.toMap()
+        // Only the renames that actually happened, which is why the provider returns them rather
+        // than a count. Recording a target merely because it exists on disk would be exactly wrong
+        // in the skip case that matters: the provider refuses to rename onto an existing directory,
+        // so that directory belongs to some *other* source, and recording it here would make every
+        // read for this source resolve to the wrong library — defeating the numeric-first ordering
+        // below, since a recorded folder outranks it.
         val renamed = DownloadProvider.migrateSourceFolderNames(rootDir, resolvedNames)
-        // Record where each source's downloads ended up, for every folder that actually moved.
-        // This is the part that makes the rename survivable: an uninstalled extension has no
-        // display name left to re-derive, so without a record its migrated downloads would become
-        // invisible to the app the moment the user removes the extension.
-        resolvedNames.forEach { (numeric, display) ->
-            val id = numeric.toLongOrNull() ?: return@forEach
-            if (File(rootDir, DownloadProvider.sanitize(display)).isDirectory) {
-                downloadPreferences.setSourceFolderName(id, DownloadProvider.sanitize(display))
-            }
+        // Written one at a time, immediately, rather than batched after the loop: a process death
+        // mid-migration then leaves at most one moved folder unrecorded instead of all of them.
+        // That residual window is not fully closed — a crash between a rename and its write, plus a
+        // later uninstall of that same extension, leaves those downloads unreachable from the app
+        // (the files are still on disk under a readable name). Closing it completely needs a
+        // journal, which is more machinery than a one-time migration warrants.
+        renamed.forEach { (numeric, newName) ->
+            numeric.toLongOrNull()?.let { downloadPreferences.setSourceFolderName(it, newName) }
         }
         // Bump first, clear second. A resolve already in flight captured the old generation, so
         // its write is dropped rather than repopulating the cache with a pre-rename answer.
         folderGeneration.incrementAndGet()
         folderNames.clear()
-        renamed
+        renamed.size
     }
 
     /**
@@ -382,7 +387,11 @@ class DownloadRepositoryImpl @Inject constructor(
     private suspend fun resolveFolderName(sourceId: Long): String {
         val numeric = sourceId.toString()
         val recorded = downloadPreferences.sourceFolderNames.first()[sourceId]
-        val display = displayNameFor(sourceId)
+        // Nulled out when some *other* source is recorded under this name, so the ownership check
+        // covers both the "folder already exists" branch and the "nothing on disk yet" one. Doing
+        // it per-branch is what let the newcomer case slip through: guarding branch 3 alone just
+        // fell through to branch 4, which returned the same name for the same wrong reason.
+        val display = displayNameFor(sourceId)?.takeIf { !ownedByAnother(it, sourceId) }
         return withContext(Dispatchers.IO) {
             val root = DownloadProvider.getRootDir(context)
             when {
@@ -397,6 +406,13 @@ class DownloadRepositoryImpl @Inject constructor(
                 //    numeric one can only ever be this source's.
                 File(root, numeric).isDirectory -> numeric
                 // 3. A display-name folder with nothing under the number: normal, post-migration.
+                //    `display` is already null when another source owns that name, because a
+                //    display name is not unique over time: a source that migrated to `MangaDex/`
+                //    and was then uninstalled keeps its recording, and a *different* source later
+                //    installed under the same name has neither a recording nor a numeric folder —
+                //    so it would otherwise adopt the old source's downloads and write its own in
+                //    among them. displayNameFor's own collision check cannot catch that; it only
+                //    compares sources that are currently loaded, and the previous owner is gone.
                 display != null && File(root, display).isDirectory -> display
                 // 4. Nothing on disk yet, so nothing to lose; new downloads get the readable name
                 //    when one is available and the number otherwise.
@@ -415,6 +431,11 @@ class DownloadRepositoryImpl @Inject constructor(
      * in one tree. That collision is detectable from the loaded list without touching disk, so
      * the migration and every read reach the same verdict by construction rather than by luck.
      */
+    /** Whether [folderName] is recorded as belonging to some source other than [sourceId]. */
+    private suspend fun ownedByAnother(folderName: String, sourceId: Long): Boolean =
+        downloadPreferences.sourceFolderNames.first()
+            .any { (key, name) -> key != sourceId && name == folderName }
+
     private suspend fun displayNameFor(sourceId: Long): String? {
         val name = sourceRepository.getSourceByKey(sourceId)?.name ?: return null
         val sanitized = DownloadProvider.sanitize(name)

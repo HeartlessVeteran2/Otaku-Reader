@@ -243,4 +243,46 @@ class DownloadFolderNameTest {
 
         assertEquals(key.toString(), repository().downloadFolderNameFor(key))
     }
+
+    /**
+     * The migration refuses to rename onto an existing directory, so that directory is somebody
+     * else's. Recording it against this source would point every read at the wrong library — and
+     * because a recorded folder outranks the numeric one, it would defeat the numeric-first rule
+     * that exists precisely for this case.
+     */
+    @Test
+    fun doesNotRecordAFolderTheMigrationCouldNotClaim() = runTest {
+        withSources(source(sourceId, "MangaDex"))
+        makeSourceDir(key.toString())
+        // Somebody else already holds the target name.
+        makeSourceDir("MangaDex")
+        val repo = repository()
+
+        assertEquals("nothing may be renamed onto an occupied name", 0, repo.migrateSourceFolderNames())
+
+        assertTrue("no mapping may be recorded for a rename that did not happen", recorded.isEmpty())
+        assertEquals(key.toString(), repo.downloadFolderNameFor(key))
+    }
+
+    /**
+     * A display name is not unique over time. Source A migrates to `MangaDex/` and is uninstalled;
+     * a different source later arrives under the same name with no folder of its own. Without an
+     * ownership check it would adopt A's downloads and start writing its own in among them.
+     * `displayNameFor`'s collision guard cannot catch this — it only compares loaded sources, and
+     * A is gone.
+     */
+    @Test
+    fun doesNotAdoptAFolderRecordedToAnotherSource() = runTest {
+        withSources(source(sourceId, "MangaDex"))
+        makeSourceDir(key.toString())
+        val repo = repository()
+        repo.migrateSourceFolderNames()
+        assertEquals("MangaDex", repo.downloadFolderNameFor(key))
+
+        // A different source, same display name, nothing of its own on disk.
+        val newcomer = "en.mangadex.other"
+        withSources(source(newcomer, "MangaDex"))
+
+        assertEquals(newcomer.toSourceId().toString(), repository().downloadFolderNameFor(newcomer.toSourceId()))
+    }
 }

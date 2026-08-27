@@ -460,23 +460,37 @@ object DownloadProvider {
      * target name already exists. The "already exists" case is intentionally conservative:
      * silently merging could shadow or clobber files from either side.
      *
-     * @return the number of directories renamed.
+     * @return the renames that actually happened, as numeric name to new name. Callers must treat
+     *   an absent entry as "still under its number": the skip cases above are indistinguishable
+     *   from the outside, and in particular a target that already exists means the *other*
+     *   directory is somebody else's, so recording it against this source would point every read
+     *   at the wrong library.
      */
-    fun migrateSourceFolderNames(root: File, resolvedNames: Map<String, String>): Int {
-        if (!root.isDirectory) return 0
-        val sourceDirs = root.listFiles { f -> f.isDirectory } ?: return 0
-        return sourceDirs.count { dir -> renameSourceDirIfResolvable(dir, root, resolvedNames) }
+    fun migrateSourceFolderNames(root: File, resolvedNames: Map<String, String>): Map<String, String> {
+        if (!root.isDirectory) return emptyMap()
+        val sourceDirs = root.listFiles { f -> f.isDirectory } ?: return emptyMap()
+        return buildMap {
+            for (dir in sourceDirs) {
+                val numeric = dir.name
+                val renamedTo = renameSourceDirIfResolvable(dir, root, resolvedNames) ?: continue
+                put(numeric, renamedTo)
+            }
+        }
     }
 
-    /** The single rename attempt behind [migrateSourceFolderNames]; see its doc for the rules. */
-    private fun renameSourceDirIfResolvable(dir: File, root: File, resolvedNames: Map<String, String>): Boolean {
-        dir.name.toLongOrNull() ?: return false
-        val resolvedName = resolvedNames[dir.name] ?: return false
+    /**
+     * The single rename attempt behind [migrateSourceFolderNames]; see its doc for the rules.
+     *
+     * @return the new directory name when the rename happened, or null when it did not.
+     */
+    private fun renameSourceDirIfResolvable(dir: File, root: File, resolvedNames: Map<String, String>): String? {
+        dir.name.toLongOrNull() ?: return null
+        val resolvedName = resolvedNames[dir.name] ?: return null
         val sanitizedName = sanitize(resolvedName)
-        if (sanitizedName == dir.name) return false
+        if (sanitizedName == dir.name) return null
         val target = File(root, sanitizedName)
-        if (target.exists()) return false
-        return dir.renameTo(target)
+        if (target.exists()) return null
+        return if (dir.renameTo(target)) sanitizedName else null
     }
 
     // -------------------------------------------------------------------------

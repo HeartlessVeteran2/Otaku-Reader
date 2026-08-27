@@ -643,7 +643,9 @@ class DownloadProviderTest {
 
             val renamed = DownloadProvider.migrateSourceFolderNames(root, mapOf("1943584017" to "MangaDex"))
 
-            assertEquals(1, renamed)
+            // The map, not a count: callers must record only the renames that actually happened,
+            // so what moved and where is the part worth asserting.
+            assertEquals(mapOf("1943584017" to "MangaDex"), renamed)
             assertFalse(File(root, "1943584017").exists())
             assertTrue(File(root, "MangaDex").isDirectory)
         } finally {
@@ -677,7 +679,7 @@ class DownloadProviderTest {
 
             val renamed = DownloadProvider.migrateSourceFolderNames(root, mapOf("MangaDex" to "SomethingElse"))
 
-            assertEquals(0, renamed)
+            assertEquals(emptyMap<String, String>(), renamed)
             assertTrue(File(root, "MangaDex").isDirectory)
         } finally {
             root.deleteRecursively()
@@ -694,7 +696,7 @@ class DownloadProviderTest {
             // extension was uninstalled) — the directory must be left exactly as-is.
             val renamed = DownloadProvider.migrateSourceFolderNames(root, emptyMap())
 
-            assertEquals(0, renamed)
+            assertEquals(emptyMap<String, String>(), renamed)
             assertTrue(File(root, "1943584017").isDirectory)
         } finally {
             root.deleteRecursively()
@@ -713,7 +715,9 @@ class DownloadProviderTest {
 
             // Conservative: never merge into an existing directory, even though it means the
             // numeric-named directory is left behind rather than fully migrated.
-            assertEquals(0, renamed)
+            // And nothing is reported as renamed, which is what stops the caller recording this
+            // source against a directory that belongs to somebody else.
+            assertEquals(emptyMap<String, String>(), renamed)
             assertTrue(File(root, "1943584017").isDirectory)
             assertTrue(File(File(root, "MangaDex"), "existing.txt").exists())
         } finally {
@@ -731,8 +735,8 @@ class DownloadProviderTest {
             val firstPass = DownloadProvider.migrateSourceFolderNames(root, resolvedNames)
             val secondPass = DownloadProvider.migrateSourceFolderNames(root, resolvedNames)
 
-            assertEquals(1, firstPass)
-            assertEquals(0, secondPass)
+            assertEquals(mapOf("1943584017" to "MangaDex"), firstPass)
+            assertEquals(emptyMap<String, String>(), secondPass)
             assertTrue(File(root, "MangaDex").isDirectory)
         } finally {
             root.deleteRecursively()
@@ -740,8 +744,8 @@ class DownloadProviderTest {
     }
 
     @Test
-    fun migrateSourceFolderNames_nonExistentRoot_returnsZero() {
+    fun migrateSourceFolderNames_nonExistentRoot_returnsNothing() {
         val root = File(tempDir(), "does_not_exist")
-        assertEquals(0, DownloadProvider.migrateSourceFolderNames(root, emptyMap()))
+        assertEquals(emptyMap<String, String>(), DownloadProvider.migrateSourceFolderNames(root, emptyMap()))
     }
 }
