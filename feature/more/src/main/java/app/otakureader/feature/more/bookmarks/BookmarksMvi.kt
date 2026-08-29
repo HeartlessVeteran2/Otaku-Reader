@@ -52,6 +52,8 @@ data class BookmarksState(
     val isManageCollectionsVisible: Boolean = false,
     // Multi-select (Part D)
     val selectedBookmarkIds: Set<Long> = emptySet(),
+    /** An export or share is resolving pages; those actions are disabled meanwhile. */
+    val isExporting: Boolean = false,
 ) : UiState {
 
     val isSelectionMode: Boolean get() = selectedBookmarkIds.isNotEmpty()
@@ -124,9 +126,23 @@ sealed interface BookmarksIntent : UiEvent {
 sealed interface BookmarksEffect : UiEffect {
     data class NavigateToReader(val mangaId: Long, val chapterId: Long) : BookmarksEffect
     data class ShowSnackbar(val message: String) : BookmarksEffect
-    /** Signals the Screen to perform the actual MediaStore export for the given bookmark IDs. */
-    data class RequestExport(val bookmarkIds: Set<Long>) : BookmarksEffect
-    data class ExportComplete(val savedCount: Int) : BookmarksEffect
-    /** Signals the Screen to launch the Android Sharesheet with the resolved bookmark items. */
-    data class ShareSelected(val items: List<BookmarkItem>) : BookmarksEffect
+    /**
+     * The export finished. [failed] is carried separately rather than folded into a single count
+     * so a partial result reads as one: a page whose source is uninstalled or unreachable cannot
+     * be exported, and reporting only [saved] would hide that some panels never arrived.
+     */
+    data class ExportComplete(val saved: Int, val failed: Int) : BookmarksEffect
+
+    /**
+     * The device cannot write to the gallery at all — below API 29 that needs a storage permission
+     * this app does not request. Distinct from [ExportComplete] with `saved = 0`, which means the
+     * export ran and the pages could not be resolved.
+     */
+    data object ExportUnsupported : BookmarksEffect
+
+    /**
+     * Launch the Android Sharesheet with these page images. Strings, not `Uri`, because the URIs
+     * are produced in the data layer and this module parses them at the Intent boundary.
+     */
+    data class ShareImages(val uris: List<String>, val failed: Int) : BookmarksEffect
 }

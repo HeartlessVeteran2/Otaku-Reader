@@ -3,5 +3,13 @@
     <files-path name="exts" path="exts/" />
     <files-path name="extension_downloads" path="extension_downloads/" />
     <cache-path name="shared_stats" path="shared_stats/" />
+    <cache-path name="shared_bookmarks" path="shared_bookmarks/" />
+    <!--
+      Reading-list exports. They used to be written to the cache *root*, which no declared root
+      covers, so getUriForFile threw "Failed to find configured root" and sharing a reading list
+      crashed the app. Each shared kind gets its own subdirectory rather than exposing the whole
+      cache directory, which also holds the image cache.
+    -->
+    <cache-path name="shared_exports" path="shared_exports/" />
     <external-files-path name="otakureader_downloads" path="OtakuReader/" />
 </paths>

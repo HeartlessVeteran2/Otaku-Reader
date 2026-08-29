@@ -3,6 +3,9 @@ package app.otakureader.feature.more.bookmarks
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.otakureader.domain.bookmark.BookmarkPageExporter
+import app.otakureader.domain.model.BookmarkPageRef
+import app.otakureader.domain.model.ExportResult
 import app.otakureader.domain.repository.BookmarkCollectionRepository
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.MangaRepository
@@ -37,6 +40,7 @@ class BookmarksViewModel @Inject constructor(
     private val bookmarkCollectionRepository: BookmarkCollectionRepository,
     private val mangaRepository: MangaRepository,
     private val chapterRepository: ChapterRepository,
+    private val bookmarkPageExporter: BookmarkPageExporter,
 ) : ViewModel() {
 
     private val _effect = Channel<BookmarksEffect>(Channel.BUFFERED)
@@ -47,6 +51,15 @@ class BookmarksViewModel @Inject constructor(
     private val _selectedCollectionId = MutableStateFlow<Long?>(null)
     private val _isManageCollectionsVisible = MutableStateFlow(false)
     private val _selectedBookmarkIds = MutableStateFlow<Set<Long>>(emptySet())
+
+    /**
+     * True while an export or share is resolving pages.
+     *
+     * Not cosmetic: a page that is not downloaded has to be fetched from the source, so a large
+     * selection can take seconds. Without this the buttons look exactly as dead as the placeholder
+     * they replaced.
+     */
+    private val _isExporting = MutableStateFlow(false)
 
     private val enrichedBookmarks = pageBookmarkRepository.getAllBookmarks()
         .mapLatest { bookmarks ->
@@ -85,19 +98,23 @@ class BookmarksViewModel @Inject constructor(
         _searchQuery,
         _collapsedManga,
         bookmarkCollectionRepository.getAllCollections(),
-        combine(_selectedCollectionId, _isManageCollectionsVisible, _selectedBookmarkIds) { colId, mgmt, sel ->
-            Triple(colId, mgmt, sel)
-        },
-    ) { items, query, collapsed, collections, (selectedColId, managingCollections, selectedIds) ->
+        combine(
+            _selectedCollectionId,
+            _isManageCollectionsVisible,
+            _selectedBookmarkIds,
+            _isExporting,
+        ) { colId, mgmt, sel, exporting -> Selection(colId, mgmt, sel, exporting) },
+    ) { items, query, collapsed, collections, selection ->
         BookmarksState(
             isLoading = false,
             bookmarks = items,
             searchQuery = query,
             collapsedManga = collapsed,
             collections = collections,
-            selectedCollectionId = selectedColId,
-            isManageCollectionsVisible = managingCollections,
-            selectedBookmarkIds = selectedIds,
+            selectedCollectionId = selection.collectionId,
+            isManageCollectionsVisible = selection.managingCollections,
+            selectedBookmarkIds = selection.selectedIds,
+            isExporting = selection.isExporting,
         )
     }
         .catch { emit(BookmarksState(isLoading = false)) }
@@ -106,6 +123,14 @@ class BookmarksViewModel @Inject constructor(
             started = SharingStarted.Eagerly,
             initialValue = BookmarksState(),
         )
+
+    /** The four selection-ish flows, bundled because [combine] takes at most five sources. */
+    private data class Selection(
+        val collectionId: Long?,
+        val managingCollections: Boolean,
+        val selectedIds: Set<Long>,
+        val isExporting: Boolean,
+    )
 
     fun onIntent(intent: BookmarksIntent) {
         when (intent) {
@@ -138,8 +163,11 @@ class BookmarksViewModel @Inject constructor(
                 state.value.filteredBookmarks.map { it.id }.toSet()
             }
             is BookmarksIntent.ClearSelection -> _selectedBookmarkIds.value = emptySet()
-            is BookmarksIntent.ExportSelected -> exportSelected(state.value.selectedBookmarkIds)
-            is BookmarksIntent.ShareSelected -> shareSelected(state.value.selectedBookmarkIds)
+            // Read from the backing flow, not from [state]. `state` is a `combine` republished
+            // through `stateIn`, so it trails its inputs by a dispatch — an export triggered in
+            // that window would act on the previous selection, or on none at all.
+            is BookmarksIntent.ExportSelected -> exportSelected(_selectedBookmarkIds.value)
+            is BookmarksIntent.ShareSelected -> shareSelected(_selectedBookmarkIds.value)
         }
     }
 
@@ -193,31 +221,90 @@ class BookmarksViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Saves the selected pages to the device gallery (#1132).
+     *
+     * This used to send a `RequestExport` effect that the Screen answered with a snackbar reading
+     * "image export coming in v1.1" — a live button that did nothing, which CLAUDE.md names as the
+     * mistake not to make. The work now happens in [BookmarkPageExporter], which resolves each
+     * bookmark to its page image from the download, the CBZ or the source.
+     */
     private fun exportSelected(bookmarkIds: Set<Long>) {
-        if (bookmarkIds.isEmpty()) return
+        val refs = pageRefsFor(bookmarkIds)
+        if (refs.isEmpty()) {
+            _selectedBookmarkIds.value = emptySet()
+            return
+        }
         viewModelScope.launch {
+            _isExporting.value = true
             try {
-                // Delegate to Screen which has Context for MediaStore access.
-                _effect.send(BookmarksEffect.RequestExport(bookmarkIds))
+                when (val result = bookmarkPageExporter.exportToGallery(refs)) {
+                    is ExportResult.Completed ->
+                        _effect.send(BookmarksEffect.ExportComplete(result.saved, result.failed))
+                    ExportResult.GalleryUnsupported ->
+                        _effect.send(BookmarksEffect.ExportUnsupported)
+                }
                 _selectedBookmarkIds.value = emptySet()
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
                 _effect.send(BookmarksEffect.ShowSnackbar(context.getString(R.string.bookmarks_error_export)))
+            } finally {
+                _isExporting.value = false
             }
         }
     }
 
+    /**
+     * Resolves the selection to the triples the exporter needs.
+     *
+     * Read from the already-loaded list rather than re-queried: the screen is displaying these
+     * rows, so a second database round-trip would only add a way for the two to disagree.
+     */
+    private fun pageRefsFor(bookmarkIds: Set<Long>): List<BookmarkPageRef> =
+        state.value.bookmarks
+            .filter { it.id in bookmarkIds }
+            .map {
+                BookmarkPageRef(
+                    mangaId = it.mangaId,
+                    chapterId = it.chapterId,
+                    pageIndex = it.pageIndex,
+                    mangaTitle = it.mangaTitle,
+                    chapterName = it.chapterName,
+                )
+            }
+
+    /**
+     * Shares the selected pages as images (#1133).
+     *
+     * Previously this shared a *text* list of "manga · chapter · page N" lines, which is not what
+     * a user selecting panels is asking for. The images are copied into app cache and handed over
+     * as `content://` URIs; they deliberately do not go to the gallery, since sharing a panel
+     * should not silently add it to the camera roll.
+     */
     private fun shareSelected(bookmarkIds: Set<Long>) {
-        if (bookmarkIds.isEmpty()) return
-        val items = state.value.bookmarks.filter { it.id in bookmarkIds }
-        if (items.isEmpty()) {
+        val refs = pageRefsFor(bookmarkIds)
+        if (refs.isEmpty()) {
             _selectedBookmarkIds.value = emptySet()
             return
         }
         viewModelScope.launch {
-            _effect.send(BookmarksEffect.ShareSelected(items))
-            _selectedBookmarkIds.value = emptySet()
+            _isExporting.value = true
+            try {
+                val result = bookmarkPageExporter.prepareForShare(refs)
+                if (result.uris.isEmpty()) {
+                    _effect.send(BookmarksEffect.ShowSnackbar(context.getString(R.string.bookmarks_error_share)))
+                } else {
+                    _effect.send(BookmarksEffect.ShareImages(result.uris, result.failed))
+                }
+                _selectedBookmarkIds.value = emptySet()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                _effect.send(BookmarksEffect.ShowSnackbar(context.getString(R.string.bookmarks_error_share)))
+            } finally {
+                _isExporting.value = false
+            }
         }
     }
 }

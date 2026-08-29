@@ -43,6 +43,8 @@ import app.otakureader.domain.backup.BackupRepository
 import app.otakureader.domain.backup.BackupScheduler
 import app.otakureader.domain.backup.TachiyomiBackupImporter
 import app.otakureader.domain.history.ReadingHistoryScheduler
+import app.otakureader.data.bookmark.BookmarkPageExporterImpl
+import app.otakureader.domain.bookmark.BookmarkPageExporter
 import app.otakureader.domain.loader.PageLoader
 import app.otakureader.domain.repository.ReaderSettingsRepository as ReaderSettingsRepositoryInterface
 import app.otakureader.data.repository.BookmarkCollectionRepositoryImpl
@@ -121,6 +123,10 @@ abstract class RepositoryModule {
 
     @Binds
     abstract fun bindPageLoader(impl: PageLoaderImpl): PageLoader
+
+    @Binds
+    @Singleton
+    abstract fun bindBookmarkPageExporter(impl: BookmarkPageExporterImpl): BookmarkPageExporter
 
     @Binds
     abstract fun bindReadingHistoryScheduler(impl: WorkManagerHistoryScheduler): ReadingHistoryScheduler

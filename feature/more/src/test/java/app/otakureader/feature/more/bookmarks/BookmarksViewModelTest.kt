@@ -3,6 +3,10 @@ package app.otakureader.feature.more.bookmarks
 import android.content.Context
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.PageBookmark
+import app.otakureader.domain.bookmark.BookmarkPageExporter
+import app.otakureader.domain.model.BookmarkPageRef
+import app.otakureader.domain.model.ExportResult
+import app.otakureader.domain.model.ShareResult
 import app.otakureader.domain.repository.BookmarkCollectionRepository
 import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.MangaRepository
@@ -10,6 +14,7 @@ import app.otakureader.domain.repository.PageBookmarkRepository
 import app.otakureader.domain.model.Chapter
 import app.cash.turbine.test
 import io.mockk.coEvery
+import io.mockk.slot
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
@@ -18,6 +23,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -45,6 +51,7 @@ class BookmarksViewModelTest {
     private val bookmarkCollectionRepository: BookmarkCollectionRepository = mockk()
     private val mangaRepository: MangaRepository = mockk(relaxed = true)
     private val chapterRepository: ChapterRepository = mockk(relaxed = true)
+    private val bookmarkPageExporter: BookmarkPageExporter = mockk(relaxed = true)
 
     @Before
     fun setUp() {
@@ -86,6 +93,7 @@ class BookmarksViewModelTest {
         bookmarkCollectionRepository = bookmarkCollectionRepository,
         mangaRepository = mangaRepository,
         chapterRepository = chapterRepository,
+        bookmarkPageExporter = bookmarkPageExporter,
     )
 
     // ── tests ────────────────────────────────────────────────────────────────
@@ -232,5 +240,169 @@ class BookmarksViewModelTest {
             assertEquals(0, ch1.bookmarks[0].pageIndex)
             assertEquals(2, ch1.bookmarks[1].pageIndex)
         }
+    }
+
+    // ── export / share (#1132, #1133) ────────────────────────────────────────
+
+    /**
+     * Selecting needs the enriched list to have arrived first — it is produced asynchronously —
+     * and [advanceUntilIdle] afterwards so `state` republishes with the selection applied.
+     */
+    private fun TestScope.selectFirstBookmark(vm: BookmarksViewModel): BookmarkItem {
+        val item = vm.state.value.bookmarks.first()
+        vm.onIntent(BookmarksIntent.ToggleBookmarkSelection(item.id))
+        advanceUntilIdle()
+        return item
+    }
+
+    private fun seedOneBookmark() {
+        every { pageBookmarkRepository.getAllBookmarks() } returns flowOf(listOf(bookmark()))
+        coEvery { mangaRepository.getMangaByIds(listOf(10L)) } returns listOf(manga())
+        coEvery { chapterRepository.getChapterById(100L) } returns chapter()
+    }
+
+    /**
+     * The point of #1132: the export must reach the exporter with the page's real coordinates.
+     *
+     * Before this, `ExportSelected` sent an effect the Screen answered with a snackbar reading
+     * "image export coming in v1.1" — a live button wired to nothing. Asserting the *argument*,
+     * not merely that something was called, is what makes this test notice a regression back to
+     * passing the wrong ids.
+     */
+    @Test
+    fun `export sends the selected page's coordinates to the exporter`() = runTest {
+        seedOneBookmark()
+        val refs = slot<List<BookmarkPageRef>>()
+        coEvery { bookmarkPageExporter.exportToGallery(capture(refs)) } returns
+            ExportResult.Completed(saved = 1, failed = 0)
+        val vm = createViewModel()
+        advanceUntilIdle()
+        selectFirstBookmark(vm)
+
+        vm.onIntent(BookmarksIntent.ExportSelected)
+        advanceUntilIdle()
+
+        val ref = refs.captured.single()
+        assertEquals(10L, ref.mangaId)
+        assertEquals(100L, ref.chapterId)
+        assertEquals(0, ref.pageIndex)
+        assertEquals("Test Manga", ref.mangaTitle)
+        assertEquals("Chapter 1", ref.chapterName)
+    }
+
+    /** A partial export reports both halves, so pages that never arrived are not hidden. */
+    @Test
+    fun `export emits ExportComplete carrying the failure count`() = runTest {
+        seedOneBookmark()
+        coEvery { bookmarkPageExporter.exportToGallery(any()) } returns
+            ExportResult.Completed(saved = 3, failed = 2)
+        val vm = createViewModel()
+        advanceUntilIdle()
+        selectFirstBookmark(vm)
+
+        vm.effect.test {
+            vm.onIntent(BookmarksIntent.ExportSelected)
+            advanceUntilIdle()
+            val effect = awaitItem()
+            assertTrue(effect is BookmarksEffect.ExportComplete)
+            assertEquals(3, (effect as BookmarksEffect.ExportComplete).saved)
+            assertEquals(2, effect.failed)
+        }
+    }
+
+    /**
+     * "Cannot save at all" and "saved nothing" are different answers and the user can only act on
+     * one of them, so they must not collapse into the same effect.
+     */
+    @Test
+    fun `an unsupported gallery emits ExportUnsupported rather than a zero count`() = runTest {
+        seedOneBookmark()
+        coEvery { bookmarkPageExporter.exportToGallery(any()) } returns ExportResult.GalleryUnsupported
+        val vm = createViewModel()
+        advanceUntilIdle()
+        selectFirstBookmark(vm)
+
+        vm.effect.test {
+            vm.onIntent(BookmarksIntent.ExportSelected)
+            advanceUntilIdle()
+            assertEquals(BookmarksEffect.ExportUnsupported, awaitItem())
+        }
+    }
+
+    /** #1133: images, not the text list this used to share. */
+    @Test
+    fun `share emits the prepared image uris`() = runTest {
+        seedOneBookmark()
+        coEvery { bookmarkPageExporter.prepareForShare(any()) } returns
+            ShareResult(uris = listOf("content://x/1"), failed = 1)
+        val vm = createViewModel()
+        advanceUntilIdle()
+        selectFirstBookmark(vm)
+
+        vm.effect.test {
+            vm.onIntent(BookmarksIntent.ShareSelected)
+            advanceUntilIdle()
+            val effect = awaitItem()
+            assertTrue(effect is BookmarksEffect.ShareImages)
+            assertEquals(listOf("content://x/1"), (effect as BookmarksEffect.ShareImages).uris)
+            assertEquals(1, effect.failed)
+        }
+    }
+
+    /**
+     * Nothing resolved, so there is nothing to hand the sharesheet. Launching it with an empty
+     * list would open a chooser that shares an empty selection.
+     */
+    @Test
+    fun `share with nothing resolvable falls back to a snackbar`() = runTest {
+        seedOneBookmark()
+        coEvery { bookmarkPageExporter.prepareForShare(any()) } returns
+            ShareResult(uris = emptyList(), failed = 1)
+        val vm = createViewModel()
+        advanceUntilIdle()
+        selectFirstBookmark(vm)
+
+        vm.effect.test {
+            vm.onIntent(BookmarksIntent.ShareSelected)
+            advanceUntilIdle()
+            assertTrue(awaitItem() is BookmarksEffect.ShowSnackbar)
+        }
+    }
+
+    /** The selection clears once the work is done, not before it starts. */
+    @Test
+    fun `a completed export clears the selection`() = runTest {
+        seedOneBookmark()
+        coEvery { bookmarkPageExporter.exportToGallery(any()) } returns
+            ExportResult.Completed(saved = 1, failed = 0)
+        val vm = createViewModel()
+        advanceUntilIdle()
+        selectFirstBookmark(vm)
+        assertTrue(vm.state.value.isSelectionMode)
+
+        vm.onIntent(BookmarksIntent.ExportSelected)
+        advanceUntilIdle()
+
+        assertFalse(vm.state.value.isSelectionMode)
+        assertFalse("progress must not stay stuck on", vm.state.value.isExporting)
+    }
+
+    /**
+     * An exporter that throws must not leave the spinner running forever — the buttons are
+     * disabled while [BookmarksState.isExporting] is true, so a leaked flag bricks the screen
+     * until the user navigates away.
+     */
+    @Test
+    fun `a failing exporter still clears the progress flag`() = runTest {
+        seedOneBookmark()
+        coEvery { bookmarkPageExporter.exportToGallery(any()) } throws IllegalStateException("boom")
+        val vm = createViewModel()
+        advanceUntilIdle()
+        selectFirstBookmark(vm)
+
+        vm.onIntent(BookmarksIntent.ExportSelected)
+        advanceUntilIdle()
+
+        assertFalse(vm.state.value.isExporting)
     }
 }
