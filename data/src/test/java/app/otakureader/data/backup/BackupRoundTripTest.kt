@@ -4,9 +4,11 @@ import app.otakureader.data.backup.mapper.toBackupCategory
 import app.otakureader.data.backup.mapper.toBackupChapter
 import app.otakureader.data.backup.mapper.toBackupManga
 import app.otakureader.data.backup.mapper.toBackupReadingHistory
+import app.otakureader.data.backup.mapper.toBackupTrackEntry
 import app.otakureader.data.backup.mapper.toCategoryEntity
 import app.otakureader.data.backup.mapper.toChapterEntity
 import app.otakureader.data.backup.mapper.toMangaEntity
+import app.otakureader.data.backup.mapper.toTrackEntryEntity
 import app.otakureader.data.backup.model.BackupCategory
 import app.otakureader.data.backup.model.BackupChapter
 import app.otakureader.data.backup.model.BackupData
@@ -16,10 +18,12 @@ import app.otakureader.data.backup.model.BackupManga
 import app.otakureader.data.backup.model.BackupOpdsServer
 import app.otakureader.data.backup.model.BackupPreferences
 import app.otakureader.data.backup.model.BackupReadingHistory
+import app.otakureader.data.backup.model.BackupTrackEntry
 import app.otakureader.core.database.entity.CategoryEntity
 import app.otakureader.core.database.entity.ChapterEntity
 import app.otakureader.core.database.entity.MangaEntity
 import app.otakureader.core.database.entity.ReadingHistoryEntity
+import app.otakureader.core.database.entity.TrackEntryEntity
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
@@ -275,6 +279,36 @@ class BackupRoundTripTest {
         val backup = entity.toBackupReadingHistory()
         assertEquals(5_000_000L, backup.readAt)
         assertEquals(120_000L, backup.readDurationMs)
+    }
+
+    /**
+     * Every field, because this mapper is the whole reason a tracker link now survives a backup
+     * (#1271) — and a field silently dropped here looks exactly like the bug being fixed: the link
+     * comes back, but with the score or the progress reset. The manga id is asserted to come from
+     * the *caller*, not the backup, since a [BackupTrackEntry] deliberately carries none.
+     */
+    @Test
+    fun `TrackEntryEntity toBackupTrackEntry toTrackEntryEntity preserves every field`() {
+        val entity = TrackEntryEntity(
+            id = 7L, mangaId = 3L, trackerId = 2, remoteId = 44347L,
+            remoteUrl = "https://anilist.co/manga/44347", title = "Vinland Saga",
+            status = 1, lastChapterRead = 187.5f, totalChapters = 214, score = 9.5f,
+            startDate = 1_600_000_000_000L, finishDate = 1_700_000_000_000L,
+        )
+
+        val restored = entity.toBackupTrackEntry().toTrackEntryEntity(mangaId = 42L)
+
+        assertEquals(42L, restored.mangaId)
+        assertEquals(2, restored.trackerId)
+        assertEquals(44347L, restored.remoteId)
+        assertEquals("https://anilist.co/manga/44347", restored.remoteUrl)
+        assertEquals("Vinland Saga", restored.title)
+        assertEquals(1, restored.status)
+        assertEquals(187.5f, restored.lastChapterRead, 0f)
+        assertEquals(214, restored.totalChapters)
+        assertEquals(9.5f, restored.score, 0f)
+        assertEquals(1_600_000_000_000L, restored.startDate)
+        assertEquals(1_700_000_000_000L, restored.finishDate)
     }
 
     @Test

@@ -16,6 +16,13 @@ interface TrackEntryDao {
     @Query("SELECT * FROM track_entries WHERE manga_id = :mangaId AND tracker_id = :trackerId LIMIT 1")
     suspend fun getByMangaAndTracker(mangaId: Long, trackerId: Int): TrackEntryEntity?
 
+    /**
+     * Every tracker link in the library, for the backup writer. One query for the whole library
+     * rather than a [getByMangaId] per manga, matching how reading history is collected there.
+     */
+    @Query("SELECT * FROM track_entries")
+    fun getAllEntries(): Flow<List<TrackEntryEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entry: TrackEntryEntity): Long
 
