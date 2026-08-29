@@ -28,7 +28,7 @@ class TrackEntryDaoTest {
      * which is precisely the orphan state the key now makes unrepresentable.
      */
     private suspend fun insertManga(id: Long) {
-        mangaDao.insert(
+        mangaDao.insertOrGetExisting(
             MangaEntity(id = id, title = "Manga $id", sourceId = 1L, url = "/manga/$id", favorite = true)
         )
     }

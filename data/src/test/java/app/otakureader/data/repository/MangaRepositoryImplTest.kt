@@ -196,7 +196,7 @@ class MangaRepositoryImplTest {
     @Test
     fun insertManga_returnsInsertedId() = runTest {
         val manga = Manga(id = 0L, sourceId = 1L, url = "/m/new", title = "New Manga")
-        coEvery { mangaDao.insert(any()) } returns 42L
+        coEvery { mangaDao.insertOrGetExisting(any()) } returns 42L
 
         val id = repository.insertManga(manga)
 

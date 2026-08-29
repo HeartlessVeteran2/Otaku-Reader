@@ -93,7 +93,7 @@ class CategoryDaoTest {
  fun getCategoryIdsForManga_returnsOnlyLinked() = runBlocking {
  // Insert manga
  val manga = MangaEntity(id = 1L, title = "Test Manga", sourceId = 1L, url = "url", favorite = true)
- mangaDao.insert(manga)
+ mangaDao.insertOrGetExisting(manga)
 
  // Insert categories
  val cat1 = CategoryEntity(id = 1L, name = "Reading", order = 0)

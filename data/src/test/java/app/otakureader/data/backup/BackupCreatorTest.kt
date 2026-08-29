@@ -86,7 +86,7 @@ class BackupCreatorTest {
     }
 
     private suspend fun seedFavoriteMangaWithChapterAndCategory(): Long {
-        val mangaId = database.mangaDao().insert(
+        val mangaId = database.mangaDao().insertOrGetExisting(
             MangaEntity(sourceId = 1L, url = "/m/1", title = "Test Manga", favorite = true)
         )
         database.chapterDao().upsert(

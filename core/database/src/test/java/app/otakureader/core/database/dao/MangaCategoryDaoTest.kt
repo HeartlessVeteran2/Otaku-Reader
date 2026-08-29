@@ -44,7 +44,7 @@ class MangaCategoryDaoTest {
  fun insertMangaCategory_createsLink() = runBlocking {
  val manga = MangaEntity(id = 1L, title = "Test", sourceId = 1L, url = "url", favorite = true)
  val category = CategoryEntity(id = 1L, name = "Reading", order = 0)
- mangaDao.insert(manga)
+ mangaDao.insertOrGetExisting(manga)
  categoryDao.insert(category)
 
  mangaCategoryDao.upsert(MangaCategoryEntity(mangaId = 1L, categoryId = 1L))
@@ -58,7 +58,7 @@ class MangaCategoryDaoTest {
  fun deleteMangaCategory_removesLink() = runBlocking {
  val manga = MangaEntity(id = 1L, title = "Test", sourceId = 1L, url = "url", favorite = true)
  val category = CategoryEntity(id = 1L, name = "Reading", order = 0)
- mangaDao.insert(manga)
+ mangaDao.insertOrGetExisting(manga)
  categoryDao.insert(category)
 
  val link = MangaCategoryEntity(mangaId = 1L, categoryId = 1L)
@@ -74,8 +74,8 @@ class MangaCategoryDaoTest {
  // Insert 2 manga
  val manga1 = MangaEntity(id = 1L, title = "Manga 1", sourceId = 1L, url = "url1", favorite = true)
  val manga2 = MangaEntity(id = 2L, title = "Manga 2", sourceId = 1L, url = "url2", favorite = true)
- mangaDao.insert(manga1)
- mangaDao.insert(manga2)
+ mangaDao.insertOrGetExisting(manga1)
+ mangaDao.insertOrGetExisting(manga2)
 
  // Insert 2 categories
  val cat1 = CategoryEntity(id = 1L, name = "Reading", order = 0)
@@ -100,7 +100,7 @@ class MangaCategoryDaoTest {
  fun deleteManga_deletesLinksViaCascade() = runBlocking {
  val manga = MangaEntity(id = 1L, title = "Test", sourceId = 1L, url = "url", favorite = true)
  val category = CategoryEntity(id = 1L, name = "Reading", order = 0)
- mangaDao.insert(manga)
+ mangaDao.insertOrGetExisting(manga)
  categoryDao.insert(category)
  mangaCategoryDao.upsert(MangaCategoryEntity(mangaId = 1L, categoryId = 1L))
 
@@ -120,7 +120,7 @@ class MangaCategoryDaoTest {
  fun insertDuplicateLink_ignoresConflict() = runBlocking {
  val manga = MangaEntity(id = 1L, title = "Test", sourceId = 1L, url = "url", favorite = true)
  val category = CategoryEntity(id = 1L, name = "Reading", order = 0)
- mangaDao.insert(manga)
+ mangaDao.insertOrGetExisting(manga)
  categoryDao.insert(category)
 
  val link = MangaCategoryEntity(mangaId = 1L, categoryId = 1L)

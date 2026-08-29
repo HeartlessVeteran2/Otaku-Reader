@@ -40,7 +40,7 @@ class UpdateErrorDaoTest {
     @Test
     fun upsert_replacesPreviousErrorForSameManga() = runBlocking {
         val mangaId = 1L
-        mangaDao.insert(MangaEntity(id = mangaId, title = "Test Manga", sourceId = 1L, url = "url", favorite = true))
+        mangaDao.insertOrGetExisting(MangaEntity(id = mangaId, title = "Test Manga", sourceId = 1L, url = "url", favorite = true))
 
         updateErrorDao.upsert(UpdateErrorEntity(mangaId = mangaId, errorMessage = "First failure", timestamp = 1L))
         updateErrorDao.upsert(UpdateErrorEntity(mangaId = mangaId, errorMessage = "Second failure", timestamp = 2L))
@@ -54,8 +54,8 @@ class UpdateErrorDaoTest {
     fun observeErrors_joinsMangaTitleAndOrdersNewestFirst() = runBlocking {
         val manga1 = 1L
         val manga2 = 2L
-        mangaDao.insert(MangaEntity(id = manga1, title = "Older Failure Manga", sourceId = 1L, url = "url1", favorite = true))
-        mangaDao.insert(MangaEntity(id = manga2, title = "Newer Failure Manga", sourceId = 1L, url = "url2", favorite = true))
+        mangaDao.insertOrGetExisting(MangaEntity(id = manga1, title = "Older Failure Manga", sourceId = 1L, url = "url1", favorite = true))
+        mangaDao.insertOrGetExisting(MangaEntity(id = manga2, title = "Newer Failure Manga", sourceId = 1L, url = "url2", favorite = true))
 
         updateErrorDao.upsert(UpdateErrorEntity(mangaId = manga1, errorMessage = "Old error", timestamp = 1_000L))
         updateErrorDao.upsert(UpdateErrorEntity(mangaId = manga2, errorMessage = "New error", timestamp = 2_000L))
@@ -70,8 +70,8 @@ class UpdateErrorDaoTest {
     fun deleteByMangaId_removesOnlyThatMangasError() = runBlocking {
         val manga1 = 1L
         val manga2 = 2L
-        mangaDao.insert(MangaEntity(id = manga1, title = "Manga 1", sourceId = 1L, url = "url1", favorite = true))
-        mangaDao.insert(MangaEntity(id = manga2, title = "Manga 2", sourceId = 1L, url = "url2", favorite = true))
+        mangaDao.insertOrGetExisting(MangaEntity(id = manga1, title = "Manga 1", sourceId = 1L, url = "url1", favorite = true))
+        mangaDao.insertOrGetExisting(MangaEntity(id = manga2, title = "Manga 2", sourceId = 1L, url = "url2", favorite = true))
         updateErrorDao.upsert(UpdateErrorEntity(mangaId = manga1, errorMessage = "Error 1", timestamp = 1L))
         updateErrorDao.upsert(UpdateErrorEntity(mangaId = manga2, errorMessage = "Error 2", timestamp = 2L))
 
@@ -86,8 +86,8 @@ class UpdateErrorDaoTest {
     fun deleteAll_clearsEveryError() = runBlocking {
         val manga1 = 1L
         val manga2 = 2L
-        mangaDao.insert(MangaEntity(id = manga1, title = "Manga 1", sourceId = 1L, url = "url1", favorite = true))
-        mangaDao.insert(MangaEntity(id = manga2, title = "Manga 2", sourceId = 1L, url = "url2", favorite = true))
+        mangaDao.insertOrGetExisting(MangaEntity(id = manga1, title = "Manga 1", sourceId = 1L, url = "url1", favorite = true))
+        mangaDao.insertOrGetExisting(MangaEntity(id = manga2, title = "Manga 2", sourceId = 1L, url = "url2", favorite = true))
         updateErrorDao.upsert(UpdateErrorEntity(mangaId = manga1, errorMessage = "Error 1", timestamp = 1L))
         updateErrorDao.upsert(UpdateErrorEntity(mangaId = manga2, errorMessage = "Error 2", timestamp = 2L))
 

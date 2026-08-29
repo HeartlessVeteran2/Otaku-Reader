@@ -40,7 +40,7 @@ class ChapterDaoTest {
     @Test
     fun updateChapterProgress_marksSingleChapterAsRead() = runBlocking {
         val mangaId = 1L
-        mangaDao.insert(MangaEntity(id = mangaId, title = "Test Manga", sourceId = 1L, url = "url", favorite = true))
+        mangaDao.insertOrGetExisting(MangaEntity(id = mangaId, title = "Test Manga", sourceId = 1L, url = "url", favorite = true))
 
         val chapter = ChapterEntity(id = 1L, mangaId = mangaId, url = "url_1", name = "Chapter 1", read = false, chapterNumber = 1f)
         chapterDao.upsert(chapter)
@@ -55,7 +55,7 @@ class ChapterDaoTest {
     @Test
     fun updateBatchChapterProgress_marksAllChaptersAsRead() = runBlocking {
         val mangaId = 2L
-        mangaDao.insert(MangaEntity(id = mangaId, title = "Test Manga 2", sourceId = 1L, url = "url2", favorite = true))
+        mangaDao.insertOrGetExisting(MangaEntity(id = mangaId, title = "Test Manga 2", sourceId = 1L, url = "url2", favorite = true))
 
         val chapters = (1..10).map { i ->
             ChapterEntity(id = i.toLong() + 100, mangaId = mangaId, url = "url_$i", name = "Chapter $i", read = false, chapterNumber = i.toFloat())
@@ -75,7 +75,7 @@ class ChapterDaoTest {
     @Test
     fun updateBatchChapterProgress_onlyUpdatesSpecifiedChapters() = runBlocking {
         val mangaId = 3L
-        mangaDao.insert(MangaEntity(id = mangaId, title = "Test Manga 3", sourceId = 1L, url = "url3", favorite = true))
+        mangaDao.insertOrGetExisting(MangaEntity(id = mangaId, title = "Test Manga 3", sourceId = 1L, url = "url3", favorite = true))
 
         val chapters = (1..5).map { i ->
             ChapterEntity(id = i.toLong() + 200, mangaId = mangaId, url = "url_$i", name = "Chapter $i", read = false, chapterNumber = i.toFloat())
@@ -97,10 +97,10 @@ class ChapterDaoTest {
     fun getTotalChapterCountForLibrary_countsOnlyChaptersOfFavoritedManga() = runBlocking {
         val favoriteMangaId = 4L
         val nonFavoriteMangaId = 5L
-        mangaDao.insert(
+        mangaDao.insertOrGetExisting(
             MangaEntity(id = favoriteMangaId, title = "In Library", sourceId = 1L, url = "url4", favorite = true)
         )
-        mangaDao.insert(
+        mangaDao.insertOrGetExisting(
             MangaEntity(id = nonFavoriteMangaId, title = "Not In Library", sourceId = 1L, url = "url5", favorite = false)
         )
 
