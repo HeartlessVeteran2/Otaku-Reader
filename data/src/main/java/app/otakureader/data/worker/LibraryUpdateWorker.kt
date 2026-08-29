@@ -25,10 +25,10 @@ import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.model.Chapter
 import app.otakureader.domain.model.FeedItem
 import app.otakureader.domain.model.Manga
+import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.FeedRepository
 import app.otakureader.domain.repository.SourceRepository
 import java.time.Instant
-import app.otakureader.domain.repository.downloadFolderNameFor
 import app.otakureader.domain.usecase.GetLibraryMangaUseCase
 import app.otakureader.domain.usecase.UpdateLibraryMangaUseCase
 import dagger.assisted.Assisted
@@ -59,6 +59,7 @@ class LibraryUpdateWorker @AssistedInject constructor(
     private val updateErrorDao: UpdateErrorDao,
     private val libraryUpdateFilter: LibraryUpdateFilter,
     private val sourceRepository: SourceRepository,
+    private val downloadRepository: DownloadRepository,
     private val feedRepository: FeedRepository,
 ) : CoroutineWorker(context, workerParams) {
 
@@ -342,7 +343,7 @@ class LibraryUpdateWorker @AssistedInject constructor(
                 .sortedByDescending { it.chapterNumber }
                 .take(safeLimit)
 
-            val sourceName = downloadFolderNameFor(sourceId)
+            val sourceName = downloadRepository.downloadFolderNameFor(sourceId)
 
             for (chapter in chapters) {
                 // Enqueue with empty pageUrls - DownloadManager will handle fetching them later

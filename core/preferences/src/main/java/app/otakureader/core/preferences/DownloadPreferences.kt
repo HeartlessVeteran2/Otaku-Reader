@@ -190,7 +190,40 @@ class DownloadPreferences(private val dataStore: DataStore<Preferences>) {
     val cbzEncryptionEnabled: Flow<Boolean> = dataStore.data.map { it[Keys.CBZ_ENCRYPTION_ENABLED] ?: false }
     suspend fun setCbzEncryptionEnabled(value: Boolean) = dataStore.edit { it[Keys.CBZ_ENCRYPTION_ENABLED] = value }
 
+    // --- Download Folder Names (#1256) ---
+
+    /**
+     * The on-disk folder each source's downloads live in, keyed by the `Long` source key.
+     *
+     * Recorded when `DownloadFolderMigrationWorker` renames a folder, and read back when resolving
+     * where a source's chapters are. It exists because the folder name cannot always be re-derived:
+     * once an extension is uninstalled there is no display name to resolve, and without a record
+     * every already-migrated download under `MangaDex/` would become invisible to the app.
+     *
+     * Stored as a set of `key:name` entries rather than one delimited string. A set removes any
+     * question of a separator appearing inside a folder name, and `:` is safe as the field
+     * separator because `DownloadProvider.sanitize` replaces it — so splitting on the first colon
+     * can never cut a name in half.
+     */
+    val sourceFolderNames: Flow<Map<Long, String>> = dataStore.data.map { prefs ->
+        prefs[Keys.SOURCE_FOLDER_NAMES].orEmpty().mapNotNull { entry ->
+            val key = entry.substringBefore(':').toLongOrNull() ?: return@mapNotNull null
+            val name = entry.substringAfter(':', "")
+            if (name.isBlank()) null else key to name
+        }.toMap()
+    }
+
+    /** Records where [sourceId]'s downloads now live. Replaces any previous entry for that key. */
+    suspend fun setSourceFolderName(sourceId: Long, folderName: String) {
+        dataStore.edit { prefs ->
+            val existing = prefs[Keys.SOURCE_FOLDER_NAMES].orEmpty()
+                .filterNot { it.substringBefore(':').toLongOrNull() == sourceId }
+            prefs[Keys.SOURCE_FOLDER_NAMES] = existing.toSet() + "$sourceId:$folderName"
+        }
+    }
+
     private object Keys {
+        val SOURCE_FOLDER_NAMES = stringSetPreferencesKey("source_folder_names")
         val AUTO_DOWNLOAD_ENABLED = booleanPreferencesKey("auto_download_enabled")
         val DOWNLOAD_ONLY_ON_WIFI = booleanPreferencesKey("download_only_on_wifi")
         val AUTO_DOWNLOAD_LIMIT = intPreferencesKey("auto_download_limit")

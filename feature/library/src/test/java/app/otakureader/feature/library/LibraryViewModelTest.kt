@@ -127,6 +127,9 @@ class LibraryViewModelTest {
         chapterRepository = mockk { every { countNewUpdatesSince(any()) } returns flowOf(0) }
         mangaRepository = mockk(relaxed = true)
         downloadRepository = mockk {
+            // #1256 moved folder-name resolution onto DownloadRepository. These tests assert on
+            // the numeric key they already used, because they are not about folder naming.
+            coEvery { downloadFolderNameFor(any()) } answers { firstArg<Long>().toString() }
             coEvery { hasMangaDownloads(any(), any()) } returns false
             coEvery { getMangaIdsWithDownloads(any()) } returns emptySet()
             every { observeDownloads() } returns flowOf(emptyList())

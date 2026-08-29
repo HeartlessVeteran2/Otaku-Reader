@@ -30,6 +30,7 @@ import io.mockk.unmockkAll
 import io.mockk.verify
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -585,6 +586,87 @@ class SourceRepositoryImplTest {
     }
 
     // ──────────────────────────────────────────────────────────────────────
+    // Initial-load readiness (#1258)
+    // ──────────────────────────────────────────────────────────────────────
+
+    /**
+     * The state Browse could not previously distinguish. An empty source list means "nothing
+     * installed" only once loading has finished; while it is still true, the same empty list
+     * means "not loaded yet", and the screen showed the "no sources installed" prompt for both.
+     */
+    @Test
+    fun isLoadingSources_startsTrueAndClearsOnceTheInitialLoadFinishes() = runTest {
+        mockLocalSource(makeFakeSource(id = "local", name = "Local"))
+        val repo = newRepository()
+
+        // The flag's starting value. Deliberately not claiming this proves the refresh has not run
+        // yet — it reads a StateFlow's current value synchronously and would hold either way. What
+        // it does pin is the default: starting `false` would flash Browse's "no sources installed"
+        // prompt before the first load ever published, which is the bug this flag exists to fix.
+        assertTrue("loading must default to true", repo.isLoadingSources().first())
+
+        // Awaited rather than advanced: refreshSources does its work in withContext(Dispatchers.IO),
+        // so it is not on the test scheduler and advanceUntilIdle() would return long before it
+        // finished. If the flag never cleared, this suspends until runTest's own timeout fails the
+        // test — which is the correct failure for "the signal was never raised".
+        assertFalse("loading must clear once the initial load finishes", repo.awaitSourcesLoaded())
+    }
+
+    /**
+     * The "never hang" property, and the reason the signal is completed in a `finally`.
+     *
+     * A refresh that fails outright must still release everything awaiting it. Awaiting a signal
+     * that only a *successful* load raises would be worse than the bug this fixes: instead of a
+     * spurious null, every source lookup for the rest of the process would block.
+     *
+     * Asserts the state left behind — loading cleared, lookups answering — rather than what
+     * `refreshSources` returned, because the failure mode here is a signal never raised.
+     */
+    @Test
+    fun initialLoadSignal_isReleasedEvenWhenTheRefreshFails() = runTest {
+        // Fail at the very first step of refreshSources, so nothing is published at all.
+        every { localSourcePreferences.localSourceDirectory } throws IllegalStateException("boom")
+        val repo = newRepository()
+
+        assertFalse("a failed refresh must still clear the loading flag", repo.awaitSourcesLoaded())
+        assertNull("lookups must answer rather than block after a failed load", repo.getSource("en.anything"))
+    }
+
+    /**
+     * The await is bounded, so a wedged extension load degrades to the old behaviour (a null)
+     * instead of stalling a library update forever.
+     *
+     * The initial load here never completes, so the only way this test can return at all is via
+     * the timeout in `awaitInitialLoad`. Virtual time makes that instant; on a device it is
+     * `INITIAL_LOAD_TIMEOUT_MS`.
+     */
+    @Test
+    fun getSource_givesUpRatherThanBlockingWhenTheInitialLoadNeverCompletes() = runTest {
+        mockLocalSource(makeFakeSource(id = "local", name = "Local"))
+        coEvery { jsSourceProvider.loadSources() } coAnswers { awaitCancellation() }
+        val repo = newRepository()
+
+        assertNull(repo.getSource("en.example"))
+        assertNull(repo.getSourceByKey("en.example".toSourceId()))
+    }
+
+    /**
+     * The happy path, guarding against the await breaking ordinary resolution: once the initial
+     * load has published its sources, a lookup finds them without the caller having refreshed.
+     */
+    @Test
+    fun getSourceByKey_resolvesFromTheInitialLoadWithoutAnExplicitRefresh() = runTest {
+        val jsSource = makeFakeSource(id = "en.example", name = "Example")
+        mockLocalSource(makeFakeSource(id = "local", name = "Local"))
+        coEvery { jsSourceProvider.loadSources() } returns listOf(jsSource)
+        val repo = newRepository()
+
+        repo.awaitSourcesLoaded()
+
+        assertEquals(jsSource, repo.getSourceByKey("en.example".toSourceId()))
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
     // getPopularManga / getLatestUpdates / searchManga – error propagation
     // ──────────────────────────────────────────────────────────────────────
 
@@ -791,6 +873,33 @@ class SourceRepositoryImplTest {
         )
         return ExtensionLoadResult.Success(extension, sources)
     }
+
+    /**
+     * A repository whose `init` refresh has been queued but not yet run, so a test can observe
+     * the startup window. The one built in [setUp] is unsuitable for that: any test that touches
+     * it has usually already advanced past the window.
+     */
+    private fun newRepository() = SourceRepositoryImpl(
+        context = context,
+        localSourcePreferences = localSourcePreferences,
+        healthMonitor = healthMonitor,
+        httpClient = httpClient,
+        extensionLoader = extensionLoader,
+        extensionRepository = extensionRepository,
+        jsSourceProvider = jsSourceProvider,
+        pageImageHeaders = pageImageHeaders,
+        scope = testScope.backgroundScope,
+    )
+
+    /**
+     * Suspends until the initial source load has finished, and returns the flag's settled value.
+     *
+     * `advanceUntilIdle()` cannot be used for this: `refreshSources` runs inside
+     * `withContext(Dispatchers.IO)`, which is a real dispatcher, so virtual time reaches idle
+     * while that work is still in flight.
+     */
+    private suspend fun SourceRepositoryImpl.awaitSourcesLoaded(): Boolean =
+        isLoadingSources().first { !it }
 
     /**
      * Mocks the [LocalSourcePreferences] so that [currentLocalSource]

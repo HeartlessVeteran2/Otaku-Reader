@@ -32,7 +32,7 @@ Otaku-Reader/
 │   └── js-prelude-harness/     # Node harness running real JS extensions against prelude.js
 ├── core/
 │   ├── common/             # Shared utilities, Palette API, coroutine helpers
-│   ├── database/           # Room entities, DAOs, migrations (current schema v45)
+│   ├── database/           # Room entities, DAOs, migrations (current schema v46)
 │   ├── network/            # OkHttp + Retrofit + Kotlinx Serialization setup
 │   ├── preferences/        # DataStore preferences, encrypted credential storage
 │   ├── ui/                 # Shared Compose components, Material 3 theme, Coil integration
@@ -166,7 +166,9 @@ The test is split for the same reason it exists: one case asserts what holds in 
 ### Security
 - Certificate pinning (`cert-pin-check.yml` CI gate)
 - Encrypted credential storage for tracker tokens (`AndroidX Security Crypto`)
-- No Firebase, no analytics SDK, no crash tooling
+- No Firebase and no analytics SDK. **There is crash tooling**, despite what this file claimed for a long time:
+  - `app/.../crash/CrashHandler.kt` installs unconditionally from `OtakuReaderApplication`, saves the trace to private `SharedPreferences`, and shows it in-app on the next launch. It also writes a plaintext copy to Downloads for crashes that happen before any Activity can run — **API 29+ only**, deliberately: under scoped storage that entry is not readable by every app holding a storage permission, whereas the old pre-Q `getExternalStoragePublicDirectory` path was world-readable, and a stack trace carries source names, URLs and whatever an exception message held.
+  - `app/.../crash/CrashReporter.kt` wraps Sentry (`io.sentry:sentry-android-core`). It is **opt-in**, off by default, and needs a user-supplied DSN entered in Settings — nothing leaves the device otherwise.
 
 ---
 
@@ -232,15 +234,23 @@ no record of which convention wrote it and so no migration can tell them apart.
 
 Two things are deliberately *not* this key:
 
-- **`downloadFolderNameFor(sourceId: Long)`** (`domain/repository/SourceRepository.kt`) returns the
-  numeric key as a string and consults no source. Every download on disk is already filed under the
-  number, so resolving a display name would orphan them. Changing it is a data migration — see #1256.
+- **`downloadFolderNameFor(sourceId: Long)`** now lives on **`DownloadRepository`**, not on
+  `SourceRepository`, and is no longer a pure function of the key (#1256). It resolves the source's
+  display name, but **disk has the final say**: if the chapters are still filed under the number —
+  the migration has not run, or could not claim the target name — it returns the number, because
+  answering anything else makes every downloaded chapter vanish from the app. It also falls back to
+  the number when no loaded source owns the key (uninstalled extension) and when two loaded sources
+  share a display name, which both backends shipping a "MangaDex" makes realistic. That collision is
+  decided from the loaded source list without touching disk, so the migration and every read reach
+  the same verdict by construction. `DownloadFolderMigrationWorker` does the one-time rename; it
+  existed and was enqueued long before this, and renamed nothing, because it resolved names through
+  the old identity function.
 - **`Route.SourceListing.sourceId`** is already the string id. Browse never went through the key,
   which is why browsing worked while reading from the library did not.
 
 #### Why removing a backend runs straight into this
 
-This is the section that killed the plan to retire the APK backend, so it is worth keeping even though that plan is cancelled. A Mangayomi source's id is not its Tachiyomi equivalent, and `Manga.sourceId` is `id.hashCode().toLong()` — one-way. So on the day the APK sources go, **every existing library row points at a source that no longer exists**, reproducing the exact "Source not found" failure described above, across the entire library at once, for every user. `downloadFolderNameFor(sourceId)` files every downloaded chapter under the numeric key, so re-pointing an entry at a new source also orphans its files on disk (#1256).
+This is the section that killed the plan to retire the APK backend, so it is worth keeping even though that plan is cancelled. A Mangayomi source's id is not its Tachiyomi equivalent, and `Manga.sourceId` is `id.hashCode().toLong()` — one-way. So on the day the APK sources go, **every existing library row points at a source that no longer exists**, reproducing the exact "Source not found" failure described above, across the entire library at once, for every user. `downloadFolderNameFor(sourceId)` resolves a folder per source key, so re-pointing an entry at a new source also points it at a different folder (#1256).
 
 Both backends now ship side by side, so nothing re-points anything and neither consequence is live. **The rule this leaves behind is general:** any change that alters which source a library row resolves to must ship with a guided migration through `feature/migration/` (the wizard already does source-to-source entry migration — do not write a new one) *and* an answer for the download folders. That applies to a Tachiyomi backup import landing entries on absent sources just as much as it would have to a backend removal.
 
@@ -271,7 +281,7 @@ Both backends now ship side by side, so nothing re-points anything and neither c
 - Migrations must be explicit. **Never use `fallbackToDestructiveMigration()` in production.**
 - Entities are separate from domain models. Always write and use mapper functions.
 - For DAO tests, use in-memory Room databases. **Migrations are tested with `MigrationTestHelper`** in `core/database/src/test/.../DatabaseMigrationTest.kt` — this file used to say not to, which was simply wrong about the code. `runMigrationsAndValidate` against the exported schema is the assertion that catches a column-type mismatch, and that class of bug fails *only on upgrade*, never on a fresh install.
-- Current schema version: **v45** (dedupes `feed_items` and adds a unique index on `(mangaId, chapterId)`, from #1253. The dedupe has to run *before* the index is created or the `CREATE UNIQUE INDEX` fails on any database that already holds duplicate rows — which is every database that ran a library update under the previous build. Note the interaction with `FeedBuilderBottomSheet` described under the Feed screen: `insertFeedSource` is `OnConflictStrategy.REPLACE` against a unique index, so a re-add silently resets the user's row.) v44 added `relations` and `externalLinks` to `manga_metadata`, same JSON-text encoding as v43. Relations are filtered to `type == MANGA` at the mapper boundary — AniList returns anime adaptations among a manga's relations and this app has no anime surface, so such a tile could only do nothing when tapped. External links are filtered to `http`/`https` **twice**: once in the repository, deciding what is worth caching, and again in `ExternalLinkChips` before a URL becomes an Intent, because a row cached by an older build or restored from a backup never passed through today's mapper.) v43 added `characters` and `staff` to `manga_metadata` — the cast and credits carousels. Stored as **JSON text via a `kotlinx.serialization` TypeConverter**, not as the parallel delimited columns the tag fields use: a person has four fields and there are two such lists, so the delimited encoding would mean eight columns and eight chances for the length invariant to slip. `DatabaseConverters.fromPersonList` returns an empty list on a parse failure rather than throwing — safe *only* because this table is a disposable cache with a re-fetchable upstream; do not copy that to a table that owns its data. Both columns declare `@ColumnInfo(defaultValue = "[]")`, which must match the migration's `DEFAULT '[]'` or Room's validation fails on upgrade only.) v42 added `manga_anilist_link` — which AniList media a manga is, keyed by `mangaId`, `ON DELETE CASCADE` from `manga`, with a `userConfirmed` flag that auto-matching must never overwrite). Deliberately a second table rather than reusing `manga_metadata.anilistId`: the metadata row is a disposable 7-day cache — a fetch overwrites it wholesale, and one happens as soon as it goes stale or the AniList id changes — and a user's manual correction has to outlive it. v41 added `manga_metadata` — cached AniList metadata for the details screen, keyed by `mangaId`, `ON DELETE CASCADE` from `manga`, refreshed against a 7-day TTL). v40 added `update_errors` (per-manga current-unresolved library update failures, keyed by `mangaId`, replaced on each new failure and cleared on the manga's next successful update).
+- Current schema version: **v46** (adds `ON DELETE CASCADE` foreign keys from `track_entries` and `tracker_sync_state` to `manga`, from #1248. The INSERT-SELECT filters on `manga_id IN (SELECT id FROM manga)`, and that filter is the migration rather than housekeeping: adding a foreign key does **not** retroactively validate existing rows — SQLite only enforces it on subsequent writes — so without it every orphan already in a user's database survives and keeps being retried forever by `syncAllPending` with an error that can never clear.) v45 dedupes `feed_items` and adds a unique index on `(mangaId, chapterId)`, from #1253. The dedupe has to run *before* the index is created or the `CREATE UNIQUE INDEX` fails on any database that already holds duplicate rows — which is every database that ran a library update under the previous build. Note the interaction with `FeedBuilderBottomSheet` described under the Feed screen: `insertFeedSource` is `OnConflictStrategy.REPLACE` against a unique index, so a re-add silently resets the user's row.) v44 added `relations` and `externalLinks` to `manga_metadata`, same JSON-text encoding as v43. Relations are filtered to `type == MANGA` at the mapper boundary — AniList returns anime adaptations among a manga's relations and this app has no anime surface, so such a tile could only do nothing when tapped. External links are filtered to `http`/`https` **twice**: once in the repository, deciding what is worth caching, and again in `ExternalLinkChips` before a URL becomes an Intent, because a row cached by an older build or restored from a backup never passed through today's mapper.) v43 added `characters` and `staff` to `manga_metadata` — the cast and credits carousels. Stored as **JSON text via a `kotlinx.serialization` TypeConverter**, not as the parallel delimited columns the tag fields use: a person has four fields and there are two such lists, so the delimited encoding would mean eight columns and eight chances for the length invariant to slip. `DatabaseConverters.fromPersonList` returns an empty list on a parse failure rather than throwing — safe *only* because this table is a disposable cache with a re-fetchable upstream; do not copy that to a table that owns its data. Both columns declare `@ColumnInfo(defaultValue = "[]")`, which must match the migration's `DEFAULT '[]'` or Room's validation fails on upgrade only.) v42 added `manga_anilist_link` — which AniList media a manga is, keyed by `mangaId`, `ON DELETE CASCADE` from `manga`, with a `userConfirmed` flag that auto-matching must never overwrite). Deliberately a second table rather than reusing `manga_metadata.anilistId`: the metadata row is a disposable 7-day cache — a fetch overwrites it wholesale, and one happens as soon as it goes stale or the AniList id changes — and a user's manual correction has to outlive it. v41 added `manga_metadata` — cached AniList metadata for the details screen, keyed by `mangaId`, `ON DELETE CASCADE` from `manga`, refreshed against a 7-day TTL). v40 added `update_errors` (per-manga current-unresolved library update failures, keyed by `mangaId`, replaced on each new failure and cleared on the manga's next successful update).
 - **SQLite cannot `DROP COLUMN`** — to remove a column, CREATE TABLE new → INSERT INTO SELECT (omit removed column) → DROP TABLE old → RENAME new. When child tables have FK references to the table being recreated, wrap the entire block with `PRAGMA foreign_keys = OFF` (before) and `PRAGMA foreign_keys = ON` (after) to prevent `SQLITE_CONSTRAINT_FOREIGNKEY` on the DROP step.
 
 ---
@@ -287,7 +297,7 @@ So the JavaScript backend is **additive**. It is real, it works end to end, and 
 Two consequences fall straight out of this, and both are reasons the decision is worth the dual-backend maintenance cost:
 
 - **No forced library migration.** Retiring the APK backend would have re-pointed every existing library row at a source that no longer exists, reproducing repo-wide the "Source not found" failure this file calls its highest-impact bug ever. Keeping the backend means nothing to migrate.
-- **Downloads stay put.** `downloadFolderNameFor(sourceId)` files every chapter under the numeric source key, so a forced source swap would have orphaned every downloaded chapter on disk. #1256 still stands on its own merits, but it is no longer blocking anything.
+- **Downloads stay put.** Every chapter is filed under a folder resolved from the source key, so a forced source swap would have pointed every read at a different folder. #1256 has since made that resolution disk-aware — a read falls back to wherever the files actually are — which shrinks the hazard but does not remove it: a swapped row resolves to a different key entirely.
 
 What does *not* change: `source-api`'s `MangaSource` is still the only contract the rest of the app knows, and a backend is still one implementation of one interface. That seam is what makes running two backends cheap.
 
@@ -646,7 +656,7 @@ A claim about a library's published versions was taken from a search API that on
 - **Do not edit an extension to make it work.** Published sources run unmodified; a failure is the runtime's to fix.
 - **Do not let the Kotlin JS bindings hand host objects to JavaScript** — the compatibility layer belongs in `prelude.js`, which is what keeps the boundary primitives-only.
 - **Do not implement AI features in core** — AI features belong in the separate Otaku-Reader-AI repo.
-- **Do not add Firebase analytics or crash tooling** unless explicitly requested.
+- **Do not add Firebase or an analytics SDK** unless explicitly requested. Crash tooling already exists (see *Security*) — extend `CrashHandler`/`CrashReporter` rather than adding a second mechanism, and keep any reporting opt-in and off by default.
 - **Do not use `fallbackToDestructiveMigration()`** in Room database setup.
 - **Do not use `GlobalScope`** — use `viewModelScope`, `lifecycleScope`, or a provided `CoroutineScope`.
 - **Do not use `LiveData`** — StateFlow only.
@@ -698,7 +708,7 @@ CI uses JDK 21. Gradle setup/caching is handled by `gradle/actions/setup-gradle`
   | 1. Run Mangayomi JS extensions unmodified | Shipped — PR #1262 (`prelude.js`, `MProvider`, real-index decoding, declared preference defaults) |
   | 1b. Honest transport errors + Mangayomi url-accessor semantics | Shipped — PR #1264 |
   | 2. Retire `core/extension` + `core/tachiyomi-compat` | **Cancelled** (2026-08-25). The measurement below is the reason: it trades hundreds of working sources for 16. The two modules stay. |
-  | 3. Library migration + the downloads decision (#1256) | **No longer forced.** Nothing re-points an existing library row, so no repo-wide "Source not found" and no orphaned downloads. #1256 stays open on its own merits (the folder name is still a numeric key), not as a release blocker. |
+  | 3. Library migration + the downloads decision (#1256) | **No longer forced,** and #1256 is now closed: `downloadFolderNameFor` resolves display names with disk as the tiebreak, and the long-dormant `DownloadFolderMigrationWorker` finally renames. |
 
   Milestone 1 is verified against real sources but is not the same as "the ecosystem works". That open question — *source coverage relative to the current APK set* — was measured against the live index, and the answer is what killed milestone 2.
 
@@ -716,7 +726,7 @@ CI uses JDK 21. Gradle setup/caching is handled by `gradle/actions/setup-gradle`
   **The decision taken (2026-08-25): keep both backends.** Three facts decided it, and they are recorded here so the next agent does not re-open the question without new evidence:
 
   1. 16 usable JavaScript sources (18 distinct scripts, 2 of them 404) against the several hundred the APK path reaches. Removal is a downgrade for every user.
-  2. The removal cannot be shipped alone — *Source Identity* explains why it detonates every library row at once, and #1256 orphans every downloaded chapter on disk. The recourse (a guided migration through `feature/migration/`) is real work whose only purpose is to undo damage the removal itself causes.
+  2. The removal cannot be shipped alone — *Source Identity* explains why it detonates every library row at once, and every downloaded chapter is filed per source key on disk. The recourse (a guided migration through `feature/migration/`) is real work whose only purpose is to undo damage the removal itself causes.
   3. Nothing forces the choice. `MangaSource` is the seam; two implementations of one interface cost nothing structurally, and the JS backend is additive. The dual-backend isolation bug CLAUDE.md records ("an APK failure silently dropped every JS source") is a bug to keep fixed, not an argument for deleting a backend.
 
   **Also deferred: DOM traversal in the prelude** (`nextElementSibling`, `parent`, `children`). This is a change to the isolation boundary, not a missing function — `select`/`selectFirst` hand back `outerHtml()` **strings**, so an element arrives detached and its siblings are not in the data. Supporting it means the host handing out element handles instead of strings, which is exactly the property the handle design exists to protect. It costs two sources (Asura Scans, Mangafire), neither reachable from the CI sandbox, so a fix could not be verified end-to-end even if written. Revisit only with a deliberate decision about the boundary — not as a drive-by fix.

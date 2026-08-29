@@ -141,6 +141,9 @@ class BrowseViewModel @Inject constructor(
         getSourcesUseCase()
             .onEach { sources -> _state.update { it.copy(allSources = sources) } }
             .launchIn(viewModelScope)
+        getSourcesUseCase.isLoading()
+            .onEach { loading -> _state.update { it.copy(sourcesLoading = loading) } }
+            .launchIn(viewModelScope)
         observeLibraryFavorites()
         // Sync selection manager into state so UI recomposes
         combine(selection.selected, selection.isActive) { ids, active ->

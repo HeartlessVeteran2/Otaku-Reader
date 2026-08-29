@@ -664,6 +664,118 @@ internal val MIGRATION_44_45 = object : Migration(44, 45) {
     }
 }
 
+/**
+ * Adds `ON DELETE CASCADE` foreign keys from `track_entries` and `tracker_sync_state` to `manga`,
+ * and clears the orphans that accumulated while they were missing (#1248).
+ *
+ * The cleanup is not optional housekeeping. Adding a foreign key does **not** retroactively validate
+ * existing rows — SQLite only enforces it on subsequent writes — so without the filtered copy below,
+ * every orphan already in a user's database would survive this migration and keep doing damage: a
+ * `tracker_sync_state` row for a deleted manga is re-marked PENDING by `recordLocalChange` and
+ * retried forever by `syncAllPending`, with an error that can never clear. Filtering during the
+ * INSERT does the migration and the cleanup in one pass.
+ *
+ * SQLite cannot add a foreign key to an existing table, hence the
+ * CREATE-new / INSERT-SELECT / DROP-old / RENAME dance, with FK enforcement off for the duration so
+ * the DROP does not trip `SQLITE_CONSTRAINT_FOREIGNKEY`.
+ */
+internal val MIGRATION_45_46 = object : Migration(45, 46) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("PRAGMA foreign_keys = OFF")
+        migrateTrackEntriesTo46(db)
+        migrateTrackerSyncStateTo46(db)
+        db.execSQL("PRAGMA foreign_keys = ON")
+    }
+}
+
+/** The `track_entries` half of [MIGRATION_45_46]. Assumes FK enforcement is already off. */
+private fun migrateTrackEntriesTo46(db: SupportSQLiteDatabase) {
+    db.execSQL(
+        """
+        CREATE TABLE IF NOT EXISTS track_entries_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+            manga_id INTEGER NOT NULL,
+            tracker_id INTEGER NOT NULL,
+            remote_id INTEGER NOT NULL,
+            remote_url TEXT NOT NULL,
+            title TEXT NOT NULL,
+            status INTEGER NOT NULL,
+            last_chapter_read REAL NOT NULL,
+            total_chapters INTEGER NOT NULL,
+            score REAL NOT NULL,
+            start_date INTEGER NOT NULL,
+            finish_date INTEGER NOT NULL,
+            FOREIGN KEY (manga_id) REFERENCES manga(id) ON DELETE CASCADE
+        )
+        """.trimIndent()
+    )
+    db.execSQL(
+        """
+        INSERT INTO track_entries_new
+        SELECT id, manga_id, tracker_id, remote_id, remote_url, title, status,
+               last_chapter_read, total_chapters, score, start_date, finish_date
+        FROM track_entries
+        WHERE manga_id IN (SELECT id FROM manga)
+        """.trimIndent()
+    )
+    db.execSQL("DROP TABLE track_entries")
+    db.execSQL("ALTER TABLE track_entries_new RENAME TO track_entries")
+    db.execSQL("CREATE INDEX IF NOT EXISTS index_track_entries_manga_id ON track_entries(manga_id)")
+    db.execSQL("CREATE INDEX IF NOT EXISTS index_track_entries_tracker_id ON track_entries(tracker_id)")
+    db.execSQL(
+        "CREATE UNIQUE INDEX IF NOT EXISTS index_track_entries_manga_id_tracker_id " +
+            "ON track_entries(manga_id, tracker_id)"
+    )
+}
+
+/** The `tracker_sync_state` half of [MIGRATION_45_46]. Assumes FK enforcement is already off. */
+private fun migrateTrackerSyncStateTo46(db: SupportSQLiteDatabase) {
+    db.execSQL(
+        """
+        CREATE TABLE IF NOT EXISTS tracker_sync_state_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+            mangaId INTEGER NOT NULL,
+            trackerId INTEGER NOT NULL,
+            remoteId TEXT NOT NULL,
+            localLastChapterRead REAL NOT NULL,
+            localTotalChapters INTEGER NOT NULL,
+            localStatus INTEGER NOT NULL,
+            localLastModified INTEGER NOT NULL,
+            remoteLastChapterRead REAL NOT NULL,
+            remoteTotalChapters INTEGER NOT NULL,
+            remoteStatus INTEGER NOT NULL,
+            remoteLastModified INTEGER,
+            syncStatus INTEGER NOT NULL,
+            lastSyncAttempt INTEGER,
+            lastSuccessfulSync INTEGER,
+            syncError TEXT,
+            FOREIGN KEY (mangaId) REFERENCES manga(id) ON DELETE CASCADE
+        )
+        """.trimIndent()
+    )
+    db.execSQL(
+        """
+        INSERT INTO tracker_sync_state_new
+        SELECT id, mangaId, trackerId, remoteId, localLastChapterRead, localTotalChapters,
+               localStatus, localLastModified, remoteLastChapterRead, remoteTotalChapters,
+               remoteStatus, remoteLastModified, syncStatus, lastSyncAttempt,
+               lastSuccessfulSync, syncError
+        FROM tracker_sync_state
+        WHERE mangaId IN (SELECT id FROM manga)
+        """.trimIndent()
+    )
+    db.execSQL("DROP TABLE tracker_sync_state")
+    db.execSQL("ALTER TABLE tracker_sync_state_new RENAME TO tracker_sync_state")
+    db.execSQL(
+        "CREATE UNIQUE INDEX IF NOT EXISTS index_tracker_sync_state_mangaId_trackerId " +
+            "ON tracker_sync_state(mangaId, trackerId)"
+    )
+    db.execSQL(
+        "CREATE INDEX IF NOT EXISTS index_tracker_sync_state_syncStatus " +
+            "ON tracker_sync_state(syncStatus)"
+    )
+}
+
 /** All migrations in order, for use in [Room.databaseBuilder] and migration tests. */
 internal val ALL_MIGRATIONS = arrayOf(
     MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6,
@@ -680,4 +792,5 @@ internal val ALL_MIGRATIONS = arrayOf(
     MIGRATION_42_43,
     MIGRATION_43_44,
     MIGRATION_44_45,
+    MIGRATION_45_46,
 )

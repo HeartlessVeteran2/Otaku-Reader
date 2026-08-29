@@ -22,6 +22,7 @@ import app.otakureader.core.common.di.ApplicationScope
 import app.otakureader.core.common.network.PageImageHeaders
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -30,6 +31,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import eu.kanade.tachiyomi.source.CatalogueSource
@@ -79,6 +81,15 @@ class SourceRepositoryImpl @Inject constructor(
          * user types is a new entry, so this is the one that grew without limit before.
          */
         const val MAX_CACHED_SEARCHES_PER_SOURCE = 16
+
+        /**
+         * How long a source lookup waits for the initial load before giving up (#1258).
+         *
+         * Generous, because the cost of expiring early is the bug this exists to fix, while the
+         * cost of waiting is a one-off delay on the very first lookup after process start. It is
+         * bounded at all only so a wedged extension load cannot stall a library update forever.
+         */
+        const val INITIAL_LOAD_TIMEOUT_MS = 15_000L
     }
 
     /**
@@ -129,6 +140,11 @@ class SourceRepositoryImpl @Inject constructor(
     @VisibleForTesting(otherwise = VisibleForTesting.NONE)
     fun injectSourcesForTesting(sources: List<MangaSource>) {
         _sources.value = sources
+        // Injecting sources *is* the loaded state, so release the readiness signal too. Without
+        // this a test that injects and then resolves would sit on the timeout in awaitInitialLoad
+        // instead of reading what it just injected.
+        _sourcesLoading.value = false
+        initialLoadComplete.complete(Unit)
     }
 
     /**
@@ -159,12 +175,77 @@ class SourceRepositoryImpl @Inject constructor(
     @Volatile
     private var browseCaches = BrowseCaches()
 
+    /**
+     * Completes once the [init] refresh has finished, however it finished (#1258).
+     *
+     * The initial load is fire-and-forget, so before this existed every resolution path read an
+     * `_sources` snapshot with no notion of whether that load had happened yet. A caller that
+     * arrived first got `null` and could not tell it apart from "no such source". The realistic
+     * loser is `LibraryUpdateWorker`, which WorkManager can start at process launch: a miss there
+     * surfaces as an update error against a manga whose extension is installed and fine.
+     *
+     * Three properties are load-bearing, and each rules out a shape that looks simpler:
+     *
+     * - **It is an explicit signal, not "await a non-empty `_sources`".** A user with no
+     *   extensions installed is a legitimate steady state, and waiting for that list to fill
+     *   would hang every lookup forever.
+     * - **It completes in a `finally`, on success, failure, or nothing-found alike.** Awaiting a
+     *   signal that a failed refresh never raises would be worse than the bug it fixes.
+     * - **Awaiting it is bounded.** [awaitInitialLoad] gives up after
+     *   [INITIAL_LOAD_TIMEOUT_MS] and proceeds with whatever is loaded, so a wedged extension
+     *   load degrades to today's behaviour instead of stalling a library update indefinitely.
+     */
+    private val initialLoadComplete = CompletableDeferred<Unit>()
+
+    /**
+     * Whether the initial source load is still running.
+     *
+     * Exposed because Browse could not distinguish "no sources installed" from "not loaded yet"
+     * and showed the same empty state for both — an empty list is a real answer only once this
+     * is false.
+     */
+    private val _sourcesLoading = MutableStateFlow(true)
+    override fun isLoadingSources(): Flow<Boolean> = _sourcesLoading.asStateFlow()
+
     init {
         // Load all installed extensions on initialization
-        scope.launch { refreshSources() }
+        scope.launch {
+            try {
+                refreshSources()
+            } finally {
+                // In a finally, not after the call: a failed or cancelled refresh must still
+                // release everything awaiting the signal.
+                _sourcesLoading.value = false
+                initialLoadComplete.complete(Unit)
+            }
+        }
+    }
+
+    /**
+     * Waits, at most [INITIAL_LOAD_TIMEOUT_MS], for the initial source load to finish.
+     *
+     * Every resolution path awaits this rather than only the background workers that can
+     * plausibly beat it. Two behaviours for the same call would be a trap for the next caller,
+     * and once loading has finished this costs a single already-completed `await`.
+     */
+    private suspend fun awaitInitialLoad() {
+        if (initialLoadComplete.isCompleted) return
+        if (withTimeoutOrNull(INITIAL_LOAD_TIMEOUT_MS) { initialLoadComplete.await() } != null) return
+        // Expiring is terminal, not a per-call reprieve. Completing the signal here is what stops
+        // a wedged load from charging every later lookup the full timeout again — the first caller
+        // pays it once and everyone after reads the snapshot immediately. Clearing the loading flag
+        // with it stops Browse spinning forever on a load that is never going to finish: an empty
+        // list after the timeout is the honest answer, and the user can retry from the UI.
+        //
+        // Safe against the load finishing later: `complete` returns false on an already-completed
+        // deferred, and refreshSources publishes into `_sources` regardless of who is waiting, so a
+        // late arrival still reaches every subsequent lookup.
+        _sourcesLoading.value = false
+        initialLoadComplete.complete(Unit)
     }
 
     override suspend fun getSource(sourceId: String): MangaSource? {
+        awaitInitialLoad()
         return _sources.value.find { it.id == sourceId }
     }
 
@@ -178,8 +259,10 @@ class SourceRepositoryImpl @Inject constructor(
      * out twice, the two copies agreed on every key owned by one source but disagreed on which
      * source won a collision, and nothing would have caught them drifting further apart.
      */
-    override suspend fun getSourceByKey(key: Long): MangaSource? =
-        _sources.value.associateBySourceKey { it.id }[key]
+    override suspend fun getSourceByKey(key: Long): MangaSource? {
+        awaitInitialLoad()
+        return _sources.value.associateBySourceKey { it.id }[key]
+    }
 
     /**
      * Helper to perform a source health check and return a failure Result when unhealthy.

@@ -16,6 +16,7 @@ import app.otakureader.data.download.DownloadManager
 import app.otakureader.domain.model.Chapter
 import java.time.Instant
 import app.otakureader.domain.model.FeedItem
+import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.FeedRepository
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MangaStatus
@@ -59,6 +60,7 @@ class LibraryUpdateWorkerTest {
     private lateinit var updateLibraryManga: UpdateLibraryMangaUseCase
     // Initialised here rather than in setUp, which is at detekt's length limit. JUnit builds a
     // fresh test instance per method, so this is still isolated between tests.
+    private val downloadRepository: DownloadRepository = mockk(relaxed = true)
     private val feedRepository: FeedRepository = mockk(relaxed = true)
 
     /** How far either side of "now" a freshly-stamped feed timestamp may land. */
@@ -199,24 +201,31 @@ class LibraryUpdateWorkerTest {
         every { connectivityManager.getNetworkCapabilities(network) } returns networkCapabilities
         every { networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) } returns true
 
-        worker = LibraryUpdateWorker(
-            context,
-            workerParams,
-            getLibraryManga,
-            updateLibraryManga,
-            libraryPreferences,
-            downloadPreferences,
-            generalPreferences,
-            downloadManager,
-            chapterRepository,
-            notificationPreferences,
-            updateRunSummaryDao,
-            updateErrorDao,
-            libraryUpdateFilter,
-            sourceRepository,
-            feedRepository,
-        )
+        worker = buildWorker()
     }
+
+    /**
+     * Extracted from [setUp] purely so that method stays under detekt's LongMethod limit — adding
+     * the DownloadRepository dependency for #1256 pushed it one line over.
+     */
+    private fun buildWorker() = LibraryUpdateWorker(
+        context,
+        workerParams,
+        getLibraryManga,
+        updateLibraryManga,
+        libraryPreferences,
+        downloadPreferences,
+        generalPreferences,
+        downloadManager,
+        chapterRepository,
+        notificationPreferences,
+        updateRunSummaryDao,
+        updateErrorDao,
+        libraryUpdateFilter,
+        sourceRepository,
+        downloadRepository,
+        feedRepository,
+    )
 
     // -------------------------------------------------------------------------
     // Feed Writing

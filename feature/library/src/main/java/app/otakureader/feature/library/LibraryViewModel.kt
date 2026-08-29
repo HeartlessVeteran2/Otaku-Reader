@@ -26,7 +26,6 @@ import app.otakureader.domain.repository.EhFavoritesRepository
 import app.otakureader.domain.repository.PageBookmarkRepository
 import app.otakureader.domain.repository.SourceRepository
 import app.otakureader.domain.repository.associateBySourceKey
-import app.otakureader.domain.repository.downloadFolderNameFor
 import app.otakureader.domain.usecase.SyncEhFavoritesUseCase
 import app.otakureader.domain.usecase.SyncLibraryUseCase
 import app.otakureader.domain.usecase.downloads.ReindexDownloadsUseCase
@@ -625,7 +624,7 @@ class LibraryViewModel @Inject constructor(
                     // filesystem walk for the whole library instead of a per-manga check
                     val mangaKeysDeferred = async {
                         mangaList.associate { manga ->
-                            manga.id to (downloadFolderNameFor(manga.sourceId) to manga.title)
+                            manga.id to (downloadRepository.downloadFolderNameFor(manga.sourceId) to manga.title)
                         }
                     }
 
@@ -871,7 +870,7 @@ class LibraryViewModel @Inject constructor(
                 // Must match the folder-name resolution used everywhere else; a mismatch here
                 // stores files under a path isChapterDownloaded()/deleteChapterDownload() would
                 // never find when checking under the resolved name.
-                val sourceName = downloadFolderNameFor(manga.sourceId)
+                val sourceName = downloadRepository.downloadFolderNameFor(manga.sourceId)
                 chapters.filter { !it.read }.forEach { chapter ->
                     downloadRepository.enqueueChapter(
                         mangaId = mangaId,

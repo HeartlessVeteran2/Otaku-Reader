@@ -19,7 +19,22 @@ interface SourceRepository {
     fun getSources(): Flow<List<MangaSource>>
 
     /**
-     * Get a source by its ID
+     * Whether the initial source load is still in flight.
+     *
+     * An empty [getSources] list is a real answer only once this is false: a user with no
+     * extensions installed and a user whose extensions have not finished loading both see an
+     * empty list, and before this existed the UI showed the same "no sources" state for both.
+     *
+     * Only the *initial* load is reported. A later manual refresh republishes [getSources] when
+     * it lands and does not flip this back to true.
+     */
+    fun isLoadingSources(): Flow<Boolean>
+
+    /**
+     * Get a source by its ID.
+     *
+     * Suspends until the initial source load has finished (bounded by a timeout), so a caller
+     * that arrives during startup gets a real answer rather than a spurious null. See #1258.
      */
     suspend fun getSource(sourceId: String): MangaSource?
 
@@ -31,6 +46,9 @@ interface SourceRepository {
      * be a search over the loaded sources, which is what this does.
      *
      * Use this, never `getSource(manga.sourceId.toString())`.
+     *
+     * Like [getSource], suspends until the initial source load has finished (bounded by a
+     * timeout) so a startup-time caller does not read an empty snapshot. See #1258.
      */
     suspend fun getSourceByKey(key: Long): MangaSource?
 
@@ -111,18 +129,3 @@ fun <T> Iterable<T>.associateBySourceKey(id: (T) -> String): Map<Long, T> {
         items.forEach { item -> put(id(item).toSourceId(), item) }
     }
 }
-
-/**
- * The on-disk folder name used for a manga's downloads: the numeric source key, as a string.
- *
- * Not a [SourceRepository] extension, because it consults no source and pretending otherwise
- * implied a dependency that does not exist. It used to be one — `getSource(sourceId.toString())
- * ?.name` — but that lookup compared a hashed key's decimal against a source's real id and so
- * could never match. Every download on every device is already filed under the number, so making
- * the name resolve now would point every read at a folder that does not exist, orphaning
- * downloaded chapters. Switching to display names is a migration, not an edit; see #1256.
- *
- * Every download enqueue/read/delete call site must resolve through this so they all agree on
- * the same folder — never build a download path from a raw sourceId directly.
- */
-fun downloadFolderNameFor(sourceId: Long): String = sourceId.toString()

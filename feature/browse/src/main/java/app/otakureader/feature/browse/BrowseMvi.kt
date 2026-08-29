@@ -4,7 +4,6 @@ import app.otakureader.core.common.mvi.UiEffect
 import app.otakureader.core.common.mvi.UiEvent
 import app.otakureader.core.common.mvi.UiState
 import app.otakureader.domain.model.SavedSourceSearch
-import app.otakureader.domain.model.SourceHealthEntry
 import app.otakureader.sourceapi.FilterList
 import app.otakureader.sourceapi.MangaSource
 import app.otakureader.sourceapi.SourceManga
@@ -64,10 +63,6 @@ data class BrowseState(
     val categoryDialogSourceId: Long? = null,
     /** Current text in the "Set category" dialog input field. */
     val categoryDialogText: String = "",
-    /** Per-source health tracking: consecutive failures, last error, disabled flag. */
-    val sourceHealth: Map<Long, SourceHealthEntry> = emptyMap(),
-    /** Source ID whose diagnostic sheet is currently open; null means sheet is hidden. */
-    val selectedDiagnosticSourceId: Long? = null,
     /** Named source search queries bookmarked by the user (#1051). */
     val namedSavedSearches: List<SavedSourceSearch> = emptyList(),
     /** Whether the "Save search" dialog is visible. */
@@ -84,6 +79,17 @@ data class BrowseState(
     val availableLanguages: List<String> = emptyList(),
     /** Maps source numeric ID → extension iconUrl, for displaying actual source icons in the list. */
     val sourceIconUrls: Map<Long, String?> = emptyMap(),
+    /**
+     * Whether the initial source load is still running (#1258).
+     *
+     * Distinguishes "no sources installed" from "not loaded yet". Both leave [sources] empty, and
+     * the screen used to show the same "no sources" prompt for either — telling a user with a
+     * working library to go install an extension.
+     *
+     * Starts `true`, because at first composition the load genuinely has not finished; starting
+     * `false` would flash the empty state before the first emission arrives.
+     */
+    val sourcesLoading: Boolean = true,
 ) : UiState
 
 sealed interface BrowseEvent : UiEvent {

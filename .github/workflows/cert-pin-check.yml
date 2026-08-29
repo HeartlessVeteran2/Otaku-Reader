@@ -19,41 +19,118 @@ jobs:
       - name: 📥 Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
+      # Resolves what the app actually ships into a flat "host<TAB>sha256/..." table.
+      #
+      # Done here, in Python, because the pins are named constants in Kotlin rather than literals
+      # on the .add() line. Grepping the host's line for a "sha256/..." string used to work and
+      # silently stopped finding anything the moment those constants were introduced — the check
+      # then reported every host as broken. Resolving the constants is the difference between
+      # reading the file and pattern-matching one shape of it.
+      - name: 🧾 Resolve the pins the app ships
+        run: |
+          python3 - <<'PY' > /tmp/shipped-pins.tsv
+          import re
+          src = open("core/network/src/main/java/app/otakureader/core/network/TrackerCertificatePinner.kt").read()
+          # Strip comments before parsing. Commenting a pin out rather than deleting it is the
+          # natural thing to do mid-rotation, and counting it as shipped would let this check pass
+          # for a host OkHttp has no usable pin for — the one failure it exists to catch. Block
+          # comments go first so a `https://` inside KDoc is not mistaken for a line comment.
+          src = re.sub(r'/\*.*?\*/', '', src, flags=re.S)
+          src = re.sub(r'//[^\n]*', '', src)
+          consts = dict(re.findall(r'val\s+(\w+)\s*=\s*"(sha256/[^"]+)"', src))
+          for host, value in re.findall(r'\.add\(\s*"([^"]+)"\s*,\s*([^)]+?)\s*\)', src):
+              value = value.strip()
+              pin = consts.get(value) if not value.startswith('"') else value.strip('"')
+              if pin:
+                  print(f"{host}\t{pin}")
+          PY
+          echo "Pins the app ships:"
+          cat /tmp/shipped-pins.tsv
+          test -s /tmp/shipped-pins.tsv || { echo "::error::resolved no pins at all — the parser no longer matches the file"; exit 1; }
+
       - name: 🔐 Verify certificate pins for tracker endpoints
         id: pin-check
         run: |
           set +e
           FAILURES=""
 
+          # Prints every SPKI pin in the served chain, not just the leaf's.
+          #
+          # OkHttp's CertificatePinner accepts a match against ANY certificate in the chain, so
+          # the leaf alone cannot tell us whether the app would actually connect — the backup CA
+          # pin might be carrying it. Reading the whole chain is also what makes a rotation
+          # actionable: it shows which intermediate is stable enough to pin against.
+          chain_pins() {
+            local HOST="$1"
+            local DIR
+            DIR=$(mktemp -d)
+            echo | openssl s_client -showcerts -connect "${HOST}:443" -servername "${HOST}" 2>/dev/null \
+              | awk -v d="$DIR" '/BEGIN CERTIFICATE/{n++} n{print > (d "/cert" n ".pem")}'
+            for f in "$DIR"/cert*.pem; do
+              [ -e "$f" ] || continue
+              local PIN SUBJ
+              PIN=$(openssl x509 -in "$f" -pubkey -noout 2>/dev/null \
+                | openssl pkey -pubin -outform der 2>/dev/null \
+                | openssl dgst -sha256 -binary 2>/dev/null | base64)
+              SUBJ=$(openssl x509 -in "$f" -noout -subject 2>/dev/null | sed 's/^subject=//')
+              [ -n "$PIN" ] && echo "${PIN}|${SUBJ}"
+            done
+            rm -rf "$DIR"
+          }
+
           check_pin() {
             local HOST="$1"
-            local EXPECTED_PIN="$2"
+            local CHAIN LEAF MATCHED SHIPPED
 
-            ACTUAL_PIN=$(echo | openssl s_client -connect "${HOST}:443" -servername "${HOST}" 2>/dev/null \
-              | openssl x509 -pubkey -noout 2>/dev/null \
-              | openssl pkey -pubin -outform der 2>/dev/null \
-              | openssl dgst -sha256 -binary 2>/dev/null \
-              | base64)
+            CHAIN=$(chain_pins "$HOST")
 
-            if [ -z "$ACTUAL_PIN" ]; then
-              echo "⚠️  Could not retrieve certificate for ${HOST} (network issue?)"
+            # An unreachable host is a FAILURE, not a pass. This branch used to `return`, so six
+            # unreachable hosts produced six warnings and a green run — a check that verified
+            # nothing was indistinguishable from one that verified everything.
+            if [ -z "$CHAIN" ]; then
+              FAILURES="${FAILURES}\n❌ Could not retrieve any certificate for ${HOST} — the check did NOT run for this host."
+              echo "FAILED=true" >> "$GITHUB_OUTPUT"
               return
             fi
 
-            if ! grep -q "${ACTUAL_PIN}" core/network/src/main/java/app/otakureader/core/network/TrackerCertificatePinner.kt; then
-              FAILURES="${FAILURES}\n❌ Pin mismatch for ${HOST}:\n   Expected (in source): ${EXPECTED_PIN}\n   Live pin:             sha256/${ACTUAL_PIN}"
-              echo "FAILED=true" >> "$GITHUB_OUTPUT"
+            echo "── ${HOST} — served chain ──"
+            echo "$CHAIN" | while IFS='|' read -r PIN SUBJ; do
+              echo "   sha256/${PIN}   ${SUBJ}"
+            done
+
+            # Would the app connect? True if ANY pin we ship for this host appears in the chain,
+            # which is exactly OkHttp's rule. Compared against the pins resolved for THIS host, so
+            # a live pin that happens to match some other host's entry cannot pass this one.
+            MATCHED=""
+            while IFS='|' read -r PIN SUBJ; do
+              if grep -qxF "${HOST}"$'\t'"sha256/${PIN}" /tmp/shipped-pins.tsv; then
+                MATCHED="$PIN"
+              fi
+            done <<< "$CHAIN"
+
+            LEAF=$(echo "$CHAIN" | head -1 | cut -d'|' -f1)
+            if [ -n "$MATCHED" ]; then
+              echo "✅ ${HOST} — a pinned key is present in the chain (sha256/${MATCHED})"
             else
-              echo "✅ ${HOST} pin OK"
+              # Report what the app ships, read back from the resolved table rather than from a
+              # literal maintained here. A hand-kept "expected" string goes stale exactly when a
+              # rotation changes the pinned issuer — the moment this diagnostic is being read.
+              SHIPPED=$(awk -F'\t' -v h="$HOST" '$1 == h { printf "     %s\\n", $2 }' /tmp/shipped-pins.tsv)
+              FAILURES="${FAILURES}\n❌ ${HOST}: NO pinned key appears anywhere in the served chain — tracker sync is broken for installed users.\n   Pinned in TrackerCertificatePinner.kt:\n${SHIPPED}   Live leaf: sha256/${LEAF}"
+              echo "FAILED=true" >> "$GITHUB_OUTPUT"
             fi
+            echo ""
           }
 
-          check_pin "myanimelist.net"       "efrF+PUxbl1xw8PF8f6KvRrel4/kWrRWFWuu6PQj2bo="
-          check_pin "api.myanimelist.net"   "JhaUbPsimbNLHKKcoc09+5qss1K+Hb8XpX2uthsDY4A="
-          check_pin "graphql.anilist.co"    "qvGMxVkebAxISqRUcDy3CljP+wieT8aKikYTCVu0PH4="
-          check_pin "kitsu.app"             "Hrs6IIkHfcrDYD7JZOmpHh/QXgq4ZfY7IKy+UnzF4bA="
-          check_pin "api.mangaupdates.com"  "02qttGMepJs9pxcSmAyDxfnjZv0EoAw8IkZSv+rzbu8="
-          check_pin "shikimori.one"         "1biKOxoipnu596Dxf12XU0Vu2EXlLUQnUj4p+ycBKSY="
+          # Hosts only. Everything else — which pins count as shipped, and what a failure reports —
+          # is read from TrackerCertificatePinner.kt, so nothing here can drift out of step with
+          # what the app actually does.
+          check_pin "myanimelist.net"
+          check_pin "api.myanimelist.net"
+          check_pin "graphql.anilist.co"
+          check_pin "kitsu.app"
+          check_pin "api.mangaupdates.com"
+          check_pin "shikimori.one"
 
           if [ -n "$FAILURES" ]; then
             echo -e "$FAILURES"
@@ -65,18 +142,22 @@ jobs:
         with:
           script: |
             const title = '🔐 Certificate pin rotation required for tracker endpoints';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             const body = [
               '## Certificate Pin Mismatch Detected',
               '',
-              'The monthly certificate pin check found one or more tracker endpoints whose',
-              'live SPKI hash no longer matches the pins in `TrackerCertificatePinner.kt`.',
+              'The certificate pin check found one or more tracker endpoints where **none** of the',
+              'pins in `TrackerCertificatePinner.kt` appear anywhere in the served chain.',
               '',
-              'When pins are stale, **all tracker sync silently breaks for installed users**.',
+              'When that happens, **all tracker sync silently breaks for installed users**.',
+              '',
+              `The run log lists the full served chain for every host: ${runUrl}`,
               '',
               '### Action required',
-              '1. Run the pin-extraction command from the KDoc in `TrackerCertificatePinner.kt`',
-              '   for each failing host.',
-              '2. Update the `sha256/` entries in `TrackerCertificatePinner.kt`.',
+              '1. Take the live pins from that run log — they come from a direct connection, which',
+              '   is the part that cannot be reproduced from a sandboxed or proxied environment.',
+              '2. Update the `sha256/` entries in `TrackerCertificatePinner.kt` and bump each',
+              '   "Last verified" date.',
               '3. Ship a patch release.',
               '',
               '> This issue was opened automatically by the `cert-pin-check` workflow.',
@@ -99,3 +180,12 @@ jobs:
                 labels: ['security', 'bug'],
               });
             }
+
+      # Last, so the issue above is still filed. Without this the job reported success even when
+      # every host mismatched, which is how four consecutive "successful" runs hid the live
+      # breakage that #1218 was opened for.
+      - name: ❌ Fail the run when pins are stale
+        if: steps.pin-check.outputs.FAILED == 'true'
+        run: |
+          echo "One or more tracker endpoints have no pinned key in their served chain — see the log above."
+          exit 1

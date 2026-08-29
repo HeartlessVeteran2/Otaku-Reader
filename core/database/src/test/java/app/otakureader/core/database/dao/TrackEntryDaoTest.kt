@@ -5,6 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.cash.turbine.test
 import app.otakureader.core.database.OtakuReaderDatabase
+import app.otakureader.core.database.entity.MangaEntity
 import app.otakureader.core.database.entity.TrackEntryEntity
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -19,6 +20,18 @@ class TrackEntryDaoTest {
 
     private lateinit var database: OtakuReaderDatabase
     private lateinit var trackEntryDao: TrackEntryDao
+    private lateinit var mangaDao: MangaDao
+
+    /**
+     * `track_entries` cascades from `manga` (#1248), so a tracker row needs its manga to exist.
+     * Before that foreign key these tests inserted entries for manga ids that were never there —
+     * which is precisely the orphan state the key now makes unrepresentable.
+     */
+    private suspend fun insertManga(id: Long) {
+        mangaDao.insert(
+            MangaEntity(id = id, title = "Manga $id", sourceId = 1L, url = "/manga/$id", favorite = true)
+        )
+    }
 
     private fun makeEntry(mangaId: Long, trackerId: Int, score: Float = 0f) = TrackEntryEntity(
         mangaId = mangaId,
@@ -40,6 +53,7 @@ class TrackEntryDaoTest {
             OtakuReaderDatabase::class.java
         ).allowMainThreadQueries().build()
         trackEntryDao = database.trackEntryDao()
+        mangaDao = database.mangaDao()
     }
 
     @After
@@ -51,6 +65,8 @@ class TrackEntryDaoTest {
     fun getTrackerStats_countsDistinctMangaAndServices() = runTest {
         // Manga 1 tracked on two services counts once as a manga, twice as services;
         // two manga on tracker 1 count as one service.
+        insertManga(1L)
+        insertManga(2L)
         trackEntryDao.upsert(makeEntry(mangaId = 1L, trackerId = 1))
         trackEntryDao.upsert(makeEntry(mangaId = 1L, trackerId = 2))
         trackEntryDao.upsert(makeEntry(mangaId = 2L, trackerId = 1))
@@ -77,6 +93,9 @@ class TrackEntryDaoTest {
     @Test
     fun getTrackerStats_meanScoreIgnoresUnscoredEntries() = runTest {
         // score 0 = unscored — must not drag the mean down
+        insertManga(1L)
+        insertManga(2L)
+        insertManga(3L)
         trackEntryDao.upsert(makeEntry(mangaId = 1L, trackerId = 1, score = 8f))
         trackEntryDao.upsert(makeEntry(mangaId = 2L, trackerId = 1, score = 6f))
         trackEntryDao.upsert(makeEntry(mangaId = 3L, trackerId = 1, score = 0f))
@@ -89,6 +108,7 @@ class TrackEntryDaoTest {
 
     @Test
     fun getTrackerStats_meanScoreNullWhenNothingScored() = runTest {
+        insertManga(1L)
         trackEntryDao.upsert(makeEntry(mangaId = 1L, trackerId = 1, score = 0f))
 
         trackEntryDao.getTrackerStats().test {

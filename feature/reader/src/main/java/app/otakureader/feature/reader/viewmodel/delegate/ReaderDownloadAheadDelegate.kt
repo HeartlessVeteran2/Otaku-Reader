@@ -9,7 +9,6 @@ import app.otakureader.domain.repository.ChapterRepository
 import app.otakureader.domain.repository.DownloadRepository
 import app.otakureader.domain.repository.MangaRepository
 import app.otakureader.domain.repository.SourceRepository
-import app.otakureader.domain.repository.downloadFolderNameFor
 import app.otakureader.domain.repository.resolveSourceId
 import app.otakureader.core.preferences.DownloadPreferences
 import app.otakureader.sourceapi.Page
@@ -30,7 +29,7 @@ class ReaderDownloadAheadDelegate @Inject constructor(
 ) {
     suspend fun enqueueCurrentChapter(manga: Manga, chapter: Chapter): Boolean {
         val sourceIdString = sourceRepository.resolveSourceId(manga.sourceId) ?: return false
-        val downloadFolderName = downloadFolderNameFor(manga.sourceId)
+        val downloadFolderName = downloadRepository.downloadFolderNameFor(manga.sourceId)
         val existingDownloads = downloadRepository.observeDownloads().first()
         if (existingDownloads.any { it.chapterId == chapter.id }) return false
         if (downloadRepository.isChapterDownloaded(downloadFolderName, manga.title, chapter.name)) return false
@@ -39,7 +38,7 @@ class ReaderDownloadAheadDelegate @Inject constructor(
 
     suspend fun isChapterDownloaded(manga: Manga, chapter: Chapter): Boolean =
         downloadRepository.isChapterDownloaded(
-            downloadFolderNameFor(manga.sourceId),
+            downloadRepository.downloadFolderNameFor(manga.sourceId),
             manga.title,
             chapter.name,
         )
@@ -69,7 +68,7 @@ class ReaderDownloadAheadDelegate @Inject constructor(
 
             val manga = getCurrentManga() ?: mangaRepository.getMangaById(mangaId) ?: return@launch
             val sourceIdString = sourceRepository.resolveSourceId(manga.sourceId) ?: return@launch
-            val downloadFolderName = downloadFolderNameFor(manga.sourceId)
+            val downloadFolderName = downloadRepository.downloadFolderNameFor(manga.sourceId)
             val existingDownloads = downloadRepository.observeDownloads().first()
 
             val endIndex = minOf(currentIndex + downloadAheadChapters, chapters.size - 1)

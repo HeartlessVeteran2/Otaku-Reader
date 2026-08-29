@@ -30,23 +30,6 @@ class SourceRepositoryExtTest {
         assertNull(sourceRepository.resolveSourceId(SOURCE_KEY))
     }
 
-    /**
-     * The folder name is the numeric key and nothing else — see the KDoc on
-     * [downloadFolderNameFor]. Downloads on disk are already filed under it, so resolving a
-     * display name here would point every read at a directory that does not exist.
-     *
-     * This asserts the *absence* of a lookup, not just the returned string, because a version
-     * that looked the source up and happened to miss would return the same value while being one
-     * successful lookup away from orphaning every download.
-     */
-    @Test
-    fun `downloadFolderNameFor is the numeric key and consults no source`() = runTest {
-        assertEquals("1943584017", downloadFolderNameFor(1943584017L))
-
-        coVerify(exactly = 0) { sourceRepository.getSource(any()) }
-        coVerify(exactly = 0) { sourceRepository.getSourceByKey(any()) }
-    }
-
     // ── associateBySourceKey ──────────────────────────────────────────────────
     //
     // This rule has to stay identical to SourceRepositoryImpl.getSourceByKey. A map that indexed

@@ -108,6 +108,9 @@ class DetailsViewModelTest {
         chapterRepository = mockk()
         categoryRepository = mockk(relaxed = true)
         downloadRepository = mockk()
+        // #1256 moved folder-name resolution onto DownloadRepository. These tests assert on the
+        // numeric key they already used, because they are about the details screen, not naming.
+        coEvery { downloadRepository.downloadFolderNameFor(any()) } answers { firstArg<Long>().toString() }
         sourceRepository = mockk(relaxed = true)
         downloadPreferences = mockk()
         generalPreferences = mockk(relaxed = true)
