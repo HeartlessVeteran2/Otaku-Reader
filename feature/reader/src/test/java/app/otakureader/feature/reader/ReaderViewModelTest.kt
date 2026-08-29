@@ -241,7 +241,7 @@ class ReaderViewModelTest {
         unmockkStatic(SystemClock::class)
     }
 
-    private fun createViewModel(): ReaderViewModel {
+    private fun createViewModel(startPage: Int? = null): ReaderViewModel {
         val prefetchDelegate = ReaderPrefetchDelegate(
             context = context,
             smartPrefetchManager = smartPrefetchManager,
@@ -298,11 +298,22 @@ class ReaderViewModelTest {
             trackRepository = trackRepository,
             trackManager = trackManager,
             readerPreferences = readerPreferences,
-            savedStateHandle = SavedStateHandle(
-                mapOf("mangaId" to mangaId, "chapterId" to chapterId)
-            )
+            savedStateHandle = savedStateHandle(startPage),
         )
     }
+
+    /**
+     * `startPage` is left *absent* rather than set to -1 when no page is requested: the production
+     * route omits the argument entirely for every caller that keeps the default, so a test that
+     * always supplied one would never exercise that path.
+     */
+    private fun savedStateHandle(startPage: Int?) = SavedStateHandle(
+        buildMap {
+            put("mangaId", mangaId)
+            put("chapterId", chapterId)
+            if (startPage != null) put("startPage", startPage)
+        }
+    )
 
     // ---- Gallery toggle ----
 
@@ -1077,5 +1088,100 @@ class ReaderViewModelTest {
 
         coVerify { chapterRepository.updateChapterNotes(chapterId, "remember this cliffhanger") }
         coVerify { chapterRepository.updateChapterNotes(chapterId, null) }
+    }
+
+    // ── Opening at a specific page (#1128) ───────────────────────────────────
+
+    /**
+     * Makes the chapter actually load. The default fixture returns null manga and chapter so
+     * `loadChapter` exits early, which is right for tests that do not care about pages and wrong
+     * for these.
+     */
+    private fun stubLoadableChapter(
+        pageCount: Int = 10,
+        lastPageRead: Int = 2,
+        chapterId: Long = this.chapterId,
+    ) {
+        coEvery { mangaRepository.getMangaById(mangaId) } returns
+            Manga(id = mangaId, sourceId = 5L, url = "/m/1", title = "Test Manga")
+        coEvery { chapterRepository.getChapterById(chapterId) } returns Chapter(
+            id = chapterId,
+            mangaId = mangaId,
+            url = "/c/$chapterId",
+            name = "Chapter $chapterId",
+            lastPageRead = lastPageRead,
+        )
+        val source: app.otakureader.sourceapi.MangaSource =
+            mockk(relaxed = true) { every { id } returns "en.test" }
+        coEvery { sourceRepository.getSourceByKey(any()) } returns source
+        coEvery { downloadRepository.downloadFolderNameFor(any()) } returns "Test"
+        coEvery { sourceRepository.getPageList(any(), any()) } returns Result.success(
+            List(pageCount) { app.otakureader.sourceapi.Page(index = it, imageUrl = "https://p/$it.jpg") }
+        )
+        every { pageLoader.resolveUrl(any(), any(), any(), any(), any()) } answers { firstArg() }
+    }
+
+    /** Opening a page bookmark: the reader must land on the saved panel. */
+    @Test
+    fun `a requested start page wins over the resume position`() = runTest {
+        stubLoadableChapter(lastPageRead = 2)
+
+        val vm = createViewModel(startPage = 7)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(7, vm.state.value.currentPage)
+    }
+
+    /**
+     * Every other entry point passes no page, and must keep resuming where the user stopped. This
+     * is why the "no page" sentinel is -1 rather than 0 — a zero default would silently send the
+     * whole app back to page one.
+     */
+    @Test
+    fun `no requested page resumes from lastPageRead`() = runTest {
+        stubLoadableChapter(lastPageRead = 2)
+
+        val vm = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(2, vm.state.value.currentPage)
+    }
+
+    /**
+     * A bookmark can outlive the page it names: a source that re-splits or re-uploads a chapter
+     * changes how many pages it has. Clamping keeps that a slightly-wrong page rather than an
+     * index crash.
+     */
+    @Test
+    fun `a requested page past the end of the chapter is clamped`() = runTest {
+        stubLoadableChapter(pageCount = 10)
+
+        val vm = createViewModel(startPage = 99)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(9, vm.state.value.currentPage)
+    }
+
+    /**
+     * The requested page governs only the chapter the reader was opened on.
+     *
+     * Without consuming it, paging into the next chapter would keep snapping back to the same
+     * index — wrong, and impossible to escape by reading forward. Asserting state left behind
+     * after a *second* load is the only way to see that; the first load looks identical either way.
+     */
+    @Test
+    fun `a requested start page does not follow the reader into the next chapter`() = runTest {
+        stubLoadableChapter(lastPageRead = 2)
+        val nextChapterId = chapterId + 1
+        stubLoadableChapter(lastPageRead = 4, chapterId = nextChapterId)
+
+        val vm = createViewModel(startPage = 7)
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertEquals(7, vm.state.value.currentPage)
+
+        vm.onEvent(ReaderEvent.LoadChapter(nextChapterId))
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals("the next chapter must resume, not reopen at page 7", 4, vm.state.value.currentPage)
     }
 }

@@ -61,12 +61,26 @@ sealed interface Route {
      * Reader screen.
      * @param mangaId Local manga ID.
      * @param chapterId Chapter to open.
+     * @param startPage Page to open at, or [NO_START_PAGE] to resume where the user left off.
+     *   Opening a page bookmark is the case this exists for.
      */
     @Serializable
     data class Reader(
         val mangaId: Long,
         val chapterId: Long,
-    ) : Route
+        val startPage: Int = NO_START_PAGE,
+    ) : Route {
+        companion object {
+            /**
+             * "No page requested — resume from `lastPageRead`."
+             *
+             * Deliberately not `0`, which is a real page: a zero default would silently send every
+             * caller that does not pass one to the first page, discarding reading position
+             * everywhere the reader is opened.
+             */
+            const val NO_START_PAGE = -1
+        }
+    }
 
     // ─── Browse sub-flows ───
 

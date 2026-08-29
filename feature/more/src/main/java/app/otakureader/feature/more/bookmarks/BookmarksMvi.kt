@@ -105,7 +105,7 @@ sealed interface BookmarksIntent : UiEvent {
     data class SearchQueryChanged(val query: String) : BookmarksIntent
     data class ToggleMangaExpanded(val mangaId: Long) : BookmarksIntent
     data class DeleteBookmark(val item: BookmarkItem) : BookmarksIntent
-    data class OpenBookmark(val mangaId: Long, val chapterId: Long) : BookmarksIntent
+    data class OpenBookmark(val mangaId: Long, val chapterId: Long, val pageIndex: Int) : BookmarksIntent
     // Collections
     data class SelectCollection(val collectionId: Long?) : BookmarksIntent
     data class CreateCollection(val name: String) : BookmarksIntent
@@ -124,7 +124,11 @@ sealed interface BookmarksIntent : UiEvent {
 // ─── Effect ───────────────────────────────────────────────────────────────────
 
 sealed interface BookmarksEffect : UiEffect {
-    data class NavigateToReader(val mangaId: Long, val chapterId: Long) : BookmarksEffect
+    /**
+     * [pageIndex] is the whole point of a page bookmark: without it the reader opens the chapter
+     * at `lastPageRead`, which is wherever the user stopped and not the panel they saved.
+     */
+    data class NavigateToReader(val mangaId: Long, val chapterId: Long, val pageIndex: Int) : BookmarksEffect
     data class ShowSnackbar(val message: String) : BookmarksEffect
     /**
      * The export finished. [failed] is carried separately rather than folded into a single count

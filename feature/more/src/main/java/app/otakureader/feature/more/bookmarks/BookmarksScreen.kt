@@ -86,7 +86,7 @@ private const val SWIPE_DISMISS_THRESHOLD = 0.4f
 @Composable
 fun BookmarksScreen(
     onNavigateBack: () -> Unit,
-    onOpenBookmark: (mangaId: Long, chapterId: Long) -> Unit,
+    onOpenBookmark: (mangaId: Long, chapterId: Long, pageIndex: Int) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: BookmarksViewModel = hiltViewModel(),
 ) {
@@ -98,7 +98,7 @@ fun BookmarksScreen(
         viewModel.effect.collectLatest { effect ->
             when (effect) {
                 is BookmarksEffect.NavigateToReader ->
-                    onOpenBookmark(effect.mangaId, effect.chapterId)
+                    onOpenBookmark(effect.mangaId, effect.chapterId, effect.pageIndex)
                 is BookmarksEffect.ShowSnackbar ->
                     snackbarHostState.showSnackbar(effect.message)
                 is BookmarksEffect.ExportComplete ->
@@ -270,8 +270,8 @@ fun BookmarksScreen(
                     onToggleExpand = { mangaId ->
                         viewModel.onIntent(BookmarksIntent.ToggleMangaExpanded(mangaId))
                     },
-                    onOpenBookmark = { mangaId, chapterId ->
-                        viewModel.onIntent(BookmarksIntent.OpenBookmark(mangaId, chapterId))
+                    onOpenBookmark = { mangaId, chapterId, pageIndex ->
+                        viewModel.onIntent(BookmarksIntent.OpenBookmark(mangaId, chapterId, pageIndex))
                     },
                     onDeleteBookmark = { item ->
                         viewModel.onIntent(BookmarksIntent.DeleteBookmark(item))
@@ -358,7 +358,7 @@ private fun BookmarkGroupedList(
     selectedBookmarkIds: Set<Long>,
     isSelectionMode: Boolean,
     onToggleExpand: (mangaId: Long) -> Unit,
-    onOpenBookmark: (mangaId: Long, chapterId: Long) -> Unit,
+    onOpenBookmark: (mangaId: Long, chapterId: Long, pageIndex: Int) -> Unit,
     onDeleteBookmark: (BookmarkItem) -> Unit,
     onToggleSelection: (id: Long) -> Unit,
     onLongPressBookmark: (id: Long) -> Unit,
@@ -392,7 +392,7 @@ private fun BookmarkGroupedList(
                         } else {
                             SwipeToDismissBookmarkRow(
                                 bookmark = bookmark,
-                                onOpen = { onOpenBookmark(bookmark.mangaId, bookmark.chapterId) },
+                                onOpen = { onOpenBookmark(bookmark.mangaId, bookmark.chapterId, bookmark.pageIndex) },
                                 onDelete = { onDeleteBookmark(bookmark) },
                                 onLongPress = { onLongPressBookmark(bookmark.id) },
                             )
@@ -722,7 +722,7 @@ private fun ManageCollectionsDialog(
 
 fun NavGraphBuilder.bookmarksScreen(
     onNavigateBack: () -> Unit,
-    onOpenBookmark: (mangaId: Long, chapterId: Long) -> Unit,
+    onOpenBookmark: (mangaId: Long, chapterId: Long, pageIndex: Int) -> Unit,
 ) {
     composable<Route.Bookmarks> {
         BookmarksScreen(onNavigateBack = onNavigateBack, onOpenBookmark = onOpenBookmark)

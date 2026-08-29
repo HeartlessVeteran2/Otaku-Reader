@@ -144,7 +144,9 @@ class BookmarksViewModel @Inject constructor(
             is BookmarksIntent.DeleteBookmark -> deleteBookmark(intent.item)
 
             is BookmarksIntent.OpenBookmark -> viewModelScope.launch {
-                _effect.send(BookmarksEffect.NavigateToReader(intent.mangaId, intent.chapterId))
+                _effect.send(
+                    BookmarksEffect.NavigateToReader(intent.mangaId, intent.chapterId, intent.pageIndex)
+                )
             }
 
             // Collections

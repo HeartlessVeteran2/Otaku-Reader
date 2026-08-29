@@ -59,8 +59,12 @@ class OtakuReaderNavigator(
         navController.navigate(Route.MangaDetails(mangaId))
     }
 
-    fun navigateToReader(mangaId: Long, chapterId: Long = 0L) {
-        navController.navigate(Route.Reader(mangaId, chapterId))
+    fun navigateToReader(
+        mangaId: Long,
+        chapterId: Long = 0L,
+        startPage: Int = Route.Reader.NO_START_PAGE,
+    ) {
+        navController.navigate(Route.Reader(mangaId, chapterId, startPage))
     }
 
     fun navigateToSourceListing(sourceId: String) {

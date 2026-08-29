@@ -674,8 +674,8 @@ fun OtakuReaderNavHost(
             onNavigateBack = {
                 navController.popBackStack()
             },
-            onOpenBookmark = { mangaId, chapterId ->
-                navController.navigate(Route.Reader(mangaId, chapterId))
+            onOpenBookmark = { mangaId, chapterId, pageIndex ->
+                navController.navigate(Route.Reader(mangaId, chapterId, pageIndex))
             },
         )
 
