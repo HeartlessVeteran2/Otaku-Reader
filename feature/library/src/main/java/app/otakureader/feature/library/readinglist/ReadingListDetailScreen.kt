@@ -64,7 +64,11 @@ fun ReadingListDetailScreen(
                 is ReadingListDetailEffect.ShowSnackbar -> snackbarHostState.showSnackbar(effect.message)
                 is ReadingListDetailEffect.NavigateToManga -> onNavigateToManga(effect.mangaId)
                 is ReadingListDetailEffect.ShareExport -> {
-                    val file = File(context.cacheDir, effect.fileName).also { it.writeText(effect.content) }
+                    // Must be inside a directory file_paths.xml declares. Writing to the cache
+                    // root made getUriForFile throw "Failed to find configured root", so this
+                    // crashed on every export rather than sharing anything.
+                    val dir = File(context.cacheDir, "shared_exports").also { it.mkdirs() }
+                    val file = File(dir, effect.fileName).also { it.writeText(effect.content) }
                     val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
                     val intent = Intent(Intent.ACTION_SEND).apply {
                         type = effect.mimeType

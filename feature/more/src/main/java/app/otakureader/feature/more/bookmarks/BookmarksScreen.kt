@@ -1,6 +1,7 @@
 package app.otakureader.feature.more.bookmarks
 
 import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -100,34 +101,48 @@ fun BookmarksScreen(
                     onOpenBookmark(effect.mangaId, effect.chapterId)
                 is BookmarksEffect.ShowSnackbar ->
                     snackbarHostState.showSnackbar(effect.message)
-                is BookmarksEffect.RequestExport ->
-                    snackbarHostState.showSnackbar(
-                        context.getString(R.string.bookmarks_export_requested, effect.bookmarkIds.size)
-                    )
                 is BookmarksEffect.ExportComplete ->
                     snackbarHostState.showSnackbar(
-                        context.getString(R.string.bookmarks_export_complete, effect.savedCount)
+                        if (effect.failed == 0) {
+                            context.getString(R.string.bookmarks_export_complete, effect.saved)
+                        } else {
+                            // Naming the failures matters: a page whose extension is uninstalled or
+                            // whose host is down cannot be exported, and silently reporting only
+                            // the successes is how a partial export reads as a complete one.
+                            context.getString(
+                                R.string.bookmarks_export_partial,
+                                effect.saved,
+                                effect.failed,
+                            )
+                        }
                     )
-                is BookmarksEffect.ShareSelected -> {
-                    val unknownManga = context.getString(R.string.bookmarks_unknown_manga)
-                    val chapterFallback = context.getString(R.string.bookmarks_chapter_fallback)
-                    val text = effect.items.joinToString("\n") { bm ->
-                        context.getString(
-                            R.string.bookmarks_share_text_line,
-                            bm.mangaTitle.ifBlank { unknownManga },
-                            bm.chapterName.ifBlank { chapterFallback },
-                            bm.pageIndex + 1,
-                        )
+                BookmarksEffect.ExportUnsupported ->
+                    snackbarHostState.showSnackbar(context.getString(R.string.bookmarks_export_unsupported))
+                is BookmarksEffect.ShareImages -> {
+                    val uris = ArrayList(effect.uris.map(Uri::parse))
+                    val intent = if (uris.size == 1) {
+                        Intent(Intent.ACTION_SEND).apply {
+                            type = IMAGE_MIME_TYPE
+                            putExtra(Intent.EXTRA_STREAM, uris.first())
+                        }
+                    } else {
+                        // ACTION_SEND with a single-element list is accepted by fewer targets than
+                        // ACTION_SEND, and ACTION_SEND_MULTIPLE with one item by fewer still, so
+                        // each count gets the action receivers actually advertise.
+                        Intent(Intent.ACTION_SEND_MULTIPLE).apply {
+                            type = IMAGE_MIME_TYPE
+                            putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
+                        }
                     }
-                    val intent = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, text)
-                    }
+                    intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     runCatching {
                         context.startActivity(Intent.createChooser(intent, null))
                     }.onFailure {
+                        snackbarHostState.showSnackbar(context.getString(R.string.bookmarks_share_error))
+                    }
+                    if (effect.failed > 0) {
                         snackbarHostState.showSnackbar(
-                            context.getString(R.string.bookmarks_share_error)
+                            context.getString(R.string.bookmarks_share_partial, effect.failed)
                         )
                     }
                 }
@@ -155,6 +170,7 @@ fun BookmarksScreen(
                     onSelectAll = { viewModel.onIntent(BookmarksIntent.SelectAllBookmarks) },
                     onExport = { viewModel.onIntent(BookmarksIntent.ExportSelected) },
                     onShare = { viewModel.onIntent(BookmarksIntent.ShareSelected) },
+                    isExporting = state.isExporting,
                 )
             } else {
                 TopAppBar(
@@ -280,6 +296,7 @@ private fun SelectionTopBar(
     onSelectAll: () -> Unit,
     onExport: () -> Unit,
     onShare: () -> Unit,
+    isExporting: Boolean,
 ) {
     TopAppBar(
         title = { Text(stringResource(R.string.bookmarks_selected_count, selectedCount)) },
@@ -292,10 +309,16 @@ private fun SelectionTopBar(
             IconButton(onClick = onSelectAll) {
                 Icon(Icons.Default.SelectAll, contentDescription = stringResource(R.string.bookmarks_select_all))
             }
-            IconButton(onClick = onExport) {
+            // A page that is not downloaded is fetched from its source, so a large selection can
+            // take seconds. Showing progress here — and refusing a second tap meanwhile — is what
+            // keeps these from looking like the do-nothing buttons they used to be.
+            if (isExporting) {
+                CircularProgressIndicator(modifier = Modifier.size(EXPORT_PROGRESS_SIZE).padding(end = 8.dp))
+            }
+            IconButton(onClick = onExport, enabled = !isExporting) {
                 Icon(Icons.Default.CheckCircle, contentDescription = stringResource(R.string.bookmarks_export))
             }
-            IconButton(onClick = onShare) {
+            IconButton(onClick = onShare, enabled = !isExporting) {
                 Icon(Icons.Default.Share, contentDescription = stringResource(R.string.bookmarks_share))
             }
         },
@@ -703,3 +726,8 @@ fun NavGraphBuilder.bookmarksScreen(
         BookmarksScreen(onNavigateBack = onNavigateBack, onOpenBookmark = onOpenBookmark)
     }
 }
+
+/** Everything the sharesheet is offered is an image; the exporter only produces image files. */
+private const val IMAGE_MIME_TYPE = "image/*"
+
+private val EXPORT_PROGRESS_SIZE = 20.dp
