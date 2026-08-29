@@ -126,9 +126,11 @@ fun BookmarksScreen(
                             putExtra(Intent.EXTRA_STREAM, uris.first())
                         }
                     } else {
-                        // ACTION_SEND with a single-element list is accepted by fewer targets than
-                        // ACTION_SEND, and ACTION_SEND_MULTIPLE with one item by fewer still, so
-                        // each count gets the action receivers actually advertise.
+                        // ACTION_SEND_MULTIPLE carrying a single item is accepted by fewer
+                        // targets than ACTION_SEND — plenty of apps register only the singular
+                        // action — so each count gets the action receivers actually advertise.
+                        // #1133 names ACTION_SEND_MULTIPLE, which is what a multi-page share uses;
+                        // sending one page through it would narrow the sharesheet for no gain.
                         Intent(Intent.ACTION_SEND_MULTIPLE).apply {
                             type = IMAGE_MIME_TYPE
                             putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)

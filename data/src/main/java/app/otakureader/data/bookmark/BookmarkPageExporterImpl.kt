@@ -85,6 +85,12 @@ class BookmarkPageExporterImpl @Inject constructor(
     override suspend fun prepareForShare(pages: List<BookmarkPageRef>): ShareResult =
         withContext(Dispatchers.IO) {
             val shareDir = File(context.cacheDir, SHARE_DIR).apply { mkdirs() }
+            // Clear the previous share before writing this one. Nothing can delete these *after* a
+            // share, because the sharesheet reports neither which app was chosen nor when it has
+            // finished reading the URIs — deleting on completion would race a receiver that has
+            // not opened the stream yet. Clearing on the next share instead bounds the directory
+            // to one selection's worth rather than growing without limit (#1133).
+            purgeStaleShares(shareDir)
             val uris = mutableListOf<String>()
             var failed = 0
             resolveAll(pages).forEach { image ->
@@ -179,18 +185,27 @@ class BookmarkPageExporterImpl @Inject constructor(
         }
         var uri: Uri? = null
         return runCatching {
-            uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+            val target = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
                 ?: return@runCatching false
-            resolver.openOutputStream(uri!!)?.use { it.write(image.bytes) } ?: return@runCatching false
+            uri = target
+            resolver.openOutputStream(target)?.use { it.write(image.bytes) } ?: return@runCatching false
             values.clear()
             values.put(MediaStore.Images.Media.IS_PENDING, 0)
-            resolver.update(uri!!, values, null, null)
+            resolver.update(target, values, null, null)
             true
         }.getOrElse {
             // A half-written pending row stays invisible to gallery apps forever otherwise.
             uri?.let { runCatching { resolver.delete(it, null, null) } }
             false
         }
+    }
+
+    /**
+     * Deletes files left by earlier shares. Best effort per file: one undeletable leftover must not
+     * abort the share the user just asked for.
+     */
+    private fun purgeStaleShares(shareDir: File) {
+        shareDir.listFiles()?.forEach { runCatching { it.delete() } }
     }
 
     private fun copyForShare(image: PageImage, shareDir: File): Uri {

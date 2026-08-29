@@ -22,6 +22,7 @@ import java.io.File
 import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -192,5 +193,29 @@ class BookmarkPageExporterTest {
 
         // It fell through to the source rather than believing it had a local file.
         coVerify(exactly = 1) { sourceRepository.getPageList(any(), any<SourceChapter>()) }
+    }
+
+    /**
+     * Files from an earlier share are cleared before the next one writes (#1133).
+     *
+     * They cannot be deleted *after* a share: the sharesheet reports neither which app was chosen
+     * nor when it finished reading the URIs, so deleting on completion would race a receiver that
+     * has not opened the stream yet. Clearing on the next share is what bounds the directory, and
+     * this asserts the leftover is actually gone rather than merely joined by new files.
+     */
+    @Test
+    fun `an earlier share's temporary files are cleared before the next one`() = runTest {
+        val shareDir = File(context.cacheDir, "shared_bookmarks").apply { mkdirs() }
+        val leftover = File(shareDir, "stale_page.jpg").apply { writeText("old") }
+        val file = temporaryFolder.newFile("page.jpg").apply { writeBytes(byteArrayOf(4, 2)) }
+        every { pageLoader.resolveUrl("", "MangaDex", "Vinland Saga", "Chapter 1", 0) } returns
+            "file://${file.absolutePath}"
+
+        exporter().prepareForShare(listOf(ref(0)))
+
+        assertFalse("the previous share's file must be gone", leftover.exists())
+        // The resulting URI count is deliberately not asserted: `FileProvider` is declared in the
+        // app module's manifest, so `getUriForFile` cannot resolve a root from this module's test
+        // manifest. The purge is what this test is for, and it runs before that step.
     }
 }
