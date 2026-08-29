@@ -6,6 +6,7 @@ import app.otakureader.core.database.dao.FeedDao
 import app.otakureader.core.database.dao.MangaDao
 import app.otakureader.core.database.dao.OpdsServerDao
 import app.otakureader.core.database.dao.ReadingHistoryDao
+import app.otakureader.core.database.dao.TrackEntryDao
 import app.otakureader.core.database.dao.TrackerSyncDao
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.LibraryPreferences
@@ -19,6 +20,7 @@ import app.otakureader.data.backup.mapper.toBackupManga
 import app.otakureader.data.backup.mapper.toBackupOpdsServer
 import app.otakureader.data.backup.mapper.toBackupReadingHistory
 import app.otakureader.data.backup.mapper.toBackupSyncConfiguration
+import app.otakureader.data.backup.mapper.toBackupTrackEntry
 import app.otakureader.data.backup.mapper.toBackupTrackerSyncState
 import app.otakureader.data.backup.model.BackupData
 import app.otakureader.data.backup.model.BackupManga
@@ -40,6 +42,7 @@ class BackupCreator @Inject constructor(
     private val chapterDao: ChapterDao,
     private val categoryDao: CategoryDao,
     private val readingHistoryDao: ReadingHistoryDao,
+    private val trackEntryDao: TrackEntryDao,
     private val trackerSyncDao: TrackerSyncDao,
     private val opdsServerDao: OpdsServerDao,
     private val feedDao: FeedDao,
@@ -78,6 +81,18 @@ class BackupCreator @Inject constructor(
                 } else {
                     emptyMap()
                 }
+                // Tracker rows are few even for a large library, so both tables load once here
+                // and are grouped by manga, rather than two more per-manga queries inside the loop.
+                val trackEntriesByMangaId = if (options.effectiveTracking) {
+                    trackEntryDao.getAllEntries().first().groupBy { it.mangaId }
+                } else {
+                    emptyMap()
+                }
+                val syncStatesByMangaId = if (options.effectiveTracking) {
+                    trackerSyncDao.getAllSyncStates().first().groupBy { it.mangaId }
+                } else {
+                    emptyMap()
+                }
                 val favoriteManga = mangaDao.getFavoriteManga().first()
 
                 favoriteManga.forEachIndexed { index, mangaEntity ->
@@ -96,7 +111,18 @@ class BackupCreator @Inject constructor(
                     } else {
                         emptyList()
                     }
-                    writer.write(json.encodeToString(mangaEntity.toBackupManga(chapters = backupChapters, categoryIds = categoryIds)))
+                    writer.write(
+                        json.encodeToString(
+                            mangaEntity.toBackupManga(
+                                chapters = backupChapters,
+                                categoryIds = categoryIds,
+                                trackEntries = trackEntriesByMangaId[mangaEntity.id]
+                                    .orEmpty().map { it.toBackupTrackEntry() },
+                                trackerSyncStates = syncStatesByMangaId[mangaEntity.id]
+                                    .orEmpty().map { it.toBackupTrackerSyncState() },
+                            )
+                        )
+                    )
                     // Flush every 50 manga so buffered bytes don't accumulate unbounded.
                     if (index % 50 == 49) writer.flush()
                 }
@@ -115,8 +141,11 @@ class BackupCreator @Inject constructor(
             writer.write(json.encodeToString(if (options.feed) createFeedSourceBackup() else emptyList()))
             writer.write(""","feedSavedSearches":""")
             writer.write(json.encodeToString(if (options.feed) createFeedSavedSearchBackup() else emptyList()))
-            writer.write(""","trackerSyncStates":""")
-            writer.write(json.encodeToString(if (options.effectiveTracking) createTrackerSyncStateBackup() else emptyList()))
+            // Always empty from v5 on. Tracker sync state now travels inside each manga, where the
+            // manga it belongs to is identified by (sourceId, url) instead of a local row id that
+            // means nothing on the destination device. The key stays in the envelope so a v5 file
+            // still parses under the v4 schema. See BackupData.legacyTrackerSyncStates.
+            writer.write(""","trackerSyncStates":[]""")
             writer.write(""","syncConfigurations":""")
             writer.write(json.encodeToString(if (options.syncConfigurations) createSyncConfigBackup() else emptyList()))
             writer.write("}")
@@ -164,9 +193,6 @@ class BackupCreator @Inject constructor(
 
     private suspend fun createFeedSavedSearchBackup() =
         feedDao.getSavedSearches().first().map { it.toBackupFeedSavedSearch() }
-
-    private suspend fun createTrackerSyncStateBackup() =
-        trackerSyncDao.getAllSyncStates().first().map { it.toBackupTrackerSyncState() }
 
     private suspend fun createSyncConfigBackup() =
         trackerSyncDao.getSyncConfigurations().first().map { it.toBackupSyncConfiguration() }

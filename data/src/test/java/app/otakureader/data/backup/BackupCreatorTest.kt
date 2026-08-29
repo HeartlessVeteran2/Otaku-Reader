@@ -9,6 +9,8 @@ import app.otakureader.core.database.entity.ChapterEntity
 import app.otakureader.core.database.entity.MangaCategoryEntity
 import app.otakureader.core.database.entity.MangaEntity
 import app.otakureader.core.database.entity.OpdsServerEntity
+import app.otakureader.core.database.entity.TrackEntryEntity
+import app.otakureader.core.database.entity.TrackerSyncStateEntity
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.LibraryPreferences
 import app.otakureader.core.preferences.ReaderPreferences
@@ -28,6 +30,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.ByteArrayOutputStream
+import java.time.Instant
 
 /**
  * Round-trip tests for [BackupCreator] with [BackupOptions] sections toggled off — verifies
@@ -71,6 +74,7 @@ class BackupCreatorTest {
             chapterDao = database.chapterDao(),
             categoryDao = database.categoryDao(),
             readingHistoryDao = database.readingHistoryDao(),
+            trackEntryDao = database.trackEntryDao(),
             trackerSyncDao = database.trackerSyncDao(),
             opdsServerDao = database.opdsServerDao(),
             feedDao = database.feedDao(),
@@ -95,6 +99,28 @@ class BackupCreatorTest {
         database.categoryDao().insert(CategoryEntity(id = 1L, name = "Reading", order = 0))
         database.mangaCategoryDao().upsert(MangaCategoryEntity(mangaId = mangaId, categoryId = 1L))
         return mangaId
+    }
+
+    /** A tracker link plus the sync bookkeeping about it — the two halves #1271 is concerned with. */
+    private suspend fun seedTracking(mangaId: Long) {
+        database.trackEntryDao().upsert(
+            TrackEntryEntity(
+                mangaId = mangaId, trackerId = 1, remoteId = 44347L,
+                remoteUrl = "https://myanimelist.net/manga/44347", title = "Test Manga",
+                status = 1, lastChapterRead = 12f, totalChapters = 100, score = 8.5f,
+                startDate = 1_000L, finishDate = 0L,
+            )
+        )
+        database.trackerSyncDao().insertSyncState(
+            TrackerSyncStateEntity(
+                mangaId = mangaId, trackerId = 1, remoteId = "44347",
+                localLastChapterRead = 12f, localTotalChapters = 100, localStatus = 0,
+                localLastModified = Instant.ofEpochMilli(5_000L),
+                remoteLastChapterRead = 12f, remoteTotalChapters = 100, remoteStatus = 0,
+                remoteLastModified = null, syncStatus = 1,
+                lastSyncAttempt = null, lastSuccessfulSync = null, syncError = null,
+            )
+        )
     }
 
     private suspend fun createAndDecode(options: BackupOptions): BackupData {
@@ -175,13 +201,72 @@ class BackupCreatorTest {
         assertEquals(1, backup.opdsServers.size)
     }
 
+    /**
+     * The gap #1271 was opened for: `track_entries` was never written to a backup at all, so a
+     * restore came back with no tracker links and the details screen showed no chips.
+     *
+     * Asserts the field values, not just the count. `remoteId` is what makes the link portable —
+     * it is the tracker's own identifier for the series and means the same thing on every device,
+     * unlike the local row id the old format tried to carry.
+     */
     @Test
-    fun `tracking off empties trackerSyncStates even with libraryEntries on`() = runBlocking {
-        seedFavoriteMangaWithChapterAndCategory()
+    fun `tracker links are backed up, nested in their manga`() = runBlocking {
+        val mangaId = seedFavoriteMangaWithChapterAndCategory()
+        seedTracking(mangaId)
+
+        val backup = createAndDecode(BackupOptions.ALL)
+
+        val entry = backup.manga.single().trackEntries.single()
+        assertEquals(1, entry.trackerId)
+        assertEquals(44347L, entry.remoteId)
+        assertEquals("https://myanimelist.net/manga/44347", entry.remoteUrl)
+        assertEquals(12f, entry.lastChapterRead, 0f)
+        assertEquals(8.5f, entry.score, 0f)
+        assertEquals(100, entry.totalChapters)
+    }
+
+    /** Sync bookkeeping travels with its manga now, not in a flat list keyed by a local id. */
+    @Test
+    fun `tracker sync state is nested in its manga and no longer written at top level`() = runBlocking {
+        val mangaId = seedFavoriteMangaWithChapterAndCategory()
+        seedTracking(mangaId)
+
+        val backup = createAndDecode(BackupOptions.ALL)
+
+        assertEquals(1, backup.manga.single().trackerSyncStates.size)
+        assertEquals("44347", backup.manga.single().trackerSyncStates.single().remoteId)
+        assertTrue(
+            "the v4 top-level list must be empty in a v5 backup",
+            backup.legacyTrackerSyncStates.isEmpty(),
+        )
+    }
+
+    /**
+     * Seeds real tracker rows before turning the section off. The previous version of this test
+     * seeded none, so it asserted an empty list against a database that had nothing to write
+     * either way — it would have passed with the rule inverted (self-review item 3).
+     */
+    @Test
+    fun `tracking off empties tracker data even with libraryEntries on`() = runBlocking {
+        val mangaId = seedFavoriteMangaWithChapterAndCategory()
+        seedTracking(mangaId)
 
         val backup = createAndDecode(BackupOptions.ALL.copy(tracking = false))
 
-        assertTrue(backup.trackerSyncStates.isEmpty())
+        assertTrue(backup.manga.single().trackEntries.isEmpty())
+        assertTrue(backup.manga.single().trackerSyncStates.isEmpty())
+    }
+
+    /** Tracker data is per-manga, so it goes when the library section does. */
+    @Test
+    fun `libraryEntries off drops tracker data with the manga`() = runBlocking {
+        val mangaId = seedFavoriteMangaWithChapterAndCategory()
+        seedTracking(mangaId)
+
+        val backup = createAndDecode(BackupOptions.ALL.copy(libraryEntries = false))
+
+        assertTrue(backup.manga.isEmpty())
+        assertTrue(backup.legacyTrackerSyncStates.isEmpty())
     }
 
     @Test

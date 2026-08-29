@@ -8,6 +8,7 @@ import app.otakureader.core.database.entity.MangaEntity
 import app.otakureader.core.database.entity.OpdsServerEntity
 import app.otakureader.core.database.entity.ReadingHistoryEntity
 import app.otakureader.core.database.entity.SyncConfigurationEntity
+import app.otakureader.core.database.entity.TrackEntryEntity
 import app.otakureader.core.database.entity.TrackerSyncStateEntity
 import app.otakureader.data.backup.model.BackupCategory
 import app.otakureader.data.backup.model.BackupChapter
@@ -18,6 +19,7 @@ import app.otakureader.data.backup.model.BackupOpdsServer
 import app.otakureader.data.backup.model.BackupPreferences
 import app.otakureader.data.backup.model.BackupReadingHistory
 import app.otakureader.data.backup.model.BackupSyncConfiguration
+import app.otakureader.data.backup.model.BackupTrackEntry
 import app.otakureader.data.backup.model.BackupTrackerSyncState
 import java.time.Instant
 
@@ -27,7 +29,9 @@ import java.time.Instant
  */
 fun MangaEntity.toBackupManga(
     chapters: List<BackupChapter> = emptyList(),
-    categoryIds: List<Long> = emptyList()
+    categoryIds: List<Long> = emptyList(),
+    trackEntries: List<BackupTrackEntry> = emptyList(),
+    trackerSyncStates: List<BackupTrackerSyncState> = emptyList(),
 ): BackupManga = BackupManga(
     sourceId = sourceId,
     url = url,
@@ -68,6 +72,8 @@ fun MangaEntity.toBackupManga(
     userThumbnailUrl = userThumbnailUrl,
     userGenre = userGenre,
     userStatus = userStatus,
+    trackEntries = trackEntries,
+    trackerSyncStates = trackerSyncStates,
 )
 
 /**
@@ -250,8 +256,40 @@ fun BackupFeedSavedSearch.toFeedSavedSearchEntity(): FeedSavedSearchEntity = Fee
     order = order
 )
 
-fun TrackerSyncStateEntity.toBackupTrackerSyncState(): BackupTrackerSyncState = BackupTrackerSyncState(
+fun TrackEntryEntity.toBackupTrackEntry(): BackupTrackEntry = BackupTrackEntry(
+    trackerId = trackerId,
+    remoteId = remoteId,
+    remoteUrl = remoteUrl,
+    title = title,
+    status = status,
+    lastChapterRead = lastChapterRead,
+    totalChapters = totalChapters,
+    score = score,
+    startDate = startDate,
+    finishDate = finishDate,
+)
+
+/**
+ * [mangaId] is supplied by the caller because a [BackupTrackEntry] deliberately carries none — it
+ * is nested inside the manga it belongs to, and the restore passes the id that manga was just
+ * given on *this* device.
+ */
+fun BackupTrackEntry.toTrackEntryEntity(mangaId: Long): TrackEntryEntity = TrackEntryEntity(
+    id = 0,
     mangaId = mangaId,
+    trackerId = trackerId,
+    remoteId = remoteId,
+    remoteUrl = remoteUrl,
+    title = title,
+    status = status,
+    lastChapterRead = lastChapterRead,
+    totalChapters = totalChapters,
+    score = score,
+    startDate = startDate,
+    finishDate = finishDate,
+)
+
+fun TrackerSyncStateEntity.toBackupTrackerSyncState(): BackupTrackerSyncState = BackupTrackerSyncState(
     trackerId = trackerId,
     remoteId = remoteId,
     localLastChapterRead = localLastChapterRead,
@@ -268,7 +306,8 @@ fun TrackerSyncStateEntity.toBackupTrackerSyncState(): BackupTrackerSyncState = 
     syncError = syncError
 )
 
-fun BackupTrackerSyncState.toTrackerSyncStateEntity(): TrackerSyncStateEntity = TrackerSyncStateEntity(
+/** See [toTrackEntryEntity] — [mangaId] comes from the caller for the same reason. */
+fun BackupTrackerSyncState.toTrackerSyncStateEntity(mangaId: Long): TrackerSyncStateEntity = TrackerSyncStateEntity(
     id = 0,
     mangaId = mangaId,
     trackerId = trackerId,
