@@ -110,7 +110,7 @@ class BackupRestorer @Inject constructor(
                 existingManga.id
             } else {
                 // Insert new manga
-                mangaDao.insert(backupManga.toMangaEntity())
+                mangaDao.insertOrGetExisting(backupManga.toMangaEntity())
             }
 
             // Restore chapters for this manga

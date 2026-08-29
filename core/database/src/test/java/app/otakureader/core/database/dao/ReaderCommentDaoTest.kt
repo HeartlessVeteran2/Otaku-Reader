@@ -38,7 +38,7 @@ class ReaderCommentDaoTest {
         chapterDao = database.chapterDao()
 
         runBlocking {
-            mangaDao.insert(MangaEntity(id = mangaId, title = "Test Manga", sourceId = 1L, url = "url", favorite = true))
+            mangaDao.insertOrGetExisting(MangaEntity(id = mangaId, title = "Test Manga", sourceId = 1L, url = "url", favorite = true))
             chapterDao.upsert(
                 ChapterEntity(id = chapterId, mangaId = mangaId, url = "ch_url", name = "Chapter 1", read = false, chapterNumber = 1f)
             )

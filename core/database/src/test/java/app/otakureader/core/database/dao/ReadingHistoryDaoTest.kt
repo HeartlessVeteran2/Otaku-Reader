@@ -41,7 +41,7 @@ class ReadingHistoryDaoTest {
     @Test
     fun upsert_accumulatesDurationOnConflict() = runBlocking {
         // Setup: Insert test manga and chapter
-        val mangaId = mangaDao.insert(
+        val mangaId = mangaDao.insertOrGetExisting(
             MangaEntity(
                 id = 1L,
                 title = "Test Manga",
@@ -85,7 +85,7 @@ class ReadingHistoryDaoTest {
     @Test
     fun replaceHistory_overwritesDurationWithoutAccumulation() = runBlocking {
         // Setup: Insert test manga and chapter
-        val mangaId = mangaDao.insert(
+        val mangaId = mangaDao.insertOrGetExisting(
             MangaEntity(
                 id = 1L,
                 title = "Test Manga",
@@ -127,7 +127,7 @@ class ReadingHistoryDaoTest {
     @Test
     fun replaceHistory_preservesRowIdAvoidingDeleteTriggers() = runBlocking {
         // Setup: Insert test manga and chapter
-        val mangaId = mangaDao.insert(
+        val mangaId = mangaDao.insertOrGetExisting(
             MangaEntity(
                 id = 1L,
                 title = "Test Manga",
@@ -164,7 +164,7 @@ class ReadingHistoryDaoTest {
     @Test
     fun replaceHistory_restoreSemantics_repeatedRestore() = runBlocking {
         // Simulate interrupted restore scenario: same backup restored multiple times
-        val mangaId = mangaDao.insert(
+        val mangaId = mangaDao.insertOrGetExisting(
             MangaEntity(
                 id = 1L,
                 title = "Test Manga",
@@ -205,7 +205,7 @@ class ReadingHistoryDaoTest {
     @Test
     fun upsert_insertsNewEntryWhenNoConflict() = runBlocking {
         // Setup: Insert test manga and chapter
-        val mangaId = mangaDao.insert(
+        val mangaId = mangaDao.insertOrGetExisting(
             MangaEntity(
                 id = 1L,
                 title = "Test Manga",
@@ -239,7 +239,7 @@ class ReadingHistoryDaoTest {
     @Test
     fun replaceHistory_insertsNewEntryWhenNoConflict() = runBlocking {
         // Setup: Insert test manga and chapter
-        val mangaId = mangaDao.insert(
+        val mangaId = mangaDao.insertOrGetExisting(
             MangaEntity(
                 id = 1L,
                 title = "Test Manga",
@@ -273,7 +273,7 @@ class ReadingHistoryDaoTest {
     @Test
     fun deleteHistoryForChapter_cascadesOnChapterDelete() = runBlocking {
         // Setup: Insert test manga and chapter
-        val mangaId = mangaDao.insert(
+        val mangaId = mangaDao.insertOrGetExisting(
             MangaEntity(
                 id = 1L,
                 title = "Test Manga",

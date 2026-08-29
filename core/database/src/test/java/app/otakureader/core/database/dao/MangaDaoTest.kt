@@ -44,7 +44,7 @@ class MangaDaoTest {
  author = "Test Author", artist = "Test Artist", description = "Test description",
  genre = "Action||Comedy", status = 1, favorite = true
  )
- mangaDao.insert(manga)
+ mangaDao.insertOrGetExisting(manga)
 
  val retrieved = mangaDao.getMangaById(1L)
  assertNotNull(retrieved)
@@ -57,7 +57,7 @@ class MangaDaoTest {
  @Test
  fun getMangaByIdFlow_emitsUpdates() = runBlocking {
  val manga = MangaEntity(id = 1L, title = "Original", sourceId = 1L, url = "url", favorite = true)
- mangaDao.insert(manga)
+ mangaDao.insertOrGetExisting(manga)
 
  // Collect initial
  val initial = mangaDao.getMangaByIdFlow(1L).first()
@@ -77,9 +77,9 @@ class MangaDaoTest {
  val fav2 = MangaEntity(id = 2L, title = "Fav 2", sourceId = 1L, url = "url2", favorite = true)
  val nonFav = MangaEntity(id = 3L, title = "Not Fav", sourceId = 1L, url = "url3", favorite = false)
 
- mangaDao.insert(fav1)
- mangaDao.insert(fav2)
- mangaDao.insert(nonFav)
+ mangaDao.insertOrGetExisting(fav1)
+ mangaDao.insertOrGetExisting(fav2)
+ mangaDao.insertOrGetExisting(nonFav)
 
  val favorites = mangaDao.getFavoriteManga().first()
  assertEquals(2, favorites.size)
@@ -92,9 +92,9 @@ class MangaDaoTest {
  val manga2 = MangaEntity(id = 2L, title = "Naruto", sourceId = 1L, url = "url2", favorite = true)
  val manga3 = MangaEntity(id = 3L, title = "One Punch Man", sourceId = 1L, url = "url3", favorite = true)
 
- mangaDao.insert(manga1)
- mangaDao.insert(manga2)
- mangaDao.insert(manga3)
+ mangaDao.insertOrGetExisting(manga1)
+ mangaDao.insertOrGetExisting(manga2)
+ mangaDao.insertOrGetExisting(manga3)
 
  val results = mangaDao.searchFavoriteManga("One").first()
  assertEquals(2, results.size)
@@ -106,7 +106,7 @@ class MangaDaoTest {
  @Test
  fun getMangaBySourceAndUrl_returnsCorrect() = runBlocking {
  val manga = MangaEntity(id = 1L, title = "Test", sourceId = 42L, url = "http://source.com/123")
- mangaDao.insert(manga)
+ mangaDao.insertOrGetExisting(manga)
 
  val retrieved = mangaDao.getMangaBySourceAndUrl(42L, "http://source.com/123")
  assertNotNull(retrieved)
@@ -122,9 +122,9 @@ class MangaDaoTest {
  val manga2 = MangaEntity(id = 2L, title = "Second", sourceId = 1L, url = "url2")
  val manga3 = MangaEntity(id = 3L, title = "Third", sourceId = 1L, url = "url3")
 
- mangaDao.insert(manga1)
- mangaDao.insert(manga2)
- mangaDao.insert(manga3)
+ mangaDao.insertOrGetExisting(manga1)
+ mangaDao.insertOrGetExisting(manga2)
+ mangaDao.insertOrGetExisting(manga3)
 
  val ids = listOf(3L, 1L, 2L)
  val results = mangaDao.getMangaByIds(ids)
@@ -137,7 +137,7 @@ class MangaDaoTest {
  @Test
  fun updateFavorite_togglesState() = runBlocking {
  val manga = MangaEntity(id = 1L, title = "Test", sourceId = 1L, url = "url", favorite = false)
- mangaDao.insert(manga)
+ mangaDao.insertOrGetExisting(manga)
 
  mangaDao.updateFavorite(1L, true)
  val updated = mangaDao.getMangaById(1L)
@@ -151,7 +151,7 @@ class MangaDaoTest {
  @Test
  fun deleteById_removesManga() = runBlocking {
  val manga = MangaEntity(id = 1L, title = "To Delete", sourceId = 1L, url = "url")
- mangaDao.insert(manga)
+ mangaDao.insertOrGetExisting(manga)
 
  mangaDao.deleteById(1L)
 
@@ -163,7 +163,7 @@ class MangaDaoTest {
  fun getFavoriteMangaWithUnreadCount_computesCorrectly() = runBlocking {
  // This requires ChapterDao to insert chapters — simplified test
  val manga = MangaEntity(id = 1L, title = "Test", sourceId = 1L, url = "url", favorite = true)
- mangaDao.insert(manga)
+ mangaDao.insertOrGetExisting(manga)
 
  val results = mangaDao.getFavoriteMangaWithUnreadCount().first()
  assertEquals(1, results.size)
@@ -174,7 +174,7 @@ class MangaDaoTest {
  @Test
  fun isFavorite_returnsFlow() = runBlocking {
  val manga = MangaEntity(id = 1L, title = "Test", sourceId = 1L, url = "url", favorite = false)
- mangaDao.insert(manga)
+ mangaDao.insertOrGetExisting(manga)
 
  val initial = mangaDao.isFavorite(1L).first()
  assertEquals(false, initial)
@@ -186,9 +186,9 @@ class MangaDaoTest {
 
  @Test
  fun getFavoriteMangaCount_returnsCorrect() = runBlocking {
- mangaDao.insert(MangaEntity(id = 1L, title = "1", sourceId = 1L, url = "url1", favorite = true))
- mangaDao.insert(MangaEntity(id = 2L, title = "2", sourceId = 1L, url = "url2", favorite = true))
- mangaDao.insert(MangaEntity(id = 3L, title = "3", sourceId = 1L, url = "url3", favorite = false))
+ mangaDao.insertOrGetExisting(MangaEntity(id = 1L, title = "1", sourceId = 1L, url = "url1", favorite = true))
+ mangaDao.insertOrGetExisting(MangaEntity(id = 2L, title = "2", sourceId = 1L, url = "url2", favorite = true))
+ mangaDao.insertOrGetExisting(MangaEntity(id = 3L, title = "3", sourceId = 1L, url = "url3", favorite = false))
 
  val count = mangaDao.countFavorites().first()
  assertEquals(2, count)
@@ -197,7 +197,7 @@ class MangaDaoTest {
  @Test
  fun perMangaReaderSettings_persistCorrectly() = runBlocking {
  val manga = MangaEntity(id = 1L, title = "Test", sourceId = 1L, url = "url")
- mangaDao.insert(manga)
+ mangaDao.insertOrGetExisting(manga)
 
  mangaDao.updateReaderDirection(1L, 1)
  mangaDao.updateReaderMode(1L, 2)

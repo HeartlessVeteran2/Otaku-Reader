@@ -77,7 +77,7 @@ class MangaRepositoryImpl @Inject constructor(
     }
 
     override suspend fun insertManga(manga: Manga): Long {
-        return mangaDao.insert(manga.toEntity())
+        return mangaDao.insertOrGetExisting(manga.toEntity())
     }
 
     override suspend fun updateManga(manga: Manga) {

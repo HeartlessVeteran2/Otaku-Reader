@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import app.otakureader.core.database.entity.MangaEntity
 import app.otakureader.core.database.entity.MangaWithUnreadCount
@@ -34,11 +35,47 @@ interface MangaDao {
     @Query("SELECT * FROM manga")
     suspend fun getAllMangaOnce(): List<MangaEntity>
     
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(manga: MangaEntity): Long
-    
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAll(manga: List<MangaEntity>)
+    /**
+     * Inserts [manga], or returns the id of the row that already holds its `(sourceId, url)`.
+     *
+     * This replaced an `@Insert(onConflict = REPLACE)`, which was capable of destroying most of a
+     * user's data for one manga (#1269). SQLite's REPLACE *deletes* the conflicting row before
+     * inserting, and because `id` is `autoGenerate` the replacement came back with a different one
+     * — so the delete cascaded through all eleven tables that hold a foreign key to `manga`, and
+     * `chapters` cascades again to `reading_history`, `page_bookmarks` and `reader_comments`. One
+     * conflicting insert could therefore take the chapter list, every read marker, every page
+     * bookmark, the user's own chapter notes, both tracker tables, categories, reading-list
+     * membership and the AniList link with it.
+     *
+     * Reachable only through a race, but a real one: all six callers look the manga up by
+     * `(sourceId, url)` and insert only when absent, which is a read-then-act sequence holding
+     * nothing across the two steps. Two of them running at once — a Browse bulk add-to-library
+     * beside the stub insert that opening a manga performs, say — both see "absent" and both
+     * insert.
+     *
+     * On conflict this **changes nothing**, deliberately. Unlike `ChapterDao.upsert`, which
+     * refreshes a chapter's source metadata because a re-fetch legitimately carries newer values,
+     * no caller here uses insert to refresh: every one of them means "give me the id for this
+     * manga, creating it if needed". Updating source fields instead would mean guessing which of
+     * `MangaEntity`'s forty columns an insert owns, and the losing racer is frequently a *stub*
+     * (`SourceMangaDetailViewModel` inserts one with a blank author, `initialized = false` and
+     * `status = UNKNOWN`) — so a field-by-field merge would blank real metadata, exactly the trap
+     * that `sourceOrder` was in #1254.
+     *
+     * `INSERT OR IGNORE` rather than the UPDATE-then-INSERT pattern `ChapterDao` uses: it is one
+     * atomic statement, so there is no read-then-act window left to lose, and on conflict it does
+     * nothing at all — no delete, therefore no cascade.
+     */
+    @Transaction
+    suspend fun insertOrGetExisting(manga: MangaEntity): Long {
+        val rowId = insertIfAbsent(manga)
+        if (rowId != -1L) return rowId
+        return getMangaBySourceAndUrl(manga.sourceId, manga.url)?.id ?: 0L
+    }
+
+    /** Returns the new row id, or -1 when `(sourceId, url)` is already taken. */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertIfAbsent(manga: MangaEntity): Long
 
     /** Insert manga that don't already exist (by primary key or unique sourceId+url). Skips conflicts. */
     @Insert(onConflict = OnConflictStrategy.IGNORE)

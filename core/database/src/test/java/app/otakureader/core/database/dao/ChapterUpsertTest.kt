@@ -62,7 +62,7 @@ class ChapterUpsertTest {
     }
 
     private suspend fun insertManga() {
-        mangaDao.insert(
+        mangaDao.insertOrGetExisting(
             MangaEntity(id = mangaId, title = "Test Manga", sourceId = 1L, url = "/manga", favorite = true)
         )
     }
