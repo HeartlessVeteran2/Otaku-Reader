@@ -24,8 +24,11 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -493,6 +496,7 @@ fun LibraryScreen(
                 onDeleteClicked = { pendingBulkAction = LibraryEvent.RemoveSelectedFromLibrary },
                 onMigrateClicked = { viewModel.onEvent(LibraryEvent.MigrateSelected) },
                 onUpdateClicked = { viewModel.onEvent(LibraryEvent.UpdateSelected) },
+                onNotifyClicked = { viewModel.onEvent(LibraryEvent.ToggleSelectedNotifications) },
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -1118,6 +1122,7 @@ private fun LibrarySelectionBottomBar(
     onDeleteClicked: () -> Unit,
     onMigrateClicked: () -> Unit,
     onUpdateClicked: () -> Unit,
+    onNotifyClicked: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     AnimatedVisibility(
@@ -1130,12 +1135,17 @@ private fun LibrarySelectionBottomBar(
             shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
         ) {
+            // Scrollable rather than SpaceEvenly. Eight labelled actions do not fit a narrow
+            // phone, and `SpaceEvenly` has no answer for that — it squeezes every label until the
+            // ellipsis makes them indistinguishable. Scrolling keeps each action readable and
+            // leaves room for the next one.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
-                    .padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     IconButton(onClick = onChangeCategoryClicked) {
@@ -1230,6 +1240,20 @@ private fun LibrarySelectionBottomBar(
                     }
                     Text(
                         text = stringResource(R.string.library_context_menu_migrate),
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    IconButton(onClick = onNotifyClicked) {
+                        Icon(
+                            Icons.Default.NotificationsActive,
+                            contentDescription = stringResource(R.string.library_notify_new_chapters),
+                        )
+                    }
+                    Text(
+                        text = stringResource(R.string.library_notify_new_chapters),
                         style = MaterialTheme.typography.labelSmall,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
