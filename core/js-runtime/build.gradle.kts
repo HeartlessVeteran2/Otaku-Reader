@@ -26,6 +26,10 @@ dependencies {
     implementation(projects.sourceApi)
     implementation(projects.core.common)
     implementation(projects.core.preferences)
+    // WebViewCookieJar — the bridge scopes cookies per source rather than inheriting the
+    // shared client's jar. Cycle-free: core:network depends only on core:common and
+    // core:preferences.
+    implementation(projects.core.network)
 
     // JavaScript sources are surfaced through the same Extension model the APK backend uses, so
     // all of feature/browse's extension-management UI works for them with no edits. The

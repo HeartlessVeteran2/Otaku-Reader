@@ -185,6 +185,18 @@ data class JsHttpRequest(
     val method: String = "GET",
     val headers: Map<String, String> = emptyMap(),
     val body: String? = null,
+    /**
+     * The hosts this source owns — its `baseUrl` and, where it has one, its `apiUrl`.
+     *
+     * Set by `QuickJsHost` from the source's own config, never by the script: the engine exposes
+     * only url, method, headers and body to JavaScript, so a script cannot claim to be a source
+     * it is not. That is what makes this usable as a cookie-scoping decision in `JsHttpBridge`.
+     *
+     * Defaulted to empty, and empty means *no cookies*. A request that arrives without provenance
+     * is one whose owner cannot be established, and the safe answer there is to send none rather
+     * than to fall back on sending them all.
+     */
+    val sourceUrls: List<String> = emptyList(),
 )
 
 @Serializable
