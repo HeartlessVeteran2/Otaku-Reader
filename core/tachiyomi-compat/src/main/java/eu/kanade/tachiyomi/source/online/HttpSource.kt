@@ -4,6 +4,7 @@ import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.asObservableSuccess
 import eu.kanade.tachiyomi.network.awaitSingle
+import eu.kanade.tachiyomi.network.await
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.network.newCachelessCallWithProgress
 import eu.kanade.tachiyomi.source.CatalogueSource
@@ -200,7 +201,9 @@ abstract class HttpSource : CatalogueSource {
     override suspend fun fetchRelatedMangaList(manga: SManga): List<SManga> = coroutineScope {
         async {
             client.newCall(relatedMangaListRequest(manga))
-                .execute()
+                // Cancellable: this runs inside an `async` a caller can cancel, and a blocking
+                // execute() would keep the request alive after that (#1231).
+                .await()
                 .let { response ->
                     relatedMangaListParse(response)
                 }

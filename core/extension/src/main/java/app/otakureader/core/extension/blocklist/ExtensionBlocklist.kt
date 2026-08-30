@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import app.otakureader.core.common.net.await
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
@@ -80,7 +81,7 @@ class ExtensionBlocklistFetcher(
         runCatching {
             require(blocklistUrl.startsWith("https://")) { "Blocklist URL must use HTTPS" }
             val request = Request.Builder().url(blocklistUrl).build()
-            httpClient.newCall(request).execute().use { response ->
+            httpClient.newCall(request).await().use { response ->
                 check(response.isSuccessful) { "Blocklist fetch failed: HTTP ${response.code}" }
                 val body = response.body?.string() ?: error("Empty blocklist response")
                 json.decodeFromString<BlocklistDocument>(body)

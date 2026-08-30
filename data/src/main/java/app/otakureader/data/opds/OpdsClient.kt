@@ -5,6 +5,7 @@ import app.otakureader.domain.model.OpdsFeed
 import app.otakureader.domain.model.OpdsServer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import app.otakureader.core.common.net.await
 import okhttp3.Credentials
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -37,7 +38,7 @@ class OpdsClient @Inject constructor(
                 )
             }
 
-            okHttpClient.newCall(requestBuilder.build()).execute().use { response ->
+            okHttpClient.newCall(requestBuilder.build()).await().use { response ->
                 if (!response.isSuccessful) {
                     throw OpdsException("HTTP ${response.code}: ${response.message}")
                 }
@@ -82,7 +83,7 @@ class OpdsClient @Inject constructor(
                 )
             }
 
-            okHttpClient.newCall(requestBuilder.build()).execute().use { response ->
+            okHttpClient.newCall(requestBuilder.build()).await().use { response ->
                 if (!response.isSuccessful) return@withContext null
 
                 val body = response.body ?: return@withContext null

@@ -12,6 +12,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import app.otakureader.core.common.net.await
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
@@ -364,7 +365,7 @@ class ExtensionRemoteDataSourceImpl(
                 .url(baseUrl + REPO_INDEX_MIN_PATH)
                 .build()
 
-            val responseBody = httpClient.newCall(request).execute().use { response ->
+            val responseBody = httpClient.newCall(request).await().use { response ->
                 if (!response.isSuccessful) {
                     throw ExtensionFetchException("HTTP ${response.code} fetching $baseUrl$REPO_INDEX_MIN_PATH")
                 }
@@ -388,7 +389,7 @@ class ExtensionRemoteDataSourceImpl(
                 .url(baseUrl + REPO_INDEX_PATH)
                 .build()
 
-            val responseBody = httpClient.newCall(request).execute().use { response ->
+            val responseBody = httpClient.newCall(request).await().use { response ->
                 if (!response.isSuccessful) {
                     throw ExtensionFetchException("HTTP ${response.code} fetching $baseUrl$REPO_INDEX_PATH")
                 }
@@ -421,7 +422,7 @@ class ExtensionRemoteDataSourceImpl(
                         .header("Accept", "application/vnd.android.package-archive")
                         .build()
 
-                    httpClient.newCall(request).execute().use { response ->
+                    httpClient.newCall(request).await().use { response ->
                         if (response.isSuccessful) {
                             val body = response.body
                                 ?: throw ExtensionFetchException("Empty APK response body from $url")

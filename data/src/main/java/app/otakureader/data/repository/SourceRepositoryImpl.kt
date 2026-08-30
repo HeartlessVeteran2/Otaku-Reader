@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import app.otakureader.core.common.net.await
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import eu.kanade.tachiyomi.source.CatalogueSource
@@ -584,7 +585,7 @@ class SourceRepositoryImpl @Inject constructor(
                     .header("Accept", "application/vnd.android.package-archive")
                     .build()
 
-                httpClient.newCall(request).execute().use { response ->
+                httpClient.newCall(request).await().use { response ->
                     if (!response.isSuccessful) {
                         return@withContext Result.failure(
                             IllegalStateException("Failed to download extension: HTTP ${response.code}")
