@@ -4,6 +4,8 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
+import androidx.room.Update
 import app.otakureader.core.database.entity.TrackEntryEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -23,8 +25,41 @@ interface TrackEntryDao {
     @Query("SELECT * FROM track_entries")
     fun getAllEntries(): Flow<List<TrackEntryEntity>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsert(entry: TrackEntryEntity): Long
+    /**
+     * Inserts [entry], or updates the existing row for its `(manga_id, tracker_id)` pair.
+     *
+     * UPDATE-then-INSERT rather than `OnConflictStrategy.REPLACE` (#1276). REPLACE **deletes** the
+     * conflicting row before inserting, and `id` is `autoGenerate`, so every sync handed the row a
+     * new id. Nothing currently references a track entry's id, so this was churn rather than data
+     * loss — but the rule is the same one that cost this project real data twice, in `ChapterDao`
+     * (#1254) and `MangaDao` (#1269), and a table that quietly reassigns its own primary key is a
+     * trap for whoever adds the first foreign key to it.
+     *
+     * A full overwrite is correct here: every field comes from the tracker, so there is no
+     * user-owned column to preserve and no field-by-field merge to get wrong. That is what makes
+     * this the refresh case rather than the create-if-absent one.
+     */
+    @Transaction
+    suspend fun upsert(entry: TrackEntryEntity): Long {
+        getByMangaAndTracker(entry.mangaId, entry.trackerId)?.let { existing ->
+            update(entry.copy(id = existing.id))
+            return existing.id
+        }
+        val rowId = insertIfAbsent(entry)
+        if (rowId != -1L) return rowId
+        // Lost the race between the read and the insert: somebody else created the row, so this
+        // call becomes the update it would have been had it arrived a moment later.
+        val now = getByMangaAndTracker(entry.mangaId, entry.trackerId) ?: return 0L
+        update(entry.copy(id = now.id))
+        return now.id
+    }
+
+    /** Returns the new row id, or -1 when `(manga_id, tracker_id)` is already taken. */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertIfAbsent(entry: TrackEntryEntity): Long
+
+    @Update
+    suspend fun update(entry: TrackEntryEntity)
 
     @Query("DELETE FROM track_entries WHERE manga_id = :mangaId AND tracker_id = :trackerId")
     suspend fun deleteByMangaAndTracker(mangaId: Long, trackerId: Int)
