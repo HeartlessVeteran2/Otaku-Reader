@@ -31,6 +31,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import okio.Path.Companion.toOkioPath
+import app.otakureader.core.extension.installer.ExtensionInstaller
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
@@ -73,6 +77,9 @@ class OtakuReaderApplication : Application(), Configuration.Provider, SingletonI
 
     @Inject
     lateinit var downloadFolderMigrationScheduler: DownloadFolderMigrationScheduler
+
+    @Inject
+    lateinit var extensionInstaller: ExtensionInstaller
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -149,7 +156,29 @@ class OtakuReaderApplication : Application(), Configuration.Provider, SingletonI
         } catch (e: Throwable) {
             android.util.Log.e("OtakuReaderApp", "Download folder migration enqueue failed", e)
         }
+        // Remove JavaScript scripts left behind by an install the process died in the middle of
+        // (#1229). Startup is the only place this can run: the orphan exists precisely because
+        // nothing in the previous process lived long enough to clean it up. Off the main thread
+        // and failure-tolerant — it touches disk, and it must never delay or break launch.
+        applicationScope.launch {
+            try {
+                val removed = extensionInstaller.sweepInterruptedJsInstalls()
+                if (removed > 0) {
+                    android.util.Log.i("OtakuReaderApp", "Removed \$removed orphaned JS install(s)")
+                }
+            } catch (e: Throwable) {
+                android.util.Log.e("OtakuReaderApp", "Interrupted-install sweep failed", e)
+            }
+        }
     }
+
+    /**
+     * Scope for startup work that must outlive no particular screen.
+     *
+     * `SupervisorJob` so one failing task cannot cancel the others, and it is never cancelled —
+     * this lives exactly as long as the process does, which is the point.
+     */
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     // Trim Coil's memory cache when the OS signals memory pressure, preventing the
     // app from holding onto image memory that the system urgently needs elsewhere.

@@ -157,6 +157,9 @@ dependencies {
     // tachiyomi-compat exposes Injekt/NetworkHelper to extension APKs at runtime;
     // the app module needs a direct dep to call Injekt.addSingletonFactory in Application.onCreate.
     implementation(projects.core.tachiyomiCompat)
+    // Needed in Application.onCreate to sweep JavaScript installs the process died in the middle
+    // of (#1229) — startup is the only place that orphan can be cleaned up.
+    implementation(projects.core.extension)
     implementation(projects.domain)
     implementation(projects.sourceApi)
 
