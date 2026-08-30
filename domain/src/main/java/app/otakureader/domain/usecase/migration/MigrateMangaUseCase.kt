@@ -313,7 +313,53 @@ class MigrateMangaUseCase @Inject constructor(
 
         chapterRepository.insertChapters(chaptersToInsert)
 
+        if (MigrationFlag.CHAPTERS in flags) {
+            migrateReadingHistory(sourceChapterMap, targetMangaId, targetChapters)
+        }
+
         return matchedCount
+    }
+
+    /**
+     * Carries each matched chapter's reading history — when it was read, and for how long — onto
+     * the target chapter, under the same [MigrationFlag.CHAPTERS] flag that carries read state.
+     *
+     * Without this the target opens at page one of a chapter marked read, the History screen has
+     * nothing to resume from, and the total reading time on the Statistics screen drops by however
+     * long the migrated series took. The read flag alone does not carry any of that: it lives on
+     * `chapters`, while the timestamps live in `reading_history`, which is keyed by chapter id.
+     *
+     * That key is why this runs *after* the insert rather than as part of it. The target chapters
+     * go in with `id = 0` and Room assigns the real ids, so the only way to know what to write
+     * against is to read the rows back. They are matched by `url`, which is the target manga's own
+     * unique key for a chapter — chapter number would not do, since it is the *source*'s numbering
+     * that was matched on and two target chapters can share a number.
+     */
+    private suspend fun migrateReadingHistory(
+        sourceChapterByNumber: Map<Float, Chapter>,
+        targetMangaId: Long,
+        targetChapters: List<SourceChapter>,
+    ) {
+        val historyBySourceChapterId = chapterRepository
+            .getHistoryForChapterIds(sourceChapterByNumber.values.map { it.id })
+            .associateBy { it.chapterId }
+        // Nothing read on the source side means nothing to move, and the read-back below is a query
+        // worth skipping for the common case of migrating a series before starting it.
+        if (historyBySourceChapterId.isEmpty()) return
+
+        val targetChapterIdByUrl = chapterRepository
+            .getChaptersByMangaIdSync(targetMangaId)
+            .associate { it.url to it.id }
+
+        val migrated = targetChapters.mapNotNull { targetChapter ->
+            val sourceChapter = sourceChapterByNumber[targetChapter.chapterNumber]
+                ?: return@mapNotNull null
+            val history = historyBySourceChapterId[sourceChapter.id] ?: return@mapNotNull null
+            val targetChapterId = targetChapterIdByUrl[targetChapter.url] ?: return@mapNotNull null
+            history.copy(chapterId = targetChapterId)
+        }
+
+        chapterRepository.replaceHistory(migrated)
     }
 
     private fun MigrationCandidate.toManga(

@@ -45,17 +45,20 @@ interface ReadingHistoryDao {
 
     /**
      * Atomically sets (overwrites) the reading-history entry for the given chapter without
-     * accumulating duration.  Unlike `upsert`, this is used for the restore path where the
-     * exact backed-up values must be written verbatim.
+     * accumulating duration — the exact values given are what the row ends up holding.
      *
      * Uses the same UPDATE-then-INSERT transaction pattern as [upsert] to preserve the existing
      * row's `id` (avoiding DELETE-trigger side-effects that `INSERT OR REPLACE` would cause on a
      * table with an auto-generated primary key).
      *
-     * **WARNING**: This method intentionally differs from [upsert] by NOT accumulating duration.
-     * It should ONLY be used in backup restore logic. Using it elsewhere would silently lose
-     * accumulated reading time and alter tracking semantics. For normal reading session tracking,
-     * always use [upsert] instead.
+     * **This is for copying a known history value from somewhere else, not for recording reading.**
+     * Two callers qualify: restoring a backup, and migrating a manga to another source. Both carry
+     * a value that already exists and must land verbatim, and both can legitimately run twice on
+     * the same chapter — a restore of the same file, a migration re-run after the source list
+     * changed. [upsert] would add the duration in again on each repeat, so the same operation
+     * applied twice would report twice the reading time on the statistics screen.
+     *
+     * For an actual reading session, always use [upsert]: there the accumulation is the point.
      */
     @Transaction
     suspend fun replaceHistory(chapterId: Long, readAt: Long, readDurationMs: Long) {
@@ -77,6 +80,18 @@ interface ReadingHistoryDao {
 
     @Query("SELECT * FROM reading_history ORDER BY read_at DESC")
     fun observeHistory(): Flow<List<ReadingHistoryEntity>>
+
+    /**
+     * The history rows for a specific set of chapters.
+     *
+     * A scoped read, because the only alternative was [observeHistory], which returns every row in
+     * the app. Migration needs one manga's history and would otherwise have to pull the whole table
+     * and filter in memory — fine at ten chapters, not at a library's worth.
+     *
+     * The caller is responsible for keeping [chapterIds] under SQLite's bound-parameter limit.
+     */
+    @Query("SELECT * FROM reading_history WHERE chapter_id IN (:chapterIds)")
+    suspend fun getHistoryForChapters(chapterIds: Collection<Long>): List<ReadingHistoryEntity>
 
     /**
      * Returns chapters joined with their reading history **and** parent manga metadata, ordered

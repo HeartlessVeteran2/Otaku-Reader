@@ -27,7 +27,7 @@ The library is the home tab: every series you've favorited, organized your way.
 
 - **Duplicate detection** finds the same series added from different sources and offers to merge reading progress, fill missing chapters, or link them as alternative sources.
 - **Library maintenance** (Settings) scans for orphaned download folders left behind by deleted entries and shows exactly how many folders and megabytes you'll reclaim before deleting.
-- **Migration** — move a series (or your whole library) from a dying source to a better one with the built-in migration wizard.
+- **Migration** — move a series (or your whole library) from a dying source to a better one with the built-in migration wizard. Pick what comes with it: reading progress (including your History entries and the time you've already spent reading), categories, tracker links, notes, downloads and a custom cover.
 
 ## Updates
 

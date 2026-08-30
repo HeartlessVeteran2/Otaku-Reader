@@ -304,4 +304,53 @@ class ReadingHistoryDaoTest {
         val historyAfter = readingHistoryDao.observeHistory().first()
         assertEquals(0, historyAfter.size)
     }
+
+    /**
+     * The scoped read behind the migration path (#1208): only the chapters asked for come back.
+     *
+     * The alternative on offer was `observeHistory`, which returns the whole app's history. This
+     * test is what makes the narrowing real — with a query that ignored its argument it would still
+     * find the row it wants, so it deliberately seeds a second chapter's history and asserts that
+     * one is *absent*.
+     */
+    @Test
+    fun getHistoryForChapters_returnsOnlyTheRequestedChapters() = runBlocking {
+        val mangaId = mangaDao.insertOrGetExisting(
+            MangaEntity(title = "Test Manga", sourceId = 1L, url = "url", favorite = true)
+        )
+        val wanted = chapterDao.upsert(
+            ChapterEntity(mangaId = mangaId, url = "c1", name = "Chapter 1", chapterNumber = 1f)
+        )
+        val other = chapterDao.upsert(
+            ChapterEntity(mangaId = mangaId, url = "c2", name = "Chapter 2", chapterNumber = 2f)
+        )
+        readingHistoryDao.upsert(wanted, readAt = 100L, readDurationMs = 1_000L)
+        readingHistoryDao.upsert(other, readAt = 200L, readDurationMs = 2_000L)
+
+        val history = readingHistoryDao.getHistoryForChapters(listOf(wanted))
+
+        assertEquals(1, history.size)
+        assertEquals(wanted, history.single().chapterId)
+        assertEquals(100L, history.single().readAt)
+        assertEquals(1_000L, history.single().readDurationMs)
+    }
+
+    /** A chapter nobody has opened simply has no row, so the result is shorter than the input. */
+    @Test
+    fun getHistoryForChapters_skipsChaptersWithNoHistory() = runBlocking {
+        val mangaId = mangaDao.insertOrGetExisting(
+            MangaEntity(title = "Test Manga", sourceId = 1L, url = "url", favorite = true)
+        )
+        val read = chapterDao.upsert(
+            ChapterEntity(mangaId = mangaId, url = "c1", name = "Chapter 1", chapterNumber = 1f)
+        )
+        val unread = chapterDao.upsert(
+            ChapterEntity(mangaId = mangaId, url = "c2", name = "Chapter 2", chapterNumber = 2f)
+        )
+        readingHistoryDao.upsert(read, readAt = 100L, readDurationMs = 1_000L)
+
+        val history = readingHistoryDao.getHistoryForChapters(listOf(read, unread))
+
+        assertEquals(listOf(read), history.map { it.chapterId })
+    }
 }

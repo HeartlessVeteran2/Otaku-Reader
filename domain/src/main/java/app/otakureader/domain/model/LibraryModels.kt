@@ -29,6 +29,21 @@ data class ChapterWithHistory(
     val mangaFavorite: Boolean = false,
 )
 
+/**
+ * One chapter's reading history: when it was last read and how long has been spent on it.
+ *
+ * Deliberately not [ChapterWithHistory], which carries the chapter and its manga alongside. This is
+ * the history row on its own, for the paths that move a value from one chapter to another — a
+ * migration, a restore — where loading the chapter would be work thrown away.
+ */
+@Immutable
+@Serializable
+data class ReadingHistoryEntry(
+    val chapterId: Long,
+    val readAt: Long,
+    val readDurationMs: Long,
+)
+
 /** Manga with its latest chapter for the Updates screen. */
 @Immutable
 @Serializable
