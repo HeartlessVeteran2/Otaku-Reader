@@ -17,6 +17,7 @@ import app.otakureader.domain.model.ContinueReadingItem
 import app.otakureader.domain.model.Manga
 import app.otakureader.domain.model.MangaStatus
 import app.otakureader.domain.model.MangaUpdate
+import app.otakureader.domain.model.ReadingHistoryEntry
 import app.otakureader.domain.repository.ChapterRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
@@ -142,6 +143,30 @@ class ChapterRepositoryImpl @Inject constructor(
 
     override suspend fun clearAllHistory() {
         readingHistoryDao.deleteAll()
+    }
+
+    override suspend fun getHistoryForChapterIds(chapterIds: Collection<Long>): List<ReadingHistoryEntry> {
+        // Chunked for the same bound-parameter limit as updateChapterProgress — a manga can hold
+        // more than 999 chapters. The chunking also covers the empty case, which matters because
+        // Room renders an empty collection as `IN ()` and SQLite rejects that outright: `chunked`
+        // yields no chunks, so the query is never reached. An explicit `isEmpty()` guard here would
+        // be dead code; ChapterRepositoryImplTest asserts the property instead, so removing the
+        // chunking would fail rather than silently reintroduce it.
+        return chapterIds.chunked(SQLITE_MAX_BIND_PARAMETERS).flatMap { chunk ->
+            readingHistoryDao.getHistoryForChapters(chunk).map {
+                ReadingHistoryEntry(
+                    chapterId = it.chapterId,
+                    readAt = it.readAt,
+                    readDurationMs = it.readDurationMs,
+                )
+            }
+        }
+    }
+
+    override suspend fun replaceHistory(entries: List<ReadingHistoryEntry>) {
+        // replaceHistory, not upsert: these values are being copied from chapters that already hold
+        // them, so applying the same list twice must not add the durations together. See the DAO.
+        entries.forEach { readingHistoryDao.replaceHistory(it.chapterId, it.readAt, it.readDurationMs) }
     }
 
     override suspend fun getChaptersByMangaIdSync(mangaId: Long): List<Chapter> {

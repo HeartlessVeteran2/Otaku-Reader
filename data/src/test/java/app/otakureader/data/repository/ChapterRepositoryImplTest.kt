@@ -4,7 +4,9 @@ import androidx.work.WorkManager
 import app.otakureader.core.database.dao.ChapterDao
 import app.otakureader.core.database.entity.ChapterEntity
 import app.otakureader.core.database.entity.ChapterWithHistoryEntity
+import app.otakureader.core.database.entity.ReadingHistoryEntity
 import app.otakureader.domain.model.Chapter
+import app.otakureader.domain.model.ReadingHistoryEntry
 import app.otakureader.domain.repository.SyncRepository
 import app.cash.turbine.test
 import io.mockk.coEvery
@@ -232,6 +234,61 @@ class ChapterRepositoryImplTest {
         coVerify {
             readingHistoryDao.upsert(5L, 2000L, 30_000L)
         }
+    }
+
+    // ---- getHistoryForChapterIds / replaceHistory ----
+
+    /**
+     * Room renders an empty collection into `IN ()`, which SQLite rejects with a syntax error, so
+     * the empty case must not reach the query at all. Migrating a manga with no chapters is an
+     * ordinary thing to do, and this is the difference between it working and it throwing.
+     *
+     * Nothing in the implementation checks for this explicitly — `chunked` yields no chunks for an
+     * empty input, so the DAO is simply never called. That is easy to lose to a refactor that drops
+     * the chunking as unnecessary, which is why the property is pinned here rather than left to a
+     * guard that would read as redundant and be deleted.
+     */
+    @Test
+    fun getHistoryForChapterIds_withNoIds_neverReachesTheDao() = runTest {
+        assertEquals(emptyList<ReadingHistoryEntry>(), repository.getHistoryForChapterIds(emptyList()))
+
+        coVerify(exactly = 0) { readingHistoryDao.getHistoryForChapters(any()) }
+    }
+
+    @Test
+    fun getHistoryForChapterIds_mapsEntitiesToDomain() = runTest {
+        coEvery { readingHistoryDao.getHistoryForChapters(listOf(7L)) } returns listOf(
+            ReadingHistoryEntity(id = 1L, chapterId = 7L, readAt = 500L, readDurationMs = 9_000L)
+        )
+
+        val history = repository.getHistoryForChapterIds(listOf(7L))
+
+        assertEquals(
+            listOf(ReadingHistoryEntry(chapterId = 7L, readAt = 500L, readDurationMs = 9_000L)),
+            history
+        )
+    }
+
+    /**
+     * `replaceHistory`, not `upsert`. The values here are being copied from chapters that already
+     * hold them, so a second run of the same migration must leave the same numbers — `upsert` adds
+     * the duration in again, which would inflate the total reading time on the Statistics screen
+     * every time a migration was retried.
+     */
+    @Test
+    fun replaceHistory_writesVerbatimRatherThanAccumulating() = runTest {
+        coEvery { readingHistoryDao.replaceHistory(any(), any(), any()) } returns Unit
+
+        repository.replaceHistory(
+            listOf(
+                ReadingHistoryEntry(chapterId = 7L, readAt = 500L, readDurationMs = 9_000L),
+                ReadingHistoryEntry(chapterId = 8L, readAt = 600L, readDurationMs = 1_000L),
+            )
+        )
+
+        coVerify(exactly = 1) { readingHistoryDao.replaceHistory(7L, 500L, 9_000L) }
+        coVerify(exactly = 1) { readingHistoryDao.replaceHistory(8L, 600L, 1_000L) }
+        coVerify(exactly = 0) { readingHistoryDao.upsert(any(), any(), any()) }
     }
 
     // ---- removeFromHistory ----
