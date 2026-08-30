@@ -67,33 +67,54 @@ interface TrackerSyncDao {
     suspend fun getSyncState(mangaId: Long, trackerId: Int): TrackerSyncStateEntity?
 
     /**
-     * Inserts [state], or updates the existing row for its `(mangaId, trackerId)` pair (#1276).
+     * Creates a sync-state row for `(mangaId, trackerId)` **if one does not already exist**, and
+     * returns its id either way. An existing row is left exactly as it is.
      *
-     * This is the one of the three where the id genuinely matters. `updateSyncStatus`,
-     * `markSyncSuccess` and `markConflict` all address a row **by id**, and callers hold that id
-     * across a network round-trip — so a `REPLACE` landing in between would leave those updates
-     * silently affecting zero rows. Today the call sites' own locking makes that unreachable, but
-     * that is discipline at the call site standing in for a property of the table.
+     * Create-if-absent, not overwrite, and the distinction is load-bearing. The only caller is the
+     * auto-create branch in `TrackerSyncRepositoryImpl.syncManga`, which reads
+     * `getSyncState(...) == null` and then inserts — a read-then-act sequence holding nothing
+     * across the two steps. Two syncs for the same manga and tracker can both see null. If the
+     * loser overwrote, it would replace the winner's row with its own older snapshot: a lost
+     * update, which is the exact class of bug #1247 catalogues in this file's callers. Doing
+     * nothing on conflict makes the loser harmless.
      *
-     * Overwrite semantics are kept deliberately: a restore has to win over whatever is already
-     * there, and [insertSyncStates] is the path it uses.
+     * `INSERT OR IGNORE` and then read the id back, rather than `REPLACE` (#1276): REPLACE deletes
+     * the conflicting row first, and with an `autoGenerate` key the replacement returns under a
+     * **new id** — which matters here more than anywhere else in this DAO, because
+     * [updateSyncStatus], [markSyncSuccess] and [markConflict] all address a row *by id* and
+     * callers hold that id across a network round-trip.
+     *
+     * Restore needs the opposite rule and gets its own method; see [insertSyncStates].
      */
     @Transaction
     suspend fun insertSyncState(state: TrackerSyncStateEntity): Long {
-        getSyncState(state.mangaId, state.trackerId)?.let { existing ->
-            updateSyncState(state.copy(id = existing.id))
-            return existing.id
-        }
         val rowId = insertStateIfAbsent(state)
         if (rowId != -1L) return rowId
-        val now = getSyncState(state.mangaId, state.trackerId) ?: return 0L
-        updateSyncState(state.copy(id = now.id))
-        return now.id
+        return getSyncState(state.mangaId, state.trackerId)?.id ?: 0L
     }
 
+    /**
+     * Writes each state, **overwriting** any existing row for the same `(mangaId, trackerId)`.
+     *
+     * The restore path, where the backup is meant to win — the opposite rule to
+     * [insertSyncState], which is why it is a separate method rather than a loop over it. The
+     * overwrite is an `@Update` against the existing row, so the id survives and nothing is
+     * deleted.
+     */
     @Transaction
     suspend fun insertSyncStates(states: List<TrackerSyncStateEntity>) {
-        states.forEach { insertSyncState(it) }
+        for (state in states) {
+            val existing = getSyncState(state.mangaId, state.trackerId)
+            if (existing != null) {
+                updateSyncState(state.copy(id = existing.id))
+                continue
+            }
+            if (insertStateIfAbsent(state) == -1L) {
+                // Lost the race between the read and the insert: become the update this would
+                // have been had it arrived a moment later, so the backup still wins.
+                getSyncState(state.mangaId, state.trackerId)?.let { updateSyncState(state.copy(id = it.id)) }
+            }
+        }
     }
 
     /** Returns the new row id, or -1 when `(mangaId, trackerId)` is already taken. */
