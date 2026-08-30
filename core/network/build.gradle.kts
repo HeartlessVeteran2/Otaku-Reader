@@ -22,6 +22,7 @@ dependencies {
     api(libs.okhttp.core)
     implementation(libs.okhttp.logging)
     implementation(libs.okhttp.brotli)
+    implementation(libs.okhttp.dnsoverhttps)
     api(libs.retrofit.core)
     implementation(libs.retrofit.kotlinx.serialization)
     api(libs.kotlinx.serialization.json)

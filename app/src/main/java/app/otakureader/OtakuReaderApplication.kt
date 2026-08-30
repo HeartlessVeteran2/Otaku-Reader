@@ -20,6 +20,7 @@ import coil3.SingletonImageLoader
 import coil3.disk.DiskCache
 import coil3.memory.MemoryCache
 import app.otakureader.core.network.RequestCategory
+import app.otakureader.core.network.NetworkSettings
 import app.otakureader.core.network.di.PageImageOkHttp
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.allowRgb565
@@ -81,6 +82,9 @@ class OtakuReaderApplication : Application(), Configuration.Provider, SingletonI
     @Inject
     lateinit var extensionInstaller: ExtensionInstaller
 
+    @Inject
+    lateinit var networkSettings: NetworkSettings
+
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
             .setWorkerFactory(workerFactory)
@@ -128,7 +132,16 @@ class OtakuReaderApplication : Application(), Configuration.Provider, SingletonI
         // they throw during instantiation and the loader reports the extension as having no
         // valid sources. That presented as the app simply having no sources at all.
         Injekt.addSingletonFactory<Application> { this }
-        Injekt.addSingletonFactory<NetworkHelper> { NetworkHelper(applicationContext, baseClient = okHttpClient) }
+        Injekt.addSingletonFactory<NetworkHelper> {
+            NetworkHelper(
+                applicationContext,
+                baseClient = okHttpClient,
+                // Read per request, not captured, so changing the User-Agent in Advanced settings
+                // reaches loaded extensions immediately. They never pass through the shared
+                // client's UserAgentInterceptor, because HttpSource sets the header itself.
+                userAgentOverride = { networkSettings.userAgent },
+            )
+        }
         Injekt.addSingletonFactory<Json> {
             Json {
                 isLenient = true

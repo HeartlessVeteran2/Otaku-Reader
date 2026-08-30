@@ -63,4 +63,17 @@ class WebViewCookieJar internal constructor(
         val header = store.get(url.toString())?.takeIf { it.isNotBlank() } ?: return emptyList()
         return header.split(';').mapNotNull { Cookie.parse(url, it.trim()) }
     }
+
+    /**
+     * Discards every stored cookie, for the Advanced screen's "Clear cookies".
+     *
+     * This clears the shared `CookieManager`, so it takes WebView's cookies with it — which is the
+     * point rather than a side effect. A source stuck in a challenge loop is usually holding a
+     * clearance cookie the site no longer accepts, and clearing only OkHttp's half would leave the
+     * WebView to hand the same dead cookie straight back.
+     *
+     * It also signs the user out of anything they had logged into through a source's WebView, so
+     * the screen asks first.
+     */
+    fun clear() = store.clear()
 }

@@ -5,6 +5,7 @@ import androidx.navigation.compose.composable
 import app.otakureader.core.navigation.Route
 import app.otakureader.feature.settings.SettingsScreen
 import app.otakureader.feature.settings.localSourceBrowserScreen
+import app.otakureader.feature.settings.settingsAdvancedScreen
 import app.otakureader.feature.settings.settingsAppearanceScreen
 import app.otakureader.feature.settings.settingsBrowseScreen
 import app.otakureader.feature.settings.cloudbackup.cloudBackupSettingsScreen
@@ -52,6 +53,7 @@ fun NavGraphBuilder.settingsScreen(
     onNavigateToReaderPresets: () -> Unit = {},
     onNavigateToStorageAnalytics: () -> Unit = {},
     onNavigateToExtensionRepos: () -> Unit = {},
+    onNavigateToAdvanced: () -> Unit = {},
 ) {
     composable<Route.Settings> {
         SettingsScreen(
@@ -72,6 +74,7 @@ fun NavGraphBuilder.settingsScreen(
             onNavigateToLocalSourceBrowser = onNavigateToLocalSourceBrowser,
             onNavigateToSync = onNavigateToSync,
             onNavigateToNavOrder = onNavigateToNavOrder,
+            onNavigateToAdvanced = onNavigateToAdvanced,
         )
     }
 
@@ -105,6 +108,7 @@ fun NavGraphBuilder.settingsScreen(
     localSourceBrowserScreen(onNavigateBack = onNavigateBack)
     syncSettingsScreen(onNavigateBack = onNavigateBack)
     settingsNavOrderScreen(onNavigateBack = onNavigateBack)
+    settingsAdvancedScreen(onNavigateBack = onNavigateBack)
     readerPresetsScreen(onNavigateBack = onNavigateBack)
     storageAnalyticsScreen(onNavigateBack = onNavigateBack)
 }

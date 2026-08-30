@@ -530,6 +530,9 @@ fun OtakuReaderNavHost(
             onNavigateToExtensionRepos = {
                 navController.navigate(Route.ExtensionRepositories)
             },
+            onNavigateToAdvanced = {
+                navController.navigate(Route.SettingsAdvanced)
+            },
         )
 
         downloadsScreen(

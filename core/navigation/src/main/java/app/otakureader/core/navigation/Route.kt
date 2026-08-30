@@ -187,6 +187,10 @@ sealed interface Route {
     @Serializable
     data object SettingsNavOrder : Route
 
+    /** Network internals and background-restriction shortcuts — see `SettingsAdvancedScreen`. */
+    @Serializable
+    data object SettingsAdvanced : Route
+
     @Serializable
     data object ReaderPresets : Route
 

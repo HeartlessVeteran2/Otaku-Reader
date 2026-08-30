@@ -53,3 +53,14 @@ Sources flagged 18+ are hidden until you enable NSFW content in settings. The to
 - **Source health diagnostics** — Browse tracks per-source failures and shows a warning badge with a diagnostic sheet explaining what went wrong. Both kinds of source route through it.
 - **WebView fallback** — sources behind Cloudflare can open a WebView challenge; the solved session cookies are shared back to the app's network stack automatically.
 - **Most failures are the site, not the app** — a moved domain, an outage, or a Cloudflare interstitial. The diagnostic sheet says which.
+
+## Advanced network settings
+
+**Settings → Advanced** has the knobs for the cases the above doesn't cover. All three network settings take effect on the next request — there's no need to restart the app.
+
+- **User agent** — the identity sent to sources. Leave it blank for the built-in one. A source that sets its own user agent (usually because the site demands that exact string) keeps it.
+- **DNS over HTTPS** — resolve source addresses through Cloudflare, Google, AdGuard or Quad9 instead of your network's resolver. Worth trying when a source is unreachable but the site is up: a resolver in the path may simply be refusing to answer for it. It also stops every source's hostname travelling in the clear.
+- **Verbose network logging** — logs request and response headers for troubleshooting. Tokens and cookies are redacted, but leave it off unless you need it.
+- **Clear cookies** — discards stored cookies, Cloudflare clearance included. This is the fix when a source keeps asking you to solve the same challenge: the clearance you're holding is one the site no longer accepts. It also signs you out of anything you logged into through a source, so the app asks first.
+
+The same screen carries the background-restriction shortcuts — the battery-optimisation exemption and the [Don't kill my app](https://dontkillmyapp.com/) guide — which decide whether library updates and downloads actually run when the app is closed.

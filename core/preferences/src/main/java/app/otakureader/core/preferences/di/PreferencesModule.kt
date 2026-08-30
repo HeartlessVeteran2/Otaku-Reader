@@ -18,6 +18,7 @@ import app.otakureader.core.preferences.DeveloperPreferences
 import app.otakureader.core.preferences.GeneralPreferences
 import app.otakureader.core.preferences.LibraryPreferences
 import app.otakureader.core.preferences.LocalSourcePreferences
+import app.otakureader.core.preferences.NetworkPreferences
 import app.otakureader.core.preferences.NotificationPreferences
 import app.otakureader.core.preferences.ReaderPreferences
 import app.otakureader.core.preferences.ReadingGoalPreferences
@@ -90,6 +91,11 @@ object PreferencesModule {
     @Singleton
     fun provideDeveloperPreferences(dataStore: DataStore<Preferences>): DeveloperPreferences =
         DeveloperPreferences(dataStore)
+
+    @Provides
+    @Singleton
+    fun provideNetworkPreferences(dataStore: DataStore<Preferences>): NetworkPreferences =
+        NetworkPreferences(dataStore)
 
     @Provides
     @Singleton

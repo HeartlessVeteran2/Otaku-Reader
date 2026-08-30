@@ -16,6 +16,9 @@ internal interface CookieStore {
 
     /** Stores one `Set-Cookie`-shaped [value] against [url]. */
     fun set(url: String, value: String)
+
+    /** Removes every stored cookie. */
+    fun clear()
 }
 
 /**
@@ -41,5 +44,15 @@ internal class AndroidWebViewCookieStore : CookieStore {
 
     override fun set(url: String, value: String) {
         runCatching { manager?.setCookie(url, value) }
+    }
+
+    override fun clear() {
+        runCatching {
+            manager?.removeAllCookies(null)
+            // Without the flush the removal lives only in memory and a kill before the manager's
+            // own periodic sync would bring every cookie back — which for a "clear cookies" button
+            // is the one outcome that must not happen.
+            manager?.flush()
+        }
     }
 }

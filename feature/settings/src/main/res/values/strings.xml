@@ -636,4 +636,40 @@
     <string name="settings_search">Search settings</string>
     <string name="settings_search_hint">Search settings</string>
     <string name="settings_search_close">Close search</string>
+
+    <!-- Advanced settings (#1208) -->
+    <string name="settings_advanced">Advanced</string>
+    <string name="settings_advanced_summary">User agent, DNS, cookies, background restrictions</string>
+    <string name="settings_advanced_network">Network</string>
+    <string name="settings_advanced_data">Data</string>
+    <string name="settings_advanced_background">Background</string>
+    <string name="settings_advanced_cancel">Cancel</string>
+
+    <string name="settings_advanced_user_agent">User agent</string>
+    <string name="settings_advanced_user_agent_summary">The identity sent to sources. Leave blank to use the built-in one. A source that sets its own is left alone.</string>
+    <string name="settings_advanced_user_agent_save">Save</string>
+    <string name="settings_advanced_user_agent_reset">Reset to default</string>
+
+    <string name="settings_advanced_doh">DNS over HTTPS</string>
+    <string name="settings_advanced_doh_summary">Resolve source addresses through an encrypted resolver. Can reach sources your network\'s own DNS refuses to answer for.</string>
+    <string name="settings_advanced_doh_off">Off (system resolver)</string>
+    <string name="settings_advanced_doh_cloudflare">Cloudflare</string>
+    <string name="settings_advanced_doh_google">Google</string>
+    <string name="settings_advanced_doh_adguard">AdGuard</string>
+    <string name="settings_advanced_doh_quad9">Quad9</string>
+
+    <string name="settings_advanced_verbose_logging">Verbose network logging</string>
+    <string name="settings_advanced_verbose_logging_summary">Log request and response headers for troubleshooting. Tokens and cookies are redacted, but leave this off unless you need it.</string>
+
+    <string name="settings_advanced_clear_cookies">Clear cookies</string>
+    <string name="settings_advanced_clear_cookies_summary">Discard stored cookies, including Cloudflare clearance. Use this when a source is stuck asking you to solve the same challenge.</string>
+    <string name="settings_advanced_clear_cookies_confirm">This signs you out of anything you logged into through a source, and cannot be undone.</string>
+    <string name="settings_advanced_clear_cookies_action">Clear</string>
+    <string name="settings_advanced_cookies_cleared">Cookies cleared</string>
+
+    <string name="settings_advanced_battery">Disable battery optimisation</string>
+    <string name="settings_advanced_battery_summary">Stops Android pausing library updates and downloads in the background.</string>
+    <string name="settings_advanced_battery_granted">Already exempt. Tap to review.</string>
+    <string name="settings_advanced_dont_kill_my_app">Don\'t kill my app</string>
+    <string name="settings_advanced_dont_kill_my_app_summary">Per-manufacturer instructions for background restrictions that battery optimisation alone does not cover.</string>
 </resources>

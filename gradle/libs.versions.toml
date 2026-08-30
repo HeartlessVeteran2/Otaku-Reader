@@ -209,6 +209,7 @@ okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor" 
 # Aliases matching libs.okhttp.core / libs.okhttp.brotli / libs.okhttp.mockwebserver (explicit versions for modules not using BOM)
 okhttp-core = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 okhttp-brotli = { group = "com.squareup.okhttp3", name = "okhttp-brotli", version.ref = "okhttp" }
+okhttp-dnsoverhttps = { group = "com.squareup.okhttp3", name = "okhttp-dnsoverhttps", version.ref = "okhttp" }
 okhttp-mockwebserver = { group = "com.squareup.okhttp3", name = "mockwebserver", version.ref = "okhttp" }
 # Test-only. MockWebServer does NOT expose okhttp-tls transitively, so serving real HTTPS in a
 # test needs it declared. Required wherever a test exercises code that refuses plain HTTP.

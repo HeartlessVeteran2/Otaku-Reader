@@ -29,6 +29,7 @@ import androidx.compose.material.icons.outlined.Reorder
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.Sync
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Widgets
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.ButtonDefaults
@@ -94,6 +95,7 @@ fun SettingsScreen(
     onNavigateToBrowse: () -> Unit = {},
     onNavigateToSync: () -> Unit = {},
     onNavigateToNavOrder: () -> Unit = {},
+    onNavigateToAdvanced: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
@@ -168,6 +170,7 @@ fun SettingsScreen(
             onNavigateToLocalSourceBrowser = onNavigateToLocalSourceBrowser,
             onNavigateToSync = onNavigateToSync,
             onNavigateToNavOrder = onNavigateToNavOrder,
+            onNavigateToAdvanced = onNavigateToAdvanced,
         )
     }
 }
@@ -195,6 +198,7 @@ private fun SettingsBody(
     onNavigateToLocalSourceBrowser: () -> Unit = {},
     onNavigateToSync: () -> Unit = {},
     onNavigateToNavOrder: () -> Unit = {},
+    onNavigateToAdvanced: () -> Unit = {},
 ) {
     val allCategories = listOf(
         SettingsCategoryItem(
@@ -280,6 +284,12 @@ private fun SettingsBody(
             subtitle = stringResource(R.string.settings_nav_order_summary),
             icon = Icons.Outlined.Reorder,
             onClick = onNavigateToNavOrder,
+        ),
+        SettingsCategoryItem(
+            title = stringResource(R.string.settings_advanced),
+            subtitle = stringResource(R.string.settings_advanced_summary),
+            icon = Icons.Outlined.Tune,
+            onClick = onNavigateToAdvanced,
         ),
     )
     val displayCategories = if (searchQuery.isNotBlank()) {

@@ -7,7 +7,10 @@ import app.otakureader.core.network.BuildConfig
 import app.otakureader.core.network.BytesEventListener
 import app.otakureader.core.network.BytesRecorder
 import app.otakureader.core.network.TrackerCertificatePinner
+import app.otakureader.core.network.NetworkSettings
 import app.otakureader.core.network.cookie.WebViewCookieJar
+import app.otakureader.core.network.dns.PreferenceDns
+import app.otakureader.core.network.interceptor.UserAgentInterceptor
 import app.otakureader.core.network.interceptor.IgnoreGzipInterceptor
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import dagger.Module
@@ -51,6 +54,21 @@ object NetworkModule {
         encodeDefaults = true
     }
 
+    /**
+     * Both of these read [NetworkSettings] on every call, which is what makes the Advanced-screen
+     * settings apply to the next request rather than the next launch. The client itself is a
+     * singleton built once, so anything captured by value here would need a restart to change.
+     */
+    @Provides
+    @Singleton
+    fun provideUserAgentInterceptor(settings: NetworkSettings): UserAgentInterceptor =
+        UserAgentInterceptor { settings.userAgent }
+
+    @Provides
+    @Singleton
+    fun providePreferenceDns(settings: NetworkSettings): PreferenceDns =
+        PreferenceDns { settings.dohProvider }
+
     @Provides
     @Singleton
     fun provideOkHttpClient(
@@ -58,6 +76,9 @@ object NetworkModule {
         cloudflareInterceptor: CloudflareInterceptor,
         challengeUserAgentInterceptor: ChallengeUserAgentInterceptor,
         cookieJar: WebViewCookieJar,
+        userAgentInterceptor: UserAgentInterceptor,
+        dns: PreferenceDns,
+        networkSettings: NetworkSettings,
     ): OkHttpClient {
         val builder = OkHttpClient.Builder()
             // Without this, OkHttp's default is CookieJar.NO_COOKIES: nothing sent, nothing kept.
@@ -78,6 +99,14 @@ object NetworkModule {
             // the whole call after the user solves the challenge. A network interceptor sees
             // one hop and cannot retry the request.
             .addInterceptor(cloudflareInterceptor)
+            // Fills in the app's User-Agent where the caller chose none — otherwise OkHttp's
+            // BridgeInterceptor sends "okhttp/4.12.0", which a number of sites reject and which
+            // no setting could change. Added AFTER cloudflareInterceptor so the retry it issues
+            // still passes through here.
+            .addInterceptor(userAgentInterceptor)
+            // Read per lookup, so switching provider in Settings applies to the next request
+            // rather than the next launch. Defaults to the system resolver.
+            .dns(dns)
             // A NETWORK interceptor, so each hop is stamped with the identity registered for
             // its own host. A redirect to a different host gets that host's User-Agent, or the
             // caller's own if it was never challenged.
@@ -102,18 +131,28 @@ object NetworkModule {
                 bytesRecorder.record(category, bytes)
             })
 
-        // Enable HTTP logging only in debug builds; redact sensitive headers to prevent
-        // token exposure in logcat even when a debug APK reaches a non-developer device.
-        if (BuildConfig.DEBUG) {
-            builder.addInterceptor(
-                HttpLoggingInterceptor().apply {
-                    level = HttpLoggingInterceptor.Level.HEADERS
-                    redactHeader("Authorization")
-                    redactHeader("Cookie")
-                    redactHeader("Set-Cookie")
-                    redactHeader("X-Auth-Token")
-                }
-            )
+        // Header logging: always on in debug, and in release only while the user has switched it
+        // on from Advanced settings. The redaction list is the same either way, and is what makes
+        // this safe to expose at all — a dump of headers otherwise puts tracker tokens and session
+        // cookies into logcat, where any app holding READ_LOGS can read them.
+        //
+        // Installed behind a gate rather than by toggling the logger's `level`, so the decision is
+        // made per call and the setting applies immediately instead of at the next launch. When it
+        // is off, the gate proceeds without ever entering the logger: the cost is one volatile
+        // read, and nothing is formatted.
+        val logging = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.HEADERS
+            redactHeader("Authorization")
+            redactHeader("Cookie")
+            redactHeader("Set-Cookie")
+            redactHeader("X-Auth-Token")
+        }
+        builder.addInterceptor { chain ->
+            if (BuildConfig.DEBUG || networkSettings.verboseLogging) {
+                logging.intercept(chain)
+            } else {
+                chain.proceed(chain.request())
+            }
         }
 
         return builder.build()

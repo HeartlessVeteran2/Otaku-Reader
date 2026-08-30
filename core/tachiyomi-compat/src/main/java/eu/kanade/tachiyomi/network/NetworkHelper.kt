@@ -26,6 +26,14 @@ open class NetworkHelper(
     private val context: Context,
     private val userAgent: String = DEFAULT_USER_AGENT,
     baseClient: OkHttpClient? = null,
+    /**
+     * Reads the User-Agent the user set in Advanced settings, or null to use [userAgent].
+     *
+     * A function rather than a value because [defaultUserAgentProvider] is called per request and
+     * the setting can change while the app runs; capturing a string here would mean the override
+     * only reached extensions after a restart.
+     */
+    private val userAgentOverride: (() -> String?)? = null,
 ) {
 
     open val cookieJar = AndroidCookieJar()
@@ -52,9 +60,21 @@ open class NetworkHelper(
     open val cloudflareClient: OkHttpClient
         get() = client
 
-    fun defaultUserAgentProvider(): String = userAgent
+    /**
+     * The identity extensions send. Every `HttpSource` builds its headers from this, which is how
+     * the Advanced-settings override reaches APK extensions — they never pass through the shared
+     * client's `UserAgentInterceptor`, because they set the header themselves.
+     */
+    fun defaultUserAgentProvider(): String =
+        userAgentOverride?.invoke()?.takeIf { it.isNotBlank() } ?: userAgent
 
     companion object {
+        /**
+         * Kept as a `const` because it is part of the surface loaded extensions compile against.
+         * The value the app actually sends lives in `NetworkSettings.DEFAULT_USER_AGENT`, which
+         * this must match; `NetworkHelperUserAgentTest` pins them together so a change to one
+         * cannot silently diverge from the other.
+         */
         const val DEFAULT_USER_AGENT =
             "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 " +
                 "(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"

@@ -25,6 +25,11 @@ class WebViewCookieJarTest {
         override fun set(url: String, value: String) {
             written += url to value
         }
+
+        override fun clear() {
+            written.clear()
+            header = null
+        }
     }
 
     private val store = FakeCookieStore()
@@ -102,6 +107,20 @@ class WebViewCookieJarTest {
     @Test
     fun `a blank header means nothing is sent`() {
         store.header = "   "
+
+        assertEquals(emptyList<Cookie>(), jar.loadForRequest(url))
+    }
+
+    /**
+     * "Clear cookies" has to reach the shared store, not just OkHttp's view of it — a source stuck
+     * in a challenge loop is holding a clearance cookie the site no longer accepts, and clearing
+     * only half would let the WebView hand the same dead cookie straight back.
+     */
+    @Test
+    fun `clearing discards everything the store holds`() {
+        store.header = "session=xyz"
+
+        jar.clear()
 
         assertEquals(emptyList<Cookie>(), jar.loadForRequest(url))
     }
