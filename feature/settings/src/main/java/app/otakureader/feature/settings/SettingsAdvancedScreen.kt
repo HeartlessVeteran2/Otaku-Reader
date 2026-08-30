@@ -32,6 +32,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,6 +44,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
@@ -145,11 +149,7 @@ private fun AdvancedSettingsContent(
     HorizontalDivider()
     SectionHeader(title = stringResource(R.string.settings_advanced_background))
 
-    val context = LocalContext.current
-    // Re-read on every composition rather than held in state: the user grants this in the system
-    // settings app and returns here, and there is no callback to tell us they did. Recomposition
-    // on resume is what makes the row correct again.
-    val exempt = remember(context) { context.isIgnoringBatteryOptimizations() }
+    val exempt = rememberBatteryOptimizationState()
     ListItem(
         headlineContent = { Text(stringResource(R.string.settings_advanced_battery)) },
         supportingContent = {
@@ -314,6 +314,34 @@ private fun DohProvider.labelRes(): Int = when (this) {
     DohProvider.GOOGLE -> R.string.settings_advanced_doh_google
     DohProvider.ADGUARD -> R.string.settings_advanced_doh_adguard
     DohProvider.QUAD9 -> R.string.settings_advanced_doh_quad9
+}
+
+/**
+ * The current battery-optimisation exemption, re-read whenever the screen comes back to the front.
+ *
+ * The user grants this in the system settings app and returns here, and Android offers no callback
+ * to say they did. A plain `remember` would answer once and never again — the row would keep
+ * claiming the app was still restricted after the user had just fixed it. Nor does returning from
+ * another app guarantee a recomposition on its own, so this hangs off `ON_RESUME` rather than
+ * hoping the reader is re-composed.
+ */
+@Composable
+private fun rememberBatteryOptimizationState(): Boolean {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var exempt by remember(context) { mutableStateOf(context.isIgnoringBatteryOptimizations()) }
+
+    DisposableEffect(lifecycleOwner, context) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                exempt = context.isIgnoringBatteryOptimizations()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    return exempt
 }
 
 /**

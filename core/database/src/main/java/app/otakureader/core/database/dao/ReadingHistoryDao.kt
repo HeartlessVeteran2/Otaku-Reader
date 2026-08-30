@@ -78,6 +78,21 @@ interface ReadingHistoryDao {
     )
     suspend fun overwriteHistory(chapterId: Long, readAt: Long, readDurationMs: Long): Int
 
+    /**
+     * [replaceHistory] for a whole batch, in one transaction.
+     *
+     * Migration copies a manga's history a row at a time, and a failure partway through — a
+     * cancelled migration, a disk error — would otherwise leave some chapters carrying their new
+     * history and the rest their old, with nothing to say which. One transaction makes the batch
+     * all-or-nothing, so a failed migration leaves the history exactly as it was.
+     */
+    @Transaction
+    suspend fun replaceHistoryAll(entries: List<Triple<Long, Long, Long>>) {
+        entries.forEach { (chapterId, readAt, readDurationMs) ->
+            replaceHistory(chapterId, readAt, readDurationMs)
+        }
+    }
+
     @Query("SELECT * FROM reading_history ORDER BY read_at DESC")
     fun observeHistory(): Flow<List<ReadingHistoryEntity>>
 

@@ -1,6 +1,8 @@
 package app.otakureader.core.network.cookie
 
 import android.webkit.CookieManager
+import kotlin.coroutines.resume
+import kotlinx.coroutines.suspendCancellableCoroutine
 
 /**
  * The two operations [WebViewCookieJar] needs from a cookie store, as a seam.
@@ -17,8 +19,16 @@ internal interface CookieStore {
     /** Stores one `Set-Cookie`-shaped [value] against [url]. */
     fun set(url: String, value: String)
 
-    /** Removes every stored cookie. */
-    fun clear()
+    /**
+     * Removes every stored cookie, returning only once the removal has actually happened.
+     *
+     * Suspending because Android's is not synchronous: `removeAllCookies` takes a callback and
+     * returns immediately. A caller that reported success on return would tell the user their
+     * cookies were gone while a request issued in the same breath could still send them — which,
+     * for a button whose entire purpose is getting rid of a stale clearance cookie, is the one
+     * outcome that makes it useless.
+     */
+    suspend fun clear()
 }
 
 /**
@@ -46,13 +56,17 @@ internal class AndroidWebViewCookieStore : CookieStore {
         runCatching { manager?.setCookie(url, value) }
     }
 
-    override fun clear() {
+    override suspend fun clear() {
+        val manager = this.manager ?: return
         runCatching {
-            manager?.removeAllCookies(null)
-            // Without the flush the removal lives only in memory and a kill before the manager's
-            // own periodic sync would bring every cookie back — which for a "clear cookies" button
-            // is the one outcome that must not happen.
-            manager?.flush()
+            suspendCancellableCoroutine { continuation ->
+                manager.removeAllCookies { continuation.resume(Unit) }
+            }
+            // After the removal, not alongside it: the flush is what puts the emptied store on
+            // disk, so running it first would persist a state the removal had not reached yet.
+            // Without it the removal lives only in memory, and a process death before the
+            // manager's own periodic sync would bring every cookie back.
+            manager.flush()
         }
     }
 }

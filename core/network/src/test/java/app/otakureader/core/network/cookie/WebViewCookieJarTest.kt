@@ -1,5 +1,6 @@
 package app.otakureader.core.network.cookie
 
+import kotlinx.coroutines.runBlocking
 import okhttp3.Cookie
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.junit.Assert.assertEquals
@@ -26,7 +27,7 @@ class WebViewCookieJarTest {
             written += url to value
         }
 
-        override fun clear() {
+        override suspend fun clear() {
             written.clear()
             header = null
         }
@@ -117,7 +118,7 @@ class WebViewCookieJarTest {
      * only half would let the WebView hand the same dead cookie straight back.
      */
     @Test
-    fun `clearing discards everything the store holds`() {
+    fun `clearing discards everything the store holds`() = runBlocking {
         store.header = "session=xyz"
 
         jar.clear()

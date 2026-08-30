@@ -59,8 +59,20 @@ abstract class HttpSource : CatalogueSource {
 
     /**
      * Headers used for requests.
+     *
+     * A getter, **not** `by lazy`, and that is the difference between the Advanced-settings
+     * User-Agent override working for APK extensions and appearing to. `headersBuilder` reads
+     * `network.defaultUserAgentProvider()`, which is re-read per call — but a `lazy` here would
+     * evaluate it once per source instance and cache the result, and source instances outlive the
+     * settings screen. Changing the User-Agent would then take effect only after a restart, while
+     * every other backend picked it up immediately.
+     *
+     * Rebuilding is a handful of allocations against a network call, so the cost does not signify.
+     * An extension that overrides this property with its own `lazy` keeps whatever it chose, which
+     * is unchanged from before.
      */
-    open val headers: Headers by lazy { headersBuilder().build() }
+    open val headers: Headers
+        get() = headersBuilder().build()
 
     /**
      * Default network client for doing requests.

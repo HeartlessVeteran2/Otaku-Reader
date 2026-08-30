@@ -38,7 +38,7 @@ class WebViewCookieJarRoundTripTest {
                 pair.substringAfter('=')
         }
 
-        override fun clear() = byHost.clear()
+        override suspend fun clear() = byHost.clear()
 
         private fun hostOf(url: String) = url.substringAfter("://").substringBefore('/')
     }
