@@ -666,6 +666,7 @@
     <string name="settings_advanced_clear_cookies_confirm">This signs you out of anything you logged into through a source, and cannot be undone.</string>
     <string name="settings_advanced_clear_cookies_action">Clear</string>
     <string name="settings_advanced_cookies_cleared">Cookies cleared</string>
+    <string name="settings_advanced_cookies_clear_failed">Couldn\'t clear cookies</string>
 
     <string name="settings_advanced_battery">Disable battery optimisation</string>
     <string name="settings_advanced_battery_summary">Stops Android pausing library updates and downloads in the background.</string>

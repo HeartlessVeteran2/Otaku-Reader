@@ -27,8 +27,12 @@ internal interface CookieStore {
      * cookies were gone while a request issued in the same breath could still send them — which,
      * for a button whose entire purpose is getting rid of a stale clearance cookie, is the one
      * outcome that makes it useless.
+     *
+     * Returns whether it actually happened, rather than swallowing the failure. The same reasoning
+     * one step further: a screen that says "cookies cleared" when nothing was cleared sends the
+     * user back to retry the source and blame it, which is worse than telling them plainly.
      */
-    suspend fun clear()
+    suspend fun clear(): Boolean
 }
 
 /**
@@ -56,9 +60,9 @@ internal class AndroidWebViewCookieStore : CookieStore {
         runCatching { manager?.setCookie(url, value) }
     }
 
-    override suspend fun clear() {
-        val manager = this.manager ?: return
-        runCatching {
+    override suspend fun clear(): Boolean {
+        val manager = this.manager ?: return false
+        return runCatching {
             suspendCancellableCoroutine { continuation ->
                 manager.removeAllCookies { continuation.resume(Unit) }
             }
@@ -67,6 +71,7 @@ internal class AndroidWebViewCookieStore : CookieStore {
             // Without it the removal lives only in memory, and a process death before the
             // manager's own periodic sync would bring every cookie back.
             manager.flush()
-        }
+            true
+        }.getOrDefault(false)
     }
 }

@@ -35,4 +35,13 @@ sealed interface AdvancedSettingsEvent {
 sealed interface AdvancedSettingsEffect {
     /** Cookies cleared — reported rather than silent, since nothing visible changes otherwise. */
     data object CookiesCleared : AdvancedSettingsEffect
+
+    /**
+     * The clearance did not happen — no WebView provider, or the removal failed.
+     *
+     * Distinct from [CookiesCleared] rather than folded into it, because the two send the user
+     * somewhere different: one says the Cloudflare loop should be gone, the other says it will
+     * not be and to stop retrying the source over it.
+     */
+    data object CookieClearFailed : AdvancedSettingsEffect
 }

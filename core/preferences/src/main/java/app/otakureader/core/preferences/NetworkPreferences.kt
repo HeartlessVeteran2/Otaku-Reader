@@ -7,9 +7,10 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import java.io.IOException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.retryWhen
 
 /**
  * A DNS-over-HTTPS resolver, or [OFF] for the system's own.
@@ -43,20 +44,34 @@ enum class DohProvider(val url: String?) {
 class NetworkPreferences(private val dataStore: DataStore<Preferences>) {
 
     /**
-     * The backing flow, with a read failure turned into "nothing stored".
+     * The backing flow, with a read failure turned into "nothing stored" **and then retried**.
      *
      * DataStore surfaces a corrupt or unreadable file as an [IOException] *in the flow*, which
-     * terminates it. These three flows are collected once at startup by `NetworkSettings` and never
-     * re-collected, so a terminated flow would pin its setting at the startup default for the rest
-     * of the process — silently, with the settings screen still showing whatever the user last
-     * chose. Emitting empty preferences instead means the same visible fallback but a flow that is
-     * still alive to deliver the next write.
+     * terminates it. `NetworkSettings` subscribes to each of these once at startup and never
+     * re-subscribes, so a terminated flow pins its setting at the startup default for the rest of
+     * the process — silently, with the settings screen still showing whatever the user chose.
+     *
+     * `retryWhen` rather than `catch`, and the difference is the whole point. `catch` runs its
+     * block and then **completes the flow**: emitting a fallback there produces one value and
+     * ends, which looks like a recovery and is not — the collector goes away and no later write is
+     * ever delivered. This emits the same fallback and then resubscribes upstream, so the setting
+     * comes back on its own once the read succeeds. `NetworkPreferencesResilienceTest` pins that
+     * distinction, because the two are indistinguishable from the emitted value alone.
+     *
+     * The delay keeps a permanently unreadable file from becoming a spin loop; it costs nothing in
+     * the ordinary case, where this never runs at all.
      *
      * Only [IOException] — anything else is a bug in this code rather than a disk problem, and
-     * swallowing it would hide it.
+     * retrying past it would hide it.
      */
-    private val data: Flow<Preferences> = dataStore.data.catch { cause ->
-        if (cause is IOException) emit(emptyPreferences()) else throw cause
+    private val data: Flow<Preferences> = dataStore.data.retryWhen { cause, _ ->
+        if (cause is IOException) {
+            emit(emptyPreferences())
+            delay(RETRY_DELAY_MS)
+            true
+        } else {
+            false
+        }
     }
 
     /**
@@ -81,6 +96,11 @@ class NetworkPreferences(private val dataStore: DataStore<Preferences>) {
 
     suspend fun setVerboseLogging(value: Boolean) =
         dataStore.edit { it[Keys.VERBOSE_LOGGING] = value }
+
+    private companion object {
+        /** Long enough that an unreadable file cannot spin, short enough to recover unnoticed. */
+        const val RETRY_DELAY_MS = 1_000L
+    }
 
     private object Keys {
         val USER_AGENT = stringPreferencesKey("network_user_agent")

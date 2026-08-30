@@ -77,7 +77,8 @@ class WebViewCookieJar internal constructor(
      *
      * Suspends until the removal has actually happened — Android's own call is asynchronous, and
      * returning early would let the caller report success while the old cookies were still being
-     * sent.
+     * sent. Returns false if it did not happen, so the screen can say so instead of claiming a
+     * clearance the user does not have.
      */
-    suspend fun clear() = store.clear()
+    suspend fun clear(): Boolean = store.clear()
 }
