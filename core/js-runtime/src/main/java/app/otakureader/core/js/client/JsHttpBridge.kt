@@ -19,8 +19,13 @@ import javax.inject.Singleton
  * Executes HTTP on behalf of the sidecar, in the main process, on the app's shared client.
  *
  * The engine runs in an isolated process with no INTERNET permission, so this is the *only*
- * network path a JavaScript source has. Every request therefore inherits certificate pinning,
- * rate limiting and the cookie jar by construction rather than by convention.
+ * network path a JavaScript source has. Every request therefore inherits the shared client's
+ * interceptors — Cloudflare handling, rate limiting, byte accounting and the cookie jar — by
+ * construction rather than by convention.
+ *
+ * Certificate pinning is deliberately *not* among them: it lives on the tracker client, which is
+ * derived separately, because pinning is only meaningful against a fixed set of known endpoints
+ * and a source can point at any host on the internet.
  *
  * Runs on binder threads, so it must be thread-safe. OkHttpClient is, by design.
  */
@@ -32,9 +37,9 @@ class JsHttpBridge @Inject constructor(
     /**
      * The app's shared client, with automatic redirect following disabled.
      *
-     * Built with newBuilder() so every interceptor, the cookie jar, the certificate pinner and
-     * the connection pool are all inherited — only redirect handling changes, because hops have
-     * to be validated before they are issued (see [followManually]).
+     * Built with newBuilder() so every interceptor, the cookie jar and the connection pool are
+     * all inherited — only redirect handling changes, because hops have to be validated before
+     * they are issued (see [followManually]).
      */
     private val client: OkHttpClient = sharedClient.newBuilder()
         .followRedirects(false)

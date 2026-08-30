@@ -7,6 +7,7 @@ import app.otakureader.core.network.BuildConfig
 import app.otakureader.core.network.BytesEventListener
 import app.otakureader.core.network.BytesRecorder
 import app.otakureader.core.network.TrackerCertificatePinner
+import app.otakureader.core.network.cookie.WebViewCookieJar
 import app.otakureader.core.network.interceptor.IgnoreGzipInterceptor
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import dagger.Module
@@ -56,8 +57,18 @@ object NetworkModule {
         bytesRecorder: BytesRecorder,
         cloudflareInterceptor: CloudflareInterceptor,
         challengeUserAgentInterceptor: ChallengeUserAgentInterceptor,
+        cookieJar: WebViewCookieJar,
     ): OkHttpClient {
         val builder = OkHttpClient.Builder()
+            // Without this, OkHttp's default is CookieJar.NO_COOKIES: nothing sent, nothing kept.
+            // Every client in the app derives from this one, so that default silently disabled the
+            // Cloudflare bypass everywhere except APK extensions — those alone had a jar, layered
+            // on by NetworkHelper. See WebViewCookieJar for what that cost.
+            //
+            // Installed here rather than on each derived client so a session cookie set on one
+            // path is visible on the others: a challenge solved while browsing has to carry into
+            // the page-image client, or the chapter opens and its pages 403.
+            .cookieJar(cookieJar)
             // On the SHARED client, unlike the page-image headers: a User-Agent is not a
             // per-source secret, and every backend needs the bypass — APK extensions through
             // NetworkHelper, JavaScript sources through JsHttpBridge, and the page-image client,
