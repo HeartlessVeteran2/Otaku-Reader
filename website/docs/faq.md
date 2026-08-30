@@ -6,7 +6,9 @@ No — and that's the point. Otaku Reader is a **from-scratch app** (100% Kotlin
 
 ## Where does the content come from?
 
-From extensions **you** install. The app ships with no sources and hosts no content. Extensions are community-maintained APKs loaded from repositories you add — see [Extensions & Repositories](/docs/guides/extensions).
+From sources **you** install. The app ships with no sources and hosts no content.
+
+There are two kinds, side by side in the same list: community-maintained **APK extensions** (the Tachiyomi/Mihon ecosystem — this is where the great majority of sources are) and **JavaScript sources** from the Mangayomi ecosystem, which need no APK install and run in a sandboxed process. Both come from repositories you add — see [Extensions & Repositories](/docs/guides/extensions).
 
 ## Does it phone home?
 
@@ -14,7 +16,7 @@ No. There are no analytics, no ads, no AI features, and no account system. The o
 
 ## My repo URLs from Komikku — do they work?
 
-Yes, unchanged. Same `index.min.json` format, same extensions.
+Yes, unchanged. Same `index.min.json` format, same extensions. The app also asks each repo for a JavaScript index; a repo that doesn't serve one is perfectly normal and isn't treated as an error.
 
 ## Why does the app ask me to "trust" an extension?
 

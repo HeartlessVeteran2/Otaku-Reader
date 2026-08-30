@@ -31,7 +31,9 @@ Reading direction (LTR/RTL/vertical), mode, and even color filters can be **over
 
 ## Notes, comments, and bookmarks
 
-- **Page bookmarks** — bookmark any page, with an optional note, and jump back from the bookmarks list.
+- **Page bookmarks** — bookmark any page, with an optional note. Tapping a bookmark opens the reader **on that page**, not wherever you last stopped.
+- **Bookmark collections** — group bookmarks under names you choose ("panels to redraw", "re-read later") and filter the bookmarks list by collection.
+- **Save and share bookmarked pages as images** — multi-select bookmarks and either save the pages to your device gallery or send them straight to another app. Pages you've downloaded come off disk; pages you read online are fetched on demand, so a panel you bookmarked while reading is still exportable. If some pages can't be fetched, the app tells you how many rather than quietly saving fewer.
 - **Chapter notes** — one private note per chapter, visible in the chapter list.
 - **Reader comments** — timestamped private comments scoped to the current chapter or to the whole series, in a panel that opens right inside the reader. Linked tracker pages (AniList, MAL, …) are one tap away if you want a public discussion.
 
