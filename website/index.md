@@ -18,8 +18,8 @@ hero:
 
 features:
   - icon: 🧩
-    title: 500+ sources via Tachiyomi extensions
-    details: Full compatibility with the Tachiyomi/Mihon extension ecosystem. Add multiple extension repositories, install sources with signature trust prompts, and keep them auto-updated.
+    title: Two source ecosystems, one list
+    details: Hundreds of sources from the Tachiyomi/Mihon APK ecosystem, plus JavaScript sources from Mangayomi run in a sandboxed process — installed, browsed and read the same way. Add as many repositories as you like, with signature trust prompts and automatic updates.
   - icon: 📖
     title: Four reading modes
     details: Single page, dual-page spreads, webtoon with auto-scroll, and Smart Panels that detect and step through individual comic panels. Per-manga overrides remember how each series reads best.
@@ -37,7 +37,7 @@ features:
     details: No analytics, no ads, no AI, no account. Crash reporting is opt-in only. Credentials live in Android's encrypted Keystore, and a biometric app lock and incognito mode are built in.
   - icon: 💾
     title: Backups that keep everything
-    details: Full local backup and restore — including your custom covers, per-manga reader settings, notes, and categories — plus scheduled WebDAV cloud backup and Tachiyomi backup import.
+    details: Full local backup and restore — your customizations, per-manga reader settings, notes, categories and tracker links — with per-section control over what goes in. Plus scheduled WebDAV cloud backup and Tachiyomi backup import.
   - icon: 📊
     title: Know your habits
     details: A statistics dashboard with a reading heatmap, achievements, streaks, and a data-usage view. Smart notification batching with quiet hours keeps updates polite.
@@ -50,6 +50,6 @@ features:
 
 ## Built like an app should be
 
-100% Kotlin and Jetpack Compose, clean architecture with MVI, Room, Hilt, and WorkManager — a modern alternative to Mihon/Tachiyomi that inherits its extension ecosystem instead of reinventing it.
+100% Kotlin and Jetpack Compose, clean architecture with MVI, Room, Hilt, and WorkManager — a modern alternative to Mihon/Tachiyomi that inherits its extension ecosystem instead of reinventing it, and runs Mangayomi's JavaScript sources alongside it.
 
 </div>

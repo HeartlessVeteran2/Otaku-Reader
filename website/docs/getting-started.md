@@ -1,6 +1,6 @@
 # Getting Started
 
-Otaku Reader ships empty on purpose — it's a reader, not a content provider. Content comes from **extensions** you choose to install, the same community extensions used by Tachiyomi, Mihon, and Komikku.
+Otaku Reader ships empty on purpose — it's a reader, not a content provider. Content comes from **sources** you choose to install: the same community APK extensions used by Tachiyomi, Mihon and Komikku, and JavaScript sources from the Mangayomi ecosystem. Both are added the same way.
 
 ## 1. Install the app
 

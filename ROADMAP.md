@@ -1,7 +1,7 @@
 # ROADMAP.md — Otaku Reader
 
 **Status:** All pre-release phases complete | **Current Phase:** v1.0.0 release preparation — no blockers remain
-**Updated:** 2026-08-25
+**Updated:** 2026-08-29
 **Website:** https://heartless-veteran.github.io/Otaku-Reader/
 
 ---
@@ -13,7 +13,8 @@
 | Alpha | ✅ **SHIPPED** | All gates green. Build passes, tests pass, security audit clean. |
 | Beta | ✅ **FEATURE PARITY COMPLETE** | All 35 parity issues (#926–#958) plus the QoL/extension-system audit batches shipped 2026-06-06 → 2026-06-10. |
 | Beta hardening | ✅ **DONE 2026-06-13** | EH sync + pagination (#1090/#1092), custom covers + onboarding (#1093), extension repo fixes (#1094), bulk download fix (#1095), full-app bug sweep (#1097), reader comments (#1098), project website (#1099). |
-| P3 post-beta polish | ✅ **DONE 2026-06-20** | Page-level bookmark system + collections (PR #1130, schema v39). Last stub removed; share is fully wired. Category timestamp encoding fixed. |
+| P3 post-beta polish | ✅ **DONE 2026-06-20** | Page-level bookmark system + collections (PR #1130, schema v39). Category timestamp encoding fixed. ⚠️ This row used to claim "last stub removed; share is fully wired" — it was wrong. Bookmark **export** was still a snackbar reading "image export coming in v1.1", and **share** sent a text list, not images. Both are real as of #1277. |
+| Data-integrity batch | ✅ **DONE 2026-08-29** | Chapter and manga id stability (#1254, #1269), orphaned tracker rows (#1248), source-lookup startup race (#1258), download folder names (#1256), certificate pins (#1218), backup format v5 carrying tracker links (#1271). Bookmark page export/share (#1132/#1133) and open-at-page (#1128). |
 | JavaScript source backend | ✅ **DONE 2026-08-25** | Mangayomi JS sources run unmodified (#1262, #1264). Added **alongside** the APK backend — the planned APK retirement is cancelled, see below. |
 | v1.0.0 | 📋 **NEXT — unblocked** | Push `v1.0.0` tag → `release.yml` builds signed APK → GitHub Release. The tag was held back only while the APK backend was slated for removal; that plan is cancelled, so nothing gates it. |
 
@@ -27,7 +28,7 @@ All alpha readiness gates pass:
 - [x] Tests: All unit tests passing ✅
 - [x] Security: No unencrypted creds, AES-256-GCM, HTTPS-only extensions ✅
 - [x] Architecture: Clean Architecture enforced, zero layer violations ✅
-- [x] DB: 32 migrations (schema v34), no destructive fallback in production ✅
+- [x] DB: explicit migrations only (schema v34 at the time of alpha; **v46** today), no destructive fallback in production ✅
 - [x] Extension system: Tachiyomi API intact, classloader isolation ✅
 - [x] Notification system: UpdateNotifier, DownloadNotifier, ReadingReminderWorker ✅
 - [x] Tracker auto-sync: ReaderViewModel → TrackerSyncRepository wired ✅

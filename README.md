@@ -108,7 +108,8 @@ This is not a fork. Otaku Reader was written from the ground up — the core app
 - 🎛️ **Per-manga reader overrides** — Direction, mode, color filter, and tint remembered per series
 - 🎨 **Color filters & e-ink mode** — Night tints, custom tint color, B&W rendering with page-turn flash
 - 💾 **Reader presets** — Save full setting bundles (13 captured settings) and switch with one tap
-- 🔖 **Page bookmarks** — Bookmark any page within a chapter, with optional notes
+- 🔖 **Page bookmarks** — Bookmark any page within a chapter, with optional notes and named collections; opening one jumps to that exact page
+- 🖼️ **Bookmark image export & share** — Multi-select bookmarked pages and save them to the device gallery or send them to another app; pages read online are fetched on demand, not just downloaded ones
 - 💬 **Reader comments** — Private timestamped comments per chapter or per series, plus the chapter note, in an in-reader panel with links to tracker discussion pages
 - 🔍 **OCR text search** — Find dialogue inside page images
 - 📱 **Adaptive layouts** — Optimized for phones, foldables, tablets, and DeX
@@ -131,7 +132,8 @@ This is not a fork. Otaku Reader was written from the ground up — the core app
 <details open>
 <summary>🔌 Discovery & Sources</summary>
 
-- 🔌 **Extension system** — Tachiyomi/Komikku-compatible sources (Keiyoushi, Komikku repos)
+- 🔌 **Two source backends, one list** — Tachiyomi/Komikku-compatible APK extensions (Keiyoushi, Komikku repos) *and* Mangayomi JavaScript sources, installed and read the same way
+- 🧩 **JavaScript sources** — published Mangayomi sources run unmodified in a sandboxed engine in a separate process, with no APK install; HTTPS-only, private addresses refused, every redirect hop checked before it's followed
 - 🗃️ **Multi-repository management** — Add any number of extension repos; failures are isolated per repo with clear error messages
 - 🚫 **Extension blocklist** — Known-bad extensions filtered automatically (daily refresh)
 - 🛡️ **Extension trust & provenance** — Signer-hash continuity checks warn if an extension's signing certificate changes after install
@@ -160,7 +162,7 @@ This is not a fork. Otaku Reader was written from the ground up — the core app
 <details open>
 <summary>💾 Backup & Migration</summary>
 
-- 💾 **Local backup/restore** — Human-readable JSON in ZIP, everything stays on-device; backup v4 covers every customization (custom titles/covers, per-manga reader settings, notes, category schedules)
+- 💾 **Local backup/restore** — Human-readable JSON in ZIP, everything stays on-device; backup **v5** covers every customization (custom titles/covers, per-manga reader settings, notes, category schedules) **and your tracker links** — MAL/AniList/Kitsu/MangaUpdates/Shikimori entries with scores, statuses and progress
 - ☑️ **Selective backup/restore** — Choose exactly which data categories (library, chapters, categories, tracking, preferences, OPDS servers, feed, tracker sync settings) go into a backup or get applied from one
 - ☁️ **WebDAV cloud backup** — Scheduled uploads to Nextcloud, ownCloud, or any WebDAV server (opt-in, your server)
 - 📦 **Tachiyomi/Mihon/Komikku import** — Restore an existing backup and keep reading in minutes
@@ -185,7 +187,7 @@ This is not a fork. Otaku Reader was written from the ground up — the core app
 | Volume-key paging | ✅ Debounced, reliable | ⚠️ Spotty |
 | Battery-aware brightness | ✅ Auto curve | ❌ Manual slider only |
 | Predictive back (Android 14+) | ✅ Fullscreen gesture | ❌ System default |
-| Extension system | ✅ 2000+ Tachiyomi sources | ✅ Same sources |
+| Extension system | ✅ Tachiyomi APK sources **+** Mangayomi JavaScript sources | ✅ APK sources only |
 | OPDS support | ✅ Client + server mode | ❌ Not available |
 | Discord Rich Presence | ✅ Live reading status | ❌ Not available |
 | Home screen widgets | ✅ Continue reading + recent updates | ❌ Not available |
@@ -195,6 +197,7 @@ This is not a fork. Otaku Reader was written from the ground up — the core app
 | Biometric lock | ✅ With time/day scheduling | ✅ Basic only |
 | Smart download rules | ✅ Threshold + category rules | ⚠️ Basic only |
 | Backup import | ✅ Tachiyomi/Mihon/Komikku | ✅ Yes |
+| Bookmark page export | ✅ Save/share bookmarked pages as images | ❌ Not available |
 | Extension trust provenance | ✅ Signer-hash continuity warnings | ❌ Not available |
 | CBZ encryption | ✅ AES-256-GCM at rest | ❌ Not available |
 | Source health diagnostics | ✅ Per-source failure tracking | ❌ Not available |
@@ -352,10 +355,15 @@ app/                    — Application module (DI wiring, manifest, widgets, de
 │   ├── ui/             — Compose design system, theme, dynamic color extraction
 │   ├── navigation/     — Type-safe navigation graph
 │   ├── preferences/    — DataStore wrappers (General, Reader, Download, Goals, OAuth)
-│   ├── database/       — Room entities, DAOs, migrations (v21)
+│   ├── database/       — Room entities, DAOs, migrations (schema v46)
 │   ├── network/        — OkHttp interceptors, certificate pinning, network DI
-│   ├── extension/      — ExtensionLoader, TrustedSignatureStore
-│   ├── tachiyomi-compat/ — Bridges Tachiyomi APKs to source-api interfaces
+│   ├── extension/      — APK backend: ExtensionLoader, TrustedSignatureStore, blocklist,
+│   │                     plus the repository contracts both backends share
+│   ├── js-runtime/     — JavaScript backend: sandboxed engine in a sidecar process,
+│   │                     JsProtocol wire format, Mangayomi compatibility prelude
+│   ├── tachiyomi-compat/ — Tachiyomi source API for the APK backend; also holds LocalSource
+│   │                     and SourceHealthMonitor, which serve both backends
+│   ├── webview/        — WebView host (Cloudflare challenges, tracker OAuth)
 │   └── discord/        — Discord Rich Presence service
 ├── domain/             — Pure Kotlin: use cases, repository interfaces, models. Zero Android deps.
 ├── data/               — Repository implementations, workers, network
@@ -363,7 +371,7 @@ app/                    — Application module (DI wiring, manifest, widgets, de
 │   ├── download/       — Download manager, CBZ export
 │   ├── tracking/       — Tracker sync (AniList, MAL, Kitsu, MangaUpdates, Shikimori)
 │   └── opds/           — OPDS client/server
-├── source-api/         — Extension SDK contract (Source, HttpSource, SManga, etc.). No Android deps.
+├── source-api/         — The one source contract both backends implement (MangaSource). No Android deps.
 └── feature/
     ├── library/        — Library grid, categories, filters, completed/dropped
     ├── browse/         — Sources, extensions, global search, search history
