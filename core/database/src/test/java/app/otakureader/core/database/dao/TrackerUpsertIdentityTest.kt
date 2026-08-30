@@ -83,8 +83,17 @@ class TrackerUpsertIdentityTest {
         assertEquals(9.5f, rows.single().score, 0f)
     }
 
+    /**
+     * `insertSyncState` is **create-if-absent**, and an existing row must survive untouched.
+     *
+     * Its only caller is the auto-create branch in `syncManga`, which reads "no row yet" and then
+     * inserts, holding nothing across the two steps. Two syncs for the same manga and tracker can
+     * both see null; if the loser overwrote, it would replace the winner's row with its own older
+     * snapshot. The id assertion and the value assertion cover different halves of that — a
+     * REPLACE would break the first, and an overwrite-style upsert would break the second.
+     */
     @Test
-    fun `re-inserting a sync state keeps the id callers hold`() = runBlocking {
+    fun `re-inserting a sync state keeps the id and does not clobber the existing row`() = runBlocking {
         val dao = database.trackerSyncDao()
         val first = dao.insertSyncState(syncState(localLastChapterRead = 10f))
 
@@ -94,7 +103,12 @@ class TrackerUpsertIdentityTest {
         val rows = dao.getAllSyncStates().first()
         assertEquals(1, rows.size)
         assertEquals(first, rows.single().id)
-        assertEquals(42f, rows.single().localLastChapterRead, 0f)
+        assertEquals(
+            "a second create must not overwrite the row that already exists",
+            10f,
+            rows.single().localLastChapterRead,
+            0f,
+        )
     }
 
     /** The bulk path a restore uses: the backup still wins, without reassigning ids. */
