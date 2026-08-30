@@ -4,6 +4,16 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import app.otakureader.core.network.NetworkSettings
+import eu.kanade.tachiyomi.source.model.FilterList
+import eu.kanade.tachiyomi.source.model.MangasPage
+import eu.kanade.tachiyomi.source.model.Page
+import eu.kanade.tachiyomi.source.model.SChapter
+import eu.kanade.tachiyomi.source.model.SManga
+import eu.kanade.tachiyomi.source.online.HttpSource
+import okhttp3.Request
+import okhttp3.Response
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.addSingletonFactory
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -73,5 +83,50 @@ class NetworkHelperUserAgentTest {
     @Test
     fun `the built-in identity matches the one the rest of the app sends`() {
         assertEquals(NetworkSettings.DEFAULT_USER_AGENT, NetworkHelper.DEFAULT_USER_AGENT)
+    }
+
+    /**
+     * The route the override actually travels, end to end.
+     *
+     * `defaultUserAgentProvider` being live is necessary but not sufficient: `HttpSource.headers`
+     * is what every request is built from, and while it was `by lazy` it read the provider once per
+     * source instance and cached the answer. Source instances outlive the settings screen, so the
+     * override reached APK extensions only after a restart — and three places in this change said
+     * otherwise. This asserts the whole path rather than the provider alone.
+     *
+     * Goes through Injekt because that is how a real extension resolves its `NetworkHelper`: the
+     * property is `protected` and final, so there is nothing to inject by hand, and registering the
+     * binding is exactly what `OtakuReaderApplication` does at startup.
+     */
+    @Test
+    fun `an HttpSource picks up a User-Agent change without being recreated`() {
+        var current = "First/1"
+        Injekt.addSingletonFactory<NetworkHelper> { helper { current } }
+        val source = StubHttpSource()
+
+        assertEquals("First/1", source.headers["User-Agent"])
+        current = "Second/2"
+        assertEquals("Second/2", source.headers["User-Agent"])
+    }
+
+    /** Only [HttpSource.headers] is under test; the parse/request members are never called. */
+    private class StubHttpSource : HttpSource() {
+        override val name = "Test"
+        override val baseUrl = "https://example.test"
+        override val lang = "en"
+        override val supportsLatest = false
+
+        override fun popularMangaRequest(page: Int): Request = unused()
+        override fun popularMangaParse(response: Response): MangasPage = unused()
+        override fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request = unused()
+        override fun searchMangaParse(response: Response): MangasPage = unused()
+        override fun latestUpdatesRequest(page: Int): Request = unused()
+        override fun latestUpdatesParse(response: Response): MangasPage = unused()
+        override fun mangaDetailsParse(response: Response): SManga = unused()
+        override fun chapterListParse(response: Response): List<SChapter> = unused()
+        override fun pageListParse(response: Response): List<Page> = unused()
+        override fun imageUrlParse(response: Response): String = unused()
+
+        private fun unused(): Nothing = throw UnsupportedOperationException("not part of this test")
     }
 }

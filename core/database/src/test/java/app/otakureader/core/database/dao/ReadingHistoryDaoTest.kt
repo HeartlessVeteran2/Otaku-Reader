@@ -353,4 +353,34 @@ class ReadingHistoryDaoTest {
 
         assertEquals(listOf(read), history.map { it.chapterId })
     }
+
+    /**
+     * The batched replace used by migration: every entry lands, with replace semantics rather than
+     * accumulation. Being `@Transaction` is what makes a failure partway through leave the history
+     * as it was instead of half-rewritten — not observable from here, but the batching is.
+     */
+    @Test
+    fun replaceHistoryAll_appliesEveryEntryWithoutAccumulating() = runBlocking {
+        val mangaId = mangaDao.insertOrGetExisting(
+            MangaEntity(title = "Test Manga", sourceId = 1L, url = "url", favorite = true)
+        )
+        val first = chapterDao.upsert(
+            ChapterEntity(mangaId = mangaId, url = "c1", name = "Chapter 1", chapterNumber = 1f)
+        )
+        val second = chapterDao.upsert(
+            ChapterEntity(mangaId = mangaId, url = "c2", name = "Chapter 2", chapterNumber = 2f)
+        )
+        // An existing row on one of them, so the replace has something to overwrite.
+        readingHistoryDao.upsert(first, readAt = 1L, readDurationMs = 5_000L)
+
+        readingHistoryDao.replaceHistoryAll(
+            listOf(Triple(first, 100L, 1_000L), Triple(second, 200L, 2_000L)),
+        )
+
+        val byChapter = readingHistoryDao.observeHistory().first().associateBy { it.chapterId }
+        assertEquals(2, byChapter.size)
+        assertEquals(100L, byChapter.getValue(first).readAt)
+        assertEquals("replaced, not added to the 5000 already there", 1_000L, byChapter.getValue(first).readDurationMs)
+        assertEquals(2_000L, byChapter.getValue(second).readDurationMs)
+    }
 }

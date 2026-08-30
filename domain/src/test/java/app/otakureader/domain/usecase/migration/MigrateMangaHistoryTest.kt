@@ -215,6 +215,57 @@ class MigrateMangaHistoryTest {
         coVerify(exactly = 0) { chapterRepository.replaceHistory(any()) }
     }
 
+    /**
+     * Two target chapters with the same number — a second scanlation, a re-upload — both match the
+     * same source chapter. The reading time was spent once, so it may only be written once.
+     *
+     * Getting this wrong inflates the Statistics screen's totals by a chapter's worth of reading
+     * nobody did, which is the same double-counting `replaceHistory` exists to prevent on a re-run,
+     * arriving by a different route. The read flag legitimately lands on both — they are the same
+     * chapter — but a duration is a measurement.
+     */
+    @Test
+    fun `a source chapter matching two target chapters has its history written once`() = runTest {
+        val sourceManga = createTestManga(id = 1L, title = "Test Manga")
+        val targetCandidate = createTestCandidate(title = "Test Manga (New Source)")
+
+        coEvery { mangaRepository.getMangaBySourceAndUrl(any(), any()) } returns null
+        coEvery { mangaRepository.insertManga(any()) } returns 2L
+        coEvery { sourceRepository.getMangaDetails(any(), any()) } returns Result.success(mockk())
+        coEvery { sourceRepository.getChapterList(any(), any()) } returns Result.success(
+            listOf(
+                SourceChapter(url = "/new/1-groupA", name = "Chapter 1", chapterNumber = 1f),
+                SourceChapter(url = "/new/1-groupB", name = "Chapter 1", chapterNumber = 1f),
+            )
+        )
+        coEvery { chapterRepository.getChaptersByMangaIdSync(1L) } returns listOf(
+            createTestChapter(id = 10L, mangaId = 1L, number = 1f, url = "/old/1")
+        )
+        coEvery { chapterRepository.getHistoryForChapterIds(any()) } returns listOf(
+            ReadingHistoryEntry(chapterId = 10L, readAt = 1_700L, readDurationMs = 90_000L)
+        )
+        coEvery { chapterRepository.getChaptersByMangaIdSync(2L) } returns listOf(
+            createTestChapter(id = 77L, mangaId = 2L, number = 1f, url = "/new/1-groupA"),
+            createTestChapter(id = 78L, mangaId = 2L, number = 1f, url = "/new/1-groupB"),
+        )
+
+        val result = useCase(
+            sourceManga,
+            targetCandidate,
+            MigrationMode.COPY,
+            flags = setOf(MigrationFlag.CHAPTERS)
+        )
+
+        assertTrue(result.isSuccess)
+        val written = slot<List<ReadingHistoryEntry>>()
+        coVerify { chapterRepository.replaceHistory(capture(written)) }
+        assertEquals(
+            "90 seconds of reading must not become 180",
+            listOf(ReadingHistoryEntry(chapterId = 77L, readAt = 1_700L, readDurationMs = 90_000L)),
+            written.captured
+        )
+    }
+
     private fun createTestChapter(
         id: Long,
         mangaId: Long,

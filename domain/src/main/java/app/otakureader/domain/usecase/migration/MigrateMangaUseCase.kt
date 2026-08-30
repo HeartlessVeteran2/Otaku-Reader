@@ -351,13 +351,24 @@ class MigrateMangaUseCase @Inject constructor(
             .getChaptersByMangaIdSync(targetMangaId)
             .associate { it.url to it.id }
 
-        val migrated = targetChapters.mapNotNull { targetChapter ->
-            val sourceChapter = sourceChapterByNumber[targetChapter.chapterNumber]
-                ?: return@mapNotNull null
-            val history = historyBySourceChapterId[sourceChapter.id] ?: return@mapNotNull null
-            val targetChapterId = targetChapterIdByUrl[targetChapter.url] ?: return@mapNotNull null
-            history.copy(chapterId = targetChapterId)
-        }
+        // distinctBy the *source* chapter, not the target: a target manga can carry two chapters
+        // with the same number — a second scanlation, a re-upload — and both match the same source
+        // chapter. Copying the history to each would duplicate the reading time, and the totals on
+        // the Statistics screen would climb by a chapter's worth of reading nobody did. That is the
+        // same double-counting `replaceHistory` exists to prevent on a re-run, arriving by another
+        // route. The read flag legitimately lands on both (they are the same chapter); a duration
+        // is a measurement, and it was only spent once.
+        val migrated = targetChapters
+            .mapNotNull { targetChapter ->
+                val sourceChapter = sourceChapterByNumber[targetChapter.chapterNumber]
+                    ?: return@mapNotNull null
+                val history = historyBySourceChapterId[sourceChapter.id] ?: return@mapNotNull null
+                val targetChapterId = targetChapterIdByUrl[targetChapter.url]
+                    ?: return@mapNotNull null
+                sourceChapter.id to history.copy(chapterId = targetChapterId)
+            }
+            .distinctBy { (sourceChapterId, _) -> sourceChapterId }
+            .map { (_, history) -> history }
 
         chapterRepository.replaceHistory(migrated)
     }

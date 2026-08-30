@@ -74,6 +74,10 @@ class WebViewCookieJar internal constructor(
      *
      * It also signs the user out of anything they had logged into through a source's WebView, so
      * the screen asks first.
+     *
+     * Suspends until the removal has actually happened — Android's own call is asynchronous, and
+     * returning early would let the caller report success while the old cookies were still being
+     * sent.
      */
-    fun clear() = store.clear()
+    suspend fun clear() = store.clear()
 }

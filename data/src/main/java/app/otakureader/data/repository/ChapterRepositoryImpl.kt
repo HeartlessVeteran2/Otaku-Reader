@@ -166,7 +166,13 @@ class ChapterRepositoryImpl @Inject constructor(
     override suspend fun replaceHistory(entries: List<ReadingHistoryEntry>) {
         // replaceHistory, not upsert: these values are being copied from chapters that already hold
         // them, so applying the same list twice must not add the durations together. See the DAO.
-        entries.forEach { readingHistoryDao.replaceHistory(it.chapterId, it.readAt, it.readDurationMs) }
+        //
+        // One transaction for the batch, so a migration that fails partway leaves the history as it
+        // was rather than half-rewritten with nothing to say which half.
+        if (entries.isEmpty()) return
+        readingHistoryDao.replaceHistoryAll(
+            entries.map { Triple(it.chapterId, it.readAt, it.readDurationMs) },
+        )
     }
 
     override suspend fun getChaptersByMangaIdSync(mangaId: Long): List<Chapter> {

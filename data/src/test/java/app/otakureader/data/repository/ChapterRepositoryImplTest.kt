@@ -270,14 +270,17 @@ class ChapterRepositoryImplTest {
     }
 
     /**
-     * `replaceHistory`, not `upsert`. The values here are being copied from chapters that already
+     * The replace path, not `upsert`. The values here are being copied from chapters that already
      * hold them, so a second run of the same migration must leave the same numbers — `upsert` adds
      * the duration in again, which would inflate the total reading time on the Statistics screen
      * every time a migration was retried.
+     *
+     * One batched call rather than a loop, because the DAO's batch method is `@Transaction`: a
+     * migration that fails partway must leave the history as it was, not half-rewritten.
      */
     @Test
-    fun replaceHistory_writesVerbatimRatherThanAccumulating() = runTest {
-        coEvery { readingHistoryDao.replaceHistory(any(), any(), any()) } returns Unit
+    fun replaceHistory_writesTheWholeBatchVerbatimRatherThanAccumulating() = runTest {
+        coEvery { readingHistoryDao.replaceHistoryAll(any()) } returns Unit
 
         repository.replaceHistory(
             listOf(
@@ -286,9 +289,20 @@ class ChapterRepositoryImplTest {
             )
         )
 
-        coVerify(exactly = 1) { readingHistoryDao.replaceHistory(7L, 500L, 9_000L) }
-        coVerify(exactly = 1) { readingHistoryDao.replaceHistory(8L, 600L, 1_000L) }
+        coVerify(exactly = 1) {
+            readingHistoryDao.replaceHistoryAll(
+                listOf(Triple(7L, 500L, 9_000L), Triple(8L, 600L, 1_000L)),
+            )
+        }
         coVerify(exactly = 0) { readingHistoryDao.upsert(any(), any(), any()) }
+    }
+
+    /** An empty batch is not a transaction worth opening. */
+    @Test
+    fun replaceHistory_withNoEntriesNeverReachesTheDao() = runTest {
+        repository.replaceHistory(emptyList())
+
+        coVerify(exactly = 0) { readingHistoryDao.replaceHistoryAll(any()) }
     }
 
     // ---- removeFromHistory ----
