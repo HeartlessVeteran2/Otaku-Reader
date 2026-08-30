@@ -116,6 +116,16 @@ class ReaderViewModel @Inject constructor(
     private val mangaId: Long = checkNotNull(savedStateHandle["mangaId"])
     private var chapterId: Long = checkNotNull(savedStateHandle["chapterId"])
 
+    /**
+     * A page the caller asked to open at — opening a page bookmark — or `null`.
+     *
+     * Cleared the first time it is applied, so it governs only the chapter the reader was opened
+     * on. Without that, paging into the next chapter would keep snapping back to this index, which
+     * is both wrong and impossible to escape by reading forward.
+     */
+    private var pendingStartPage: Int? =
+        savedStateHandle.get<Int>("startPage")?.takeIf { it >= 0 }
+
     private val _state = MutableStateFlow(ReaderState(currentChapterId = chapterId))
     val state: StateFlow<ReaderState> = _state.asStateFlow()
 
@@ -381,7 +391,12 @@ class ReaderViewModel @Inject constructor(
         observeContentType(result.manga)
 
         val pages = result.pages
-        val initialPage = result.chapter.lastPageRead
+        // A requested page wins over the resume position, once. Coerced against the real page
+        // count, because a bookmark can outlive the page it names — a source that re-splits or
+        // re-uploads a chapter changes how many pages it has.
+        val requestedPage = pendingStartPage
+        pendingStartPage = null
+        val initialPage = (requestedPage ?: result.chapter.lastPageRead)
             .coerceIn(0, (pages.size - 1).coerceAtLeast(0))
 
         _state.update { current ->

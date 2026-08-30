@@ -207,12 +207,15 @@ class BookmarksViewModelTest {
         val vm = createViewModel()
 
         vm.effect.test {
-            vm.onIntent(BookmarksIntent.OpenBookmark(mangaId = 10L, chapterId = 100L))
+            vm.onIntent(BookmarksIntent.OpenBookmark(mangaId = 10L, chapterId = 100L, pageIndex = 4))
             val effect = awaitItem()
             assertTrue(effect is BookmarksEffect.NavigateToReader)
             effect as BookmarksEffect.NavigateToReader
             assertEquals(10L, effect.mangaId)
             assertEquals(100L, effect.chapterId)
+            // The page is the point of a page bookmark: without it the reader opens at
+            // `lastPageRead`, which is where the user stopped, not the panel they saved.
+            assertEquals(4, effect.pageIndex)
         }
     }
 
