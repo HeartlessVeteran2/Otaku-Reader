@@ -197,7 +197,20 @@ internal class QuickJsHost(
             .orEmpty()
         val body = args.getOrNull(2) as? String
 
-        val response = http(JsHttpRequest(url = url, method = method, headers = headers, body = body))
+        val response = http(
+            JsHttpRequest(
+                url = url,
+                method = method,
+                headers = headers,
+                body = body,
+                // From the config, not from the script — this is what the bridge scopes cookies
+                // by, so it must not be anything JavaScript can choose.
+                sourceUrls = listOfNotNull(
+                    config.baseUrl.takeIf { it.isNotBlank() },
+                    config.apiUrl.takeIf { it.isNotBlank() },
+                ),
+            ),
+        )
         return JsProtocol.json.encodeToString(response)
     }
 

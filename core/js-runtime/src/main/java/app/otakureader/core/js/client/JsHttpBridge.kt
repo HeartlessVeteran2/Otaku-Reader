@@ -6,6 +6,9 @@ import app.otakureader.core.js.protocol.JsHttpRequest
 import app.otakureader.core.js.protocol.JsHttpResponse
 import app.otakureader.core.js.protocol.JsProtocol
 import app.otakureader.core.js.protocol.writeToPipe
+import app.otakureader.core.network.cookie.WebViewCookieJar
+import okhttp3.Cookie
+import okhttp3.CookieJar
 import okhttp3.Headers
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -32,6 +35,7 @@ import javax.inject.Singleton
 @Singleton
 class JsHttpBridge @Inject constructor(
     sharedClient: OkHttpClient,
+    private val cookieJar: WebViewCookieJar,
 ) {
 
     /**
@@ -44,6 +48,15 @@ class JsHttpBridge @Inject constructor(
     private val client: OkHttpClient = sharedClient.newBuilder()
         .followRedirects(false)
         .followSslRedirects(false)
+        // Cookies are attached and stored per hop below instead of by the inherited jar.
+        //
+        // The jar sees only a URL, so it cannot tell *which* source is asking — and this bridge
+        // lets a source request any public host by design (see BLOCKED_HOST_PATTERNS). Left
+        // inherited, a hostile source could request a site the user has a WebView session with
+        // — tracker sign-in runs through that same WebView — and read the response back as the
+        // logged-in user. Doing it by hand is what makes the source's identity available at the
+        // point the decision is made.
+        .cookieJar(CookieJar.NO_COOKIES)
         .build()
 
     private companion object {
@@ -142,7 +155,7 @@ class JsHttpBridge @Inject constructor(
             else -> return JsHttpResponse(ok = false, error = "Unsupported method ${request.method}")
         }
 
-        return followManually(builder.build())
+        return followManually(builder.build(), request.sourceUrls.mapNotNull { it.toHttpUrlOrNull() })
     }
 
     /**
@@ -156,11 +169,12 @@ class JsHttpBridge @Inject constructor(
      *
      * Validating each hop before issuing it is what actually closes the path.
      */
-    private fun followManually(initial: Request): JsHttpResponse {
+    private fun followManually(initial: Request, sourceUrls: List<HttpUrl>): JsHttpResponse {
         var request = initial
 
         repeat(MAX_REDIRECTS) {
-            client.newCall(request).execute().use { response ->
+            client.newCall(withScopedCookies(request, sourceUrls)).execute().use { response ->
+                storeScopedCookies(response, sourceUrls)
                 val location = response.header("Location")
                     ?.takeIf { response.isRedirect }
                     ?: return readBody(response)
@@ -190,6 +204,53 @@ class JsHttpBridge @Inject constructor(
         }
 
         return JsHttpResponse(ok = false, error = "Too many redirects")
+    }
+
+    /**
+     * Attach the stored cookies for this hop, but only where the hop belongs to the source.
+     *
+     * The rule the user chose: a source gets the cookies for its **own** registrable domain and
+     * nothing else. That keeps the case the shared jar exists for — a Cloudflare clearance cookie
+     * solved in the WebView for the source's own host, which is the only host it is ever issued
+     * for — while removing the one it opened: a source asking for `myanimelist.net` and being
+     * handed the user's session there.
+     *
+     * Registrable domain rather than exact host, because a source legitimately spans subdomains
+     * (`api.example.com` reading a session set on `example.com`), and [sourceUrls] carries both
+     * `baseUrl` and `apiUrl` for the sources whose API sits on a second domain entirely.
+     *
+     * A `Cookie` header the script set itself is left alone, for the same reason
+     * `UserAgentInterceptor` leaves a caller's User-Agent alone: it is the source managing its own
+     * request, and overwriting it would break sources that do their own session handling. It is
+     * also not a way around the scoping — that header holds what the script already knew, not what
+     * the user's jar holds.
+     */
+    private fun withScopedCookies(request: Request, sourceUrls: List<HttpUrl>): Request {
+        if (request.header("Cookie") != null) return request
+        if (!ownedBySource(request.url, sourceUrls)) return request
+
+        val cookies = cookieJar.loadForRequest(request.url)
+        if (cookies.isEmpty()) return request
+
+        return request.newBuilder()
+            .header("Cookie", cookies.joinToString("; ") { "${it.name}=${it.value}" })
+            .build()
+    }
+
+    /**
+     * Persist `Set-Cookie` from this hop, under the same ownership rule as sending.
+     *
+     * Symmetry is the point. Storing cookies from hosts a source does not own would let one source
+     * write into the shared store on another site's behalf — the same boundary, crossed the other
+     * way — and a session the source itself establishes has to survive to the next request or every
+     * login-based source breaks.
+     */
+    private fun storeScopedCookies(response: okhttp3.Response, sourceUrls: List<HttpUrl>) {
+        val url = response.request.url
+        if (!ownedBySource(url, sourceUrls)) return
+
+        val cookies = Cookie.parseAll(url, response.headers)
+        if (cookies.isNotEmpty()) cookieJar.saveFromResponse(url, cookies)
     }
 
     /**
@@ -278,6 +339,39 @@ private fun Headers.toSingleValueMap(): Map<String, String> =
 // carry the security-relevant decisions, so they are the part that most needs covering.
 
 /** True when the redirect target is a different origin, by scheme, host or port. */
+/**
+ * Whether [url] falls within one of the source's own registrable domains.
+ *
+ * The cookie-scoping rule: a JavaScript source is handed the stored cookies for its own domain and
+ * for nothing else. Top-level and `internal` so the policy can be tested as a policy — the same
+ * shape as [isOriginChange], and for the same reason: these are the rules that decide whether a
+ * credential travels, and they are worth pinning independently of the request machinery.
+ *
+ * `topPrivateDomain()` consults the public suffix list, so `example.co.uk` is one registrable
+ * domain rather than "co.uk" — comparing suffixes by hand is exactly how a check like this ends up
+ * treating every `*.co.uk` site as related. It returns null for a bare IP and for a host that *is*
+ * a public suffix; there the comparison falls back to an exact host match, which is the strict
+ * reading, and strict is right for a decision about credentials.
+ *
+ * Note this is deliberately *looser* than [isOriginChange], which treats a subdomain as a different
+ * origin. That one governs forwarding a header the script already holds across a redirect the
+ * script chose. This one governs which of the user's stored cookies a source may see at all, where
+ * a source spanning `example.com` and `api.example.com` is ordinary and not being able to read its
+ * own session would break it.
+ *
+ * An empty [sourceUrls] means the request arrived with no provenance; the answer is no.
+ */
+internal fun ownedBySource(url: HttpUrl, sourceUrls: List<HttpUrl>): Boolean =
+    sourceUrls.any { source ->
+        val urlDomain = url.topPrivateDomain()
+        val sourceDomain = source.topPrivateDomain()
+        if (urlDomain != null && sourceDomain != null) {
+            urlDomain.equals(sourceDomain, ignoreCase = true)
+        } else {
+            url.host.equals(source.host, ignoreCase = true)
+        }
+    }
+
 internal fun isOriginChange(from: HttpUrl, to: HttpUrl): Boolean =
     from.scheme != to.scheme || from.host != to.host || from.port != to.port
 
