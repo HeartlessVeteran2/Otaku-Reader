@@ -233,6 +233,15 @@ sealed class LibraryEvent {
     data object MarkSelectedAsUnread : LibraryEvent()
     data object RemoveSelectedFromLibrary : LibraryEvent()
     data object DownloadSelected : LibraryEvent()
+    /**
+     * Turns new-chapter notifications on or off for every selected manga (#1131).
+     *
+     * One button rather than separate on/off actions, resolved by what is selected: if every
+     * selected manga already has notifications on, this turns them off; otherwise it turns them
+     * all on. That makes the outcome predictable from what the user can see, and makes a mistaken
+     * tap reversible by tapping again — which two separate actions would not be.
+     */
+    data object ToggleSelectedNotifications : LibraryEvent()
     data object MarkSelectedAsCompleted : LibraryEvent()
     data object MarkSelectedAsDropped : LibraryEvent()
     // Continue Reading

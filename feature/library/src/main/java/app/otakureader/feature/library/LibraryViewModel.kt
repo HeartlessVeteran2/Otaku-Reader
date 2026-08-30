@@ -20,6 +20,7 @@ import app.otakureader.domain.usecase.GetContinueReadingUseCase
 import app.otakureader.domain.usecase.GetLibraryMangaUseCase
 import app.otakureader.domain.usecase.GetRecommendationsUseCase
 import app.otakureader.domain.usecase.SearchLibraryMangaUseCase
+import app.otakureader.domain.usecase.SetMangaNotificationsUseCase
 import app.otakureader.domain.usecase.ToggleFavoriteMangaUseCase
 import app.otakureader.core.extension.domain.repository.ExtensionRepository
 import app.otakureader.domain.repository.EhFavoritesRepository
@@ -80,6 +81,7 @@ class LibraryViewModel @Inject constructor(
     private val getRecommendations: GetRecommendationsUseCase,
     private val libraryUpdateScheduler: LibraryUpdateScheduler,
     private val reindexDownloads: ReindexDownloadsUseCase,
+    private val setMangaNotifications: SetMangaNotificationsUseCase,
     private val syncEhFavorites: SyncEhFavoritesUseCase,
     private val ehFavoritesRepository: EhFavoritesRepository,
     private val syncLibrary: SyncLibraryUseCase,
@@ -165,6 +167,7 @@ class LibraryViewModel @Inject constructor(
             is LibraryEvent.ToggleFavorite, is LibraryEvent.MarkSelectedAsRead,
             is LibraryEvent.MarkSelectedAsUnread, is LibraryEvent.RemoveSelectedFromLibrary,
             is LibraryEvent.DownloadSelected, is LibraryEvent.MarkSelectedAsCompleted,
+            is LibraryEvent.ToggleSelectedNotifications,
             is LibraryEvent.MarkSelectedAsDropped, is LibraryEvent.ShareSelectedManga,
             is LibraryEvent.ViewSelectedManga, is LibraryEvent.UndoLibraryDelete,
             is LibraryEvent.OpenMoveToCategoryDialog, is LibraryEvent.DismissMoveToCategoryDialog,
@@ -277,6 +280,7 @@ class LibraryViewModel @Inject constructor(
             is LibraryEvent.MarkSelectedAsUnread -> markSelectedAsUnread()
             is LibraryEvent.RemoveSelectedFromLibrary -> removeSelectedFromLibrary()
             is LibraryEvent.DownloadSelected -> downloadSelected()
+            is LibraryEvent.ToggleSelectedNotifications -> toggleSelectedNotifications()
             is LibraryEvent.MarkSelectedAsCompleted -> markSelectedAsCompleted()
             is LibraryEvent.MarkSelectedAsDropped -> markSelectedAsDropped()
             is LibraryEvent.ShareSelectedManga -> shareSelectedManga()
@@ -881,6 +885,36 @@ class LibraryViewModel @Inject constructor(
                     )
                 }
             }
+        }
+    }
+
+    /**
+     * Flips new-chapter notifications for the whole selection (#1131).
+     *
+     * The direction is decided from the *current* rows rather than a stored toggle: everything on
+     * means turn it off, anything off means turn it all on. Read in one query for the selection —
+     * `LibraryMangaItem` does not carry the flag, and adding it to the list model just to decide
+     * a direction would put a field on every row for the benefit of one action.
+     */
+    private fun toggleSelectedNotifications() {
+        val mangaIds = selection.snapshotAndClear()
+        if (mangaIds.isEmpty()) return
+        viewModelScope.launch {
+            val selected = mangaRepository.getMangaByIds(mangaIds.toList())
+            // An empty result would make `all` vacuously true and silently mean "turn everything
+            // off", so absence is treated as "turn it on" instead.
+            val enable = selected.isEmpty() || !selected.all { it.notifyNewChapters }
+            mangaIds.forEach { setMangaNotifications(it, enable) }
+            _effect.send(
+                LibraryEffect.ShowSnackbar(
+                    messageRes = if (enable) {
+                        R.string.library_notifications_enabled
+                    } else {
+                        R.string.library_notifications_disabled
+                    },
+                    formatArgs = listOf(mangaIds.size),
+                ),
+            )
         }
     }
 

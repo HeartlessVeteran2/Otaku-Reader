@@ -43,6 +43,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.just
+import app.otakureader.domain.usecase.SetMangaNotificationsUseCase
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -87,6 +88,7 @@ class LibraryViewModelTest {
     private val reindexDownloads: ReindexDownloadsUseCase = mockk {
         coEvery { this@mockk.invoke() } returns ReindexResult(verifiedDownloads = 5, emptyDirs = 0)
     }
+    private val setMangaNotifications: SetMangaNotificationsUseCase = mockk(relaxed = true)
     private val syncEhFavorites: SyncEhFavoritesUseCase = mockk(relaxed = true)
     private val ehFavoritesRepository: EhFavoritesRepository = mockk {
         every { isConfigured() } returns false
@@ -217,6 +219,7 @@ class LibraryViewModelTest {
             getRecommendations,
             libraryUpdateScheduler,
             reindexDownloads,
+            setMangaNotifications,
             syncEhFavorites,
             ehFavoritesRepository,
             syncLibrary,
@@ -1072,5 +1075,86 @@ class LibraryViewModelTest {
     private companion object {
         /** Matches the raw Tachiyomi id an installed extension reports. */
         const val INSTALLED_SOURCE_ID = 10L
+    }
+
+    // ── Per-series new-chapter notifications (#1131) ─────────────────────────
+
+    private fun selectAllThree(viewModel: LibraryViewModel) {
+        listOf(1L, 2L, 3L).forEach { viewModel.onEvent(LibraryEvent.OnMangaLongClick(it)) }
+        testDispatcher.scheduler.advanceUntilIdle()
+    }
+
+    /**
+     * Mixed selection turns everything **on**. Anything else would leave the user tapping twice to
+     * reach a state they can predict, and would silently mute titles they had already enabled.
+     */
+    @Test
+    fun toggleSelectedNotifications_enablesAllWhenAnyAreOff() = runTest {
+        every { getLibraryManga() } returns flowOf(sampleMangas)
+        coEvery { mangaRepository.getMangaByIds(any()) } returns listOf(
+            sampleMangas[0].copy(notifyNewChapters = true),
+            sampleMangas[1].copy(notifyNewChapters = false),
+            sampleMangas[2].copy(notifyNewChapters = true),
+        )
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        selectAllThree(viewModel)
+
+        viewModel.onEvent(LibraryEvent.ToggleSelectedNotifications)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 3) { setMangaNotifications(any(), true) }
+        coVerify(exactly = 0) { setMangaNotifications(any(), false) }
+    }
+
+    /** Only when every selected title is already on does the button mean "turn them off". */
+    @Test
+    fun toggleSelectedNotifications_disablesAllWhenEveryOneIsOn() = runTest {
+        every { getLibraryManga() } returns flowOf(sampleMangas)
+        coEvery { mangaRepository.getMangaByIds(any()) } returns
+            sampleMangas.map { it.copy(notifyNewChapters = true) }
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        selectAllThree(viewModel)
+
+        viewModel.onEvent(LibraryEvent.ToggleSelectedNotifications)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 3) { setMangaNotifications(any(), false) }
+    }
+
+    /**
+     * An empty lookup must not read as "everything is already on".
+     *
+     * `all {}` is vacuously true on an empty list, so a failed or racing read would otherwise mute
+     * every selected title — the destructive direction, chosen by an absence of data.
+     */
+    @Test
+    fun toggleSelectedNotifications_treatsAnEmptyLookupAsEnable() = runTest {
+        every { getLibraryManga() } returns flowOf(sampleMangas)
+        coEvery { mangaRepository.getMangaByIds(any()) } returns emptyList()
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        selectAllThree(viewModel)
+
+        viewModel.onEvent(LibraryEvent.ToggleSelectedNotifications)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 0) { setMangaNotifications(any(), false) }
+    }
+
+    /** The selection clears, like every other bulk action. */
+    @Test
+    fun toggleSelectedNotifications_clearsTheSelection() = runTest {
+        every { getLibraryManga() } returns flowOf(sampleMangas)
+        coEvery { mangaRepository.getMangaByIds(any()) } returns sampleMangas
+        val viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        selectAllThree(viewModel)
+
+        viewModel.onEvent(LibraryEvent.ToggleSelectedNotifications)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(viewModel.state.value.selectedManga.isEmpty())
     }
 }

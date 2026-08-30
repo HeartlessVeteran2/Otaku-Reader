@@ -89,6 +89,9 @@
     <!-- Bulk selection actions -->
     <string name="library_deselect_all">Deselect all</string>
     <string name="library_mark_selected_read">Mark as read</string>
+    <string name="library_notify_new_chapters">Notify</string>
+    <string name="library_notifications_enabled">New-chapter alerts on for %1$d title(s)</string>
+    <string name="library_notifications_disabled">New-chapter alerts off for %1$d title(s)</string>
     <string name="library_mark_selected_unread">Mark as unread</string>
     <string name="library_download_selected">Download selected</string>
     <string name="library_move_to_category">Move to category</string>
