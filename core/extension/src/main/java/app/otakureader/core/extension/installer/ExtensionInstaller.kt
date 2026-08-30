@@ -59,6 +59,9 @@ class ExtensionInstaller(
         private const val DOWNLOADS_DIR = "extension_downloads"
     }
     
+    /** Survives process death so an interrupted JavaScript install can be cleaned up (#1229). */
+    private val pendingJsInstalls = PendingJsInstalls(context)
+
     private val _installationState = MutableStateFlow<InstallationState>(InstallationState.Idle)
     val installationState: Flow<InstallationState> = _installationState.asStateFlow()
     
@@ -250,11 +253,28 @@ class ExtensionInstaller(
             return Result.failure(lookupError)
         }
 
+        // Mark the install as in flight before anything is written, and fail closed if the marker
+        // cannot be written — same reasoning as the row lookup above. Without it, a process death
+        // between the script landing on disk and the row being written leaves a source that runs
+        // and cannot be uninstalled, because uninstall finds its target through the database.
+        if (!pendingJsInstalls.begin(extension.pkgName)) {
+            val error = IllegalStateException(
+                "Could not record a pending install for ${extension.pkgName}",
+            )
+            _installationState.value = InstallationState.Error(
+                "Installation failed: ${error.message}",
+                error,
+            )
+            return Result.failure(error)
+        }
+
         _installationState.value = InstallationState.Downloading(0)
 
         val installed = backend.install(extension)
         if (installed.isFailure) {
             val error = installed.exceptionOrNull() ?: Exception("JavaScript install failed")
+            // Nothing was registered, so there is nothing for a sweep to reconcile.
+            pendingJsInstalls.finish(extension.pkgName)
             _installationState.value = InstallationState.Error(
                 "Installation failed: ${error.message}",
                 error
@@ -268,6 +288,46 @@ class ExtensionInstaller(
         return repository.installExtension(extension, apkPath = "")
             .onSuccess { _installationState.value = InstallationState.Success(it) }
             .onFailure { error -> reconcileFailedInstall(extension, backend, priorRow, error) }
+            // Cleared on both outcomes. Once reconciliation has run the two stores agree, so a
+            // marker left behind would make the next launch re-examine a settled install — and,
+            // finding no row for one that legitimately failed, delete a script reconciliation had
+            // already accounted for.
+            .also { pendingJsInstalls.finish(extension.pkgName) }
+    }
+
+    /**
+     * Removes JavaScript scripts left behind by an install that never finished (#1229, item 2a).
+     *
+     * Run once at startup. Every marker still present is an install that began and was never
+     * confirmed, which for a JavaScript source means the process died between registering the
+     * script and writing its row — the one orphan window no in-process guard can close.
+     *
+     * The row is what decides, and the reading is deliberately narrow: only a row that is both
+     * JavaScript and `INSTALLED` counts as "the install completed after all". Anything else —
+     * absent, `ERROR`, `AVAILABLE`, or an APK row that merely shares the package name — means
+     * nothing can reach the script through the normal uninstall path, so it is removed. That
+     * mirrors [reconcileFailedInstall]: an APK row is never treated as protection for a script.
+     *
+     * A lookup that *fails* leaves the marker alone rather than deleting on a guess, so the sweep
+     * simply runs again next launch. This is the reverse of the fail-closed rule at install time,
+     * and for the same reason: there, refusing avoids creating an unreachable artifact; here,
+     * refusing avoids destroying a reachable one.
+     *
+     * @return how many orphaned scripts were removed.
+     */
+    suspend fun sweepInterruptedJsInstalls(): Int {
+        val backend = jsBackend ?: return 0
+        var removed = 0
+        for (sourceId in pendingJsInstalls.pending()) {
+            val row = lookupRow(sourceId).getOrElse { continue }
+            val completed = row != null && row.isJavaScript && row.status == InstallStatus.INSTALLED
+            if (!completed) {
+                backend.uninstall(sourceId)
+                removed++
+            }
+            pendingJsInstalls.finish(sourceId)
+        }
+        return removed
     }
 
     /**
