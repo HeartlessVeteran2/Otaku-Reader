@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added — Sources
 - **JavaScript sources** — published Mangayomi sources now run unmodified alongside the existing APK extensions, with no APK install: a sandboxed engine in a separate process, a compatibility prelude providing the object API sources expect, and per-source preferences that honour a source's own declared defaults. The two backends ship side by side; the APK path still carries the great majority of the catalogue (#1262, #1264)
 
+### Added — Settings
+- **Advanced settings screen** (Settings → Advanced). Override the **user agent** sent to sources, route hostname lookups through a **DNS-over-HTTPS** resolver (Cloudflare, Google, AdGuard or Quad9) to reach sources your network's DNS won't answer for, turn on **verbose network logging** while troubleshooting, and **clear cookies** when a source is stuck asking you to solve the same Cloudflare challenge. All three network settings apply to the next request — no restart. Also collects the background-restriction shortcuts that were previously only reachable during first-run setup: the battery-optimisation exemption and the "Don't kill my app" guide (#1208)
+
 ### Added — Bookmarks
 - **Save bookmarked pages to the device gallery**, and **share them as images** to any app. Multi-select in the bookmarks list; pages you downloaded come off disk (and out of CBZ archives), pages you read online are fetched on demand. Partial results are reported honestly — "N saved, M could not be loaded" — and a device that cannot write to the gallery at all says so rather than reporting an empty export. Replaces a button that showed "image export coming in v1.1" and did nothing, and a Share action that sent a text list instead of images (#1132, #1133)
 

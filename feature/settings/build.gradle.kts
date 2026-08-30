@@ -11,6 +11,8 @@ android {
 dependencies {
     implementation(projects.core.common)
     implementation(projects.core.preferences)
+    // NetworkSettings and WebViewCookieJar back the Advanced screen's network section.
+    implementation(projects.core.network)
     implementation(projects.core.discord)
     implementation(libs.paging.compose)
     implementation(libs.lifecycle.viewmodel.ktx)
