@@ -1,14 +1,19 @@
 package app.otakureader.data.download
 
 import java.io.File
+import java.io.InputStream
+import java.io.OutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import app.otakureader.core.network.RequestCategory
 import app.otakureader.core.network.di.PageImageOkHttp
+import app.otakureader.core.common.net.await
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
@@ -46,19 +51,43 @@ class Downloader @Inject constructor(
                     val request = Request.Builder().url(url)
                         .tag(RequestCategory::class.java, RequestCategory.DOWNLOAD)
                         .build()
-                    okHttpClient.newCall(request).execute().use { response ->
+                    okHttpClient.newCall(request).await().use { response ->
                         if (!response.isSuccessful) {
                             error("HTTP ${response.code}: ${response.message}")
                         }
                         val body = checkNotNull(response.body) { "Empty response body for $url" }
                         destFile.outputStream().use { out ->
-                            body.byteStream().use { it.copyTo(out) }
+                            body.byteStream().use { input -> copyCancellably(input, out) }
                         }
                     }
                     return@withContext Result.success(destFile)
                 } catch (e: CancellationException) {
+                    // Clean up before rethrowing. `copyCancellably` reports cancellation as a
+                    // CancellationException, so this — not the branch below — is the path a
+                    // cancelled download actually takes, and rethrowing first would skip the
+                    // cleanup on exactly the case it exists for.
+                    destFile.delete()
                     throw e
                 } catch (e: Exception) {
+                    // A cancelled call surfaces here as an IOException, not a
+                    // CancellationException — OkHttp reports cancellation by failing the
+                    // in-flight read, so the `catch (CancellationException)` above never sees it
+                    // and this branch runs. Reachable only since the call became cancellable
+                    // (#1231): a blocking execute() plus a non-cancellable copyTo meant
+                    // cancellation was never observed mid-transfer.
+                    //
+                    // Only the cleanup is needed. An explicit `ensureActive()` was tried here and
+                    // removed as provably dead: `withContext` refuses to deliver a result to a
+                    // cancelled coroutine, so a cancelled download already throws rather than
+                    // returning `Result.failure` — verified by removing the check and watching
+                    // the test that asserts it still pass.
+                    //
+                    // copyTo writes straight into destFile, and `outputStream()` creates the file
+                    // the moment it opens, so an interrupted transfer leaves a truncated or empty
+                    // file behind. The reader decides a page is downloaded by asking whether that
+                    // file exists, so leaving one serves a corrupt page for good: the chapter is
+                    // already marked done and nothing re-fetches it.
+                    destFile.delete()
                     lastError = e
                     attempt++
                     if (attempt < MAX_RETRIES) {
@@ -69,7 +98,31 @@ class Downloader @Inject constructor(
             Result.failure(lastError ?: Exception("Download failed"))
         }
 
+    /**
+     * Copies [input] to [output], giving up promptly when the coroutine is cancelled.
+     *
+     * `copyTo` cannot be used here, and the reason is easy to miss: [await] arms
+     * `invokeOnCancellation` only while it is *suspended* waiting for the response. Once the
+     * headers arrive it resumes and that handler is gone, so cancelling during the body transfer
+     * does not cancel the OkHttp call — a plain `copyTo` would keep reading to the end of a
+     * multi-megabyte page and only then notice. Making the request cancellable is therefore
+     * necessary but not sufficient; the reader has to cooperate too.
+     *
+     * Checking between chunks rather than mid-read is the honest limit: a read that blocks
+     * forever is still bounded by OkHttp's read timeout, not by this.
+     */
+    private suspend fun copyCancellably(input: InputStream, output: OutputStream) {
+        val buffer = ByteArray(COPY_BUFFER_BYTES)
+        while (true) {
+            currentCoroutineContext().ensureActive()
+            val read = input.read(buffer)
+            if (read < 0) break
+            output.write(buffer, 0, read)
+        }
+    }
+
     private companion object {
+        const val COPY_BUFFER_BYTES = 8 * 1024
         const val MAX_RETRIES = 3
         const val RETRY_BASE_DELAY_MS = 1_000L
     }

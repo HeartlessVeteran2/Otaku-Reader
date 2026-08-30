@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import app.otakureader.core.common.net.await
 import app.otakureader.core.network.di.PageImageOkHttp
 import app.otakureader.data.download.DownloadProvider
 import app.otakureader.domain.bookmark.BookmarkPageExporter
@@ -158,9 +159,9 @@ class BookmarkPageExporterImpl @Inject constructor(
             .orEmpty()
     }
 
-    private fun download(ref: BookmarkPageRef, url: String): PageImage? {
+    private suspend fun download(ref: BookmarkPageRef, url: String): PageImage? {
         val request = Request.Builder().url(url).build()
-        pageImageClient.newCall(request).execute().use { response ->
+        pageImageClient.newCall(request).await().use { response ->
             if (!response.isSuccessful) return null
             val bytes = response.body?.bytes() ?: return null
             if (bytes.isEmpty()) return null

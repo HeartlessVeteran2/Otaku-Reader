@@ -25,6 +25,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import app.otakureader.core.network.RequestCategory
+import app.otakureader.core.common.net.await
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.util.concurrent.TimeUnit
@@ -146,7 +147,7 @@ class AppUpdateChecker @Inject constructor(
                 .tag(RequestCategory::class.java, RequestCategory.UPDATE)
                 .build()
 
-            val body = okHttpClient.newCall(request).execute().use { response ->
+            val body = okHttpClient.newCall(request).await().use { response ->
                 if (!response.isSuccessful) return@withContext null
                 response.body?.string()
             } ?: return@withContext null

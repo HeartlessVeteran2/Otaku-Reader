@@ -17,6 +17,7 @@ import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonDecoder
 import kotlinx.serialization.json.JsonPrimitive
+import app.otakureader.core.common.net.await
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.ResponseBody
@@ -337,7 +338,7 @@ class JsExtensionRemoteDataSource @Inject constructor(
      *   filename is shared with the APK backend and a foreign index is the expected answer from an
      *   APK-only repository.
      */
-    private fun fetchIndex(baseUrl: String): IndexResult {
+    private suspend fun fetchIndex(baseUrl: String): IndexResult {
         // Null only for a genuine 404. Anything else — a 500, a timeout, an oversized body —
         // propagates, so a broken JavaScript index cannot be hidden behind the combined endpoint.
         val dedicated = fetchIndexBodyOrNull(baseUrl + DEDICATED_INDEX_PATH)
@@ -365,17 +366,17 @@ class JsExtensionRemoteDataSource @Inject constructor(
     }
 
     /** The body, or null when the path is genuinely absent. Every other failure propagates. */
-    private fun fetchIndexBodyOrNull(indexUrl: String): String? =
+    private suspend fun fetchIndexBodyOrNull(indexUrl: String): String? =
         try {
             fetchIndexBody(indexUrl)
         } catch (e: JsExtensionNotFoundException) {
             null
         }
 
-    private fun fetchIndexBody(indexUrl: String): String {
+    private suspend fun fetchIndexBody(indexUrl: String): String {
         requireHttps(indexUrl)
 
-        return httpClient.newCall(Request.Builder().url(indexUrl).build()).execute().use { response ->
+        return httpClient.newCall(Request.Builder().url(indexUrl).build()).await().use { response ->
             // 404 is the one status that means "this repository does not offer this path", which
             // is an answer rather than a fault. Every other unsuccessful status is a fault.
             //
@@ -446,7 +447,7 @@ class JsExtensionRemoteDataSource @Inject constructor(
     suspend fun downloadScript(scriptUrl: String): String = withContext(Dispatchers.IO) {
         requireHttps(scriptUrl)
 
-        httpClient.newCall(Request.Builder().url(scriptUrl).build()).execute().use { response ->
+        httpClient.newCall(Request.Builder().url(scriptUrl).build()).await().use { response ->
             if (!response.isSuccessful) {
                 throw JsExtensionFetchException("HTTP ${response.code} downloading $scriptUrl")
             }
