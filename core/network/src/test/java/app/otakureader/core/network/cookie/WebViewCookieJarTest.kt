@@ -27,9 +27,10 @@ class WebViewCookieJarTest {
             written += url to value
         }
 
-        override suspend fun clear() {
+        override suspend fun clear(): Boolean {
             written.clear()
             header = null
+            return true
         }
     }
 

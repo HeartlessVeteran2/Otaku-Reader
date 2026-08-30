@@ -68,12 +68,15 @@ fun SettingsAdvancedScreen(
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val cookiesClearedMessage = stringResource(R.string.settings_advanced_cookies_cleared)
+    val cookiesClearFailedMessage = stringResource(R.string.settings_advanced_cookies_clear_failed)
 
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
             when (effect) {
                 AdvancedSettingsEffect.CookiesCleared ->
                     snackbarHostState.showSnackbar(cookiesClearedMessage)
+                AdvancedSettingsEffect.CookieClearFailed ->
+                    snackbarHostState.showSnackbar(cookiesClearFailedMessage)
             }
         }
     }

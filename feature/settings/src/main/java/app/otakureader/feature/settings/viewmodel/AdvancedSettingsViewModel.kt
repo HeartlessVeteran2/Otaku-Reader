@@ -64,8 +64,14 @@ class AdvancedSettingsViewModel @Inject constructor(
                 preferences.setVerboseLogging(event.enabled)
             }
             AdvancedSettingsEvent.ClearCookies -> viewModelScope.launch {
-                cookieJar.clear()
-                _effect.send(AdvancedSettingsEffect.CookiesCleared)
+                val cleared = cookieJar.clear()
+                _effect.send(
+                    if (cleared) {
+                        AdvancedSettingsEffect.CookiesCleared
+                    } else {
+                        AdvancedSettingsEffect.CookieClearFailed
+                    },
+                )
             }
         }
     }
