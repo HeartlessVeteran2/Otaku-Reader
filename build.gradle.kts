@@ -93,7 +93,7 @@ allprojects {
             force("ch.qos.logback:logback-classic:1.5.25")
 
             // Plexus Utils - fixes directory traversal (CVSS 7.5)
-            force("org.codehaus.plexus:plexus-utils:4.0.3")
+            force("org.codehaus.plexus:plexus-utils:4.1.0")
         }
     }
 }
