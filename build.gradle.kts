@@ -75,7 +75,7 @@ allprojects {
             force("org.jdom:jdom2:2.0.6.1")
 
             // jose4j - fixes DoS via compressed JWE (CVSS 7.5)
-            force("org.bitbucket.b_c:jose4j:0.9.6")
+            force("org.bitbucket.b_c:jose4j:0.9.7")
 
             // Apache Commons Lang - fixes uncontrolled recursion
             force("org.apache.commons:commons-lang3:3.20.0")
