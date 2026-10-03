@@ -75,25 +75,25 @@ allprojects {
             force("org.jdom:jdom2:2.0.6.1")
 
             // jose4j - fixes DoS via compressed JWE (CVSS 7.5)
-            force("org.bitbucket.b_c:jose4j:0.9.6")
+            force("org.bitbucket.b_c:jose4j:0.9.7")
 
             // Apache Commons Lang - fixes uncontrolled recursion
-            force("org.apache.commons:commons-lang3:3.20.0")
+            force("org.apache.commons:commons-lang3:3.21.0")
 
             // Apache HttpClient - fixes XSS
             force("org.apache.httpcomponents:httpclient:4.5.14")
 
             // Log4j Core - fixes XMLLayout sanitization and RCE (CVE-2021-44228); bumped to 2.25.4
-            force("org.apache.logging.log4j:log4j-core:2.25.4")
+            force("org.apache.logging.log4j:log4j-core:2.26.1")
 
             // logback — fixes CVE-2024-12798 (ACE, 7.3), CVE-2023-6378 (DoS, 7.1),
             // CVE-2025-11226 (ACE, 6.9), CVE-2026-1225 (class instantiation, 5.0),
             // CVE-2024-12801 (SSRF, 4.6); all resolved in 1.5.18+
-            force("ch.qos.logback:logback-core:1.5.25")
-            force("ch.qos.logback:logback-classic:1.5.25")
+            force("ch.qos.logback:logback-core:1.6.4")
+            force("ch.qos.logback:logback-classic:1.6.4")
 
             // Plexus Utils - fixes directory traversal (CVSS 7.5)
-            force("org.codehaus.plexus:plexus-utils:4.0.3")
+            force("org.codehaus.plexus:plexus-utils:4.1.0")
         }
     }
 }
